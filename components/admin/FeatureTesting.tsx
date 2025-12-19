@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Button from '../common/Button';
 import { useBiometric } from '../../hooks/useBiometric';
@@ -105,7 +104,7 @@ const FeatureTesting: React.FC = () => {
                     if (!error && (status === 200 || status === 204)) {
                         success = true;
                         logMessage = `Supabase Connection OK (${duration}ms).`;
-                        technicalDetails = `Status: ${status} ${statusText} | Latency: ${duration}ms | URL: ${supabase.supabaseUrl}`;
+                        technicalDetails = `Status: ${status} ${statusText} | Latency: ${duration}ms`;
                     } else {
                         success = false;
                         logMessage = `Supabase Connection Failed: ${error?.message}`;

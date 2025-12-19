@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
@@ -111,10 +110,17 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
     
     if (confirmed) {
         let result;
+        const payload = {
+            name: data.name,
+            type: data.type,
+            isActive: data.isActive,
+            productIds: data.productIds
+        };
+
         if (farm) {
-          result = await updateFarm({ ...data, id: farm.id });
+          result = await updateFarm({ ...payload, id: farm.id });
         } else {
-          result = await addFarm(data);
+          result = await addFarm(payload);
         }
 
         if (result.success) {

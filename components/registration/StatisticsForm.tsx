@@ -23,7 +23,7 @@ const StatisticsForm: React.FC = () => {
     const [selectedFarmId, setSelectedFarmId] = useState<string>(userFarms[0]?.id || '');
     const selectedFarm = userFarms.find(f => f.id === selectedFarmId);
 
-    const { control, register, handleSubmit, watch, replace, setValue } = useForm({
+    const { control, register, handleSubmit, watch, setValue } = useForm({
         defaultValues: {
             date: getTodayJalali(),
             items: [] as any[]
