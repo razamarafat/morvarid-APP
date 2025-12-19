@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -129,9 +128,9 @@ const InvoiceForm: React.FC = () => {
         }
     };
 
-    const inputClass = "w-full p-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl bg-white text-gray-900 dark:bg-gray-800 dark:text-white focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors";
+    const inputClass = "w-full p-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl bg-white text-gray-900 dark:bg-gray-900 dark:text-white focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors placeholder-gray-400 dark:placeholder-gray-500";
 
-    if (!selectedFarm) return <div className="text-center p-8">فارمی یافت نشد.</div>;
+    if (!selectedFarm) return <div className="text-center p-8 text-gray-500 dark:text-gray-400">فارمی یافت نشد.</div>;
 
     return (
         <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 rounded-[24px] shadow-xl overflow-hidden border border-gray-100 dark:border-gray-700">
@@ -149,10 +148,10 @@ const InvoiceForm: React.FC = () => {
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                     <div className="bg-yellow-50 dark:bg-yellow-900/10 p-4 rounded-2xl border-2 border-yellow-100 dark:border-yellow-900/30">
                         <label className="flex items-center gap-4 cursor-pointer">
-                            <input type="checkbox" {...register('isYesterday')} className="w-6 h-6 text-orange-600 rounded-lg focus:ring-orange-500 border-gray-300" />
+                            <input type="checkbox" {...register('isYesterday')} className="w-6 h-6 text-orange-600 rounded-lg focus:ring-orange-500 border-gray-300 dark:border-gray-600 dark:bg-gray-700" />
                             <div className="flex flex-col">
                                 <span className="font-bold text-gray-800 dark:text-gray-200">حواله دیروزی</span>
-                                <span className="text-xs text-gray-500 mt-1">اگر بارگیری دیروز انجام شده و امروز ثبت می‌کنید، این گزینه را تیک بزنید.</span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">اگر بارگیری دیروز انجام شده و امروز ثبت می‌کنید، این گزینه را تیک بزنید.</span>
                             </div>
                         </label>
                     </div>
@@ -239,7 +238,7 @@ const InvoiceForm: React.FC = () => {
                     <textarea 
                         value={smsText}
                         onChange={(e) => setSmsText(e.target.value)}
-                        className="w-full h-32 p-3 border rounded-lg dark:bg-gray-700 dark:text-white"
+                        className="w-full h-32 p-3 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:border-orange-500 outline-none"
                         placeholder="متن پیامک..."
                     />
                     <div className="flex justify-end gap-2">

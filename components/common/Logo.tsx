@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 interface LogoProps {
@@ -15,7 +14,7 @@ const Logo: React.FC<LogoProps> = ({ className = "w-24 h-24" }) => {
       </defs>
       {/* Egg Shape with theme-aware stroke */}
       <path 
-        className="fill-white dark:fill-gray-200 stroke-gray-300 dark:stroke-gray-500" 
+        className="fill-white dark:fill-gray-700 stroke-gray-300 dark:stroke-gray-500" 
         strokeWidth="6" 
         d="M100 20c-40 0-70 50-70 100 0 45 30 75 70 75s70-30 70-75c0-50-30-100-70-100z"
         style={{ filter: 'url(#shadow)' }}
@@ -28,7 +27,7 @@ const Logo: React.FC<LogoProps> = ({ className = "w-24 h-24" }) => {
       <path d="M70 85 q5 -10 15 0" className="stroke-red-500 dark:stroke-red-600" strokeWidth="3" fill="none"/>
       {/* Broken Shell */}
       <path 
-        className="fill-white dark:fill-gray-200 stroke-gray-300 dark:stroke-gray-500" 
+        className="fill-white dark:fill-gray-700 stroke-gray-300 dark:stroke-gray-500" 
         strokeWidth="4" 
         d="M35 130 l20 20 l20 -10 l25 25 l30 -20 l25 30 c-5 15 -25 20 -55 20 s-60 -20 -65 -65" 
       />

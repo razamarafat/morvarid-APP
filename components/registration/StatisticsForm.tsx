@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { useAuthStore } from '../../store/authStore';
@@ -100,10 +99,6 @@ const StatisticsForm: React.FC = () => {
             const normalizedDate = toEnglishDigits(data.date);
 
             for (const item of data.items) {
-                // Skip empty items if they have no production/sales in "MOTEFEREGHE" to avoid clutter? 
-                // No, we usually want to record 0 for consistency, or maybe logic depends. 
-                // For now we record everything.
-
                 const result = await addStatistic({
                     farmId: selectedFarmId,
                     date: normalizedDate,
@@ -127,7 +122,6 @@ const StatisticsForm: React.FC = () => {
 
             if (errorCount === 0) {
                 addToast('تمام آمارها با موفقیت ثبت شدند', 'success');
-                 // Reset for next day logic
                 const resetItems = data.items.map((item: any) => ({ 
                     ...item, 
                     production: '', 
@@ -143,9 +137,9 @@ const StatisticsForm: React.FC = () => {
         }
     };
 
-    const inputClass = "w-full p-3 bg-white text-gray-900 dark:bg-gray-900 dark:text-white border-2 border-gray-300 dark:border-gray-600 rounded-2xl focus:border-orange-500 focus:ring-0 transition-colors text-center font-bold text-lg placeholder-gray-300";
+    const inputClass = "w-full p-3 bg-white dark:bg-gray-900 text-gray-900 dark:text-white border-2 border-gray-300 dark:border-gray-600 rounded-2xl focus:border-orange-500 focus:ring-0 transition-colors text-center font-bold text-lg placeholder-gray-400 dark:placeholder-gray-500";
 
-    if (!selectedFarm) return <div className="text-center p-8 text-gray-500">هیچ فارمی به شما تخصیص داده نشده است.</div>;
+    if (!selectedFarm) return <div className="text-center p-8 text-gray-500 dark:text-gray-400">هیچ فارمی به شما تخصیص داده نشده است.</div>;
 
     return (
         <div className="max-w-5xl mx-auto bg-white dark:bg-gray-800 rounded-[32px] shadow-xl overflow-hidden border border-gray-100 dark:border-gray-700">
@@ -216,7 +210,7 @@ const StatisticsForm: React.FC = () => {
                             ) : (
                                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 items-end">
                                     <div>
-                                        <label className="block text-xs font-bold text-gray-500 mb-2">مانده دیروز (قابل ویرایش)</label>
+                                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">مانده دیروز (قابل ویرایش)</label>
                                         <input 
                                             type="number"
                                             {...register(`items.${index}.previousBalance` as const)}
@@ -226,28 +220,28 @@ const StatisticsForm: React.FC = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-bold text-green-600 mb-2">تولید (+)</label>
+                                        <label className="block text-sm font-bold text-green-600 dark:text-green-500 mb-2">تولید (+)</label>
                                         <input 
                                             type="number"
                                             min="0"
                                             {...register(`items.${index}.production` as const)}
                                             placeholder="0"
-                                            className={`${inputClass} border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 focus:border-green-500`}
+                                            className={`${inputClass} border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 focus:border-green-500 bg-green-50 dark:bg-green-900/10`}
                                             onKeyDown={(e) => ["-", "e", "E", "+"].includes(e.key) && e.preventDefault()}
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-bold text-red-500 mb-2">فروش (-)</label>
+                                        <label className="block text-sm font-bold text-red-500 dark:text-red-400 mb-2">فروش (-)</label>
                                         <input 
                                             type="number"
                                             min="0"
                                             {...register(`items.${index}.sales` as const)}
                                             placeholder="0"
-                                            className={`${inputClass} border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 focus:border-red-500`}
+                                            className={`${inputClass} border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 focus:border-red-500 bg-red-50 dark:bg-red-900/10`}
                                             onKeyDown={(e) => ["-", "e", "E", "+"].includes(e.key) && e.preventDefault()}
                                         />
                                     </div>
-                                    <div className={`p-2 rounded-2xl border ${formItems[index].currentInventory < 0 ? 'bg-red-100 border-red-500 animate-pulse' : 'bg-orange-50 dark:bg-orange-900/20 border-orange-100 dark:border-orange-800'}`}>
+                                    <div className={`p-3 rounded-2xl border ${formItems[index].currentInventory < 0 ? 'bg-red-100 border-red-500 animate-pulse' : 'bg-orange-50 dark:bg-orange-900/20 border-orange-100 dark:border-orange-800'} h-[56px] flex flex-col justify-center`}>
                                         <label className="block text-xs font-bold text-orange-800 dark:text-orange-300 mb-1 text-center">موجودی نهایی</label>
                                         <div className={`text-xl font-black text-center ${formItems[index].currentInventory < 0 ? 'text-red-600' : 'text-orange-600 dark:text-orange-400'}`}>
                                              {formItems[index].currentInventory || 0}
