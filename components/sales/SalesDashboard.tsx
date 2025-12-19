@@ -255,4 +255,32 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
         { title: 'آمار فارم‌ها', icon: Icons.BarChart, view: 'farm-stats', desc: 'مشاهده تولید و موجودی روزانه' },
         { title: 'حواله‌های فروش', icon: Icons.FileText, view: 'invoices', desc: 'لیست حواله‌های بارگیری شده' },
         { title: 'گزارشات جامع', icon: Icons.FileText, view: 'reports', desc: 'خروجی اکسل از تمام داده‌ها' },
-        { title:
+        { title: 'رانندگان', icon: Icons.User, view: 'drivers', desc: 'مدیریت اطلاعات رانندگان (آزمایشی)' },
+    ];
+
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">
+            {cards.map((card, index) => (
+                <button
+                    key={index}
+                    onClick={() => onNavigate(card.view)}
+                    className="p-8 rounded-[32px] bg-white dark:bg-gray-800 shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 text-right group relative overflow-hidden border border-gray-100 dark:border-gray-700"
+                >
+                    <div className="absolute top-0 left-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl -ml-10 -mt-10 transition-all group-hover:bg-blue-500/10"></div>
+                    
+                    <div className="flex items-start justify-between mb-4 relative z-10">
+                        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-2xl text-blue-600 dark:text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                            <card.icon className="w-8 h-8" />
+                        </div>
+                        <Icons.ChevronLeft className="w-6 h-6 text-gray-300 group-hover:text-blue-500 transition-colors" />
+                    </div>
+                    
+                    <h3 className="text-2xl font-black text-gray-800 dark:text-gray-100 mb-2 relative z-10">{card.title}</h3>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm relative z-10">{card.desc}</p>
+                </button>
+            ))}
+        </div>
+    );
+};
+
+export default SalesDashboard;
