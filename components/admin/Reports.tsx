@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useStatisticsStore } from '../../store/statisticsStore';
 import { useInvoiceStore } from '../../store/invoiceStore';
 import { useFarmStore } from '../../store/farmStore';
@@ -20,6 +20,7 @@ const Reports: React.FC = () => {
     // Multi-select for products
     const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
     const [isProductDropdownOpen, setIsProductDropdownOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
     
     const [showResults, setShowResults] = useState(false);
 
@@ -27,6 +28,17 @@ const Reports: React.FC = () => {
     const { invoices } = useInvoiceStore();
     const { farms, products } = useFarmStore();
     const { addToast } = useToastStore();
+
+    // Click outside listener for product dropdown
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsProductDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const getFarmName = (id: string) => farms.find(f => f.id === id)?.name || 'نامشخص';
     const getProduct = (id: string) => products.find(p => p.id === id);
@@ -53,6 +65,10 @@ const Reports: React.FC = () => {
         return invoices.filter(i => {
             const dateMatch = isDateInRange(i.date, startDate, endDate);
             const farmMatch = selectedFarmId === 'all' || i.farmId === selectedFarmId;
+            // Invoice product matching:
+            // If specific products are selected, we show invoices that have one of those product IDs.
+            // If invoice has NO product ID (e.g. generic), it is excluded if specific products are selected.
+            // If "All Products" (empty list) is selected, we show all invoices.
             const productMatch = selectedProductIds.length === 0 || (i.productId && selectedProductIds.includes(i.productId));
             return dateMatch && farmMatch && productMatch;
         });
@@ -68,6 +84,8 @@ const Reports: React.FC = () => {
     const handleExport = () => {
         try {
             const wb = XLSX.utils.book_new();
+            
+            // Set Workbook View to RTL (affects tab bar)
             wb.Workbook = { Views: [{ RTL: true }] }; 
 
             let sheetName = '';
@@ -81,7 +99,7 @@ const Reports: React.FC = () => {
                         'تاریخ': s.date,
                         'فارم': getFarmName(s.farmId),
                         'محصول': p?.name,
-                        'واحد': p?.unit,
+                        'واحد': p?.unit === 'CARTON' ? 'کارتن' : 'کیلوگرم',
                         'مانده قبل': s.previousBalance || 0,
                         'تولید': s.production,
                         'فروش': s.sales || 0,
@@ -106,7 +124,7 @@ const Reports: React.FC = () => {
                 ws = XLSX.utils.json_to_sheet(invData);
             }
 
-            // Set Worksheet View to Right-to-Left
+            // Set Worksheet View to Right-to-Left (affects columns A, B, C...)
             if(!ws['!views']) ws['!views'] = [];
             ws['!views'].push({ rightToLeft: true });
 
@@ -151,7 +169,7 @@ const Reports: React.FC = () => {
                     </div>
                     
                     {/* Collapsible Multi-select Dropdown */}
-                    <div className="relative">
+                    <div className="relative" ref={dropdownRef}>
                         <label className="block text-sm font-medium mb-1 dark:text-gray-300">انتخاب محصول (چند انتخابی)</label>
                         <button 
                             className="w-full p-2.5 border rounded-lg bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white flex justify-between items-center text-sm"
@@ -170,7 +188,7 @@ const Reports: React.FC = () => {
                                         type="checkbox" 
                                         checked={selectedProductIds.length === 0}
                                         onChange={() => setSelectedProductIds([])}
-                                        className="rounded text-violet-600"
+                                        className="rounded text-violet-600 focus:ring-violet-500"
                                     />
                                     <span className="text-sm dark:text-white font-bold">همه محصولات</span>
                                 </label>
@@ -180,7 +198,7 @@ const Reports: React.FC = () => {
                                             type="checkbox" 
                                             checked={selectedProductIds.includes(p.id)}
                                             onChange={() => toggleProduct(p.id)}
-                                            className="rounded text-violet-600"
+                                            className="rounded text-violet-600 focus:ring-violet-500"
                                         />
                                         <span className="text-sm dark:text-white">{p.name}</span>
                                     </label>
@@ -270,22 +288,28 @@ const Reports: React.FC = () => {
                                         <th className="px-6 py-3">وزن</th>
                                         <th className="px-6 py-3">راننده</th>
                                         <th className="px-6 py-3">شماره تماس</th>
+                                        <th className="px-6 py-3">وضعیت</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {filteredInvoices.length === 0 ? (
-                                        <tr><td colSpan={8} className="text-center p-8 text-gray-400">داده‌ای یافت نشد</td></tr>
+                                        <tr><td colSpan={9} className="text-center p-8 text-gray-400">داده‌ای یافت نشد</td></tr>
                                     ) : (
                                         filteredInvoices.map(i => (
                                             <tr key={i.id} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                                                 <td className="px-6 py-4">{i.date}</td>
-                                                <td className="px-6 py-4 font-mono">{i.invoiceNumber}</td>
+                                                <td className="px-6 py-4 font-mono font-bold text-blue-600">{i.invoiceNumber}</td>
                                                 <td className="px-6 py-4">{getFarmName(i.farmId)}</td>
                                                 <td className="px-6 py-4">{i.productId ? getProductName(i.productId) : '-'}</td>
                                                 <td className="px-6 py-4">{i.totalCartons}</td>
                                                 <td className="px-6 py-4">{i.totalWeight}</td>
                                                 <td className="px-6 py-4 text-xs">{i.driverName || '-'}</td>
-                                                <td className="px-6 py-4 text-xs">{i.driverPhone || '-'}</td>
+                                                <td className="px-6 py-4 text-xs font-mono">{i.driverPhone || '-'}</td>
+                                                <td className="px-6 py-4">
+                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${i.isYesterday ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' : 'bg-green-100 text-green-800 border border-green-200'}`}>
+                                                        {i.isYesterday ? 'دیروزی' : 'عادی'}
+                                                    </span>
+                                                </td>
                                             </tr>
                                         ))
                                     )}
