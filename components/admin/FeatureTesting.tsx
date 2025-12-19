@@ -101,14 +101,16 @@ const FeatureTesting: React.FC = () => {
                     const { data, error, status, statusText } = await supabase.from('products').select('count', { count: 'exact', head: true });
                     const duration = Date.now() - start;
 
-                    if (!error && (status === 200 || status === 204)) {
+                    // Accept any 2xx status code (200, 201, 204, 206) as success
+                    // 206 Partial Content is often returned by PostgREST/Supabase even for head requests
+                    if (!error && (status >= 200 && status < 300)) {
                         success = true;
                         logMessage = `Supabase Connection OK (${duration}ms).`;
-                        technicalDetails = `Status: ${status} ${statusText} | Latency: ${duration}ms`;
+                        technicalDetails = `Status: ${status} ${statusText || 'OK'} | Latency: ${duration}ms`;
                     } else {
                         success = false;
-                        logMessage = `Supabase Connection Failed: ${error?.message}`;
-                        technicalDetails = `Code: ${error?.code} | Hint: ${error?.hint} | Status: ${status}`;
+                        logMessage = `Supabase Connection Failed: ${error?.message || 'Unknown Error'}`;
+                        technicalDetails = `Code: ${error?.code || 'N/A'} | Hint: ${error?.hint || 'N/A'} | Status: ${status}`;
                     }
                 } catch(e: any) {
                     success = false;
