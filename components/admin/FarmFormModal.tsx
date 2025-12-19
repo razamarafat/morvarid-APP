@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
@@ -48,8 +49,11 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
 
   const selectedType = watch('type');
 
-  // Defined IDs for Motefereghe defaults
-  const MOTEFEREGHE_DEFAULT_IDS = ['1', '2']; 
+  // Defined IDs for Motefereghe defaults (Must match store/farmStore.ts UUIDs)
+  const MOTEFEREGHE_DEFAULT_IDS = [
+      '11111111-1111-1111-1111-111111111111', 
+      '22222222-2222-2222-2222-222222222222'
+  ]; 
 
   useEffect(() => {
     if (isOpen) {
@@ -203,10 +207,10 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
                 render={({ field }) => (
                     <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar border rounded-lg p-2 bg-white dark:bg-gray-800">
                         {allProducts.map(p => {
-                            // Rule 1: If Motefereghe, ONLY show defaults (1 & 2)
+                            // Rule 1: If Motefereghe, ONLY show defaults
                             if (selectedType === FarmType.MOTEFEREGHE && !MOTEFEREGHE_DEFAULT_IDS.includes(p.id)) return null;
                             
-                            // Rule 2: If Morvaridi, HIDE defaults (1 & 2)
+                            // Rule 2: If Morvaridi, HIDE defaults
                             if (selectedType === FarmType.MORVARIDI && MOTEFEREGHE_DEFAULT_IDS.includes(p.id)) return null;
 
                             const isReadOnly = selectedType === FarmType.MOTEFEREGHE;

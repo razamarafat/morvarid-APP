@@ -66,10 +66,10 @@ export const useFarmStore = create<FarmState>((set, get) => ({
           }));
       }
 
-      // Default Products Logic Updated
+      // Default Products Logic Updated with Valid UUIDs
       const defaultProducts: Product[] = [
           {
-              id: '1',
+              id: '11111111-1111-1111-1111-111111111111',
               name: 'شیرینگ پک ۶ شانه ساده',
               description: 'مخصوص فارم‌های متفرقه',
               unit: ProductUnit.CARTON,
@@ -78,7 +78,7 @@ export const useFarmStore = create<FarmState>((set, get) => ({
               isCustom: false
           },
           {
-              id: '2',
+              id: '22222222-2222-2222-2222-222222222222',
               name: 'شیرینگ پک ۶ شانه پرینتی',
               description: 'مخصوص فارم‌های متفرقه',
               unit: ProductUnit.CARTON,

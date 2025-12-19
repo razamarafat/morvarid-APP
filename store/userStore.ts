@@ -57,8 +57,11 @@ export const useUserStore = create<UserState>((set, get) => ({
       
       // 1. Aggressive Sanitization & Logging
       const rawUsername = userData.username;
+      // Allow only alphanumeric, remove everything else. Force lowercase.
       const sanitizedUsername = rawUsername.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const email = `${sanitizedUsername}@morvarid.app`; // Using a consistent domain
+      
+      // Using .com is often safer for strict validators than .app
+      const email = `${sanitizedUsername}@morvarid.com`; 
       const password = userData.password || 'Morvarid1234';
 
       // Log the exact payload attempting to be sent
@@ -84,8 +87,6 @@ export const useUserStore = create<UserState>((set, get) => ({
                   }
               }
           });
-
-          useLogStore.getState().addLog('debug', 'auth', `Temp Client Created. Endpoint: ${supabaseUrl}`, currentAdmin?.id);
 
           // 3. Attempt SignUp
           const { data, error } = await tempSupabase.auth.signUp({
