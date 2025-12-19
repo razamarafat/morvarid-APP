@@ -55,82 +55,109 @@ export const useUserStore = create<UserState>((set, get) => ({
   addUser: async (userData) => {
       const currentAdmin = (await supabase.auth.getUser()).data.user;
       
-      // Aggressive sanitization to remove any invisible chars or spaces
-      const sanitizedUsername = userData.username.toLowerCase().replace(/[^a-z0-9]/g, '');
-      
+      // 1. Aggressive Sanitization & Logging
+      const rawUsername = userData.username;
+      const sanitizedUsername = rawUsername.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const email = `${sanitizedUsername}@morvarid.app`; // Using a consistent domain
+      const password = userData.password || 'Morvarid1234';
+
+      // Log the exact payload attempting to be sent
+      useLogStore.getState().addLog('info', 'auth', `INIT_SIGNUP: Raw='${rawUsername}' -> Email='${email}'`, currentAdmin?.id);
+
       if (sanitizedUsername.length < 3) {
-          alert('نام کاربری نامعتبر است. لطفا فقط از حروف انگلیسی و اعداد استفاده کنید.');
+          alert('نام کاربری نامعتبر است (حداقل ۳ کاراکتر انگلیسی).');
           return;
       }
 
-      useLogStore.getState().addLog('info', 'database', `Creating new user: ${sanitizedUsername}`, currentAdmin?.id);
-
-      // Create a temporary client to perform the sign-up WITHOUT affecting the current admin session
-      const tempSupabase = createClient(supabaseUrl, supabaseAnonKey, {
-          auth: {
-              persistSession: false,
-              autoRefreshToken: false,
-              detectSessionInUrl: false
-          }
-      });
-
-      // 1. Create Auth User
-      // Using .com to avoid potential TLD strictness, though .app is valid.
-      // Ensuring no spaces or invalid chars are passed.
-      const email = `${sanitizedUsername}@morvarid-system.com`;
-      const password = userData.password || 'Morvarid1234'; // Stronger default password
-      
-      const { data, error } = await tempSupabase.auth.signUp({
-          email,
-          password,
-          options: {
-              data: {
-                  username: sanitizedUsername,
-                  full_name: userData.fullName,
-                  role: userData.role
+      try {
+          // 2. Create Isolated Client with Memory Storage
+          // This ensures NO cookies/localstorage from the admin session are touched/read.
+          const tempSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+              auth: {
+                  persistSession: false,
+                  autoRefreshToken: false,
+                  detectSessionInUrl: false,
+                  storage: {
+                      getItem: () => null,
+                      setItem: () => {},
+                      removeItem: () => {},
+                  }
               }
-          }
-      });
-
-      if (error) {
-          useLogStore.getState().addLog('error', 'auth', `Failed to sign up user ${sanitizedUsername} (${email}): ${error.message}`, currentAdmin?.id);
-          alert(`خطا در ساخت کاربر (Auth): ${error.message}`);
-          return;
-      }
-
-      if (data.user) {
-          useLogStore.getState().addLog('info', 'auth', `Auth user created: ${data.user.id}`, currentAdmin?.id);
-          
-          // 2. MANUALLY Create Profile (Using the main client which has the Admin session - if RLS requires it)
-          const { error: profileError } = await supabase.from('profiles').insert({
-              id: data.user.id,
-              username: sanitizedUsername,
-              full_name: userData.fullName,
-              role: userData.role,
-              is_active: userData.isActive,
-              phone_number: userData.phoneNumber
           });
 
-          if (profileError) {
-              useLogStore.getState().addLog('error', 'database', `Failed to create profile for ${sanitizedUsername}: ${profileError.message}`, currentAdmin?.id);
-              alert('کاربر ساخته شد اما پروفایل ثبت نشد. لطفا با پشتیبانی تماس بگیرید: ' + profileError.message);
+          useLogStore.getState().addLog('debug', 'auth', `Temp Client Created. Endpoint: ${supabaseUrl}`, currentAdmin?.id);
+
+          // 3. Attempt SignUp
+          const { data, error } = await tempSupabase.auth.signUp({
+              email: email,
+              password: password,
+              options: {
+                  data: {
+                      username: sanitizedUsername,
+                      full_name: userData.fullName,
+                      role: userData.role
+                  }
+              }
+          });
+
+          // 4. Detailed Error Handling
+          if (error) {
+              const errorDetails = JSON.stringify({
+                  message: error.message,
+                  status: error.status,
+                  name: error.name
+              });
+              
+              useLogStore.getState().addLog('error', 'auth', `SIGNUP_FAIL: ${errorDetails}`, currentAdmin?.id);
+              console.error('Signup Error Full Object:', error);
+              
+              alert(`خطا در ساخت کاربر (Auth):\n${error.message}\n(Status: ${error.status || 'N/A'})`);
               return;
           }
 
-          // 3. Assign Farms (Junction Table)
-          if (userData.assignedFarms && userData.assignedFarms.length > 0) {
-              const inserts = userData.assignedFarms.map(f => ({
-                  user_id: data.user!.id,
-                  farm_id: f.id
-              }));
-              const { error: assignError } = await supabase.from('user_farms').insert(inserts);
-              if (assignError) {
-                  useLogStore.getState().addLog('error', 'database', `Failed to assign farms to ${sanitizedUsername}: ${assignError.message}`, currentAdmin?.id);
+          if (data.user) {
+              useLogStore.getState().addLog('info', 'auth', `SUCCESS: User created with ID ${data.user.id}. Creating Profile...`, currentAdmin?.id);
+              
+              // 5. Create Profile (Using Admin Client)
+              const { error: profileError } = await supabase.from('profiles').insert({
+                  id: data.user.id,
+                  username: sanitizedUsername,
+                  full_name: userData.fullName,
+                  role: userData.role,
+                  is_active: userData.isActive,
+                  phone_number: userData.phoneNumber
+              });
+
+              if (profileError) {
+                  useLogStore.getState().addLog('error', 'database', `PROFILE_FAIL: ${profileError.message}`, currentAdmin?.id);
+                  alert('کاربر ساخته شد اما پروفایل ثبت نشد. لطفا با پشتیبانی تماس بگیرید: ' + profileError.message);
+                  return;
               }
+
+              // 6. Assign Farms
+              if (userData.assignedFarms && userData.assignedFarms.length > 0) {
+                  const inserts = userData.assignedFarms.map(f => ({
+                      user_id: data.user!.id,
+                      farm_id: f.id
+                  }));
+                  const { error: assignError } = await supabase.from('user_farms').insert(inserts);
+                  if (assignError) {
+                      useLogStore.getState().addLog('error', 'database', `ASSIGN_FAIL: ${assignError.message}`, currentAdmin?.id);
+                  }
+              }
+              
+              useLogStore.getState().addLog('info', 'database', `User creation flow completed for ${sanitizedUsername}`, currentAdmin?.id);
+              get().fetchUsers();
+          } else {
+             // Edge case: No error but no user (e.g. email confirmation required but not enabled?)
+             useLogStore.getState().addLog('warn', 'auth', `SIGNUP_WEIRD: No error, but no user object returned. Data: ${JSON.stringify(data)}`, currentAdmin?.id);
+             alert('پاسخ نامشخص از سرور (User is null). لطفا لاگ‌ها را بررسی کنید.');
           }
-          
-          // Refresh list
-          get().fetchUsers();
+
+      } catch (err: any) {
+          useLogStore.getState().addLog('error', 'auth', `EXCEPTION: ${err.message}`, currentAdmin?.id);
+          console.error('Unexpected error in addUser:', err);
+          alert(`خطای غیرمنتظره: ${err.message}`);
       }
   },
 
