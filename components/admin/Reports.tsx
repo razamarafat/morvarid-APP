@@ -68,7 +68,7 @@ const Reports: React.FC = () => {
     const handleExport = () => {
         try {
             const wb = XLSX.utils.book_new();
-            wb.Workbook = { Views: [{ RTL: true }] }; // Set Workbook to RTL (doesn't always work in all readers)
+            wb.Workbook = { Views: [{ RTL: true }] }; 
 
             let sheetName = '';
             let ws;
@@ -106,7 +106,7 @@ const Reports: React.FC = () => {
                 ws = XLSX.utils.json_to_sheet(invData);
             }
 
-            // Set Worksheet to RTL
+            // Set Worksheet View to Right-to-Left
             if(!ws['!views']) ws['!views'] = [];
             ws['!views'].push({ rightToLeft: true });
 
@@ -141,7 +141,7 @@ const Reports: React.FC = () => {
                      <div>
                         <label className="block text-sm font-medium mb-1 dark:text-gray-300">انتخاب فارم</label>
                         <select 
-                            className="w-full p-2.5 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            className="w-full p-2.5 border rounded-lg bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                             value={selectedFarmId}
                             onChange={(e) => setSelectedFarmId(e.target.value)}
                         >
@@ -154,13 +154,13 @@ const Reports: React.FC = () => {
                     <div className="relative">
                         <label className="block text-sm font-medium mb-1 dark:text-gray-300">انتخاب محصول (چند انتخابی)</label>
                         <button 
-                            className="w-full p-2.5 border rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white flex justify-between items-center text-sm"
+                            className="w-full p-2.5 border rounded-lg bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white flex justify-between items-center text-sm"
                             onClick={() => setIsProductDropdownOpen(!isProductDropdownOpen)}
                         >
                             <span className="truncate">
                                 {selectedProductIds.length === 0 ? 'همه محصولات' : `${selectedProductIds.length} محصول انتخاب شده`}
                             </span>
-                            <Icons.ChevronDown className="w-4 h-4" />
+                            <Icons.ChevronDown className={`w-4 h-4 transition-transform ${isProductDropdownOpen ? 'rotate-180' : ''}`} />
                         </button>
                         
                         {isProductDropdownOpen && (

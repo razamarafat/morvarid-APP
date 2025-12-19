@@ -4,6 +4,7 @@ import Button from '../common/Button';
 import { useBiometric } from '../../hooks/useBiometric';
 import { useToastStore } from '../../store/toastStore';
 import { useLogStore } from '../../store/logStore'; 
+import { supabase } from '../../lib/supabase';
 import { Icons } from '../common/Icons';
 import * as XLSX from 'xlsx';
 
@@ -74,23 +75,24 @@ const FeatureTesting: React.FC = () => {
 
             case 'database':
                 try {
-                    const testKey = 'morvarid_test_db';
-                    const testVal = 'write_test_' + Date.now();
-                    localStorage.setItem(testKey, testVal);
-                    const readVal = localStorage.getItem(testKey);
-                    
-                    if (readVal === testVal) {
-                        localStorage.removeItem(testKey);
+                    // Ping Supabase by selecting count of products
+                    const start = Date.now();
+                    const { data, error } = await supabase.from('products').select('count', { count: 'exact', head: true });
+                    const duration = Date.now() - start;
+
+                    if (!error) {
                         success = true;
-                        logMessage = 'پایگاه داده داخلی سالم است';
+                        logMessage = `اتصال به دیتابیس موفق (${duration}ms)`;
+                        technicalDetails = `Status: 200 OK, Latency: ${duration}ms`;
                     } else {
                         success = false;
-                        logMessage = 'خطا در خواندن/نوشتن داده';
+                        logMessage = 'خطا در اتصال به Supabase';
+                        technicalDetails = error.message;
                     }
-                    technicalDetails = "LocalStorage Functional"; 
                 } catch(e: any) {
                     success = false;
                     logMessage = `خطا: ${e.name}`;
+                    technicalDetails = e.message;
                 }
                 break;
         }
@@ -103,7 +105,7 @@ const FeatureTesting: React.FC = () => {
     addLog(
         success ? 'info' : 'error', 
         'database', 
-        `Test [${feature}]: ${logMessage}. Details: ${technicalDetails}`
+        `Test [${feature}]: ${logMessage}`
     );
 
     setResults(prev => ({ ...prev, [feature]: success ? 'success' : 'failed' }));
@@ -138,7 +140,7 @@ const FeatureTesting: React.FC = () => {
         <TestCard id="biometric" title="ماژول بیومتریک" icon={Icons.Fingerprint} desc="بررسی WebAuthn API" />
         <TestCard id="notification" title="سیستم اعلان" icon={Icons.Bell} desc="بررسی مجوزهای مرورگر" />
         <TestCard id="excel" title="موتور اکسل" icon={Icons.FileText} desc="بررسی کتابخانه SheetJS" />
-        <TestCard id="database" title="پایگاه داده داخلی" icon={Icons.HardDrive} desc="بررسی LocalStorage/IndexedDB" />
+        <TestCard id="database" title="اتصال Supabase" icon={Icons.HardDrive} desc="بررسی پینگ و دسترسی دیتابیس" />
       </div>
     </div>
   );

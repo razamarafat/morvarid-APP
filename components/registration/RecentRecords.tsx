@@ -23,21 +23,23 @@ const RecentRecords: React.FC = () => {
     const [editInvoice, setEditInvoice] = useState<Invoice | null>(null);
     
     // Temporary values for edit inputs
-    const [statValues, setStatValues] = useState({ prod: 0, sales: 0 });
+    const [statValues, setStatValues] = useState({ prod: 0, sales: 0, prev: 0 });
     const [invoiceValues, setInvoiceValues] = useState({ cartons: 0, weight: 0 });
 
     const farmId = user?.assignedFarms?.[0]?.id;
+    // Show recent first
     const myStats = statistics.filter(s => s.farmId === farmId).sort((a,b) => b.createdAt - a.createdAt).slice(0, 10);
     const myInvoices = invoices.filter(i => i.farmId === farmId).sort((a,b) => b.createdAt - a.createdAt).slice(0, 10);
 
     const getProductName = (id: string) => products.find(p => p.id === id)?.name || id;
 
-    // 24 Hour check
+    // 24 Hour check logic
     const isEditable = (createdAt?: number) => {
         if (!createdAt) return false;
         const now = Date.now();
         const diff = now - createdAt;
-        return diff < 24 * 60 * 60 * 1000;
+        const twentyFourHours = 24 * 60 * 60 * 1000;
+        return diff < twentyFourHours;
     };
 
     const handleDeleteStat = async (id: string) => {
@@ -52,16 +54,21 @@ const RecentRecords: React.FC = () => {
 
     const handleEditStatOpen = (stat: DailyStatistic) => {
         setEditStat(stat);
-        setStatValues({ prod: stat.production, sales: stat.sales || 0 });
+        setStatValues({ 
+            prod: stat.production, 
+            sales: stat.sales || 0,
+            prev: stat.previousBalance || 0 
+        });
     };
 
     const handleSaveStat = () => {
         if (!editStat) return;
-        // Recalculate inventory
-        const newInventory = (editStat.previousBalance || 0) + statValues.prod - statValues.sales;
+        // Recalculate inventory based on new values
+        const newInventory = statValues.prev + statValues.prod - statValues.sales;
         updateStatistic(editStat.id, {
             production: statValues.prod,
             sales: statValues.sales,
+            previousBalance: statValues.prev,
             currentInventory: newInventory
         });
         setEditStat(null);
@@ -96,30 +103,32 @@ const RecentRecords: React.FC = () => {
                                 <th className="px-4 py-2">مانده قبل</th>
                                 <th className="px-4 py-2 text-green-600">تولید</th>
                                 <th className="px-4 py-2 text-red-600">فروش</th>
-                                <th className="px-4 py-2">موجودی</th>
+                                <th className="px-4 py-2 font-bold">موجودی</th>
                                 <th className="px-4 py-2 rounded-l-lg">عملیات</th>
                             </tr>
                         </thead>
                         <tbody>
                             {myStats.length === 0 && <tr><td colSpan={7} className="text-center py-4">موردی یافت نشد</td></tr>}
                             {myStats.map(stat => (
-                                <tr key={stat.id} className="border-b dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                                    <td className="px-4 py-3">{stat.date}</td>
+                                <tr key={stat.id} className="border-b dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                                    <td className="px-4 py-3 whitespace-nowrap">{stat.date}</td>
                                     <td className="px-4 py-3">{getProductName(stat.productId)}</td>
                                     <td className="px-4 py-3">{stat.previousBalance}</td>
                                     <td className="px-4 py-3 text-green-600 font-bold">+{stat.production}</td>
                                     <td className="px-4 py-3 text-red-600">{stat.sales || 0}</td>
                                     <td className="px-4 py-3 font-bold">{stat.currentInventory}</td>
                                     <td className="px-4 py-3 flex gap-2">
-                                        {isEditable(stat.createdAt) && (
+                                        {isEditable(stat.createdAt) ? (
                                             <>
-                                                <button onClick={() => handleEditStatOpen(stat)} className="text-blue-500 hover:text-blue-700 p-1" title="ویرایش">
+                                                <button onClick={() => handleEditStatOpen(stat)} className="text-blue-500 hover:text-blue-700 p-1 bg-blue-50 dark:bg-blue-900/30 rounded-lg transition-colors" title="ویرایش">
                                                     <Icons.Edit className="w-4 h-4" />
                                                 </button>
-                                                <button onClick={() => handleDeleteStat(stat.id)} className="text-red-500 hover:text-red-700 p-1" title="حذف">
+                                                <button onClick={() => handleDeleteStat(stat.id)} className="text-red-500 hover:text-red-700 p-1 bg-red-50 dark:bg-red-900/30 rounded-lg transition-colors" title="حذف">
                                                     <Icons.Trash className="w-4 h-4" />
                                                 </button>
                                             </>
+                                        ) : (
+                                            <span className="text-xs text-gray-400">قفل شده</span>
                                         )}
                                     </td>
                                 </tr>
@@ -147,8 +156,8 @@ const RecentRecords: React.FC = () => {
                         <tbody>
                             {myInvoices.length === 0 && <tr><td colSpan={7} className="text-center py-4">موردی یافت نشد</td></tr>}
                             {myInvoices.map(inv => (
-                                <tr key={inv.id} className="border-b dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                                    <td className="px-4 py-3">{inv.date}</td>
+                                <tr key={inv.id} className="border-b dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                                    <td className="px-4 py-3 whitespace-nowrap">{inv.date}</td>
                                     <td className="px-4 py-3 font-mono font-bold text-blue-600">{inv.invoiceNumber}</td>
                                     <td className="px-4 py-3">{inv.productId ? getProductName(inv.productId) : '-'}</td>
                                     <td className="px-4 py-3">{inv.totalCartons}</td>
@@ -159,15 +168,17 @@ const RecentRecords: React.FC = () => {
                                         </span>
                                     </td>
                                     <td className="px-4 py-3 flex gap-2">
-                                        {isEditable(inv.createdAt) && (
+                                        {isEditable(inv.createdAt) ? (
                                             <>
-                                                <button onClick={() => handleEditInvoiceOpen(inv)} className="text-blue-500 hover:text-blue-700 p-1" title="ویرایش">
+                                                <button onClick={() => handleEditInvoiceOpen(inv)} className="text-blue-500 hover:text-blue-700 p-1 bg-blue-50 dark:bg-blue-900/30 rounded-lg transition-colors" title="ویرایش">
                                                     <Icons.Edit className="w-4 h-4" />
                                                 </button>
-                                                <button onClick={() => handleDeleteInv(inv.id)} className="text-red-500 hover:text-red-700 p-1" title="حذف">
+                                                <button onClick={() => handleDeleteInv(inv.id)} className="text-red-500 hover:text-red-700 p-1 bg-red-50 dark:bg-red-900/30 rounded-lg transition-colors" title="حذف">
                                                     <Icons.Trash className="w-4 h-4" />
                                                 </button>
                                             </>
+                                        ) : (
+                                            <span className="text-xs text-gray-400">قفل شده</span>
                                         )}
                                     </td>
                                 </tr>
@@ -181,10 +192,19 @@ const RecentRecords: React.FC = () => {
             <Modal isOpen={!!editStat} onClose={() => setEditStat(null)} title="ویرایش آمار">
                 <div className="space-y-4">
                     <div>
+                        <label className="block text-sm font-bold mb-1 dark:text-gray-300">مانده قبل (دستی)</label>
+                        <input 
+                            type="number" 
+                            className="w-full p-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-700 dark:text-white"
+                            value={statValues.prev}
+                            onChange={(e) => setStatValues({ ...statValues, prev: Number(e.target.value) })}
+                        />
+                    </div>
+                    <div>
                         <label className="block text-sm font-bold mb-1 dark:text-gray-300">تولید جدید</label>
                         <input 
                             type="number" 
-                            className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:text-white"
+                            className="w-full p-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-700 dark:text-white"
                             value={statValues.prod}
                             onChange={(e) => setStatValues({ ...statValues, prod: Number(e.target.value) })}
                         />
@@ -193,7 +213,7 @@ const RecentRecords: React.FC = () => {
                         <label className="block text-sm font-bold mb-1 dark:text-gray-300">فروش جدید</label>
                         <input 
                             type="number" 
-                            className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:text-white"
+                            className="w-full p-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-700 dark:text-white"
                             value={statValues.sales}
                             onChange={(e) => setStatValues({ ...statValues, sales: Number(e.target.value) })}
                         />
@@ -212,7 +232,7 @@ const RecentRecords: React.FC = () => {
                         <label className="block text-sm font-bold mb-1 dark:text-gray-300">تعداد کارتن</label>
                         <input 
                             type="number" 
-                            className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:text-white"
+                            className="w-full p-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-700 dark:text-white"
                             value={invoiceValues.cartons}
                             onChange={(e) => setInvoiceValues({ ...invoiceValues, cartons: Number(e.target.value) })}
                         />
@@ -221,7 +241,7 @@ const RecentRecords: React.FC = () => {
                         <label className="block text-sm font-bold mb-1 dark:text-gray-300">وزن (کیلوگرم)</label>
                         <input 
                             type="number" 
-                            className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:text-white"
+                            className="w-full p-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-700 dark:text-white"
                             value={invoiceValues.weight}
                             onChange={(e) => setInvoiceValues({ ...invoiceValues, weight: Number(e.target.value) })}
                         />

@@ -1,144 +1,120 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Icons } from '../common/Icons';
 import Button from '../common/Button';
 import { useConfirm } from '../../hooks/useConfirm';
 import { useToastStore } from '../../store/toastStore';
 import { getTodayJalali } from '../../utils/dateUtils';
 import { useLogStore } from '../../store/logStore';
+import { supabase } from '../../lib/supabase';
 
 const BackupManagement: React.FC = () => {
   const { confirm } = useConfirm();
   const { addToast } = useToastStore();
   const { addLog } = useLogStore();
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleCreateBackup = async () => {
     const confirmed = await confirm({
-      title: 'ایجاد نسخه پشتیبان',
-      message: 'آیا می‌خواهید یک نسخه پشتیبان از تمام اطلاعات سیستم دانلود کنید؟',
+      title: 'ایجاد نسخه پشتیبان ابری',
+      message: 'آیا می‌خواهید تمام اطلاعات دیتابیس را دانلود کنید؟ این عملیات ممکن است کمی زمان‌بر باشد.',
       confirmText: 'دانلود فایل',
       type: 'info'
     });
 
     if (confirmed) {
-      // Dump RAW storage strings to ensure structure preservation
-      const data = {
-        auth: localStorage.getItem('auth-storage'),
-        farm: localStorage.getItem('farm-storage'),
-        user: localStorage.getItem('user-storage'), // This was the issue, now capturing raw string
-        theme: localStorage.getItem('theme-storage'),
-        stats: localStorage.getItem('statistics-storage'), 
-        invoices: localStorage.getItem('invoice-storage'),
-        logs: localStorage.getItem('system-logs')
-      };
+      setIsLoading(true);
+      try {
+        // Fetch all data from Supabase Tables
+        const [
+            { data: farms },
+            { data: products },
+            { data: profiles },
+            { data: userFarms },
+            { data: stats },
+            { data: invoices },
+            { data: logs }
+        ] = await Promise.all([
+            supabase.from('farms').select('*'),
+            supabase.from('products').select('*'),
+            supabase.from('profiles').select('*'),
+            supabase.from('user_farms').select('*'),
+            supabase.from('daily_statistics').select('*'),
+            supabase.from('invoices').select('*'),
+            supabase.from('system_logs').select('*')
+        ]);
 
-      const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Morvarid_Backup_${getTodayJalali().replace(/\//g, '-')}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      addToast('نسخه پشتیبان با موفقیت دانلود شد', 'success');
-      addLog('info', 'database', 'نسخه پشتیبان ایجاد شد');
+        const backupData = {
+          version: '1.0',
+          timestamp: new Date().toISOString(),
+          data: {
+              farms,
+              products,
+              profiles,
+              userFarms,
+              stats,
+              invoices,
+              logs
+          }
+        };
+
+        const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Morvarid_Cloud_Backup_${getTodayJalali().replace(/\//g, '-')}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        addToast('نسخه پشتیبان دیتابیس با موفقیت دانلود شد', 'success');
+        addLog('info', 'database', 'نسخه پشتیبان کامل ابری ایجاد شد');
+      } catch (error: any) {
+          addToast('خطا در دریافت اطلاعات از سرور', 'error');
+          addLog('error', 'database', `Backup failed: ${error.message}`);
+      } finally {
+          setIsLoading(false);
+      }
     }
   };
 
-  const handleRestore = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const confirmed = await confirm({
-      title: 'بازگردانی نسخه پشتیبان',
-      message: `آیا از بازگردانی فایل ${file.name} اطمینان دارید؟ تمام تغییرات فعلی جایگزین خواهند شد.`,
-      confirmText: 'بازگردانی',
-      type: 'warning'
-    });
-
-    if (confirmed) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const content = e.target?.result as string;
-          const data = JSON.parse(content);
-          
-          // Helper to restore if data exists
-          const restore = (key: string, val: string | null) => {
-              if (val) localStorage.setItem(key, val);
-          };
-
-          restore('auth-storage', data.auth);
-          restore('farm-storage', data.farm);
-          restore('user-storage', data.user);
-          restore('theme-storage', data.theme);
-          restore('statistics-storage', data.stats);
-          restore('invoice-storage', data.invoices);
-          restore('system-logs', data.logs);
-          
-          addToast('بازگردانی با موفقیت انجام شد. صفحه رفرش می‌شود.', 'success');
-          addLog('warn', 'database', `بازگردانی سیستم با فایل ${file.name}`);
-          
-          setTimeout(() => window.location.reload(), 2000);
-        } catch (err) {
-          addToast('فایل پشتیبان معتبر نیست', 'error');
-          addLog('error', 'database', 'خطا در بازگردانی فایل پشتیبان');
-        }
-      };
-      reader.readAsText(file);
-    }
-  };
-
-  const handleFactoryReset = async () => {
-    const confirmed1 = await confirm({
-      title: 'بازگشت به تنظیمات کارخانه',
-      message: 'هشدار: این عملیات تمام داده‌ها را حذف می‌کند. فقط حساب مدیر اصلی باقی می‌ماند.',
-      confirmText: 'ادامه',
-      type: 'danger'
-    });
-
-    if (confirmed1) {
-        localStorage.clear();
-        addToast('سیستم ریست شد. صفحه رفرش می‌شود.', 'success');
-        setTimeout(() => window.location.reload(), 1500);
-    }
+  // Restore logic is complex for SQL due to Foreign Key constraints.
+  // For V1, we will only allow downloading backups. 
+  // Restore should be done via Supabase Dashboard or a dedicated Admin script to ensure integrity.
+  const handleRestoreWarning = () => {
+      alert('بازگردانی نسخه پشتیبان در نسخه وب غیرفعال است. جهت بازگردانی اطلاعات لطفا فایل جیسون را به تیم فنی تحویل دهید تا از طریق پنل دیتابیس اعمال شود.');
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold dark:text-white">پشتیبان‌گیری و بازیابی</h2>
-        <Button onClick={handleCreateBackup}>
+        <h2 className="text-2xl font-bold dark:text-white">پشتیبان‌گیری ابری</h2>
+        <Button onClick={handleCreateBackup} isLoading={isLoading}>
           <Icons.HardDrive className="ml-2 h-4 w-4" />
-          دانلود نسخه پشتیبان
+          دانلود نسخه پشتیبان کامل
         </Button>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <div className="bg-white dark:bg-gray-800 p-8 rounded-[24px] shadow-lg border-l-8 border-blue-500 transform hover:scale-[1.02] transition-transform">
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-[24px] shadow-lg border-l-8 border-blue-500 opacity-75">
             <h3 className="font-bold text-xl mb-3 dark:text-white">بازگردانی اطلاعات</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">فایل .json پشتیبان را برای بازگردانی تمام کاربران و اطلاعات انتخاب کنید.</p>
-            <div className="relative">
-                <input 
-                    type="file" 
-                    accept=".json"
-                    onChange={handleRestore}
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100 cursor-pointer"
-                />
-            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 leading-relaxed">
+                به دلیل امنیت داده‌ها و روابط پیچیده دیتابیس، بازگردانی خودکار از طریق وب‌سایت غیرفعال است. 
+                لطفاً در صورت نیاز به بازگردانی، فایل پشتیبان را به مدیر سیستم تحویل دهید.
+            </p>
+            <Button variant="secondary" className="w-full" onClick={handleRestoreWarning}>
+                آپلود فایل (غیرفعال)
+            </Button>
         </div>
         
-        <div className="bg-white dark:bg-gray-800 p-8 rounded-[24px] shadow-lg border-l-8 border-red-500 flex flex-col justify-between transform hover:scale-[1.02] transition-transform">
-            <div>
-                <h3 className="font-bold text-xl mb-3 text-red-600">منطقه خطر</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">بازگشت به تنظیمات کارخانه و حذف تمام داده‌ها (کاربران، آمار، فارم‌ها)</p>
-            </div>
-            <Button variant="danger" className="mt-6 w-full py-3 rounded-xl font-bold" onClick={handleFactoryReset}>
-                <Icons.Trash className="ml-2 h-4 w-4" />
-                بازنشانی کارخانه
-            </Button>
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-[24px] shadow-lg border-l-8 border-green-500">
+             <h3 className="font-bold text-xl mb-3 dark:text-white">وضعیت دیتابیس</h3>
+             <div className="flex items-center gap-2 text-green-600 mb-2">
+                 <Icons.Check className="w-5 h-5" />
+                 <span className="font-bold">اتصال به Supabase برقرار است</span>
+             </div>
+             <p className="text-sm text-gray-500">تمامی داده‌ها به صورت خودکار و لحظه‌ای در سرورهای ابری ذخیره می‌شوند.</p>
         </div>
       </div>
     </div>

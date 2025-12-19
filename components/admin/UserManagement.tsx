@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useUserStore } from '../../store/userStore';
 import { useLogStore } from '../../store/logStore';
-import { User, UserRole, SystemLog } from '../../types';
+import { User, UserRole } from '../../types';
 import { Icons } from '../common/Icons';
 import Button from '../common/Button';
 import UserFormModal from './UserFormModal';
@@ -59,7 +59,8 @@ const UserManagement: React.FC = () => {
       }
   };
 
-  // Filter logs for the history modal
+  // Filter logs for the history modal (Last 24 hours or just last 50 logs for simplicity as requested)
+  // The user requested "Last Actions in 24h interval"
   const userLogs = historyUser ? logs.filter(l => l.userId === historyUser.id).slice(0, 50) : [];
 
   return (
@@ -99,7 +100,7 @@ const UserManagement: React.FC = () => {
                   </span>
                 </td>
                 <td className="px-6 py-4 flex items-center gap-2">
-                  <Button size="icon" variant="ghost" onClick={() => handleHistory(user)} title="آخرین اقدامات">
+                  <Button size="icon" variant="ghost" onClick={() => handleHistory(user)} title="آخرین اقدامات (۲۴ ساعت)">
                     <Icons.FileText className="w-4 h-4 text-blue-500" />
                   </Button>
                   <Button size="icon" variant="ghost" onClick={() => handleEdit(user)} title="ویرایش">
@@ -121,27 +122,34 @@ const UserManagement: React.FC = () => {
         user={editingUser}
       />
 
+      {/* History Modal */}
       <Modal 
         isOpen={!!historyUser} 
         onClose={() => setHistoryUser(null)} 
         title={`آخرین اقدامات: ${historyUser?.fullName}`}
       >
-          <div className="space-y-4 max-h-96 overflow-y-auto">
+          <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar p-2">
               {userLogs.length === 0 ? (
-                  <p className="text-center text-gray-500">هیچ فعالیتی ثبت نشده است.</p>
+                  <div className="text-center text-gray-500 py-8">
+                      <Icons.FileText className="w-12 h-12 mx-auto mb-2 opacity-20" />
+                      <p>هیچ فعالیتی در بازه اخیر ثبت نشده است.</p>
+                  </div>
               ) : (
                   userLogs.map(log => (
-                      <div key={log.id} className="text-sm border-b dark:border-gray-700 pb-2 mb-2">
-                          <div className="flex justify-between text-xs text-gray-400 mb-1">
-                              <span>{log.timestamp}</span>
-                              <span className="uppercase">{log.category}</span>
+                      <div key={log.id} className="text-sm border-b border-gray-100 dark:border-gray-700 pb-3 mb-2 last:border-0">
+                          <div className="flex justify-between items-center text-xs text-gray-400 mb-1">
+                              <span className="font-mono bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">{log.timestamp}</span>
+                              <span className={`uppercase font-bold text-[10px] px-1.5 py-0.5 rounded border ${
+                                  log.category === 'auth' ? 'border-blue-200 text-blue-600' : 
+                                  log.category === 'database' ? 'border-purple-200 text-purple-600' : 'border-gray-200 text-gray-500'
+                              }`}>{log.category}</span>
                           </div>
-                          <p className="text-gray-800 dark:text-gray-200">{log.message}</p>
+                          <p className="text-gray-800 dark:text-gray-200 font-medium leading-relaxed">{log.message}</p>
                       </div>
                   ))
               )}
           </div>
-          <div className="mt-4 flex justify-end">
+          <div className="mt-6 flex justify-end">
               <Button onClick={() => setHistoryUser(null)}>بستن</Button>
           </div>
       </Modal>

@@ -30,9 +30,12 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
     }
   };
 
-  // Logic: Show back button if we are NOT on the main dashboard routes
-  const mainRoutes = ['/admin', '/registration', '/sales', '/login', '/'];
-  const showBack = !mainRoutes.includes(location.pathname);
+  // Logic: Show back button if we are NOT on the main dashboard root routes
+  // e.g. /admin is root, /admin/backup is sub-page (conceptually, though currently hash router uses flat paths mostly)
+  // For this app structure, we show it if the path length implies depth OR if explicitly requested.
+  // Since the user asked for it "on all pages", we'll make it available but allow user to go back to previous history.
+  // We hide it only on the Login/Splash page.
+  const hideBack = ['/', '/login'].includes(location.pathname);
 
   return (
     <header className={`${themeColors.surface} ${themeColors.text} shadow-sm sticky top-0 z-40 transition-colors duration-300`}>
@@ -43,13 +46,15 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
           </button>
           
           {/* Global Back Button */}
-          <button 
-            onClick={() => navigate(-1)} 
-            className={`p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors mr-1 ${!showBack ? 'hidden' : ''}`}
-            title="بازگشت"
-          >
-              <Icons.ChevronRight className="w-6 h-6" />
-          </button>
+          {!hideBack && (
+              <button 
+                onClick={() => navigate(-1)} 
+                className="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors mr-1"
+                title="بازگشت"
+              >
+                  <Icons.ChevronRight className="w-6 h-6" />
+              </button>
+          )}
 
           <h1 
             onClick={handleHomeClick}

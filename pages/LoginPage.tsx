@@ -5,7 +5,6 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuthStore } from '../store/authStore';
-import { useUserStore } from '../store/userStore';
 import { useLogStore } from '../store/logStore';
 import ThemeToggle from '../components/common/ThemeToggle';
 import { Icons } from '../components/common/Icons';
@@ -23,60 +22,19 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const { login, blockUntil, recordFailedAttempt } = useAuthStore();
-  const { users } = useUserStore();
+  const { login, blockUntil } = useAuthStore();
   const { addLog } = useLogStore();
-  const { isAvailable: isBiometricAvailable, authenticate: authBiometric } = useBiometric();
+  const { isAvailable: isBiometricAvailable } = useBiometric();
   const { addToast } = useToastStore();
   
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { register, handleSubmit, watch, formState: { isSubmitting } } = useForm<LoginFormValues>({
+  const { register, handleSubmit, formState: { isSubmitting } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
   });
 
-  const usernameValue = watch('username');
   const isBlocked = blockUntil ? Date.now() < blockUntil : false;
-
-  const performLogin = (user: any) => {
-      login(user, 'fake-jwt-token');
-      addLog('info', 'auth', `کاربر ${user.username} با موفقیت وارد شد`, user.id);
-      
-      switch (user.role) {
-          case UserRole.ADMIN: navigate('/admin'); break;
-          case UserRole.REGISTRATION: navigate('/registration'); break;
-          case UserRole.SALES: navigate('/sales'); break;
-          default: navigate('/home');
-      }
-      addToast(`خوش آمدید ${user.fullName}`, 'success');
-  }
-
-  const handleBiometricLogin = async () => {
-      if (!usernameValue) {
-          addToast('لطفا ابتدا نام کاربری را وارد کنید', 'warning');
-          return;
-      }
-      
-      const user = users.find(u => u.username === usernameValue);
-      if (!user) {
-           addToast('کاربری با این نام یافت نشد', 'error');
-           return;
-      }
-
-      if (!user.isActive) {
-          addToast('حساب کاربری غیرفعال است', 'error');
-          return;
-      }
-
-      const success = await authBiometric();
-      if (success) {
-          performLogin(user);
-      } else {
-          addToast('احراز هویت بیومتریک ناموفق بود', 'error');
-          addLog('warn', 'security', `تلاش ناموفق بیومتریک برای ${usernameValue}`);
-      }
-  }
 
   const onSubmit = async (data: LoginFormValues) => {
     setError(null);
@@ -85,31 +43,22 @@ const LoginPage: React.FC = () => {
         return;
     }
 
-    try {
-      await new Promise(resolve => setTimeout(resolve, 800)); // Smooth delay
-      const user = users.find(u => u.username === data.username);
-      
-      if (!user) {
-           recordFailedAttempt();
-           addLog('warn', 'security', `تلاش ناموفق: نام کاربری نامعتبر ${data.username}`);
-           throw new Error("نام کاربری یا رمز عبور اشتباه است");
-      }
+    const result = await login(data.username, data.password);
 
-      if (!user.isActive) {
-          throw new Error("حساب کاربری غیرفعال است");
-      }
-
-      // STRICT PASSWORD CHECK
-      if (user.password !== data.password) {
-          recordFailedAttempt();
-          addLog('warn', 'security', `تلاش ناموفق: رمز عبور اشتباه برای ${data.username}`);
-          throw new Error("نام کاربری یا رمز عبور اشتباه است");
-      }
-
-      performLogin(user);
-
-    } catch (err: any) {
-      setError(err.message);
+    if (result.success) {
+        const currentUser = useAuthStore.getState().user;
+        addLog('info', 'auth', `کاربر ${data.username} با موفقیت وارد شد`, currentUser?.id);
+        addToast(`خوش آمدید ${currentUser?.fullName}`, 'success');
+        
+        switch (currentUser?.role) {
+            case UserRole.ADMIN: navigate('/admin'); break;
+            case UserRole.REGISTRATION: navigate('/registration'); break;
+            case UserRole.SALES: navigate('/sales'); break;
+            default: navigate('/home');
+        }
+    } else {
+        setError(result.error || 'خطا در ورود');
+        addLog('warn', 'security', `تلاش ناموفق برای ورود: ${data.username}`);
     }
   };
 
@@ -175,16 +124,16 @@ const LoginPage: React.FC = () => {
                 disabled={isSubmitting || isBlocked}
                 className="w-full py-4 rounded-2xl font-bold text-lg text-white bg-violet-600 hover:bg-violet-700 active:scale-95 transition-all shadow-lg shadow-violet-500/30 disabled:opacity-50 disabled:shadow-none"
             >
-                {isSubmitting ? 'در حال پردازش...' : 'ورود به حساب'}
+                {isSubmitting ? 'در حال اتصال...' : 'ورود به حساب'}
             </button>
             
             {isBiometricAvailable && (
                <div className="flex justify-center pt-2">
                    <button
                     type="button"
-                    onClick={handleBiometricLogin}
-                    disabled={isBlocked}
-                    className="flex items-center gap-2 text-gray-500 hover:text-violet-600 dark:text-gray-400 dark:hover:text-violet-400 transition-colors"
+                    disabled
+                    className="flex items-center gap-2 text-gray-400 cursor-not-allowed opacity-50"
+                    title="در نسخه وب فعال نیست"
                   >
                     <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-2xl">
                          <Icons.Fingerprint className="w-8 h-8" />
@@ -195,7 +144,7 @@ const LoginPage: React.FC = () => {
             )}
           </form>
         </div>
-        <p className="text-center text-gray-400 text-xs mt-6">طراحی شده برای امنیت و سرعت</p>
+        <p className="text-center text-gray-400 text-xs mt-6">متصل به سرورهای ابری مروارید</p>
       </div>
     </div>
   );

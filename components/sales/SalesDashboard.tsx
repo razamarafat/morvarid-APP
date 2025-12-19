@@ -36,7 +36,7 @@ const FarmStatistics = () => {
                     <div className="flex items-center gap-3 w-full md:w-auto">
                         <span className="text-sm font-medium dark:text-gray-300 whitespace-nowrap">انتخاب فارم:</span>
                         <select 
-                            className="w-full md:w-64 p-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            className="w-full md:w-64 p-2 border rounded-xl bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                             value={selectedFarmId}
                             onChange={(e) => setSelectedFarmId(e.target.value)}
                         >
@@ -78,9 +78,9 @@ const FarmStatistics = () => {
                                                     </span>
                                                 </h5>
                                                 <div className="grid grid-cols-2 gap-2 text-xs">
+                                                    <div className="text-gray-500">مانده قبل: {stat.previousBalance || 0}</div>
                                                     <div>تولید: <span className="font-bold text-green-600">{stat.production}</span></div>
                                                     {stat.sales && <div>فروش: <span className="font-bold text-red-600">{stat.sales}</span></div>}
-                                                    {stat.previousBalance && <div className="text-gray-500">مانده قبل: {stat.previousBalance}</div>}
                                                     {stat.currentInventory && <div className="col-span-2 mt-1 pt-1 border-t dark:border-gray-700">موجودی: <span className="font-bold text-blue-600">{stat.currentInventory}</span></div>}
                                                 </div>
                                             </div>
@@ -161,7 +161,7 @@ const InvoiceList = () => {
                     <div className="flex items-center gap-2 w-full md:w-auto">
                         <span className="text-sm font-medium dark:text-gray-300 whitespace-nowrap">انتخاب فارم:</span>
                         <select 
-                            className="p-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600 flex-1 dark:text-white"
+                            className="p-2 border rounded-xl bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 flex-1 dark:text-white"
                             value={selectedFarmId}
                             onChange={(e) => setSelectedFarmId(e.target.value)}
                         >

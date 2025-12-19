@@ -78,10 +78,9 @@ const StatisticsForm: React.FC = () => {
     }, [JSON.stringify(formItems.map(i => [i.previousBalance, i.production, i.sales])), selectedFarm, setValue]);
 
     const onSubmit = async (data: any) => {
-        // Validation: Check for negative inventory
         const hasNegative = data.items.some((i: any) => i.currentInventory < 0);
         if (hasNegative) {
-            addToast('خطا: موجودی نهایی نمی‌تواند منفی باشد. مقادیر فروش یا تولید را بررسی کنید.', 'error');
+            addToast('خطا: موجودی نهایی نمی‌تواند منفی باشد.', 'error');
             return;
         }
 
@@ -111,7 +110,7 @@ const StatisticsForm: React.FC = () => {
             
             addToast('آمار با موفقیت ثبت شد', 'success');
             
-            // Reset for next day logic
+            // Reset for next day logic: Current Inventory becomes Previous Balance
             const resetItems = data.items.map((item: any) => ({ 
                 ...item, 
                 production: '', 
@@ -122,7 +121,8 @@ const StatisticsForm: React.FC = () => {
         }
     };
 
-    const inputClass = "w-full p-3 bg-white dark:bg-gray-900 text-gray-900 dark:text-white border-2 border-gray-300 dark:border-gray-600 rounded-2xl focus:border-orange-500 focus:ring-0 transition-colors text-center font-bold text-lg";
+    // Explicit bg-white text-gray-900 to fix dark input bug in light mode
+    const inputClass = "w-full p-3 bg-white text-gray-900 dark:bg-gray-900 dark:text-white border-2 border-gray-300 dark:border-gray-600 rounded-2xl focus:border-orange-500 focus:ring-0 transition-colors text-center font-bold text-lg placeholder-gray-300";
 
     if (!selectedFarm) return <div className="text-center p-8 text-gray-500">هیچ فارمی به شما تخصیص داده نشده است.</div>;
 
@@ -141,9 +141,10 @@ const StatisticsForm: React.FC = () => {
             <div className="p-8">
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                     {fields.map((field, index) => {
-                        const isLiquid = formItems[index]?.hasKilogram; // Assuming only liquid has Kg option based on initial data
-                        const cartonLabel = isLiquid ? 'دبه / ظرف' : 'کارتن';
-                        const weightLabel = 'کیلوگرم (توزین)';
+                        const isLiquid = formItems[index]?.hasKilogram; 
+                        // Logic for Liquid Egg labels
+                        const unit1Label = isLiquid ? 'دبه / ظرف' : 'کارتن';
+                        const unit2Label = 'کیلوگرم (توزین)';
 
                         return (
                         <div key={field.id} className="border border-gray-200 dark:border-gray-700 rounded-[24px] p-6 bg-gray-50 dark:bg-gray-800/50 shadow-sm hover:shadow-md transition-shadow">
@@ -165,14 +166,14 @@ const StatisticsForm: React.FC = () => {
                                             className={`px-4 py-1.5 rounded-xl text-sm font-bold transition-all ${formItems[index].selectedUnit === ProductUnit.CARTON ? 'bg-orange-500 text-white shadow-md' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}
                                             onClick={() => setValue(`items.${index}.selectedUnit`, ProductUnit.CARTON)}
                                         >
-                                            {cartonLabel}
+                                            {unit1Label}
                                         </button>
                                         <button
                                             type="button"
                                             className={`px-4 py-1.5 rounded-xl text-sm font-bold transition-all ${formItems[index].selectedUnit === ProductUnit.KILOGRAM ? 'bg-orange-500 text-white shadow-md' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}
                                             onClick={() => setValue(`items.${index}.selectedUnit`, ProductUnit.KILOGRAM)}
                                         >
-                                            {weightLabel}
+                                            {unit2Label}
                                         </button>
                                     </div>
                                 )}
@@ -181,7 +182,7 @@ const StatisticsForm: React.FC = () => {
                             {selectedFarm.type === FarmType.MOTEFEREGHE ? (
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                                        تولید روزانه ({formItems[index].selectedUnit === ProductUnit.KILOGRAM ? weightLabel : cartonLabel})
+                                        تولید روزانه ({formItems[index].selectedUnit === ProductUnit.KILOGRAM ? unit2Label : unit1Label})
                                     </label>
                                     <input 
                                         type="number" 
