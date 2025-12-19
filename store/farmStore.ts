@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { Farm, Product, ProductUnit } from '../types';
+import { useLogStore } from './logStore';
 
 interface FarmState {
   farms: Farm[];
@@ -9,9 +10,9 @@ interface FarmState {
   isLoading: boolean;
   fetchFarms: () => Promise<void>;
   fetchProducts: () => Promise<void>;
-  addFarm: (farm: Omit<Farm, 'id'>) => Promise<void>;
-  updateFarm: (farm: Farm) => Promise<void>;
-  deleteFarm: (farmId: string) => Promise<void>;
+  addFarm: (farm: Omit<Farm, 'id'>) => Promise<{ success: boolean; error?: string }>;
+  updateFarm: (farm: Farm) => Promise<{ success: boolean; error?: string }>;
+  deleteFarm: (farmId: string) => Promise<{ success: boolean; error?: string }>;
   addProduct: (product: Omit<Product, 'id'| 'isDefault' | 'isCustom'>) => Promise<Product | null>;
   getProductById: (id: string) => Product | undefined;
 }
@@ -24,8 +25,14 @@ export const useFarmStore = create<FarmState>((set, get) => ({
   fetchFarms: async () => {
     set({ isLoading: true });
     const { data, error } = await supabase.from('farms').select('*');
-    if (!error && data) {
-      // Map DB snake_case to CamelCase types
+    
+    if (error) {
+        useLogStore.getState().addLog('error', 'database', `Fetch Farms Failed: ${error.message} (${error.code})`, 'SYSTEM');
+        set({ isLoading: false });
+        return;
+    }
+
+    if (data) {
       const mappedFarms = data.map((f: any) => ({
           id: f.id,
           name: f.name,
@@ -34,15 +41,21 @@ export const useFarmStore = create<FarmState>((set, get) => ({
           productIds: f.product_ids || []
       }));
       set({ farms: mappedFarms, isLoading: false });
-    } else {
-        set({ isLoading: false });
     }
   },
 
   fetchProducts: async () => {
       const { data, error } = await supabase.from('products').select('*');
-      if (!error && data) {
-          const mappedProducts = data.map((p: any) => ({
+      
+      if (error) {
+          useLogStore.getState().addLog('error', 'database', `Fetch Products Failed: ${error.message}`, 'SYSTEM');
+          return;
+      }
+
+      let mappedProducts: Product[] = [];
+      
+      if (data) {
+          mappedProducts = data.map((p: any) => ({
               id: p.id,
               name: p.name,
               description: p.description,
@@ -51,22 +64,84 @@ export const useFarmStore = create<FarmState>((set, get) => ({
               isDefault: p.is_default,
               isCustom: p.is_custom
           }));
-          set({ products: mappedProducts });
       }
+
+      // Default Products Logic Updated
+      const defaultProducts: Product[] = [
+          {
+              id: '1',
+              name: 'شیرینگ پک ۶ شانه ساده',
+              description: 'مخصوص فارم‌های متفرقه',
+              unit: ProductUnit.CARTON,
+              hasKilogramUnit: false,
+              isDefault: true,
+              isCustom: false
+          },
+          {
+              id: '2',
+              name: 'شیرینگ پک ۶ شانه پرینتی',
+              description: 'مخصوص فارم‌های متفرقه',
+              unit: ProductUnit.CARTON,
+              hasKilogramUnit: false,
+              isDefault: true,
+              isCustom: false
+          }
+      ];
+
+      const missingDefaults = defaultProducts.filter(dp => !mappedProducts.find(p => p.id === dp.id));
+
+      if (missingDefaults.length > 0) {
+          mappedProducts = [...mappedProducts, ...missingDefaults];
+          for (const p of missingDefaults) {
+              const { error: upsertError } = await supabase.from('products').upsert({
+                  id: p.id,
+                  name: p.name,
+                  description: p.description,
+                  unit: p.unit,
+                  has_kilogram_unit: p.hasKilogramUnit,
+                  is_default: p.isDefault,
+                  is_custom: p.isCustom
+              });
+              if (upsertError) {
+                   useLogStore.getState().addLog('warn', 'database', `Failed to restore default product ${p.name}: ${upsertError.message}`, 'SYSTEM');
+              }
+          }
+      }
+
+      set({ products: mappedProducts });
   },
 
   addFarm: async (farm) => {
+    const user = (await supabase.auth.getUser()).data.user;
+    const userId = user?.id || 'UNKNOWN';
+
+    useLogStore.getState().addLog('info', 'database', `Attempting to add farm: ${farm.name}`, userId);
+
     const dbFarm = {
         name: farm.name,
         type: farm.type,
         is_active: farm.isActive,
         product_ids: farm.productIds
     };
-    const { error } = await supabase.from('farms').insert(dbFarm);
-    if (!error) get().fetchFarms();
+    
+    const { data, error } = await supabase.from('farms').insert(dbFarm).select();
+    
+    if (error) {
+        useLogStore.getState().addLog('error', 'database', `Add Farm Error: ${error.message} - Details: ${JSON.stringify(error)}`, userId);
+        return { success: false, error: error.message };
+    }
+
+    useLogStore.getState().addLog('info', 'database', `Farm created successfully: ${farm.name}`, userId);
+    get().fetchFarms();
+    return { success: true };
   },
 
   updateFarm: async (farm) => {
+    const user = (await supabase.auth.getUser()).data.user;
+    const userId = user?.id || 'UNKNOWN';
+
+    useLogStore.getState().addLog('info', 'database', `Attempting to update farm: ${farm.id}`, userId);
+
     const dbFarm = {
         name: farm.name,
         type: farm.type,
@@ -74,15 +149,36 @@ export const useFarmStore = create<FarmState>((set, get) => ({
         product_ids: farm.productIds
     };
     const { error } = await supabase.from('farms').update(dbFarm).eq('id', farm.id);
-    if (!error) get().fetchFarms();
+    
+    if (error) {
+        useLogStore.getState().addLog('error', 'database', `Update Farm Error: ${error.message}`, userId);
+        return { success: false, error: error.message };
+    }
+
+    useLogStore.getState().addLog('info', 'database', `Farm updated: ${farm.name}`, userId);
+    get().fetchFarms();
+    return { success: true };
   },
 
   deleteFarm: async (farmId) => {
+    const user = (await supabase.auth.getUser()).data.user;
+    const userId = user?.id || 'UNKNOWN';
+    
     const { error } = await supabase.from('farms').delete().eq('id', farmId);
-    if (!error) get().fetchFarms();
+    
+    if (error) {
+        useLogStore.getState().addLog('error', 'database', `Delete Farm Error: ${error.message}`, userId);
+        return { success: false, error: error.message };
+    }
+
+    useLogStore.getState().addLog('info', 'database', `Farm deleted: ${farmId}`, userId);
+    get().fetchFarms();
+    return { success: true };
   },
 
   addProduct: async (productData) => {
+      const user = (await supabase.auth.getUser()).data.user;
+      
       const dbProduct = {
           name: productData.name,
           description: productData.description,
@@ -91,8 +187,16 @@ export const useFarmStore = create<FarmState>((set, get) => ({
           is_default: false,
           is_custom: true
       };
+      
       const { data, error } = await supabase.from('products').insert(dbProduct).select().single();
-      if (!error && data) {
+      
+      if (error) {
+          useLogStore.getState().addLog('error', 'database', `Add Product Error: ${error.message}`, user?.id);
+          return null;
+      }
+      
+      if (data) {
+          useLogStore.getState().addLog('info', 'database', `Product created: ${data.name}`, user?.id);
           get().fetchProducts();
           return {
               id: data.id,

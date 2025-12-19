@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { User, UserRole } from '../types';
+import { useLogStore } from './logStore';
 
 interface UserState {
   users: User[];
@@ -20,7 +21,13 @@ export const useUserStore = create<UserState>((set, get) => ({
       set({ isLoading: true });
       const { data: profiles, error } = await supabase.from('profiles').select('*, farms:user_farms(farm_id)');
       
-      if (!error && profiles) {
+      if (error) {
+           useLogStore.getState().addLog('error', 'database', `Fetch Users Failed: ${error.message}`);
+           set({ isLoading: false });
+           return;
+      }
+
+      if (profiles) {
           // We need farms to map names
           const { data: allFarms } = await supabase.from('farms').select('*');
           
@@ -45,12 +52,9 @@ export const useUserStore = create<UserState>((set, get) => ({
   },
 
   addUser: async (userData) => {
-      // NOTE: Creating a user in Supabase Auth usually requires Admin API or calling a helper endpoint.
-      // Since we are using client side, we can use `signUp` but that logs the current user out by default unless configured.
-      // FOR V1: We will Create a User via a "Secondary Client" strategy or just simple signUp. 
-      // Ideally, this should be an Edge Function. Here we simulate by calling signUp directly which might warn.
-      // Better approach for Client-Side Admin: User `supabase.auth.signUp` with the new user credentials.
-      
+      const currentAdmin = (await supabase.auth.getUser()).data.user;
+      useLogStore.getState().addLog('info', 'database', `Creating new user: ${userData.username}`, currentAdmin?.id);
+
       // 1. Create Auth User
       const email = `${userData.username}@morvarid.app`;
       const { data, error } = await supabase.auth.signUp({
@@ -66,31 +70,64 @@ export const useUserStore = create<UserState>((set, get) => ({
       });
 
       if (error) {
-          alert('خطا در ساخت کاربر: ' + error.message);
+          useLogStore.getState().addLog('error', 'auth', `Failed to sign up user ${userData.username}: ${error.message}`, currentAdmin?.id);
+          alert('خطا در ساخت کاربر (Auth): ' + error.message);
           return;
       }
 
       if (data.user) {
-          // 2. Assign Farms (Junction Table)
+          useLogStore.getState().addLog('info', 'auth', `Auth user created: ${data.user.id}`, currentAdmin?.id);
+          
+          // 2. MANUALLY Create Profile (Since triggers were removed/disabled)
+          const { error: profileError } = await supabase.from('profiles').insert({
+              id: data.user.id,
+              username: userData.username,
+              full_name: userData.fullName,
+              role: userData.role,
+              is_active: userData.isActive,
+              phone_number: userData.phoneNumber
+          });
+
+          if (profileError) {
+              useLogStore.getState().addLog('error', 'database', `Failed to create profile for ${userData.username}: ${profileError.message}`, currentAdmin?.id);
+              // Try to clean up auth user if profile fails? (Hard without admin key)
+              alert('کاربر ساخته شد اما پروفایل ثبت نشد. لطفا با پشتیبانی تماس بگیرید: ' + profileError.message);
+              return;
+          }
+
+          // 3. Assign Farms (Junction Table)
           if (userData.assignedFarms && userData.assignedFarms.length > 0) {
               const inserts = userData.assignedFarms.map(f => ({
                   user_id: data.user!.id,
                   farm_id: f.id
               }));
-              await supabase.from('user_farms').insert(inserts);
+              const { error: assignError } = await supabase.from('user_farms').insert(inserts);
+              if (assignError) {
+                  useLogStore.getState().addLog('error', 'database', `Failed to assign farms to ${userData.username}: ${assignError.message}`, currentAdmin?.id);
+              }
           }
+          
+          // Refresh list
           get().fetchUsers();
       }
   },
 
   updateUser: async (user) => {
+      const currentAdmin = (await supabase.auth.getUser()).data.user;
+      useLogStore.getState().addLog('info', 'database', `Updating user profile: ${user.username}`, currentAdmin?.id);
+
       // 1. Update Profile
-      await supabase.from('profiles').update({
+      const { error: profileError } = await supabase.from('profiles').update({
           full_name: user.fullName,
           role: user.role,
           is_active: user.isActive,
           phone_number: user.phoneNumber
       }).eq('id', user.id);
+
+      if (profileError) {
+           useLogStore.getState().addLog('error', 'database', `Profile update failed: ${profileError.message}`, currentAdmin?.id);
+           return;
+      }
 
       // 2. Update Farm Assignments (Clear then Insert)
       await supabase.from('user_farms').delete().eq('user_id', user.id);
@@ -100,20 +137,25 @@ export const useUserStore = create<UserState>((set, get) => ({
               user_id: user.id,
               farm_id: f.id
           }));
-          await supabase.from('user_farms').insert(inserts);
+          const { error: assignError } = await supabase.from('user_farms').insert(inserts);
+          if (assignError) {
+              useLogStore.getState().addLog('error', 'database', `Farm re-assignment failed: ${assignError.message}`, currentAdmin?.id);
+          }
       }
       
       get().fetchUsers();
   },
 
   deleteUser: async (userId) => {
-      // Deleting from profiles cascades to user_farms
-      // Note: Deleting from Auth users requires Service Role (Edge Function). 
-      // For Client Side V1, we just disable the user in profiles or delete the profile row.
-      // Deleting profile row doesn't delete Auth User (security limitation of client SDK).
-      // Best practice: Set is_active = false.
+      const currentAdmin = (await supabase.auth.getUser()).data.user;
+      useLogStore.getState().addLog('warn', 'database', `Deactivating user: ${userId}`, currentAdmin?.id);
+
+      const { error } = await supabase.from('profiles').update({ is_active: false }).eq('id', userId);
       
-      await supabase.from('profiles').update({ is_active: false }).eq('id', userId);
-      get().fetchUsers();
+      if (error) {
+          useLogStore.getState().addLog('error', 'database', `User deactivation failed: ${error.message}`, currentAdmin?.id);
+      } else {
+          get().fetchUsers();
+      }
   }
 }));

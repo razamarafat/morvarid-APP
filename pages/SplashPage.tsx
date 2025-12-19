@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../store/authStore';
@@ -7,18 +7,27 @@ import Logo from '../components/common/Logo';
 
 const SplashPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user, isLoading } = useAuthStore();
+  const [minTimeElapsed, setMinTimeElapsed] = useState(false);
 
   useEffect(() => {
+    // Ensure branding is visible for at least 2 seconds
     const timer = setTimeout(() => {
+      setMinTimeElapsed(true);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    // Only redirect when BOTH auth is done loading AND min time has passed
+    if (!isLoading && minTimeElapsed) {
       if (user) {
         navigate('/home');
       } else {
         navigate('/login');
       }
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [navigate, user]);
+    }
+  }, [isLoading, minTimeElapsed, user, navigate]);
 
   const logoVariants = {
     hidden: { opacity: 0, scale: 0.5 },
@@ -78,6 +87,22 @@ const SplashPage: React.FC = () => {
       >
         به سامانه مدیریت یکپارچه آمار مروارید خوش آمدید
       </motion.h1>
+      
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1 }}
+        className="mt-8"
+      >
+        <div className="w-64 h-1 bg-gray-200 rounded-full overflow-hidden mx-auto">
+            <motion.div 
+                className="h-full bg-violet-600"
+                animate={{ x: [-256, 256] }}
+                transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+            />
+        </div>
+        <p className="text-xs text-gray-400 mt-2">در حال برقراری ارتباط با سرور...</p>
+      </motion.div>
     </div>
   );
 };

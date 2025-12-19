@@ -9,9 +9,15 @@ import Modal from '../common/Modal';
 import Button from '../common/Button';
 import { Icons } from '../common/Icons';
 import { useConfirm } from '../../hooks/useConfirm';
+import { useToastStore } from '../../store/toastStore';
+
+// Regex: Persian Chars, Spaces, Digits. No latin.
+const farmNameRegex = /^[\u0600-\u06FF\s0-9]+$/;
 
 const farmSchema = z.object({
-  name: z.string().min(1, 'نام فارم الزامی است'),
+  name: z.string()
+    .min(1, 'نام فارم الزامی است')
+    .regex(farmNameRegex, 'نام فارم باید فقط شامل حروف فارسی و اعداد باشد'),
   type: z.nativeEnum(FarmType, { errorMap: () => ({ message: 'نوع فارم الزامی است' }) }),
   isActive: z.boolean(),
   productIds: z.array(z.string()).min(1, 'حداقل یک محصول باید انتخاب شود'),
@@ -28,6 +34,8 @@ interface FarmFormModalProps {
 const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) => {
   const { addFarm, updateFarm, products: allProducts, addProduct } = useFarmStore();
   const { confirm } = useConfirm();
+  const { addToast } = useToastStore();
+  
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [newProductName, setNewProductName] = useState('');
 
@@ -60,7 +68,7 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
     }
   }, [farm, isOpen, reset]);
 
-  // Strict logic for Farm Type selection
+  // Logic for Farm Type selection
   useEffect(() => {
     if (selectedType === FarmType.MOTEFEREGHE) {
        // Auto select simple and printi, disable others
@@ -78,10 +86,18 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
         unit: 'CARTON' as any, 
         hasKilogramUnit: false 
       });
-      const currentIds = watch('productIds') || [];
-      setValue('productIds', [...currentIds, newProduct.id]);
-      setNewProductName('');
-      setIsAddingProduct(false);
+      // @ts-ignore
+      newProduct.then((p: any) => {
+          if (p) {
+             const currentIds = watch('productIds') || [];
+             setValue('productIds', [...currentIds, p.id]);
+             setNewProductName('');
+             setIsAddingProduct(false);
+             addToast('محصول جدید اضافه شد', 'success');
+          } else {
+             addToast('خطا در افزودن محصول', 'error');
+          }
+      });
     }
   };
 
@@ -94,12 +110,19 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
     });
     
     if (confirmed) {
+        let result;
         if (farm) {
-          updateFarm({ ...data, id: farm.id });
+          result = await updateFarm({ ...data, id: farm.id });
         } else {
-          addFarm(data);
+          result = await addFarm(data);
         }
-        onClose();
+
+        if (result.success) {
+            addToast(farm ? 'فارم با موفقیت ویرایش شد' : 'فارم جدید ایجاد شد', 'success');
+            onClose();
+        } else {
+            addToast(`خطا: ${result.error}`, 'error');
+        }
     }
   };
 
@@ -111,10 +134,11 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div>
-          <label htmlFor="farmName" className="block text-sm font-medium mb-1 dark:text-gray-300">نام فارم</label>
+          <label htmlFor="farmName" className="block text-sm font-medium mb-1 dark:text-gray-300">نام فارم (فقط فارسی)</label>
           <input 
             id="farmName" 
             {...register('name')} 
+            placeholder="مثال: فارم یک"
             className="w-full p-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 dark:text-white focus:ring-violet-500" 
           />
           {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>}
@@ -173,9 +197,12 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
                 render={({ field }) => (
                     <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar border rounded-lg p-2 bg-white dark:bg-gray-800">
                         {allProducts.map(p => {
-                            // If Motefereghe, only show default items 1 & 2
+                            // Rule 1: If Motefereghe, ONLY show defaults (1 & 2)
                             if (selectedType === FarmType.MOTEFEREGHE && !MOTEFEREGHE_DEFAULT_IDS.includes(p.id)) return null;
                             
+                            // Rule 2: If Morvaridi, HIDE defaults (1 & 2)
+                            if (selectedType === FarmType.MORVARIDI && MOTEFEREGHE_DEFAULT_IDS.includes(p.id)) return null;
+
                             const isReadOnly = selectedType === FarmType.MOTEFEREGHE;
                             
                             return (
@@ -199,6 +226,9 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
                             );
                         })}
                         {!selectedType && <p className="text-sm text-gray-500 italic text-center py-4">لطفا ابتدا نوع فارم را انتخاب کنید.</p>}
+                        {selectedType === FarmType.MORVARIDI && allProducts.every(p => MOTEFEREGHE_DEFAULT_IDS.includes(p.id)) && (
+                            <p className="text-sm text-gray-500 text-center">هیچ محصول اختصاصی تعریف نشده است.</p>
+                        )}
                     </div>
                 )}
              />

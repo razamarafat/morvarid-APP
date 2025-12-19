@@ -18,7 +18,7 @@ interface SidebarProps {
 const NavLink: React.FC<{ icon: React.ElementType, label: string, onClick: () => void }> = ({ icon: Icon, label, onClick }) => (
   <button onClick={onClick} className="w-full text-right flex items-center p-4 rounded-2xl hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-all duration-200 group mb-1">
     <Icon className="w-5 h-5 ml-2 text-gray-400 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors" />
-    <span className="font-bold text-gray-600 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white">{label}</span>
+    <span className="font-bold inherit group-hover:opacity-100 transition-opacity">{label}</span>
   </button>
 );
 
@@ -29,7 +29,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
   const { confirm } = useConfirm();
 
   const role = user?.role || UserRole.ADMIN;
-  // Use surface color from constants to ensure consistency with Header and prevent "dark in light mode" issues
   const themeColors = THEMES[theme][role];
 
   const handleLogout = async () => {
@@ -100,7 +99,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
         onClick={onClose}
       />
       <aside
-        className={`fixed top-0 right-0 h-full w-72 ${themeColors.surface} text-gray-800 dark:text-gray-200 shadow-2xl z-50 transform transition-transform duration-300 ease-out ${
+        className={`fixed top-0 right-0 h-full w-72 ${themeColors.surface} ${themeColors.text} shadow-2xl z-50 transform transition-transform duration-300 ease-out ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         } lg:relative lg:translate-x-0 lg:w-72 flex flex-col border-l border-gray-100 dark:border-gray-700`}
       >
@@ -108,12 +107,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
             className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center gap-4 cursor-pointer"
             onClick={handleHome}
         >
-            <div className="w-12 h-12 bg-orange-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center p-1">
+            <div className="w-12 h-12 bg-gray-50 dark:bg-gray-700 rounded-2xl flex items-center justify-center p-1 shadow-sm">
                 <Logo className="w-full h-full object-contain" />
             </div>
             <div>
-                <h2 className="text-xl font-black text-gray-800 dark:text-white">مروارید</h2>
-                <p className="text-xs text-gray-500 dark:text-gray-400">مدیریت یکپارچه آمار</p>
+                <h2 className="text-xl font-black">مروارید</h2>
+                <p className="text-xs opacity-70">مدیریت یکپارچه آمار</p>
             </div>
         </div>
         
@@ -123,7 +122,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
         
         <div className="p-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
             <NavLink icon={Icons.LogOut} label="خروج امن" onClick={handleLogout} />
-            <div className="text-center text-xs text-gray-400 mt-2 font-mono opacity-60">
+            <div className="text-center text-xs opacity-50 mt-2 font-mono">
                 v{APP_VERSION}
             </div>
         </div>

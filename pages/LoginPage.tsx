@@ -62,6 +62,8 @@ const LoginPage: React.FC = () => {
     }
   };
 
+  const inputClass = "w-full px-5 py-4 bg-white dark:bg-gray-700/50 border border-gray-300 dark:border-transparent focus:bg-white dark:focus:bg-gray-700 focus:border-violet-500 dark:focus:border-violet-500 rounded-2xl text-gray-900 dark:text-white outline-none transition-all font-bold text-lg text-center placeholder-gray-400 focus:ring-4 focus:ring-violet-500/10";
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-950 flex flex-col items-center justify-center p-4">
       <div className="absolute top-6 left-6">
@@ -76,7 +78,7 @@ const LoginPage: React.FC = () => {
             <h1 className="text-3xl font-black text-gray-800 dark:text-white tracking-tight">مروارید</h1>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 shadow-[0_20px_50px_rgba(0,0,0,0.1)] dark:shadow-black/50 rounded-[32px] p-8 relative overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 shadow-[0_20px_50px_rgba(0,0,0,0.1)] dark:shadow-black/50 rounded-[32px] p-8 relative overflow-hidden border border-gray-100 dark:border-gray-700/50">
           {/* Decor element */}
           <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
 
@@ -91,7 +93,7 @@ const LoginPage: React.FC = () => {
                     dir="ltr"
                     disabled={isBlocked}
                     {...register('username')}
-                    className="w-full px-5 py-4 bg-gray-50 dark:bg-gray-700/50 border-2 border-transparent focus:bg-white dark:focus:bg-gray-700 focus:border-violet-500 dark:focus:border-violet-500 rounded-2xl text-gray-900 dark:text-white outline-none transition-all font-bold text-lg text-center placeholder-gray-400"
+                    className={inputClass}
                     placeholder="Username"
                   />
                   <Icons.User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -106,7 +108,7 @@ const LoginPage: React.FC = () => {
                   dir="ltr"
                   disabled={isBlocked}
                   {...register('password')}
-                  className="w-full px-5 py-4 bg-gray-50 dark:bg-gray-700/50 border-2 border-transparent focus:bg-white dark:focus:bg-gray-700 focus:border-violet-500 dark:focus:border-violet-500 rounded-2xl text-gray-900 dark:text-white outline-none transition-all font-bold text-lg text-center placeholder-gray-400"
+                  className={inputClass}
                   placeholder="••••"
                 />
                 <button

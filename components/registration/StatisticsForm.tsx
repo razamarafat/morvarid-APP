@@ -7,7 +7,7 @@ import { useStatisticsStore } from '../../store/statisticsStore';
 import { useToastStore } from '../../store/toastStore';
 import { useLogStore } from '../../store/logStore';
 import { FarmType, ProductUnit } from '../../types';
-import { getTodayJalali } from '../../utils/dateUtils';
+import { getTodayJalali, toEnglishDigits } from '../../utils/dateUtils';
 import Button from '../common/Button';
 import { useConfirm } from '../../hooks/useConfirm';
 
@@ -18,6 +18,7 @@ const StatisticsForm: React.FC = () => {
     const { addToast } = useToastStore();
     const { addLog } = useLogStore();
     const { confirm } = useConfirm();
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const userFarms = user?.assignedFarms || [];
     const [selectedFarmId, setSelectedFarmId] = useState<string>(userFarms[0]?.id || '');
@@ -92,12 +93,20 @@ const StatisticsForm: React.FC = () => {
         });
 
         if (confirmed) {
-            data.items.forEach((item: any) => {
-                const finalUnit = item.hasKilogram ? item.selectedUnit : item.unit;
-                
-                addStatistic({
+            setIsSubmitting(true);
+            let successCount = 0;
+            let errorCount = 0;
+
+            const normalizedDate = toEnglishDigits(data.date);
+
+            for (const item of data.items) {
+                // Skip empty items if they have no production/sales in "MOTEFEREGHE" to avoid clutter? 
+                // No, we usually want to record 0 for consistency, or maybe logic depends. 
+                // For now we record everything.
+
+                const result = await addStatistic({
                     farmId: selectedFarmId,
-                    date: data.date,
+                    date: normalizedDate,
                     productId: item.productId,
                     previousBalance: Number(item.previousBalance) || 0,
                     production: Number(item.production) || 0,
@@ -105,23 +114,35 @@ const StatisticsForm: React.FC = () => {
                     currentInventory: item.currentInventory
                 });
 
-                addLog('info', 'database', `آمار ثبت شد: ${item.productName}`, user?.id);
-            });
+                if (result.success) {
+                    successCount++;
+                    addLog('info', 'database', `آمار ثبت شد: ${item.productName}`, user?.id);
+                } else {
+                    errorCount++;
+                    console.error('Failed to save stat:', result.error);
+                }
+            }
             
-            addToast('آمار با موفقیت ثبت شد', 'success');
-            
-            // Reset for next day logic: Current Inventory becomes Previous Balance
-            const resetItems = data.items.map((item: any) => ({ 
-                ...item, 
-                production: '', 
-                sales: '',
-                previousBalance: item.currentInventory 
-            }));
-            setValue('items', resetItems);
+            setIsSubmitting(false);
+
+            if (errorCount === 0) {
+                addToast('تمام آمارها با موفقیت ثبت شدند', 'success');
+                 // Reset for next day logic
+                const resetItems = data.items.map((item: any) => ({ 
+                    ...item, 
+                    production: '', 
+                    sales: '',
+                    previousBalance: item.currentInventory 
+                }));
+                setValue('items', resetItems);
+            } else if (successCount > 0) {
+                addToast(`ثبت با هشدار: ${successCount} موفق، ${errorCount} ناموفق`, 'warning');
+            } else {
+                addToast('خطا در ثبت اطلاعات. لطفا اتصال اینترنت را بررسی کنید', 'error');
+            }
         }
     };
 
-    // Explicit bg-white text-gray-900 to fix dark input bug in light mode
     const inputClass = "w-full p-3 bg-white text-gray-900 dark:bg-gray-900 dark:text-white border-2 border-gray-300 dark:border-gray-600 rounded-2xl focus:border-orange-500 focus:ring-0 transition-colors text-center font-bold text-lg placeholder-gray-300";
 
     if (!selectedFarm) return <div className="text-center p-8 text-gray-500">هیچ فارمی به شما تخصیص داده نشده است.</div>;
@@ -142,7 +163,6 @@ const StatisticsForm: React.FC = () => {
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                     {fields.map((field, index) => {
                         const isLiquid = formItems[index]?.hasKilogram; 
-                        // Logic for Liquid Egg labels
                         const unit1Label = isLiquid ? 'دبه / ظرف' : 'کارتن';
                         const unit2Label = 'کیلوگرم (توزین)';
 
@@ -238,7 +258,7 @@ const StatisticsForm: React.FC = () => {
                         </div>
                     )})}
                     <div className="flex justify-end pt-4">
-                        <Button type="submit" size="lg" className="w-full md:w-auto bg-gradient-to-l from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 shadow-lg shadow-orange-500/30 rounded-2xl py-4 px-12 text-lg font-bold">
+                        <Button type="submit" size="lg" isLoading={isSubmitting} className="w-full md:w-auto bg-gradient-to-l from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 shadow-lg shadow-orange-500/30 rounded-2xl py-4 px-12 text-lg font-bold">
                             ثبت نهایی آمار
                         </Button>
                     </div>

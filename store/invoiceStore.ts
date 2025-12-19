@@ -21,8 +21,8 @@ interface InvoiceState {
     invoices: Invoice[];
     isLoading: boolean;
     fetchInvoices: () => Promise<void>;
-    addInvoice: (invoice: Omit<Invoice, 'id' | 'createdAt'>) => Promise<void>;
-    updateInvoice: (id: string, updates: Partial<Invoice>) => Promise<void>;
+    addInvoice: (invoice: Omit<Invoice, 'id' | 'createdAt'>) => Promise<{ success: boolean; error?: any }>;
+    updateInvoice: (id: string, updates: Partial<Invoice>) => Promise<{ success: boolean; error?: any }>;
     deleteInvoice: (id: string) => Promise<void>;
 }
 
@@ -32,7 +32,18 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
 
   fetchInvoices: async () => {
       set({ isLoading: true });
-      const { data, error } = await supabase.from('invoices').select('*').order('created_at', { ascending: false });
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+          set({ invoices: [], isLoading: false });
+          return;
+      }
+
+      // Order by 'date' (text) descending is safe and correct.
+      const { data, error } = await supabase
+          .from('invoices')
+          .select('*')
+          .order('date', { ascending: false });
       
       if (!error && data) {
           const mappedInvoices = data.map((i: any) => ({
@@ -47,16 +58,20 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
               driverPhone: i.driver_phone,
               plateNumber: i.plate_number,
               isYesterday: i.is_yesterday,
-              createdAt: new Date(i.created_at).getTime()
+              // Safe date parsing
+              createdAt: i.created_at ? new Date(i.created_at).getTime() : Date.now()
           }));
           set({ invoices: mappedInvoices, isLoading: false });
       } else {
           set({ isLoading: false });
+          console.error('Error fetching invoices:', error?.message || error);
       }
   },
 
   addInvoice: async (inv) => {
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { success: false, error: "Not authenticated" };
+
       const dbInv = {
           farm_id: inv.farmId,
           date: inv.date,
@@ -68,11 +83,16 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           driver_phone: inv.driverPhone,
           plate_number: inv.plateNumber,
           is_yesterday: inv.isYesterday,
-          created_by: user?.id
+          created_by: user.id
       };
       
       const { error } = await supabase.from('invoices').insert(dbInv);
-      if (!error) get().fetchInvoices();
+      
+      if (!error) {
+          get().fetchInvoices();
+          return { success: true };
+      }
+      return { success: false, error: error?.message || error };
   },
 
   updateInvoice: async (id, updates) => {
@@ -81,11 +101,17 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
       if (updates.totalWeight !== undefined) dbUpdates.total_weight = updates.totalWeight;
       
       const { error } = await supabase.from('invoices').update(dbUpdates).eq('id', id);
-      if (!error) get().fetchInvoices();
+      
+      if (!error) {
+          get().fetchInvoices();
+          return { success: true };
+      }
+      return { success: false, error: error?.message || error };
   },
 
   deleteInvoice: async (id) => {
       const { error } = await supabase.from('invoices').delete().eq('id', id);
       if (!error) get().fetchInvoices();
+      else console.error('Error deleting invoice:', error?.message || error);
   }
 }));

@@ -18,8 +18,8 @@ interface StatisticsState {
     statistics: DailyStatistic[];
     isLoading: boolean;
     fetchStatistics: () => Promise<void>;
-    addStatistic: (stat: Omit<DailyStatistic, 'id' | 'createdAt'>) => Promise<void>;
-    updateStatistic: (id: string, updates: Partial<DailyStatistic>) => Promise<void>;
+    addStatistic: (stat: Omit<DailyStatistic, 'id' | 'createdAt'>) => Promise<{ success: boolean; error?: any }>;
+    updateStatistic: (id: string, updates: Partial<DailyStatistic>) => Promise<{ success: boolean; error?: any }>;
     deleteStatistic: (id: string) => Promise<void>;
     getLatestInventory: (farmId: string, productId: string) => number;
 }
@@ -30,7 +30,20 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
 
   fetchStatistics: async () => {
       set({ isLoading: true });
-      const { data, error } = await supabase.from('daily_statistics').select('*').order('created_at', { ascending: false });
+
+      // Check for valid session first to avoid "Infinite Recursion" policies for anon users
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+          console.warn("No active Supabase session. Skipping fetchStatistics to prevent RLS errors.");
+          set({ statistics: [], isLoading: false });
+          return;
+      }
+
+      // Order by 'date' (text) descending is safe and logically correct for stats.
+      const { data, error } = await supabase
+          .from('daily_statistics')
+          .select('*')
+          .order('date', { ascending: false });
       
       if (!error && data) {
           const mappedStats = data.map((s: any) => ({
@@ -42,16 +55,21 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
               production: s.production,
               sales: s.sales,
               currentInventory: s.current_inventory,
-              createdAt: new Date(s.created_at).getTime()
+              // Safe date parsing
+              createdAt: s.created_at ? new Date(s.created_at).getTime() : Date.now()
           }));
           set({ statistics: mappedStats, isLoading: false });
       } else {
           set({ isLoading: false });
+          // Log the actual error message
+          console.error('Error fetching statistics:', error?.message || error);
       }
   },
 
   addStatistic: async (stat) => {
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { success: false, error: "Not authenticated" };
+
       const dbStat = {
           farm_id: stat.farmId,
           date: stat.date,
@@ -60,11 +78,16 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           production: stat.production,
           sales: stat.sales,
           current_inventory: stat.currentInventory,
-          created_by: user?.id
+          created_by: user.id
       };
       
       const { error } = await supabase.from('daily_statistics').insert(dbStat);
-      if (!error) get().fetchStatistics();
+      
+      if (!error) {
+          get().fetchStatistics();
+          return { success: true };
+      }
+      return { success: false, error: error?.message || error };
   },
 
   updateStatistic: async (id, updates) => {
@@ -75,12 +98,18 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
       if (updates.currentInventory !== undefined) dbUpdates.current_inventory = updates.currentInventory;
 
       const { error } = await supabase.from('daily_statistics').update(dbUpdates).eq('id', id);
-      if (!error) get().fetchStatistics();
+      
+      if (!error) {
+          get().fetchStatistics();
+          return { success: true };
+      }
+      return { success: false, error: error?.message || error };
   },
 
   deleteStatistic: async (id) => {
       const { error } = await supabase.from('daily_statistics').delete().eq('id', id);
       if (!error) get().fetchStatistics();
+      else console.error('Error deleting statistic:', error?.message || error);
   },
 
   getLatestInventory: (farmId, productId) => {

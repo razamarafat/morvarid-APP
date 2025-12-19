@@ -9,7 +9,7 @@ import { useInvoiceStore } from '../../store/invoiceStore';
 import { useToastStore } from '../../store/toastStore';
 import { useLogStore } from '../../store/logStore';
 import { FarmType } from '../../types';
-import { getTodayJalali } from '../../utils/dateUtils';
+import { getTodayJalali, toEnglishDigits } from '../../utils/dateUtils';
 import Button from '../common/Button';
 import { Icons } from '../common/Icons';
 import { useSMS } from '../../hooks/useSMS';
@@ -42,6 +42,7 @@ const InvoiceForm: React.FC = () => {
     const [showDriverDetails, setShowDriverDetails] = useState(false);
     const [isSMSModalOpen, setSMSModalOpen] = useState(false);
     const [smsText, setSmsText] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const userFarms = user?.assignedFarms || [];
     const [selectedFarmId, setSelectedFarmId] = useState<string>(userFarms[0]?.id || '');
@@ -93,27 +94,38 @@ const InvoiceForm: React.FC = () => {
         });
 
         if (confirmed) {
-            addInvoice({
+            setIsSubmitting(true);
+            const result = await addInvoice({
                 farmId: selectedFarmId,
-                date: getTodayJalali(),
-                invoiceNumber: data.invoiceNumber,
+                date: toEnglishDigits(getTodayJalali()),
+                invoiceNumber: toEnglishDigits(data.invoiceNumber),
                 totalCartons: data.totalCartons,
-                totalWeight: data.totalWeight, // Stored exactly as input
+                totalWeight: data.totalWeight,
                 productId: data.productId,
                 driverName: data.driverName,
-                driverPhone: data.driverPhone,
+                driverPhone: data.driverPhone ? toEnglishDigits(data.driverPhone) : undefined,
                 plateNumber: data.plateNumber,
                 isYesterday: data.isYesterday
             });
-            addLog('info', 'database', `حواله فروش ثبت شد: ${data.invoiceNumber} - ${data.totalWeight}kg`, user?.id);
-            addToast('حواله با موفقیت ثبت شد', 'success');
-            reset({
-                 isYesterday: false,
-                 driverName: '',
-                 driverPhone: '',
-                 plateNumber: '',
-                 description: ''
-            });
+
+            setIsSubmitting(false);
+
+            if (result.success) {
+                addLog('info', 'database', `حواله فروش ثبت شد: ${data.invoiceNumber} - ${data.totalWeight}kg`, user?.id);
+                addToast('حواله با موفقیت ثبت شد', 'success');
+                reset({
+                     isYesterday: false,
+                     driverName: '',
+                     driverPhone: '',
+                     plateNumber: '',
+                     description: '',
+                     invoiceNumber: '',
+                     totalCartons: undefined,
+                     totalWeight: undefined
+                });
+            } else {
+                addToast('خطا در ثبت حواله: ' + (result.error?.message || 'خطای شبکه'), 'error');
+            }
         }
     };
 
@@ -216,7 +228,7 @@ const InvoiceForm: React.FC = () => {
                     </div>
 
                     <div className="flex justify-end pt-4">
-                        <Button type="submit" size="lg" className="bg-orange-600 hover:bg-orange-700 shadow-lg shadow-orange-500/30 rounded-xl py-4 px-8 text-lg font-bold">ثبت حواله</Button>
+                        <Button type="submit" size="lg" isLoading={isSubmitting} className="bg-orange-600 hover:bg-orange-700 shadow-lg shadow-orange-500/30 rounded-xl py-4 px-8 text-lg font-bold">ثبت حواله</Button>
                     </div>
                 </form>
             </div>

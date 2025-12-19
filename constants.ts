@@ -9,7 +9,7 @@ export const THEMES = {
       primaryText: 'text-violet-600',
       background: 'bg-gray-100',
       surface: 'bg-white',
-      text: 'text-gray-800',
+      text: 'text-gray-900',
       border: 'border-violet-600',
       gradient: 'from-violet-50 to-purple-100',
       icon: 'text-violet-500'
@@ -20,7 +20,7 @@ export const THEMES = {
       primaryText: 'text-orange-500',
       background: 'bg-orange-50',
       surface: 'bg-white',
-      text: 'text-gray-800',
+      text: 'text-gray-900',
       border: 'border-orange-500',
       gradient: 'from-orange-50 to-amber-100',
       icon: 'text-orange-500'
@@ -31,7 +31,7 @@ export const THEMES = {
       primaryText: 'text-blue-600',
       background: 'bg-blue-50',
       surface: 'bg-white',
-      text: 'text-gray-800',
+      text: 'text-gray-900',
       border: 'border-blue-600',
       gradient: 'from-blue-50 to-sky-100',
       icon: 'text-blue-500'
@@ -44,7 +44,7 @@ export const THEMES = {
       primaryText: 'text-violet-400',
       background: 'bg-gray-900',
       surface: 'bg-gray-800',
-      text: 'text-gray-200',
+      text: 'text-gray-100',
       border: 'border-violet-500',
       gradient: 'from-gray-800 to-violet-900',
       icon: 'text-violet-400'
@@ -55,7 +55,7 @@ export const THEMES = {
       primaryText: 'text-orange-400',
       background: 'bg-gray-900',
       surface: 'bg-gray-800',
-      text: 'text-gray-200',
+      text: 'text-gray-100',
       border: 'border-orange-500',
       gradient: 'from-gray-800 to-orange-900',
       icon: 'text-orange-400'
@@ -66,7 +66,7 @@ export const THEMES = {
       primaryText: 'text-blue-400',
       background: 'bg-gray-900',
       surface: 'bg-gray-800',
-      text: 'text-gray-200',
+      text: 'text-gray-100',
       border: 'border-blue-500',
       gradient: 'from-gray-800 to-blue-900',
       icon: 'text-blue-400'
@@ -74,4 +74,4 @@ export const THEMES = {
   }
 };
 
-export const APP_VERSION = '1.0.0';
+export const APP_VERSION = '1.0.1';

@@ -130,7 +130,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
     }
   };
 
-  const inputClass = "w-full p-2.5 border rounded-xl bg-white text-gray-900 border-gray-300 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors";
+  const inputClass = "w-full p-2.5 border rounded-xl bg-white text-gray-900 border-gray-300 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors placeholder-gray-400";
 
   return (
     <Modal
