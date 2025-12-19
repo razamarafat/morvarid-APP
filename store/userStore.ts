@@ -1,6 +1,7 @@
 
-import { create } from 'zustand';
-import { supabase } from '../lib/supabase';
+import { create, StoreApi, UseBoundStore } from 'zustand';
+import { createClient } from '@supabase/supabase-js';
+import { supabase, supabaseUrl, supabaseAnonKey } from '../lib/supabase';
 import { User, UserRole } from '../types';
 import { useLogStore } from './logStore';
 
@@ -55,14 +56,25 @@ export const useUserStore = create<UserState>((set, get) => ({
       const currentAdmin = (await supabase.auth.getUser()).data.user;
       useLogStore.getState().addLog('info', 'database', `Creating new user: ${userData.username}`, currentAdmin?.id);
 
+      // Create a temporary client to perform the sign-up WITHOUT affecting the current admin session
+      const tempSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+          auth: {
+              persistSession: false,
+              autoRefreshToken: false,
+              detectSessionInUrl: false
+          }
+      });
+
       // 1. Create Auth User
-      const email = `${userData.username}@morvarid.app`;
-      const { data, error } = await supabase.auth.signUp({
+      const sanitizedUsername = userData.username.trim().toLowerCase();
+      const email = `${sanitizedUsername}@morvarid.app`;
+      
+      const { data, error } = await tempSupabase.auth.signUp({
           email,
           password: userData.password || '123456', // Default
           options: {
               data: {
-                  username: userData.username,
+                  username: sanitizedUsername,
                   full_name: userData.fullName,
                   role: userData.role
               }
@@ -70,7 +82,7 @@ export const useUserStore = create<UserState>((set, get) => ({
       });
 
       if (error) {
-          useLogStore.getState().addLog('error', 'auth', `Failed to sign up user ${userData.username}: ${error.message}`, currentAdmin?.id);
+          useLogStore.getState().addLog('error', 'auth', `Failed to sign up user ${sanitizedUsername}: ${error.message}`, currentAdmin?.id);
           alert('خطا در ساخت کاربر (Auth): ' + error.message);
           return;
       }
@@ -78,10 +90,11 @@ export const useUserStore = create<UserState>((set, get) => ({
       if (data.user) {
           useLogStore.getState().addLog('info', 'auth', `Auth user created: ${data.user.id}`, currentAdmin?.id);
           
-          // 2. MANUALLY Create Profile (Since triggers were removed/disabled)
+          // 2. MANUALLY Create Profile (Using the main client which has the Admin session - if RLS requires it)
+          // Note: If RLS for 'profiles' allows 'insert' for authenticated users, this works.
           const { error: profileError } = await supabase.from('profiles').insert({
               id: data.user.id,
-              username: userData.username,
+              username: sanitizedUsername,
               full_name: userData.fullName,
               role: userData.role,
               is_active: userData.isActive,
@@ -89,8 +102,7 @@ export const useUserStore = create<UserState>((set, get) => ({
           });
 
           if (profileError) {
-              useLogStore.getState().addLog('error', 'database', `Failed to create profile for ${userData.username}: ${profileError.message}`, currentAdmin?.id);
-              // Try to clean up auth user if profile fails? (Hard without admin key)
+              useLogStore.getState().addLog('error', 'database', `Failed to create profile for ${sanitizedUsername}: ${profileError.message}`, currentAdmin?.id);
               alert('کاربر ساخته شد اما پروفایل ثبت نشد. لطفا با پشتیبانی تماس بگیرید: ' + profileError.message);
               return;
           }
@@ -103,7 +115,7 @@ export const useUserStore = create<UserState>((set, get) => ({
               }));
               const { error: assignError } = await supabase.from('user_farms').insert(inserts);
               if (assignError) {
-                  useLogStore.getState().addLog('error', 'database', `Failed to assign farms to ${userData.username}: ${assignError.message}`, currentAdmin?.id);
+                  useLogStore.getState().addLog('error', 'database', `Failed to assign farms to ${sanitizedUsername}: ${assignError.message}`, currentAdmin?.id);
               }
           }
           

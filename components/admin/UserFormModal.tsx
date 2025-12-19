@@ -58,7 +58,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
   const { farms } = useFarmStore();
   const { confirm } = useConfirm();
   
-  const { register, handleSubmit, control, watch, reset, formState: { errors, isSubmitting } } = useForm<UserFormValues>({
+  const { register, handleSubmit, control, watch, reset, setValue, formState: { errors, isSubmitting } } = useForm<UserFormValues>({
     resolver: zodResolver(userSchema),
     defaultValues: {
         isActive: true,
@@ -111,7 +111,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
 
         const userData: any = {
             fullName: data.fullName,
-            username: data.username,
+            username: data.username.toLowerCase(),
             role: data.role,
             phoneNumber: data.phoneNumber,
             isActive: data.isActive,
@@ -138,23 +138,41 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
       onClose={onClose}
       title={user ? 'ویرایش کاربر' : 'ایجاد کاربر جدید'}
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" autoComplete="off">
         
         <div>
           <label className="block text-sm font-bold mb-1 dark:text-gray-300">نام کامل (فارسی)</label>
-          <input {...register('fullName')} className={inputClass} placeholder="مثال: علی محمدی" />
+          <input {...register('fullName')} className={inputClass} placeholder="مثال: علی محمدی" autoComplete="off" />
           {errors.fullName && <p className="text-red-500 text-xs mt-1 font-bold">{errors.fullName.message}</p>}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label className="block text-sm font-bold mb-1 dark:text-gray-300">نام کاربری (لاتین)</label>
-                <input dir="ltr" {...register('username')} className={inputClass} placeholder="ali_mohammadi" />
+                <input 
+                    dir="ltr" 
+                    {...register('username')} 
+                    className={inputClass} 
+                    placeholder="ali_mohammadi" 
+                    autoComplete="new-username"
+                    onChange={(e) => {
+                        // Force lowercase and remove spaces visual feedback
+                        const val = e.target.value.toLowerCase().replace(/\s/g, '');
+                        setValue('username', val);
+                    }}
+                />
                 {errors.username && <p className="text-red-500 text-xs mt-1 font-bold">{errors.username.message}</p>}
             </div>
             <div>
                 <label className="block text-sm font-bold mb-1 dark:text-gray-300">رمز عبور {user && '(اختیاری)'}</label>
-                <input dir="ltr" type="password" {...register('password')} className={inputClass} placeholder={user ? 'تغییر رمز...' : '******'} />
+                <input 
+                    dir="ltr" 
+                    type="password" 
+                    {...register('password')} 
+                    className={inputClass} 
+                    placeholder={user ? 'تغییر رمز...' : '******'} 
+                    autoComplete="new-password"
+                />
                 {errors.password && <p className="text-red-500 text-xs mt-1 font-bold">{errors.password.message}</p>}
             </div>
         </div>

@@ -9,8 +9,8 @@ const FALLBACK_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const meta = (import.meta as any) || {};
 const env = meta.env || {};
 
-const supabaseUrl = env.VITE_SUPABASE_URL || FALLBACK_URL;
-const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY || FALLBACK_ANON_KEY;
+export const supabaseUrl = env.VITE_SUPABASE_URL || FALLBACK_URL;
+export const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY || FALLBACK_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase Environment Variables');
