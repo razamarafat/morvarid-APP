@@ -14,7 +14,7 @@ import { useConfirm } from '../../hooks/useConfirm';
 const persianRegex = /^[\u0600-\u06FF\s]+$/;
 // Username: Latin letters, numbers, underscore
 const usernameRegex = /^[a-zA-Z0-9_]+$/;
-// Password: Minimum 6 chars, at least one letter and one number
+// Password: Minimum 6 chars
 const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/;
 
 const userSchema = z.object({
@@ -109,9 +109,12 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
     if (confirmed) {
         const assignedFarms = data.assignedFarmIds?.map(id => farms.find(f => f.id === id)).filter(Boolean) as any[];
 
+        // Strict sanitization on submit
+        const cleanUsername = data.username.toLowerCase().trim().replace(/[^a-z0-9_]/g, '');
+
         const userData: any = {
             fullName: data.fullName,
-            username: data.username.toLowerCase(),
+            username: cleanUsername,
             role: data.role,
             phoneNumber: data.phoneNumber,
             isActive: data.isActive,
@@ -123,8 +126,8 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
         if (user) {
            updateUser({ ...userData, id: user.id });
         } else {
-           if(!data.password) return; 
-           addUser(userData);
+           // We pass password even if empty here, store handles default
+           addUser({ ...userData, password: data.password });
         }
         onClose();
     }
@@ -155,12 +158,9 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
                     className={inputClass} 
                     placeholder="ali_mohammadi" 
                     autoComplete="new-username"
-                    onChange={(e) => {
-                        // Force lowercase and remove spaces visual feedback
-                        const val = e.target.value.toLowerCase().replace(/\s/g, '');
-                        setValue('username', val);
-                    }}
+                    // Removed custom onChange to prevent conflict with register
                 />
+                <p className="text-[10px] text-gray-400 mt-1">فقط حروف کوچک انگلیسی و اعداد</p>
                 {errors.username && <p className="text-red-500 text-xs mt-1 font-bold">{errors.username.message}</p>}
             </div>
             <div>

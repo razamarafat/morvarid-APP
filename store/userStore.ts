@@ -54,7 +54,16 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   addUser: async (userData) => {
       const currentAdmin = (await supabase.auth.getUser()).data.user;
-      useLogStore.getState().addLog('info', 'database', `Creating new user: ${userData.username}`, currentAdmin?.id);
+      
+      // Aggressive sanitization to remove any invisible chars or spaces
+      const sanitizedUsername = userData.username.toLowerCase().replace(/[^a-z0-9]/g, '');
+      
+      if (sanitizedUsername.length < 3) {
+          alert('نام کاربری نامعتبر است. لطفا فقط از حروف انگلیسی و اعداد استفاده کنید.');
+          return;
+      }
+
+      useLogStore.getState().addLog('info', 'database', `Creating new user: ${sanitizedUsername}`, currentAdmin?.id);
 
       // Create a temporary client to perform the sign-up WITHOUT affecting the current admin session
       const tempSupabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -66,12 +75,14 @@ export const useUserStore = create<UserState>((set, get) => ({
       });
 
       // 1. Create Auth User
-      const sanitizedUsername = userData.username.trim().toLowerCase();
-      const email = `${sanitizedUsername}@morvarid.app`;
+      // Using .com to avoid potential TLD strictness, though .app is valid.
+      // Ensuring no spaces or invalid chars are passed.
+      const email = `${sanitizedUsername}@morvarid-system.com`;
+      const password = userData.password || 'Morvarid1234'; // Stronger default password
       
       const { data, error } = await tempSupabase.auth.signUp({
           email,
-          password: userData.password || '123456', // Default
+          password,
           options: {
               data: {
                   username: sanitizedUsername,
@@ -82,8 +93,8 @@ export const useUserStore = create<UserState>((set, get) => ({
       });
 
       if (error) {
-          useLogStore.getState().addLog('error', 'auth', `Failed to sign up user ${sanitizedUsername}: ${error.message}`, currentAdmin?.id);
-          alert('خطا در ساخت کاربر (Auth): ' + error.message);
+          useLogStore.getState().addLog('error', 'auth', `Failed to sign up user ${sanitizedUsername} (${email}): ${error.message}`, currentAdmin?.id);
+          alert(`خطا در ساخت کاربر (Auth): ${error.message}`);
           return;
       }
 
@@ -91,7 +102,6 @@ export const useUserStore = create<UserState>((set, get) => ({
           useLogStore.getState().addLog('info', 'auth', `Auth user created: ${data.user.id}`, currentAdmin?.id);
           
           // 2. MANUALLY Create Profile (Using the main client which has the Admin session - if RLS requires it)
-          // Note: If RLS for 'profiles' allows 'insert' for authenticated users, this works.
           const { error: profileError } = await supabase.from('profiles').insert({
               id: data.user.id,
               username: sanitizedUsername,
