@@ -1,6 +1,6 @@
+
 import React, { useState } from 'react';
 import Button from '../common/Button';
-import { useBiometric } from '../../hooks/useBiometric';
 import { useToastStore } from '../../store/toastStore';
 import { useLogStore } from '../../store/logStore'; 
 import { supabase } from '../../lib/supabase';
@@ -8,7 +8,6 @@ import { Icons } from '../common/Icons';
 import * as XLSX from 'xlsx';
 
 const FeatureTesting: React.FC = () => {
-  const { isAvailable, authenticate } = useBiometric();
   const { addToast } = useToastStore();
   const { addLog } = useLogStore(); 
   const [results, setResults] = useState<Record<string, string>>({});
@@ -25,42 +24,6 @@ const FeatureTesting: React.FC = () => {
 
     try {
         switch(feature) {
-            case 'biometric':
-                if (window.PublicKeyCredential) {
-                     const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-                     if (available) {
-                         success = true;
-                         logMessage = 'WebAuthn API is Available.';
-                     } else {
-                         success = false;
-                         logMessage = 'Hardware authenticator not available.';
-                     }
-                } else {
-                    success = false;
-                    logMessage = 'Browser does not support WebAuthn.';
-                }
-                technicalDetails = `UserAgent: ${navigator.userAgent} | SecureContext: ${window.isSecureContext}`;
-                break;
-
-            case 'biometric_login':
-                if (!isAvailable && !window.PublicKeyCredential) {
-                    success = false;
-                    logMessage = 'Prerequisites missing for Biometric Login.';
-                } else {
-                    const startAuth = Date.now();
-                    const authResult = await authenticate();
-                    const authDuration = Date.now() - startAuth;
-                    if (authResult) {
-                        success = true;
-                        logMessage = `Authentication Simulation Successful (${authDuration}ms).`;
-                    } else {
-                        success = false;
-                        logMessage = 'Authentication Cancelled or Failed.';
-                    }
-                    technicalDetails = `Duration: ${authDuration}ms`;
-                }
-                break;
-
             case 'notification':
                 if (!('Notification' in window)) {
                     success = false;
@@ -161,8 +124,6 @@ const FeatureTesting: React.FC = () => {
     <div className="space-y-6">
       <h2 className="text-2xl font-bold dark:text-white">سنجش ویژگی‌های فنی</h2>
       <div className="grid gap-4">
-        <TestCard id="biometric" title="ماژول بیومتریک" icon={Icons.Fingerprint} desc="بررسی WebAuthn API" />
-        <TestCard id="biometric_login" title="تست ورود بیومتریک" icon={Icons.Fingerprint} desc="شبیه‌سازی احراز هویت" />
         <TestCard id="notification" title="سیستم اعلان" icon={Icons.Bell} desc="بررسی مجوزهای مرورگر" />
         <TestCard id="excel" title="موتور اکسل" icon={Icons.FileText} desc="بررسی کتابخانه SheetJS" />
         <TestCard id="database" title="اتصال Supabase" icon={Icons.HardDrive} desc="بررسی پینگ و دسترسی دیتابیس" />

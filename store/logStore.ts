@@ -9,6 +9,7 @@ interface LogState {
   addLog: (level: SystemLog['level'], category: SystemLog['category'], message: string, userId?: string) => void;
   clearLogs: () => void;
   fetchLogs: () => Promise<void>;
+  deleteLogsByUserId: (userId: string) => Promise<void>;
 }
 
 export const useLogStore = create<LogState>((set, get) => ({
@@ -51,4 +52,11 @@ export const useLogStore = create<LogState>((set, get) => ({
   },
   
   clearLogs: () => set({ logs: [] }),
+
+  deleteLogsByUserId: async (userId: string) => {
+      // Remove from local state
+      set((state) => ({ logs: state.logs.filter(l => l.userId !== userId) }));
+      // Remove from DB
+      await supabase.from('system_logs').delete().eq('user_id', userId);
+  }
 }));

@@ -25,7 +25,6 @@ export interface User {
   lastVisit?: string;
   assignedFarms?: Farm[];
   notificationsEnabled?: boolean;
-  hasBiometric?: boolean;
   password?: string;
 }
 

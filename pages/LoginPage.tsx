@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -9,30 +9,43 @@ import { useLogStore } from '../store/logStore';
 import ThemeToggle from '../components/common/ThemeToggle';
 import { Icons } from '../components/common/Icons';
 import { UserRole } from '../types';
-import { useBiometric } from '../hooks/useBiometric';
 import { useToastStore } from '../store/toastStore';
 import Logo from '../components/common/Logo';
 
 const loginSchema = z.object({
   username: z.string().min(1, "نام کاربری الزامی است"),
   password: z.string().min(1, "رمز عبور الزامی است"),
+  rememberMe: z.boolean().optional(),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const { login, blockUntil } = useAuthStore();
+  const { login, blockUntil, savedUsername, loadSavedUsername } = useAuthStore();
   const { addLog } = useLogStore();
-  const { isAvailable: isBiometricAvailable } = useBiometric();
   const { addToast } = useToastStore();
   
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { register, handleSubmit, formState: { isSubmitting } } = useForm<LoginFormValues>({
+  const { register, handleSubmit, setValue, formState: { isSubmitting } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
+    defaultValues: {
+        rememberMe: false
+    }
   });
+
+  useEffect(() => {
+      loadSavedUsername();
+  }, []);
+
+  useEffect(() => {
+      if (savedUsername) {
+          setValue('username', savedUsername);
+          setValue('rememberMe', true);
+      }
+  }, [savedUsername, setValue]);
 
   const isBlocked = blockUntil ? Date.now() < blockUntil : false;
 
@@ -43,7 +56,7 @@ const LoginPage: React.FC = () => {
         return;
     }
 
-    const result = await login(data.username, data.password);
+    const result = await login(data.username, data.password, !!data.rememberMe);
 
     if (result.success) {
         const currentUser = useAuthStore.getState().user;
@@ -121,6 +134,25 @@ const LoginPage: React.FC = () => {
               </div>
             </div>
 
+            <div className="flex items-center justify-start py-1">
+                <label className="flex items-center gap-2 cursor-pointer group select-none">
+                    <input 
+                        type="checkbox" 
+                        {...register('rememberMe')} 
+                        className="appearance-none w-5 h-5 rounded border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 checked:bg-violet-600 checked:border-violet-600 transition-all cursor-pointer relative"
+                        style={{
+                            backgroundImage: "url(\"data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e\")",
+                            backgroundPosition: "center",
+                            backgroundRepeat: "no-repeat",
+                            backgroundSize: "100%"
+                        }}
+                    />
+                    <span className="text-sm font-bold text-gray-500 dark:text-gray-400 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
+                        مرا به خاطر بسپار
+                    </span>
+                </label>
+            </div>
+
             <button
                 type="submit"
                 disabled={isSubmitting || isBlocked}
@@ -128,22 +160,6 @@ const LoginPage: React.FC = () => {
             >
                 {isSubmitting ? 'در حال اتصال...' : 'ورود به حساب'}
             </button>
-            
-            {isBiometricAvailable && (
-               <div className="flex justify-center pt-2">
-                   <button
-                    type="button"
-                    disabled
-                    className="flex items-center gap-2 text-gray-400 cursor-not-allowed opacity-50"
-                    title="در نسخه وب فعال نیست"
-                  >
-                    <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-2xl">
-                         <Icons.Fingerprint className="w-8 h-8" />
-                    </div>
-                    <span className="text-sm font-medium">ورود با اثر انگشت</span>
-                  </button>
-               </div>
-            )}
           </form>
         </div>
         <p className="text-center text-gray-400 text-xs mt-6">متصل به سرورهای ابری مروارید</p>

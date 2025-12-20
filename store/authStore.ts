@@ -9,12 +9,13 @@ interface AuthState {
   isLoading: boolean;
   loginAttempts: number;
   blockUntil: number | null;
-  login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  savedUsername: string; // For Remember Me
+  login: (username: string, password: string, rememberMe: boolean) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   checkSession: () => Promise<void>;
-  registerBiometric: () => void;
   recordFailedAttempt: () => void;
   resetAttempts: () => void;
+  loadSavedUsername: () => void; // Helper to load from localstorage
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -22,13 +23,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: true,
   loginAttempts: 0,
   blockUntil: null,
+  savedUsername: '',
+
+  loadSavedUsername: () => {
+      const saved = localStorage.getItem('morvarid_saved_username');
+      if (saved) {
+          set({ savedUsername: saved });
+      }
+  },
 
   checkSession: async () => {
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError) {
-          useLogStore.getState().addLog('error', 'auth', `Session check error: ${sessionError.message}`);
+          // Silent error for session check
+          set({ user: null, isLoading: false });
+          return;
       }
 
       if (session?.user) {
@@ -40,7 +51,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           .single();
 
         if (profileError) {
-             useLogStore.getState().addLog('error', 'database', `Profile fetch failed for ${session.user.id}: ${profileError.message}`);
+             console.error('Profile fetch error:', profileError);
+             set({ user: null, isLoading: false });
+             return;
         }
 
         if (profile) {
@@ -64,7 +77,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                     role: profile.role as UserRole,
                     isActive: profile.is_active,
                     assignedFarms: assignedFarms,
-                    // Extra fields mapped
                     phoneNumber: profile.phone_number
                 },
                 isLoading: false
@@ -75,12 +87,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ user: null, isLoading: false });
     } catch (error: any) {
       console.error('Session check failed', error);
-      useLogStore.getState().addLog('error', 'auth', `Session check exception: ${error.message}`);
       set({ user: null, isLoading: false });
     }
   },
 
-  login: async (username, password) => {
+  login: async (username, password, rememberMe) => {
     const { loginAttempts, blockUntil } = get();
     useLogStore.getState().addLog('info', 'auth', `Login attempt for user: ${username}`);
     
@@ -89,24 +100,51 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return { success: false, error: 'حساب موقتا مسدود است. لطفا صبر کنید.' };
     }
 
-    // Convert username to email for Supabase logic
-    const email = `${username}@morvarid.app`;
+    // SANITIZATION FIX: Match the logic used in addUser
+    const cleanUsername = username.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    // Try multiple domains to support legacy users
+    const domains = ['morvarid.com', 'morvarid.app', 'morvarid-system.com'];
+    let loginData = null;
+    let loginError = null;
 
-    if (error) {
+    for (const domain of domains) {
+        const email = `${cleanUsername}@${domain}`;
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        });
+
+        if (!error && data.user) {
+            loginData = data;
+            loginError = null;
+            useLogStore.getState().addLog('debug', 'auth', `Login successful using domain: ${domain}`, data.user.id);
+            break; 
+        } else {
+            loginError = error;
+        }
+    }
+
+    if (loginError || !loginData) {
         get().recordFailedAttempt();
-        useLogStore.getState().addLog('warn', 'auth', `Login failed for ${username}: ${error.message}`);
+        useLogStore.getState().addLog('warn', 'auth', `Login failed for ${cleanUsername} (all domains checked)`);
         return { success: false, error: 'نام کاربری یا رمز عبور اشتباه است' };
     }
 
-    if (data.user) {
+    if (loginData.user) {
         get().resetAttempts();
+        
+        // Handle Remember Me (Username only)
+        if (rememberMe) {
+            localStorage.setItem('morvarid_saved_username', username);
+            set({ savedUsername: username });
+        } else {
+            localStorage.removeItem('morvarid_saved_username');
+            set({ savedUsername: '' });
+        }
+
         await get().checkSession();
-        useLogStore.getState().addLog('info', 'auth', `User ${username} logged in successfully`, data.user.id);
+        useLogStore.getState().addLog('info', 'auth', `User ${username} logged in successfully`, loginData.user.id);
         return { success: true };
     }
     
@@ -119,10 +157,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await supabase.auth.signOut();
     set({ user: null });
   },
-
-  registerBiometric: () => set((state) => ({ 
-    user: state.user ? { ...state.user, hasBiometric: true } : null 
-  })),
 
   recordFailedAttempt: () => set((state) => {
     const newAttempts = state.loginAttempts + 1;

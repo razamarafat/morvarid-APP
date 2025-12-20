@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useUserStore } from '../../store/userStore';
 import { useLogStore } from '../../store/logStore';
+import { useAuthStore } from '../../store/authStore';
 import { User, UserRole } from '../../types';
 import { Icons } from '../common/Icons';
 import Button from '../common/Button';
@@ -12,6 +13,8 @@ import { useConfirm } from '../../hooks/useConfirm';
 const UserManagement: React.FC = () => {
   const { users, deleteUser } = useUserStore();
   const { logs } = useLogStore();
+  const { user: currentUser } = useAuthStore();
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   
@@ -34,20 +37,22 @@ const UserManagement: React.FC = () => {
       setHistoryUser(user);
   };
 
-  const handleDelete = async (user: User) => {
-    if (user.role === UserRole.ADMIN && user.username === 'rezamarefat') {
-        alert('امکان حذف مدیر اصلی سیستم وجود ندارد.');
+  const handleDelete = async (userToDelete: User) => {
+    // Prevent self-deletion
+    if (currentUser?.id === userToDelete.id) {
+        alert('شما نمی‌توانید حساب کاربری خودتان را حذف کنید.');
         return;
     }
+
     const confirmed = await confirm({
-      title: `حذف کاربر ${user.fullName}`,
-      message: 'آیا از حذف این کاربر اطمینان دارید؟',
+      title: `حذف کاربر ${userToDelete.fullName}`,
+      message: 'آیا از حذف این کاربر اطمینان دارید؟ تمام لاگ‌ها و پروفایل کاربر حذف خواهند شد اما آمارهای ثبت شده باقی می‌مانند.',
       confirmText: 'بله، حذف کن',
       cancelText: 'انصراف',
       type: 'danger',
     });
     if (confirmed) {
-      deleteUser(user.id);
+      deleteUser(userToDelete.id);
     }
   };
 
@@ -59,8 +64,7 @@ const UserManagement: React.FC = () => {
       }
   };
 
-  // Filter logs for the history modal (Last 24 hours or just last 50 logs for simplicity as requested)
-  // The user requested "Last Actions in 24h interval"
+  // Filter logs for the history modal (Last 50 logs for simplicity)
   const userLogs = historyUser ? logs.filter(l => l.userId === historyUser.id).slice(0, 50) : [];
 
   return (

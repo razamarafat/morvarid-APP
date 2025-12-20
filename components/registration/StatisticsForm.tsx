@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { useAuthStore } from '../../store/authStore';
@@ -9,6 +10,25 @@ import { FarmType, ProductUnit } from '../../types';
 import { getTodayJalali, toEnglishDigits } from '../../utils/dateUtils';
 import Button from '../common/Button';
 import { useConfirm } from '../../hooks/useConfirm';
+
+// Define explicit types for form data to fix TS inference
+interface FormItem {
+    productId: string;
+    productName?: string;
+    productDesc?: string;
+    unit?: string;
+    hasKilogram?: boolean;
+    selectedUnit: ProductUnit;
+    previousBalance: number | string;
+    production: number | string;
+    sales: number | string;
+    currentInventory: number;
+}
+
+interface StatisticsFormValues {
+    date: string;
+    items: FormItem[];
+}
 
 const StatisticsForm: React.FC = () => {
     const { user } = useAuthStore();
@@ -23,10 +43,10 @@ const StatisticsForm: React.FC = () => {
     const [selectedFarmId, setSelectedFarmId] = useState<string>(userFarms[0]?.id || '');
     const selectedFarm = userFarms.find(f => f.id === selectedFarmId);
 
-    const { control, register, handleSubmit, watch, setValue } = useForm({
+    const { control, register, handleSubmit, watch, setValue } = useForm<StatisticsFormValues>({
         defaultValues: {
             date: getTodayJalali(),
-            items: [] as any[]
+            items: []
         }
     });
 
@@ -39,7 +59,7 @@ const StatisticsForm: React.FC = () => {
 
     useEffect(() => {
         if (selectedFarm) {
-            const newItems = selectedFarm.productIds.map(pid => {
+            const newItems: FormItem[] = selectedFarm.productIds.map(pid => {
                 const product = getProductById(pid);
                 const prevBalance = selectedFarm.type === FarmType.MORVARIDI ? getLatestInventory(selectedFarm.id, pid) : 0;
                 
@@ -58,11 +78,11 @@ const StatisticsForm: React.FC = () => {
             });
             replaceFields(newItems);
         }
-    }, [selectedFarmId, selectedFarm, getProductById, getLatestInventory]);
+    }, [selectedFarmId, selectedFarm, getProductById, getLatestInventory, replaceFields]);
 
     // Auto-calculation logic
     useEffect(() => {
-        if (selectedFarm?.type === FarmType.MORVARIDI) {
+        if (selectedFarm?.type === FarmType.MORVARIDI && formItems) {
             formItems.forEach((item, index) => {
                 const prev = Number(item.previousBalance) || 0;
                 const prod = Number(item.production) || 0;
@@ -75,10 +95,10 @@ const StatisticsForm: React.FC = () => {
                 }
             });
         }
-    }, [JSON.stringify(formItems.map(i => [i.previousBalance, i.production, i.sales])), selectedFarm, setValue]);
+    }, [JSON.stringify(formItems?.map(i => [i.previousBalance, i.production, i.sales])), selectedFarm, setValue]);
 
-    const onSubmit = async (data: any) => {
-        const hasNegative = data.items.some((i: any) => i.currentInventory < 0);
+    const onSubmit = async (data: StatisticsFormValues) => {
+        const hasNegative = data.items.some((i) => i.currentInventory < 0);
         if (hasNegative) {
             addToast('خطا: موجودی نهایی نمی‌تواند منفی باشد.', 'error');
             return;
@@ -122,7 +142,7 @@ const StatisticsForm: React.FC = () => {
 
             if (errorCount === 0) {
                 addToast('تمام آمارها با موفقیت ثبت شدند', 'success');
-                const resetItems = data.items.map((item: any) => ({ 
+                const resetItems = data.items.map((item) => ({ 
                     ...item, 
                     production: '', 
                     sales: '',
@@ -156,7 +176,10 @@ const StatisticsForm: React.FC = () => {
             <div className="p-8">
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                     {fields.map((field, index) => {
-                        const isLiquid = formItems[index]?.hasKilogram; 
+                        const item = formItems[index];
+                        if (!item) return null;
+                        
+                        const isLiquid = item.hasKilogram; 
                         const unit1Label = isLiquid ? 'دبه / ظرف' : 'کارتن';
                         const unit2Label = 'کیلوگرم (توزین)';
 
@@ -165,26 +188,26 @@ const StatisticsForm: React.FC = () => {
                             <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 border-b border-gray-200 dark:border-gray-700 pb-4 gap-4">
                                 <h3 className="font-bold text-lg text-gray-800 dark:text-gray-100 flex items-center gap-2 flex-wrap">
                                     <span className="w-3 h-3 bg-orange-500 rounded-full inline-block"></span>
-                                    {formItems[index]?.productName}
-                                    {formItems[index]?.productDesc && (
+                                    {item.productName}
+                                    {item.productDesc && (
                                         <span className="text-sm text-gray-500 dark:text-gray-400 font-normal mr-2">
-                                            {formItems[index].productDesc}
+                                            {item.productDesc}
                                         </span>
                                     )}
                                 </h3>
                                 
-                                {formItems[index]?.hasKilogram && (
+                                {item.hasKilogram && (
                                     <div className="flex bg-white dark:bg-gray-700 p-1.5 rounded-2xl shadow-sm self-start md:self-auto border border-gray-200 dark:border-gray-600">
                                         <button
                                             type="button"
-                                            className={`px-4 py-1.5 rounded-xl text-sm font-bold transition-all ${formItems[index].selectedUnit === ProductUnit.CARTON ? 'bg-orange-500 text-white shadow-md' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}
+                                            className={`px-4 py-1.5 rounded-xl text-sm font-bold transition-all ${item.selectedUnit === ProductUnit.CARTON ? 'bg-orange-500 text-white shadow-md' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}
                                             onClick={() => setValue(`items.${index}.selectedUnit`, ProductUnit.CARTON)}
                                         >
                                             {unit1Label}
                                         </button>
                                         <button
                                             type="button"
-                                            className={`px-4 py-1.5 rounded-xl text-sm font-bold transition-all ${formItems[index].selectedUnit === ProductUnit.KILOGRAM ? 'bg-orange-500 text-white shadow-md' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}
+                                            className={`px-4 py-1.5 rounded-xl text-sm font-bold transition-all ${item.selectedUnit === ProductUnit.KILOGRAM ? 'bg-orange-500 text-white shadow-md' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}
                                             onClick={() => setValue(`items.${index}.selectedUnit`, ProductUnit.KILOGRAM)}
                                         >
                                             {unit2Label}
@@ -196,7 +219,7 @@ const StatisticsForm: React.FC = () => {
                             {selectedFarm.type === FarmType.MOTEFEREGHE ? (
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                                        تولید روزانه ({formItems[index].selectedUnit === ProductUnit.KILOGRAM ? unit2Label : unit1Label})
+                                        تولید روزانه ({item.selectedUnit === ProductUnit.KILOGRAM ? unit2Label : unit1Label})
                                     </label>
                                     <input 
                                         type="number" 
@@ -241,10 +264,10 @@ const StatisticsForm: React.FC = () => {
                                             onKeyDown={(e) => ["-", "e", "E", "+"].includes(e.key) && e.preventDefault()}
                                         />
                                     </div>
-                                    <div className={`p-3 rounded-2xl border ${formItems[index].currentInventory < 0 ? 'bg-red-100 border-red-500 animate-pulse' : 'bg-orange-50 dark:bg-orange-900/20 border-orange-100 dark:border-orange-800'} h-[56px] flex flex-col justify-center`}>
+                                    <div className={`p-3 rounded-2xl border ${item.currentInventory < 0 ? 'bg-red-100 border-red-500 animate-pulse' : 'bg-orange-50 dark:bg-orange-900/20 border-orange-100 dark:border-orange-800'} h-[56px] flex flex-col justify-center`}>
                                         <label className="block text-xs font-bold text-orange-800 dark:text-orange-300 mb-1 text-center">موجودی نهایی</label>
-                                        <div className={`text-xl font-black text-center ${formItems[index].currentInventory < 0 ? 'text-red-600' : 'text-orange-600 dark:text-orange-400'}`}>
-                                             {formItems[index].currentInventory || 0}
+                                        <div className={`text-xl font-black text-center ${item.currentInventory < 0 ? 'text-red-600' : 'text-orange-600 dark:text-orange-400'}`}>
+                                             {item.currentInventory || 0}
                                         </div>
                                     </div>
                                 </div>

@@ -63,7 +63,7 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
       } else {
         reset({
           name: '',
-          type: undefined,
+          type: undefined as any, // Fix TS2345: Explicit cast for reset to empty state
           isActive: true,
           productIds: [],
         });

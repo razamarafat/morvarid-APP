@@ -124,10 +124,10 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
         };
 
         if (user) {
-           updateUser({ ...userData, id: user.id });
+           await updateUser({ ...userData, id: user.id });
         } else {
-           // We pass password even if empty here, store handles default
-           addUser({ ...userData, password: data.password });
+           // Explicitly passing password for new users
+           await addUser({ ...userData, password: data.password });
         }
         onClose();
     }
@@ -155,22 +155,22 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
                 <input 
                     dir="ltr" 
                     {...register('username')} 
-                    className={inputClass} 
+                    // REMOVED readOnly to allow editing
+                    className={inputClass}
                     placeholder="ali_mohammadi" 
                     autoComplete="new-username"
-                    // Removed custom onChange to prevent conflict with register
                 />
-                <p className="text-[10px] text-gray-400 mt-1">فقط حروف کوچک انگلیسی و اعداد</p>
+                <p className="text-[10px] text-gray-400 mt-1">تغییر نام کاربری ممکن است بر ورود کاربر تاثیر بگذارد.</p>
                 {errors.username && <p className="text-red-500 text-xs mt-1 font-bold">{errors.username.message}</p>}
             </div>
             <div>
-                <label className="block text-sm font-bold mb-1 dark:text-gray-300">رمز عبور {user && '(اختیاری)'}</label>
+                <label className="block text-sm font-bold mb-1 dark:text-gray-300">رمز عبور</label>
                 <input 
                     dir="ltr" 
                     type="password" 
                     {...register('password')} 
-                    className={inputClass} 
-                    placeholder={user ? 'تغییر رمز...' : '******'} 
+                    className={inputClass}
+                    placeholder={user ? 'تغییر رمز (اختیاری)' : '******'} 
                     autoComplete="new-password"
                 />
                 {errors.password && <p className="text-red-500 text-xs mt-1 font-bold">{errors.password.message}</p>}
