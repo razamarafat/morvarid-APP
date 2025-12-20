@@ -25,8 +25,6 @@ export const useUserStore = create<UserState>((set, get) => ({
       try {
           // SPLIT QUERY STRATEGY:
           // Fetching profiles and user_farms separately prevents "Infinite recursion" errors
-          // caused by complex RLS policies triggering loops during joins.
-          
           const { data: profiles, error: profilesError } = await supabase.from('profiles').select('*');
           if (profilesError) throw profilesError;
 
@@ -37,7 +35,6 @@ export const useUserStore = create<UserState>((set, get) => ({
               const { data: allFarms } = await supabase.from('farms').select('*');
               
               const mappedUsers = profiles.map((p: any) => {
-                  // Manually join user_farms in JS
                   const assignedFarmIds = userFarmsData 
                     ? userFarmsData.filter((uf: any) => uf.user_id === p.id).map((uf: any) => uf.farm_id) 
                     : [];
@@ -70,16 +67,15 @@ export const useUserStore = create<UserState>((set, get) => ({
       const currentAdmin = (await supabase.auth.getUser()).data.user;
       
       const rawUsername = userData.username || '';
-      // ALLOW underscores and hyphens, STRICT trim
+      // Sanitize: allow a-z, 0-9, underscore, hyphen
       const sanitizedUsername = rawUsername.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
       
-      // VALIDATION FIX: Ensure username is valid before creating email
       if (!sanitizedUsername || sanitizedUsername.length < 3) {
           useToastStore.getState().addToast('نام کاربری باید شامل حداقل ۳ حرف لاتین یا عدد باشد', 'error');
           return;
       }
 
-      // DOMAIN FIX: Use .com to ensure broader compatibility with email validators
+      // Using .com is standard and less likely to be flagged by validators
       const email = `${sanitizedUsername}@morvarid.com`; 
       const password = userData.password || 'Morvarid1234';
 
@@ -122,6 +118,13 @@ export const useUserStore = create<UserState>((set, get) => ({
           }
 
           if (data.user) {
+              // CRITICAL CHECK: If Confirm Email is ON in Supabase, session will be null.
+              if (!data.session) {
+                  useLogStore.getState().addLog('warn', 'auth', `User created but waiting for verification. 'Confirm Email' is enabled on Supabase.`, currentAdmin?.id);
+                  useToastStore.getState().addToast('کاربر ساخته شد اما "تایید ایمیل" در پنل Supabase فعال است. لطفاً آن را غیرفعال کنید تا کاربر بتواند وارد شود.', 'warning');
+                  // We continue to create the profile so the data isn't lost, but the admin needs to know.
+              }
+
               // Create Profile
               const { error: profileError } = await supabase.from('profiles').insert({
                   id: data.user.id,
@@ -149,7 +152,9 @@ export const useUserStore = create<UserState>((set, get) => ({
                   }
                   
                   useLogStore.getState().addLog('info', 'database', `User created successfully: ${sanitizedUsername}`, currentAdmin?.id);
-                  useToastStore.getState().addToast(`کاربر ${userData.fullName} با موفقیت ایجاد شد`, 'success');
+                  if (data.session) {
+                      useToastStore.getState().addToast(`کاربر ${userData.fullName} با موفقیت ایجاد شد`, 'success');
+                  }
                   await get().fetchUsers();
               }
           }
@@ -181,7 +186,7 @@ export const useUserStore = create<UserState>((set, get) => ({
                throw new Error(`Profile update failed: ${profileError.message}`);
           }
 
-          // 2. Update Farm Assignments (Handle RLS Gracefully)
+          // 2. Update Farm Assignments
           let farmUpdateStatus = 'success';
           try {
               // Delete existing
@@ -241,9 +246,8 @@ export const useUserStore = create<UserState>((set, get) => ({
           } catch(e) { console.warn("Log delete failed", e); }
 
           // 3. Delete Farm Associations
-          // We assume RLS allows this, or we ignore error if we can't
           const { error: farmError } = await supabase.from('user_farms').delete().eq('user_id', userId);
-          if (farmError) console.warn("Farm delete error (ignorable if RLS):", farmError);
+          if (farmError) console.warn("Farm delete error:", farmError);
 
           // 4. Delete Profile
           const { error: profileError } = await supabase.from('profiles').delete().eq('id', userId);
