@@ -11,7 +11,6 @@ import { getTodayJalali, toEnglishDigits } from '../../utils/dateUtils';
 import Button from '../common/Button';
 import { useConfirm } from '../../hooks/useConfirm';
 
-// Define explicit types for form data to fix TS inference
 interface FormItem {
     productId: string;
     productName?: string;
@@ -80,7 +79,6 @@ const StatisticsForm: React.FC = () => {
         }
     }, [selectedFarmId, selectedFarm, getProductById, getLatestInventory, replaceFields]);
 
-    // Auto-calculation logic
     useEffect(() => {
         if (selectedFarm?.type === FarmType.MORVARIDI && formItems) {
             formItems.forEach((item, index) => {
@@ -102,6 +100,15 @@ const StatisticsForm: React.FC = () => {
         if (hasNegative) {
             addToast('خطا: موجودی نهایی نمی‌تواند منفی باشد.', 'error');
             return;
+        }
+
+        // UUID Validation Check
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const invalidProduct = data.items.find(i => !uuidRegex.test(i.productId));
+        if (invalidProduct) {
+             addToast('خطای سیستمی: شناسه محصول نامعتبر است. لطفاً صفحه را رفرش کنید.', 'error');
+             console.error('Invalid Product ID:', invalidProduct.productId);
+             return;
         }
 
         const confirmed = await confirm({

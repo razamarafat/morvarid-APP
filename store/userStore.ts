@@ -6,6 +6,13 @@ import { User, UserRole } from '../types';
 import { useLogStore } from './logStore';
 import { useToastStore } from './toastStore';
 
+// Helper duplicated here to avoid circular dependencies if we imported from farmStore
+const mapLegacyProductId = (id: string): string => {
+    if (id === '1') return '11111111-1111-1111-1111-111111111111';
+    if (id === '2') return '22222222-2222-2222-2222-222222222222';
+    return id;
+};
+
 interface UserState {
   users: User[];
   isLoading: boolean;
@@ -24,7 +31,6 @@ export const useUserStore = create<UserState>((set, get) => ({
       
       try {
           // SPLIT QUERY STRATEGY:
-          // Fetching profiles and user_farms separately prevents "Infinite recursion" errors
           const { data: profiles, error: profilesError } = await supabase.from('profiles').select('*');
           if (profilesError) throw profilesError;
 
@@ -40,7 +46,11 @@ export const useUserStore = create<UserState>((set, get) => ({
                     : [];
                   
                   const assignedFarms = allFarms 
-                    ? allFarms.filter((f: any) => assignedFarmIds.includes(f.id)).map((f:any) => ({...f, productIds: f.product_ids})) 
+                    ? allFarms.filter((f: any) => assignedFarmIds.includes(f.id)).map((f:any) => ({
+                        ...f, 
+                        // FIX: Ensure legacy IDs are mapped here too
+                        productIds: (f.product_ids || []).map(mapLegacyProductId)
+                      })) 
                     : [];
 
                   return {
@@ -67,7 +77,6 @@ export const useUserStore = create<UserState>((set, get) => ({
       const currentAdmin = (await supabase.auth.getUser()).data.user;
       
       const rawUsername = userData.username || '';
-      // Sanitize: allow a-z, 0-9, underscore, hyphen
       const sanitizedUsername = rawUsername.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
       
       if (!sanitizedUsername || sanitizedUsername.length < 3) {
@@ -75,7 +84,6 @@ export const useUserStore = create<UserState>((set, get) => ({
           return;
       }
 
-      // Using .com is standard and less likely to be flagged by validators
       const email = `${sanitizedUsername}@morvarid.com`; 
       const password = userData.password || 'Morvarid1234';
 
@@ -84,7 +92,7 @@ export const useUserStore = create<UserState>((set, get) => ({
       set({ isLoading: true });
 
       try {
-          // Create Isolated Client with Memory Storage to avoid logging out admin
+          // Create Isolated Client with Memory Storage
           const tempSupabase = createClient(supabaseUrl, supabaseAnonKey, {
               auth: {
                   persistSession: false,
@@ -118,14 +126,11 @@ export const useUserStore = create<UserState>((set, get) => ({
           }
 
           if (data.user) {
-              // CRITICAL CHECK: If Confirm Email is ON in Supabase, session will be null.
               if (!data.session) {
                   useLogStore.getState().addLog('warn', 'auth', `User created but waiting for verification. 'Confirm Email' is enabled on Supabase.`, currentAdmin?.id);
-                  useToastStore.getState().addToast('کاربر ساخته شد اما "تایید ایمیل" در پنل Supabase فعال است. لطفاً آن را غیرفعال کنید تا کاربر بتواند وارد شود.', 'warning');
-                  // We continue to create the profile so the data isn't lost, but the admin needs to know.
+                  useToastStore.getState().addToast('کاربر ساخته شد اما "تایید ایمیل" در پنل Supabase فعال است.', 'warning');
               }
 
-              // Create Profile
               const { error: profileError } = await supabase.from('profiles').insert({
                   id: data.user.id,
                   username: sanitizedUsername,
@@ -139,7 +144,6 @@ export const useUserStore = create<UserState>((set, get) => ({
                   useLogStore.getState().addLog('error', 'database', `PROFILE_FAIL: ${profileError.message}`, currentAdmin?.id);
                   useToastStore.getState().addToast('کاربر ساخته شد اما پروفایل ثبت نشد', 'warning');
               } else {
-                  // Only assign farms if profile created successfully
                   if (userData.assignedFarms && userData.assignedFarms.length > 0) {
                       const inserts = userData.assignedFarms.map(f => ({
                           user_id: data.user!.id,
@@ -173,7 +177,6 @@ export const useUserStore = create<UserState>((set, get) => ({
       set({ isLoading: true });
 
       try {
-          // 1. Update Profile Fields
           const { error: profileError } = await supabase.from('profiles').update({
               username: user.username, 
               full_name: user.fullName,
@@ -186,10 +189,8 @@ export const useUserStore = create<UserState>((set, get) => ({
                throw new Error(`Profile update failed: ${profileError.message}`);
           }
 
-          // 2. Update Farm Assignments
           let farmUpdateStatus = 'success';
           try {
-              // Delete existing
               const { error: deleteError } = await supabase
                   .from('user_farms')
                   .delete()
@@ -197,7 +198,6 @@ export const useUserStore = create<UserState>((set, get) => ({
               
               if (deleteError) throw deleteError;
 
-              // Insert new
               if (user.assignedFarms && user.assignedFarms.length > 0) {
                   const inserts = user.assignedFarms.map(f => ({
                       user_id: user.id,
@@ -236,20 +236,16 @@ export const useUserStore = create<UserState>((set, get) => ({
       set({ isLoading: true });
 
       try {
-          // 1. Unlink Invoices and Stats
           await supabase.from('invoices').update({ created_by: null }).eq('created_by', userId);
           await supabase.from('daily_statistics').update({ created_by: null }).eq('created_by', userId);
 
-          // 2. Delete System Logs
           try {
              await useLogStore.getState().deleteLogsByUserId(userId);
           } catch(e) { console.warn("Log delete failed", e); }
 
-          // 3. Delete Farm Associations
           const { error: farmError } = await supabase.from('user_farms').delete().eq('user_id', userId);
           if (farmError) console.warn("Farm delete error:", farmError);
 
-          // 4. Delete Profile
           const { error: profileError } = await supabase.from('profiles').delete().eq('id', userId);
           
           if (profileError) {
