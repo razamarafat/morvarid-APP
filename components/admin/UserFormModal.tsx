@@ -12,8 +12,8 @@ import { useConfirm } from '../../hooks/useConfirm';
 
 // Strict Persian Regex (including spaces)
 const persianRegex = /^[\u0600-\u06FF\s]+$/;
-// Username: Latin letters, numbers, underscore
-const usernameRegex = /^[a-zA-Z0-9_]+$/;
+// Username: Latin letters, numbers, underscore, hyphen
+const usernameRegex = /^[a-zA-Z0-9_-]+$/;
 // Password: Minimum 6 chars
 const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/;
 
@@ -23,7 +23,7 @@ const userSchema = z.object({
     .regex(persianRegex, 'نام کامل باید فقط شامل حروف فارسی باشد (از نوشتن نام لاتین خودداری کنید)'),
   username: z.string()
     .min(4, 'نام کاربری باید حداقل ۴ کاراکتر باشد')
-    .regex(usernameRegex, 'نام کاربری فقط باید شامل حروف لاتین و اعداد باشد'),
+    .regex(usernameRegex, 'نام کاربری فقط باید شامل حروف لاتین، اعداد، خط تیره یا زیرخط باشد'),
   password: z.string().optional().refine((val) => {
       if (!val) return true; // Optional allowed
       return passwordRegex.test(val);
@@ -109,8 +109,8 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
     if (confirmed) {
         const assignedFarms = data.assignedFarmIds?.map(id => farms.find(f => f.id === id)).filter(Boolean) as any[];
 
-        // Strict sanitization on submit
-        const cleanUsername = data.username.toLowerCase().trim().replace(/[^a-z0-9_]/g, '');
+        // Strict sanitization on submit to match UserStore logic
+        const cleanUsername = data.username.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
 
         const userData: any = {
             fullName: data.fullName,

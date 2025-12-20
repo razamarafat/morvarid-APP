@@ -70,7 +70,8 @@ export const useUserStore = create<UserState>((set, get) => ({
       const currentAdmin = (await supabase.auth.getUser()).data.user;
       
       const rawUsername = userData.username || '';
-      const sanitizedUsername = rawUsername.toLowerCase().replace(/[^a-z0-9]/g, '');
+      // ALLOW underscores and hyphens, STRICT trim
+      const sanitizedUsername = rawUsername.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
       
       // VALIDATION FIX: Ensure username is valid before creating email
       if (!sanitizedUsername || sanitizedUsername.length < 3) {
@@ -78,7 +79,8 @@ export const useUserStore = create<UserState>((set, get) => ({
           return;
       }
 
-      const email = `${sanitizedUsername}@morvarid.app`; 
+      // DOMAIN FIX: Use .com to ensure broader compatibility with email validators
+      const email = `${sanitizedUsername}@morvarid.com`; 
       const password = userData.password || 'Morvarid1234';
 
       useLogStore.getState().addLog('info', 'auth', `Creating user: '${sanitizedUsername}'`, currentAdmin?.id);
@@ -239,6 +241,7 @@ export const useUserStore = create<UserState>((set, get) => ({
           } catch(e) { console.warn("Log delete failed", e); }
 
           // 3. Delete Farm Associations
+          // We assume RLS allows this, or we ignore error if we can't
           const { error: farmError } = await supabase.from('user_farms').delete().eq('user_id', userId);
           if (farmError) console.warn("Farm delete error (ignorable if RLS):", farmError);
 
