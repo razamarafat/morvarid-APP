@@ -17,6 +17,14 @@ export interface Invoice {
     createdAt: number;
 }
 
+// Legacy ID mapping helper - ROBUST
+const mapLegacyProductId = (id: string | number): string => {
+    const strId = String(id);
+    if (strId === '1') return '11111111-1111-1111-1111-111111111111';
+    if (strId === '2') return '22222222-2222-2222-2222-222222222222';
+    return strId;
+};
+
 interface InvoiceState {
     invoices: Invoice[];
     isLoading: boolean;
@@ -53,7 +61,8 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
               invoiceNumber: i.invoice_number,
               totalCartons: i.total_cartons,
               totalWeight: i.total_weight,
-              productId: i.product_id,
+              // FIX: Map legacy IDs here too
+              productId: i.product_id ? mapLegacyProductId(i.product_id) : i.product_id,
               driverName: i.driver_name,
               driverPhone: i.driver_phone,
               plateNumber: i.plate_number,

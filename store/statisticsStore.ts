@@ -1,6 +1,7 @@
 
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
+import { normalizeDate } from '../utils/dateUtils';
 
 export interface DailyStatistic {
     id: string;
@@ -12,7 +13,16 @@ export interface DailyStatistic {
     sales?: number; 
     currentInventory?: number;
     createdAt: number;
+    updatedAt?: number;
 }
+
+// Legacy ID mapping helper - ROBUST
+const mapLegacyProductId = (id: string | number): string => {
+    const strId = String(id);
+    if (strId === '1') return '11111111-1111-1111-1111-111111111111';
+    if (strId === '2') return '22222222-2222-2222-2222-222222222222';
+    return strId;
+};
 
 interface StatisticsState {
     statistics: DailyStatistic[];
@@ -31,15 +41,13 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
   fetchStatistics: async () => {
       set({ isLoading: true });
 
-      // Check for valid session first to avoid "Infinite Recursion" policies for anon users
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-          console.warn("No active Supabase session. Skipping fetchStatistics to prevent RLS errors.");
           set({ statistics: [], isLoading: false });
           return;
       }
 
-      // Order by 'date' (text) descending is safe and logically correct for stats.
+      // Order by date DESC so the newest entries are first
       const { data, error } = await supabase
           .from('daily_statistics')
           .select('*')
@@ -49,20 +57,20 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           const mappedStats = data.map((s: any) => ({
               id: s.id,
               farmId: s.farm_id,
-              date: s.date,
-              productId: s.product_id,
+              // CRITICAL FIX: Normalize date coming FROM DB to ensure UI matches
+              date: normalizeDate(s.date),
+              productId: mapLegacyProductId(s.product_id),
               previousBalance: s.previous_balance,
               production: s.production,
               sales: s.sales,
               currentInventory: s.current_inventory,
-              // Safe date parsing
-              createdAt: s.created_at ? new Date(s.created_at).getTime() : Date.now()
+              createdAt: s.created_at ? new Date(s.created_at).getTime() : Date.now(),
+              updatedAt: s.updated_at ? new Date(s.updated_at).getTime() : undefined
           }));
           set({ statistics: mappedStats, isLoading: false });
       } else {
           set({ isLoading: false });
-          // Log the actual error message
-          console.error('Error fetching statistics:', error?.message || error);
+          console.error('Error fetching statistics:', error?.message);
       }
   },
 
@@ -70,9 +78,12 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return { success: false, error: "Not authenticated" };
 
+      // CRITICAL FIX: Normalize date before sending TO DB.
+      const normalizedDateStr = normalizeDate(stat.date);
+
       const dbStat = {
           farm_id: stat.farmId,
-          date: stat.date,
+          date: normalizedDateStr,
           product_id: stat.productId,
           previous_balance: stat.previousBalance,
           production: stat.production,
@@ -84,18 +95,23 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
       const { error } = await supabase.from('daily_statistics').insert(dbStat);
       
       if (!error) {
-          get().fetchStatistics();
+          // Immediately re-fetch to update local state with server truth
+          await get().fetchStatistics();
           return { success: true };
       }
-      return { success: false, error: error?.message || error };
+      return { success: false, error: error?.message };
   },
 
   updateStatistic: async (id, updates) => {
-      const dbUpdates: any = {};
+      const dbUpdates: any = {
+          updated_at: new Date().toISOString()
+      };
       if (updates.production !== undefined) dbUpdates.production = updates.production;
       if (updates.sales !== undefined) dbUpdates.sales = updates.sales;
       if (updates.previousBalance !== undefined) dbUpdates.previous_balance = updates.previousBalance;
       if (updates.currentInventory !== undefined) dbUpdates.current_inventory = updates.currentInventory;
+      // Also allow date updates if necessary
+      if (updates.date) dbUpdates.date = normalizeDate(updates.date);
 
       const { error } = await supabase.from('daily_statistics').update(dbUpdates).eq('id', id);
       
@@ -103,19 +119,18 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           get().fetchStatistics();
           return { success: true };
       }
-      return { success: false, error: error?.message || error };
+      return { success: false, error: error?.message };
   },
 
   deleteStatistic: async (id) => {
       const { error } = await supabase.from('daily_statistics').delete().eq('id', id);
       if (!error) get().fetchStatistics();
-      else console.error('Error deleting statistic:', error?.message || error);
   },
 
   getLatestInventory: (farmId, productId) => {
+    // Relies on the fact that fetchStatistics sorts by date DESC
     const stats = get().statistics.filter(s => s.farmId === farmId && s.productId === productId);
     if (stats.length === 0) return 0;
-    // statistics array is already sorted by date descending from fetch
     return stats[0].currentInventory || 0;
   }
 }));

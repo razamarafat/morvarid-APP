@@ -17,12 +17,17 @@ interface FarmState {
   getProductById: (id: string) => Product | undefined;
 }
 
-// Legacy ID mapping helper
-const mapLegacyProductId = (id: string): string => {
-    if (id === '1') return '11111111-1111-1111-1111-111111111111';
-    if (id === '2') return '22222222-2222-2222-2222-222222222222';
-    return id;
+// Legacy ID mapping helper - NOW HANDLES NUMBERS AND STRINGS
+const mapLegacyProductId = (id: string | number): string => {
+    const strId = String(id);
+    if (strId === '1') return '11111111-1111-1111-1111-111111111111';
+    if (strId === '2') return '22222222-2222-2222-2222-222222222222';
+    return strId;
 };
+
+// Default UUIDs for Motefereghe
+const DEFAULT_PROD_1 = '11111111-1111-1111-1111-111111111111';
+const DEFAULT_PROD_2 = '22222222-2222-2222-2222-222222222222';
 
 export const useFarmStore = create<FarmState>((set, get) => ({
   farms: [],
@@ -40,14 +45,22 @@ export const useFarmStore = create<FarmState>((set, get) => ({
     }
 
     if (data) {
-      const mappedFarms = data.map((f: any) => ({
-          id: f.id,
-          name: f.name,
-          type: f.type,
-          isActive: f.is_active,
-          // FIX: Map legacy IDs "1" and "2" to UUIDs immediately upon fetch
-          productIds: (f.product_ids || []).map(mapLegacyProductId)
-      }));
+      const mappedFarms = data.map((f: any) => {
+          let pIds = (f.product_ids || []).map(mapLegacyProductId);
+          
+          // FIX: Force default products for MOTEFEREGHE if list is empty
+          if (f.type === 'MOTEFEREGHE' && pIds.length === 0) {
+              pIds = [DEFAULT_PROD_1, DEFAULT_PROD_2];
+          }
+
+          return {
+              id: f.id,
+              name: f.name,
+              type: f.type,
+              isActive: f.is_active,
+              productIds: pIds
+          };
+      });
       set({ farms: mappedFarms, isLoading: false });
     }
   },
@@ -64,8 +77,7 @@ export const useFarmStore = create<FarmState>((set, get) => ({
       
       if (data) {
           mappedProducts = data
-            // FIX: Filter out legacy non-UUID products from the list to avoid confusion
-            .filter((p: any) => p.id !== '1' && p.id !== '2')
+            .filter((p: any) => String(p.id) !== '1' && String(p.id) !== '2')
             .map((p: any) => ({
               id: p.id,
               name: p.name,
@@ -80,7 +92,7 @@ export const useFarmStore = create<FarmState>((set, get) => ({
       // Default Products Logic Updated with Valid UUIDs
       const defaultProducts: Product[] = [
           {
-              id: '11111111-1111-1111-1111-111111111111',
+              id: DEFAULT_PROD_1,
               name: 'شیرینگ پک ۶ شانه ساده',
               description: 'مخصوص فارم‌های متفرقه',
               unit: ProductUnit.CARTON,
@@ -89,7 +101,7 @@ export const useFarmStore = create<FarmState>((set, get) => ({
               isCustom: false
           },
           {
-              id: '22222222-2222-2222-2222-222222222222',
+              id: DEFAULT_PROD_2,
               name: 'شیرینگ پک ۶ شانه پرینتی',
               description: 'مخصوص فارم‌های متفرقه',
               unit: ProductUnit.CARTON,
@@ -136,7 +148,7 @@ export const useFarmStore = create<FarmState>((set, get) => ({
         name: farm.name,
         type: farm.type,
         is_active: farm.isActive,
-        product_ids: farm.productIds // These are already UUIDs from the form
+        product_ids: farm.productIds
     };
     
     const { data, error } = await supabase.from('farms').insert(dbFarm).select();

@@ -46,7 +46,7 @@ const MobileNav: React.FC<MobileNavProps> = ({ onNavigate }) => {
   const items = getNavItems();
 
   return (
-    <div className={`lg:hidden fixed bottom-0 left-0 right-0 h-20 ${themeColors.surface}/95 backdrop-blur-lg border-t border-gray-200 dark:border-gray-700 z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] pb-safe`}>
+    <div className={`lg:hidden fixed bottom-0 left-0 right-0 h-20 ${themeColors.surface}/95 backdrop-blur-lg border-t border-gray-200 dark:border-gray-700 z-40 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] pb-1`}>
       <div className="flex items-center justify-around h-full max-w-md mx-auto px-4">
         {items.map((item) => {
           const Icon = item.icon;

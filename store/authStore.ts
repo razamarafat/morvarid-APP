@@ -4,6 +4,17 @@ import { supabase } from '../lib/supabase';
 import { User, UserRole } from '../types';
 import { useLogStore } from './logStore';
 
+// Legacy ID mapping helper
+const mapLegacyProductId = (id: string): string => {
+    if (id === '1') return '11111111-1111-1111-1111-111111111111';
+    if (id === '2') return '22222222-2222-2222-2222-222222222222';
+    return id;
+};
+
+// Default UUIDs for Motefereghe
+const DEFAULT_PROD_1 = '11111111-1111-1111-1111-111111111111';
+const DEFAULT_PROD_2 = '22222222-2222-2222-2222-222222222222';
+
 interface AuthState {
   user: User | null;
   isLoading: boolean;
@@ -67,10 +78,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             if (profile.farms && profile.farms.length > 0) {
                 const farmIds = profile.farms.map((f: any) => f.farm_id);
                 const { data: farmsData } = await supabase.from('farms').select('*').in('id', farmIds);
-                assignedFarms = (farmsData || []).map((f: any) => ({
-                    ...f,
-                    productIds: f.product_ids
-                }));
+                
+                assignedFarms = (farmsData || []).map((f: any) => {
+                    let pIds = (f.product_ids || []).map(mapLegacyProductId);
+                    
+                    // FIX: Force default products for MOTEFEREGHE if list is empty
+                    if (f.type === 'MOTEFEREGHE' && pIds.length === 0) {
+                        pIds = [DEFAULT_PROD_1, DEFAULT_PROD_2];
+                    }
+
+                    return {
+                        ...f,
+                        productIds: pIds
+                    };
+                });
             }
 
             set({

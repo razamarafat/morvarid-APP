@@ -1,6 +1,35 @@
 
 export const toEnglishDigits = (str: string): string => {
-  return str.replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1728));
+  if (!str) return '';
+  // Convert Persian digits
+  let result = str.replace(/[۰-۹]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1728));
+  // Convert Arabic digits
+  result = result.replace(/[٠-٩]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 1584));
+  return result;
+};
+
+export const normalizeDate = (dateStr: string): string => {
+  if (!dateStr) return '';
+  
+  // 1. Convert everything to English digits first
+  let english = toEnglishDigits(dateStr);
+  
+  // 2. Remove anything that is not a digit or a separator (/ or -)
+  english = english.replace(/[^\d/\\-]/g, '');
+  
+  // 3. Normalize separators to forward slash
+  english = english.replace(/[-|\\]/g, '/').trim();
+
+  // 4. Pad Month and Day with zeros (e.g., 9 -> 09)
+  const parts = english.split('/');
+  if (parts.length === 3) {
+      const y = parts[0];
+      const m = parts[1].padStart(2, '0');
+      const d = parts[2].padStart(2, '0');
+      return `${y}/${m}/${d}`; // Always returns YYYY/MM/DD
+  }
+  
+  return english;
 };
 
 export const getTodayJalali = (): string => {
@@ -14,10 +43,11 @@ export const getTodayJalali = (): string => {
       numberingSystem: 'latn'
   };
   const faDate = new Intl.DateTimeFormat('fa-IR', options).format(date);
-  return faDate;
+  return normalizeDate(faDate);
 };
 
 export const formatJalali = (date: Date | string | number): string => {
+  if (!date) return '';
   const d = new Date(date);
   const options: Intl.DateTimeFormatOptions = { 
       year: 'numeric', 
@@ -27,7 +57,11 @@ export const formatJalali = (date: Date | string | number): string => {
       calendar: 'persian',
       numberingSystem: 'latn'
   };
-  return new Intl.DateTimeFormat('fa-IR', options).format(d);
+  try {
+    return normalizeDate(new Intl.DateTimeFormat('fa-IR', options).format(d));
+  } catch (e) {
+    return '';
+  }
 };
 
 export const getCurrentTime = (): string => {
@@ -39,10 +73,10 @@ export const getCurrentTime = (): string => {
     });
 };
 
-// Helper to check if a date string falls within a range
 export const isDateInRange = (date: string, startDate: string, endDate: string): boolean => {
-  const d = toEnglishDigits(date);
-  const start = toEnglishDigits(startDate);
-  const end = toEnglishDigits(endDate);
+  const d = normalizeDate(date);
+  const start = normalizeDate(startDate);
+  const end = normalizeDate(endDate);
+  // String comparison works for YYYY/MM/DD format
   return d >= start && d <= end;
 };

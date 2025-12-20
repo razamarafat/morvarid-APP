@@ -93,36 +93,45 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
   return (
     <>
       <div
-        className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity lg:hidden ${
+        className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] transition-opacity lg:hidden ${
           isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
         onClick={onClose}
       />
       <aside
-        className={`fixed top-0 right-0 h-full w-72 ${themeColors.surface} ${themeColors.text} shadow-2xl z-50 transform transition-transform duration-300 ease-out ${
+        className={`fixed top-0 right-0 h-full w-80 ${themeColors.surface} ${themeColors.text} shadow-2xl z-[70] transform transition-transform duration-300 ease-out ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         } lg:relative lg:translate-x-0 lg:w-72 flex flex-col border-l border-gray-100 dark:border-gray-700`}
       >
         <div 
-            className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center gap-4 cursor-pointer"
+            className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center gap-3 cursor-pointer"
             onClick={handleHome}
         >
-            <div className="w-12 h-12 bg-gray-50 dark:bg-gray-700 rounded-2xl flex items-center justify-center p-1 shadow-sm">
+            <div className="w-12 h-12 bg-gray-50 dark:bg-gray-700 rounded-2xl flex items-center justify-center p-1 shadow-sm shrink-0 border border-gray-100 dark:border-gray-600">
                 <Logo className="w-full h-full object-contain" />
             </div>
-            <div>
-                <h2 className="text-xl font-black">مروارید</h2>
-                <p className="text-xs opacity-70">مدیریت یکپارچه آمار</p>
+            <div className="overflow-hidden">
+                <h2 className="text-sm font-black leading-tight">شرکت صنایع غذایی و تولیدی مروارید</h2>
+                <p className="text-[10px] opacity-60 font-bold mt-0.5">سامانه جامع پایش فارم ها</p>
             </div>
         </div>
         
-        <nav className="flex-1 p-4 overflow-y-auto">
+        <nav className="flex-1 p-4 overflow-y-auto custom-scrollbar space-y-1">
             {getNavLinks()}
         </nav>
         
-        <div className="p-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
-            <NavLink icon={Icons.LogOut} label="خروج امن" onClick={handleLogout} />
-            <div className="text-center text-xs opacity-50 mt-2 font-mono">
+        <div className="p-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 pb-8 lg:pb-4">
+            <button 
+                onClick={handleLogout} 
+                className="w-full flex items-center justify-between p-4 rounded-2xl bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors group"
+            >
+                <div className="flex items-center">
+                    <Icons.LogOut className="w-5 h-5 ml-2" />
+                    <span className="font-bold">خروج از حساب</span>
+                </div>
+                <Icons.ChevronLeft className="w-4 h-4 opacity-50 group-hover:-translate-x-1 transition-transform" />
+            </button>
+            <div className="text-center text-xs opacity-50 mt-4 font-mono">
                 v{APP_VERSION}
             </div>
         </div>
