@@ -5,7 +5,7 @@ import SplashPage from './pages/SplashPage';
 import LoginPage from './pages/LoginPage';
 import AdminDashboard from './pages/AdminDashboard';
 import RegistrationDashboard from './pages/RegistrationDashboard';
-import SalesDashboard from './pages/SalesDashboard';
+import SalesDashboard from './components/sales/SalesDashboard';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import { useThemeStore } from './store/themeStore';
 import { UserRole } from './types';

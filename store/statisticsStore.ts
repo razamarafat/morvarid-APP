@@ -14,6 +14,7 @@ export interface DailyStatistic {
     currentInventory?: number;
     createdAt: number;
     updatedAt?: number;
+    creatorName?: string; // Added for Sales Dashboard
 }
 
 // Legacy ID mapping helper - ROBUST
@@ -47,14 +48,40 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           return;
       }
 
-      // Order by date DESC so the newest entries are first
-      const { data, error } = await supabase
+      // Step 1: Fetch statistics without join to avoid schema cache errors
+      const { data: statsData, error: statsError } = await supabase
           .from('daily_statistics')
           .select('*')
           .order('date', { ascending: false });
       
-      if (!error && data) {
-          const mappedStats = data.map((s: any) => ({
+      if (statsError) {
+          console.error('Error fetching statistics:', statsError.message);
+          set({ isLoading: false });
+          return;
+      }
+
+      let mappedStats: DailyStatistic[] = [];
+
+      if (statsData) {
+          // Step 2: Extract unique user IDs for manual fetching
+          const userIds = Array.from(new Set(statsData.map((s: any) => s.created_by).filter(Boolean)));
+          
+          // Step 3: Fetch Profiles manually
+          let profilesMap: Record<string, string> = {};
+          if (userIds.length > 0) {
+             const { data: profilesData } = await supabase
+                .from('profiles')
+                .select('id, full_name')
+                .in('id', userIds);
+             
+             if (profilesData) {
+                 profilesData.forEach((p: any) => {
+                     profilesMap[p.id] = p.full_name;
+                 });
+             }
+          }
+
+          mappedStats = statsData.map((s: any) => ({
               id: s.id,
               farmId: s.farm_id,
               // CRITICAL FIX: Normalize date coming FROM DB to ensure UI matches
@@ -65,13 +92,12 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
               sales: s.sales,
               currentInventory: s.current_inventory,
               createdAt: s.created_at ? new Date(s.created_at).getTime() : Date.now(),
-              updatedAt: s.updated_at ? new Date(s.updated_at).getTime() : undefined
+              updatedAt: s.updated_at ? new Date(s.updated_at).getTime() : undefined,
+              creatorName: profilesMap[s.created_by] || 'ناشناس'
           }));
-          set({ statistics: mappedStats, isLoading: false });
-      } else {
-          set({ isLoading: false });
-          console.error('Error fetching statistics:', error?.message);
       }
+      
+      set({ statistics: mappedStats, isLoading: false });
   },
 
   addStatistic: async (stat) => {

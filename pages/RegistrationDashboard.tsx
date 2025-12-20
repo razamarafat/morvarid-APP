@@ -11,8 +11,8 @@ const RegistrationDashboard: React.FC = () => {
     const [currentView, setCurrentView] = useState('dashboard');
     const { user } = useAuthStore();
     
-    // Only show Farm Name (Security Requirement)
-    const farmName = user?.assignedFarms?.[0]?.name || 'داشبورد';
+    // Simplified Header
+    const dashboardTitle = 'داشبورد ثبت اطلاعات';
 
     const renderContent = () => {
         switch (currentView) {
@@ -24,7 +24,7 @@ const RegistrationDashboard: React.FC = () => {
     };
 
     return (
-        <DashboardLayout title={farmName} onNavigate={setCurrentView}>
+        <DashboardLayout title={dashboardTitle} onNavigate={setCurrentView}>
             {renderContent()}
         </DashboardLayout>
     );

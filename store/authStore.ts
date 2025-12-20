@@ -48,7 +48,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      if (sessionError || !session?.user) {
+      // Handle Invalid Refresh Token specifically
+      if (sessionError) {
+          console.warn('Session check warning:', sessionError.message);
+          if (sessionError.message.includes('Refresh Token Not Found') || sessionError.message.includes('Invalid Refresh Token')) {
+              await supabase.auth.signOut().catch(() => {}); // Force cleanup
+              localStorage.removeItem('sb-bcdyieczslyynvvsfmmm-auth-token'); // Manual cleanup fallback
+          }
+          set({ user: null, isLoading: false });
+          return;
+      }
+
+      if (!session?.user) {
           set({ user: null, isLoading: false });
           return;
       }
@@ -112,6 +123,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ user: null, isLoading: false });
     } catch (error: any) {
       console.error('Session check failed', error);
+      // Fallback cleanup
       set({ user: null, isLoading: false });
     }
   },

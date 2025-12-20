@@ -73,7 +73,7 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  const inputClass = "w-full px-5 py-3.5 bg-white dark:bg-gray-700/50 border border-gray-200 dark:border-transparent focus:bg-white focus:border-violet-500 rounded-2xl text-gray-900 dark:text-white outline-none transition-all font-bold text-base text-center placeholder-gray-300 focus:ring-4 focus:ring-violet-500/10";
+  const inputClass = "w-full px-5 py-3.5 bg-white dark:bg-gray-700/50 border border-gray-200 dark:border-transparent focus:bg-white focus:border-violet-500 rounded-2xl text-gray-900 dark:text-white outline-none transition-all font-bold text-base text-center focus:ring-4 focus:ring-violet-500/10";
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col items-center justify-center p-4 transition-colors">
@@ -103,7 +103,6 @@ const LoginPage: React.FC = () => {
                     disabled={isBlocked}
                     {...register('username')}
                     className={inputClass}
-                    placeholder="Username"
                   />
                   <Icons.User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 w-4 h-4" />
               </div>
@@ -118,7 +117,6 @@ const LoginPage: React.FC = () => {
                   disabled={isBlocked}
                   {...register('password')}
                   className={inputClass}
-                  placeholder="••••"
                 />
                 <button
                   type="button"

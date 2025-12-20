@@ -221,13 +221,13 @@ const InvoiceForm: React.FC = () => {
 
                         <div>
                             <label className="block text-sm font-black text-gray-400 mb-2 mr-2">تعداد کارتن</label>
-                            <input type="number" {...register('totalCartons', { valueAsNumber: true })} className={inputClass} placeholder="0" />
+                            <input type="number" {...register('totalCartons', { valueAsNumber: true })} className={inputClass} />
                             {errors.totalCartons && <p className="text-red-500 text-xs mt-1 font-bold">{errors.totalCartons.message}</p>}
                         </div>
 
                         <div className="md:col-span-2">
                             <label className="block text-sm font-black text-gray-400 mb-2 mr-2">وزن خالص (کیلوگرم)</label>
-                            <input type="number" step="0.01" {...register('totalWeight', { valueAsNumber: true })} className={inputClass} placeholder="0.00" />
+                            <input type="number" step="0.01" {...register('totalWeight', { valueAsNumber: true })} className={inputClass} />
                             {errors.totalWeight && <p className="text-red-500 text-xs mt-1 font-bold">{errors.totalWeight.message}</p>}
                         </div>
                     </div>
