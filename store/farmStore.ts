@@ -93,17 +93,22 @@ export const useFarmStore = create<FarmState>((set, get) => ({
       if (missingDefaults.length > 0) {
           mappedProducts = [...mappedProducts, ...missingDefaults];
           for (const p of missingDefaults) {
-              const { error: upsertError } = await supabase.from('products').upsert({
-                  id: p.id,
-                  name: p.name,
-                  description: p.description,
-                  unit: p.unit,
-                  has_kilogram_unit: p.hasKilogramUnit,
-                  is_default: p.isDefault,
-                  is_custom: p.isCustom
-              });
-              if (upsertError) {
-                   useLogStore.getState().addLog('warn', 'database', `Failed to restore default product ${p.name}: ${upsertError.message}`, 'SYSTEM');
+              try {
+                  // Explicitly await and capture error to avoid unhandled rejections or "catch is not a function"
+                  const { error: upsertError } = await supabase.from('products').upsert({
+                      id: p.id,
+                      name: p.name,
+                      description: p.description,
+                      unit: p.unit,
+                      has_kilogram_unit: p.hasKilogramUnit,
+                      is_default: p.isDefault,
+                      is_custom: p.isCustom
+                  });
+                  if (upsertError) {
+                       useLogStore.getState().addLog('warn', 'database', `Failed to restore default product ${p.name}: ${upsertError.message}`, 'SYSTEM');
+                  }
+              } catch (e: any) {
+                  useLogStore.getState().addLog('error', 'database', `Exception restoring product ${p.name}: ${e.message}`, 'SYSTEM');
               }
           }
       }

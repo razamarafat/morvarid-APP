@@ -18,7 +18,7 @@ const farmSchema = z.object({
   name: z.string()
     .min(1, 'نام فارم الزامی است')
     .regex(farmNameRegex, 'نام فارم باید فقط شامل حروف فارسی و اعداد باشد'),
-  type: z.nativeEnum(FarmType, { errorMap: () => ({ message: 'نوع فارم الزامی است' }) }),
+  type: z.nativeEnum(FarmType),
   isActive: z.boolean(),
   productIds: z.array(z.string()).min(1, 'حداقل یک محصول باید انتخاب شود'),
 });

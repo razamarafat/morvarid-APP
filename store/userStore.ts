@@ -21,52 +21,67 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   fetchUsers: async () => {
       set({ isLoading: true });
-      const { data: profiles, error } = await supabase.from('profiles').select('*, farms:user_farms(farm_id)');
       
-      if (error) {
+      try {
+          // SPLIT QUERY STRATEGY:
+          // Fetching profiles and user_farms separately prevents "Infinite recursion" errors
+          // caused by complex RLS policies triggering loops during joins.
+          
+          const { data: profiles, error: profilesError } = await supabase.from('profiles').select('*');
+          if (profilesError) throw profilesError;
+
+          const { data: userFarmsData, error: userFarmsError } = await supabase.from('user_farms').select('user_id, farm_id');
+          if (userFarmsError) console.warn("Error fetching user_farms:", userFarmsError);
+
+          if (profiles) {
+              const { data: allFarms } = await supabase.from('farms').select('*');
+              
+              const mappedUsers = profiles.map((p: any) => {
+                  // Manually join user_farms in JS
+                  const assignedFarmIds = userFarmsData 
+                    ? userFarmsData.filter((uf: any) => uf.user_id === p.id).map((uf: any) => uf.farm_id) 
+                    : [];
+                  
+                  const assignedFarms = allFarms 
+                    ? allFarms.filter((f: any) => assignedFarmIds.includes(f.id)).map((f:any) => ({...f, productIds: f.product_ids})) 
+                    : [];
+
+                  return {
+                      id: p.id,
+                      username: p.username,
+                      fullName: p.full_name,
+                      role: p.role as UserRole,
+                      isActive: p.is_active,
+                      phoneNumber: p.phone_number,
+                      assignedFarms: assignedFarms
+                  };
+              });
+              set({ users: mappedUsers, isLoading: false });
+          } else {
+              set({ isLoading: false });
+          }
+      } catch (error: any) {
            useLogStore.getState().addLog('error', 'database', `Fetch Users Failed: ${error.message}`);
            set({ isLoading: false });
-           return;
-      }
-
-      if (profiles) {
-          const { data: allFarms } = await supabase.from('farms').select('*');
-          
-          const mappedUsers = profiles.map((p: any) => {
-              const assignedFarmIds = p.farms ? p.farms.map((f: any) => f.farm_id) : [];
-              const assignedFarms = allFarms ? allFarms.filter((f: any) => assignedFarmIds.includes(f.id)).map((f:any) => ({...f, productIds: f.product_ids})) : [];
-
-              return {
-                  id: p.id,
-                  username: p.username,
-                  fullName: p.full_name,
-                  role: p.role as UserRole,
-                  isActive: p.is_active,
-                  phoneNumber: p.phone_number,
-                  assignedFarms: assignedFarms
-              };
-          });
-          set({ users: mappedUsers, isLoading: false });
-      } else {
-          set({ isLoading: false });
       }
   },
 
   addUser: async (userData) => {
       const currentAdmin = (await supabase.auth.getUser()).data.user;
       
-      const rawUsername = userData.username;
+      const rawUsername = userData.username || '';
       const sanitizedUsername = rawUsername.toLowerCase().replace(/[^a-z0-9]/g, '');
-      // UPDATED: Use morvarid.app to match admin domain
+      
+      // VALIDATION FIX: Ensure username is valid before creating email
+      if (!sanitizedUsername || sanitizedUsername.length < 3) {
+          useToastStore.getState().addToast('نام کاربری باید شامل حداقل ۳ حرف لاتین یا عدد باشد', 'error');
+          return;
+      }
+
       const email = `${sanitizedUsername}@morvarid.app`; 
       const password = userData.password || 'Morvarid1234';
 
-      useLogStore.getState().addLog('info', 'auth', `Creating user: '${sanitizedUsername}' | Pass Length: ${password.length}`, currentAdmin?.id);
-
-      if (sanitizedUsername.length < 3) {
-          useToastStore.getState().addToast('نام کاربری نامعتبر است (حداقل ۳ کاراکتر انگلیسی)', 'error');
-          return;
-      }
+      useLogStore.getState().addLog('info', 'auth', `Creating user: '${sanitizedUsername}'`, currentAdmin?.id);
 
       set({ isLoading: true });
 
@@ -128,7 +143,6 @@ export const useUserStore = create<UserState>((set, get) => ({
                       const { error: assignError } = await supabase.from('user_farms').insert(inserts);
                       if (assignError) {
                           useLogStore.getState().addLog('warn', 'database', `ASSIGN_FAIL: ${assignError.message}`, currentAdmin?.id);
-                          useToastStore.getState().addToast('کاربر ایجاد شد اما تخصیص فارم با خطا مواجه شد', 'warning');
                       }
                   }
                   
@@ -154,7 +168,7 @@ export const useUserStore = create<UserState>((set, get) => ({
       try {
           // 1. Update Profile Fields
           const { error: profileError } = await supabase.from('profiles').update({
-              username: user.username, // Allow updating display username
+              username: user.username, 
               full_name: user.fullName,
               role: user.role,
               is_active: user.isActive,
@@ -166,7 +180,6 @@ export const useUserStore = create<UserState>((set, get) => ({
           }
 
           // 2. Update Farm Assignments (Handle RLS Gracefully)
-          // We wrap this in a separate block so if it fails, the profile update still stands.
           let farmUpdateStatus = 'success';
           try {
               // Delete existing
@@ -195,8 +208,6 @@ export const useUserStore = create<UserState>((set, get) => ({
               useLogStore.getState().addLog('error', 'database', `Farm Update RLS Error: ${farmError.message}`, currentAdmin?.id);
           }
 
-          useLogStore.getState().addLog('info', 'database', `User ${user.username} updated. Farm Status: ${farmUpdateStatus}`, currentAdmin?.id);
-          
           if (farmUpdateStatus === 'success') {
               useToastStore.getState().addToast('ویرایش کاربر با موفقیت ثبت شد', 'success');
           } else {
@@ -218,21 +229,18 @@ export const useUserStore = create<UserState>((set, get) => ({
       set({ isLoading: true });
 
       try {
-          // 1. Unlink Invoices and Stats (Preserve data, remove user link)
-          // We assume 'created_by' can be null or we ignore error if restricted.
-          // This allows deleting the user while keeping the business data.
+          // 1. Unlink Invoices and Stats
           await supabase.from('invoices').update({ created_by: null }).eq('created_by', userId);
           await supabase.from('daily_statistics').update({ created_by: null }).eq('created_by', userId);
 
-          // 2. Delete System Logs (New)
-          // Removing logs prevents foreign key constraints in 'system_logs' from blocking user deletion.
-          await useLogStore.getState().deleteLogsByUserId(userId);
+          // 2. Delete System Logs
+          try {
+             await useLogStore.getState().deleteLogsByUserId(userId);
+          } catch(e) { console.warn("Log delete failed", e); }
 
           // 3. Delete Farm Associations
           const { error: farmError } = await supabase.from('user_farms').delete().eq('user_id', userId);
-          if (farmError) {
-               console.warn("Farm delete error (ignorable if RLS):", farmError);
-          }
+          if (farmError) console.warn("Farm delete error (ignorable if RLS):", farmError);
 
           // 4. Delete Profile
           const { error: profileError } = await supabase.from('profiles').delete().eq('id', userId);
@@ -242,7 +250,7 @@ export const useUserStore = create<UserState>((set, get) => ({
           }
           
           useLogStore.getState().addLog('info', 'database', `User profile and dependencies cleaned up.`, currentAdmin?.id);
-          useToastStore.getState().addToast('کاربر از سیستم حذف شد. (داده‌های آماری حفظ شدند)', 'success');
+          useToastStore.getState().addToast('کاربر از سیستم حذف شد.', 'success');
 
       } catch (error: any) {
           useLogStore.getState().addLog('error', 'database', `Delete Error: ${error.message}`, currentAdmin?.id);

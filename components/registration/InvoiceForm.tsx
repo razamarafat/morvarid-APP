@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -17,8 +18,8 @@ import Modal from '../common/Modal';
 
 const invoiceSchema = z.object({
     invoiceNumber: z.string().min(1, 'شماره حواله الزامی است'),
-    totalCartons: z.number({ invalid_type_error: 'تعداد کارتن باید عدد باشد' }).min(1, 'حداقل ۱ کارتن'),
-    totalWeight: z.number({ invalid_type_error: 'وزن باید عدد باشد' }).min(0.1, 'وزن نامعتبر است'),
+    totalCartons: z.number().min(1, 'حداقل ۱ کارتن'),
+    totalWeight: z.number().min(0.1, 'وزن نامعتبر است'),
     productId: z.string().optional(),
     isYesterday: z.boolean(),
     driverName: z.string().optional(),

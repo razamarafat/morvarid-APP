@@ -16,6 +16,7 @@ interface AuthState {
   recordFailedAttempt: () => void;
   resetAttempts: () => void;
   loadSavedUsername: () => void; // Helper to load from localstorage
+  registerBiometric: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -37,13 +38,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError) {
-          // Silent error for session check
           set({ user: null, isLoading: false });
           return;
       }
 
       if (session?.user) {
-        // Fetch profile
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*, farms:user_farms(farm_id)')
@@ -57,12 +56,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
 
         if (profile) {
-            // Fetch assigned farms details if any
             let assignedFarms = [];
             if (profile.farms && profile.farms.length > 0) {
                 const farmIds = profile.farms.map((f: any) => f.farm_id);
                 const { data: farmsData } = await supabase.from('farms').select('*').in('id', farmIds);
-                // Parse product_ids from jsonb
                 assignedFarms = (farmsData || []).map((f: any) => ({
                     ...f,
                     productIds: f.product_ids
@@ -100,11 +97,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return { success: false, error: 'حساب موقتا مسدود است. لطفا صبر کنید.' };
     }
 
-    // SANITIZATION FIX: Match the logic used in addUser
+    // VALIDATION: Ensure username has Latin characters
     const cleanUsername = username.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (!cleanUsername) {
+        return { success: false, error: 'نام کاربری نامعتبر است (لطفا از حروف انگلیسی استفاده کنید)' };
+    }
 
-    // Try multiple domains to support legacy users
-    const domains = ['morvarid.com', 'morvarid.app', 'morvarid-system.com'];
+    const domains = ['morvarid.app', 'morvarid.com', 'morvarid-system.com'];
     let loginData = null;
     let loginError = null;
 
@@ -127,14 +126,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     if (loginError || !loginData) {
         get().recordFailedAttempt();
-        useLogStore.getState().addLog('warn', 'auth', `Login failed for ${cleanUsername} (all domains checked)`);
+        useLogStore.getState().addLog('warn', 'auth', `Login failed for ${cleanUsername}`);
         return { success: false, error: 'نام کاربری یا رمز عبور اشتباه است' };
     }
 
     if (loginData.user) {
         get().resetAttempts();
         
-        // Handle Remember Me (Username only)
         if (rememberMe) {
             localStorage.setItem('morvarid_saved_username', username);
             set({ savedUsername: username });
@@ -144,8 +142,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
 
         await get().checkSession();
-        useLogStore.getState().addLog('info', 'auth', `User ${username} logged in successfully`, loginData.user.id);
-        return { success: true };
+        const currentUser = get().user;
+        if (currentUser) {
+            useLogStore.getState().addLog('info', 'auth', `User ${username} logged in successfully`, currentUser.id);
+            return { success: true };
+        } else {
+             return { success: false, error: 'حساب کاربری یافت نشد (پروفایل ناقص)' };
+        }
     }
     
     return { success: false, error: 'خطای ناشناخته' };
@@ -158,10 +161,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ user: null });
   },
 
+  registerBiometric: () => {
+      console.log('Biometric registration requested');
+  },
+
   recordFailedAttempt: () => set((state) => {
     const newAttempts = state.loginAttempts + 1;
     if (newAttempts >= 5) {
-       return { loginAttempts: newAttempts, blockUntil: Date.now() + 15 * 60 * 1000 }; // 15 mins block
+       return { loginAttempts: newAttempts, blockUntil: Date.now() + 15 * 60 * 1000 };
     }
     return { loginAttempts: newAttempts };
   }),
