@@ -37,7 +37,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      if (sessionError) {
+      if (sessionError || !session?.user) {
           set({ user: null, isLoading: false });
           return;
       }
@@ -56,6 +56,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
 
         if (profile) {
+            // INACTIVE CHECK
+            if (!profile.is_active) {
+                await supabase.auth.signOut();
+                set({ user: null, isLoading: false });
+                return;
+            }
+
             let assignedFarms = [];
             if (profile.farms && profile.farms.length > 0) {
                 const farmIds = profile.farms.map((f: any) => f.farm_id);
@@ -131,6 +138,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     if (loginData.user) {
+        // Fetch profile to check active status immediately
+        const { data: profile } = await supabase.from('profiles').select('is_active').eq('id', loginData.user.id).single();
+        
+        if (profile && !profile.is_active) {
+            await supabase.auth.signOut();
+            useLogStore.getState().addLog('warn', 'auth', `Inactive user attempted login: ${username}`);
+            return { success: false, error: 'حساب کاربری شما غیرفعال شده است. با مدیر تماس بگیرید.' };
+        }
+
         get().resetAttempts();
         
         if (rememberMe) {

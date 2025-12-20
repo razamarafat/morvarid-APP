@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../layout/DashboardLayout';
 import { Icons } from '../common/Icons';
 import Reports from '../admin/Reports';
@@ -17,26 +17,48 @@ const FarmStatistics = () => {
     const today = getTodayJalali();
     
     const [selectedFarmId, setSelectedFarmId] = useState<string>('all');
+    // Store cooldown timestamps: { [farmId]: timestamp }
+    const [alertCooldowns, setAlertCooldowns] = useState<Record<string, number>>({});
+    const [now, setNow] = useState(Date.now());
 
-    const handleSendAlert = (farmName: string) => {
+    // Update timer every minute to re-enable buttons
+    useEffect(() => {
+        const interval = setInterval(() => setNow(Date.now()), 60000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const handleSendAlert = (farmId: string, farmName: string) => {
+        // 5 minutes cooldown
+        const cooldownTime = 5 * 60 * 1000;
+        setAlertCooldowns(prev => ({ ...prev, [farmId]: Date.now() + cooldownTime }));
+
         // Simulation of sending notification
         addToast(`هشدار عدم ثبت آمار برای فارم "${farmName}" به مسئول مربوطه ارسال شد.`, 'success');
+    };
+
+    const isCooldownActive = (farmId: string) => {
+        return alertCooldowns[farmId] && alertCooldowns[farmId] > now;
+    };
+
+    const getCooldownRemaining = (farmId: string) => {
+        if (!isCooldownActive(farmId)) return 0;
+        return Math.ceil((alertCooldowns[farmId] - now) / 60000);
     };
 
     const filteredFarms = selectedFarmId === 'all' ? farms : farms.filter(f => f.id === selectedFarmId);
 
     return (
         <div className="space-y-6">
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-[24px] shadow-sm">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700">
                 <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                    <h3 className="font-bold text-lg dark:text-white flex items-center gap-2">
+                    <h3 className="font-bold text-lg text-gray-800 dark:text-white flex items-center gap-2">
                         <Icons.BarChart className="w-5 h-5 text-blue-500" />
                         وضعیت آمار روزانه ({today})
                     </h3>
                     <div className="flex items-center gap-3 w-full md:w-auto">
-                        <span className="text-sm font-medium dark:text-gray-300 whitespace-nowrap">انتخاب فارم:</span>
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap">انتخاب فارم:</span>
                         <select 
-                            className="w-full md:w-64 p-2 border rounded-xl bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            className="w-full md:w-64 p-2 border rounded-xl bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white outline-none focus:border-blue-500"
                             value={selectedFarmId}
                             onChange={(e) => setSelectedFarmId(e.target.value)}
                         >
@@ -51,18 +73,25 @@ const FarmStatistics = () => {
                         // Check if this farm has stats for today
                         const farmStats = statistics.filter(s => s.farmId === farm.id && s.date === today);
                         const hasStatsToday = farmStats.length > 0;
+                        const onCooldown = isCooldownActive(farm.id);
                         
                         return (
-                            <div key={farm.id} className="bg-gray-50 dark:bg-gray-700/30 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden">
+                            <div key={farm.id} className="bg-gray-50 dark:bg-gray-700/30 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden transition-all hover:shadow-md">
                                 <div className="p-4 flex flex-col md:flex-row justify-between items-center gap-4 bg-white dark:bg-gray-800 border-b dark:border-gray-700">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-3 h-3 rounded-full ${hasStatsToday ? 'bg-green-500' : 'bg-red-500 animate-pulse'}`}></div>
-                                        <h4 className="font-bold text-gray-800 dark:text-white">{farm.name}</h4>
+                                    <div className="flex items-center gap-3 w-full md:w-auto">
+                                        <div className={`w-3 h-3 rounded-full flex-shrink-0 ${hasStatsToday ? 'bg-green-500' : 'bg-red-500 animate-pulse'}`}></div>
+                                        <h4 className="font-bold text-gray-800 dark:text-white truncate">{farm.name}</h4>
                                     </div>
                                     {!hasStatsToday && (
-                                        <Button size="sm" variant="danger" onClick={() => handleSendAlert(farm.name)}>
+                                        <Button 
+                                            size="sm" 
+                                            variant={onCooldown ? "secondary" : "danger"} 
+                                            onClick={() => handleSendAlert(farm.id, farm.name)}
+                                            disabled={onCooldown}
+                                            className="w-full md:w-auto"
+                                        >
                                             <Icons.Bell className="w-4 h-4 ml-2" />
-                                            ارسال هشدار
+                                            {onCooldown ? `ارسال مجدد (${getCooldownRemaining(farm.id)} دقیقه)` : 'ارسال هشدار'}
                                         </Button>
                                     )}
                                 </div>
@@ -98,18 +127,18 @@ const FarmStatistics = () => {
             </div>
 
             {/* Detailed Stats Table */}
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-[24px] shadow-sm overflow-hidden">
-                <h3 className="font-bold text-lg mb-4 dark:text-white">جزئیات آمار ثبت شده</h3>
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-[24px] shadow-sm overflow-hidden border border-gray-100 dark:border-gray-700">
+                <h3 className="font-bold text-lg mb-4 text-gray-800 dark:text-white">جزئیات آمار ثبت شده</h3>
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-right text-gray-500 dark:text-gray-400">
                         <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                             <tr>
-                                <th className="px-6 py-3">فارم</th>
+                                <th className="px-6 py-3 rounded-r-xl">فارم</th>
                                 <th className="px-6 py-3">محصول</th>
                                 <th className="px-6 py-3">مانده قبل</th>
                                 <th className="px-6 py-3">تولید</th>
                                 <th className="px-6 py-3">فروش</th>
-                                <th className="px-6 py-3">موجودی</th>
+                                <th className="px-6 py-3 rounded-l-xl">موجودی</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -118,8 +147,8 @@ const FarmStatistics = () => {
                                 .sort((a, b) => b.date.localeCompare(a.date))
                                 .slice(0, 20) // Show last 20
                                 .map(s => (
-                                <tr key={s.id} className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
-                                    <td className="px-6 py-4 font-bold">{farms.find(f => f.id === s.farmId)?.name}</td>
+                                <tr key={s.id} className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                                    <td className="px-6 py-4 font-bold text-gray-800 dark:text-gray-200">{farms.find(f => f.id === s.farmId)?.name}</td>
                                     <td className="px-6 py-4">{products.find(p => p.id === s.productId)?.name}</td>
                                     <td className="px-6 py-4">{s.previousBalance || 0}</td>
                                     <td className="px-6 py-4 font-bold text-green-600">{s.production}</td>
@@ -151,17 +180,17 @@ const InvoiceList = () => {
 
     return (
         <div className="space-y-6">
-             <div className="bg-white dark:bg-gray-800 p-6 rounded-[24px] shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
-                <h3 className="font-bold text-lg dark:text-white flex items-center gap-2">
+             <div className="bg-white dark:bg-gray-800 p-6 rounded-[24px] shadow-sm flex flex-col md:flex-row justify-between items-center gap-4 border border-gray-100 dark:border-gray-700">
+                <h3 className="font-bold text-lg text-gray-800 dark:text-white flex items-center gap-2">
                     <Icons.FileText className="w-5 h-5 text-blue-500" />
                     حواله‌های فروش
                 </h3>
                 <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto items-center">
                     <Button size="sm" variant="danger" onClick={handleAlert} className="w-full md:w-auto">ارسال هشدار کلی</Button>
                     <div className="flex items-center gap-2 w-full md:w-auto">
-                        <span className="text-sm font-medium dark:text-gray-300 whitespace-nowrap">انتخاب فارم:</span>
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap">انتخاب فارم:</span>
                         <select 
-                            className="p-2 border rounded-xl bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 flex-1 dark:text-white"
+                            className="p-2 border rounded-xl bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 flex-1 dark:text-white outline-none focus:border-blue-500"
                             value={selectedFarmId}
                             onChange={(e) => setSelectedFarmId(e.target.value)}
                         >
@@ -172,23 +201,23 @@ const InvoiceList = () => {
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-[24px] shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-[24px] shadow-sm overflow-hidden border border-gray-100 dark:border-gray-700">
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-right text-gray-500 dark:text-gray-400">
                         <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-200">
                             <tr>
-                                <th className="px-6 py-3">تاریخ</th>
+                                <th className="px-6 py-3 rounded-r-xl">تاریخ</th>
                                 <th className="px-6 py-3">شماره حواله</th>
                                 <th className="px-6 py-3">فارم</th>
                                 <th className="px-6 py-3">کارتن</th>
                                 <th className="px-6 py-3">وزن</th>
                                 <th className="px-6 py-3">راننده</th>
-                                <th className="px-6 py-3">وضعیت</th>
+                                <th className="px-6 py-3 rounded-l-xl">وضعیت</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filteredInvoices.map(i => (
-                                <tr key={i.id} className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                <tr key={i.id} className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                                     <td className="px-6 py-4">{i.date}</td>
                                     <td className="px-6 py-4 font-mono font-bold text-blue-600">{i.invoiceNumber}</td>
                                     <td className="px-6 py-4">{farms.find(f => f.id === i.farmId)?.name}</td>

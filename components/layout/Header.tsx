@@ -7,6 +7,7 @@ import ThemeToggle from '../common/ThemeToggle';
 import { UserRole } from '../../types';
 import { useThemeStore } from '../../store/themeStore';
 import { THEMES } from '../../constants';
+import { useConfirm } from '../../hooks/useConfirm';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -14,10 +15,12 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useThemeStore(state => state.theme);
+  const { confirm } = useConfirm();
+
   const role = user?.role || UserRole.ADMIN;
   const themeColors = THEMES[theme][role];
 
@@ -30,11 +33,33 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
     }
   };
 
+  const handleBack = async () => {
+      // If we are at a root dashboard path, warn user about exiting/logout
+      const rootPaths = ['/admin', '/registration', '/sales'];
+      const currentPath = location.pathname;
+
+      if (rootPaths.includes(currentPath)) {
+          const shouldLogout = await confirm({
+              title: 'خروج از حساب',
+              message: 'با بازگشت از این صفحه از حساب کاربری خارج می‌شوید. آیا ادامه می‌دهید؟',
+              confirmText: 'بله، خروج',
+              cancelText: 'انصراف',
+              type: 'warning'
+          });
+
+          if (shouldLogout) {
+              await logout();
+              navigate('/login');
+          }
+      } else {
+          // Normal navigation back
+          navigate(-1);
+      }
+  };
+
   // Logic: Show back button if we are NOT on the main dashboard root routes
-  // e.g. /admin is root, /admin/backup is sub-page (conceptually, though currently hash router uses flat paths mostly)
-  // For this app structure, we show it if the path length implies depth OR if explicitly requested.
-  // Since the user asked for it "on all pages", we'll make it available but allow user to go back to previous history.
-  // We hide it only on the Login/Splash page.
+  // BUT user requested to ask for confirmation if it leads to login. 
+  // So we show it, but change behavior.
   const hideBack = ['/', '/login'].includes(location.pathname);
 
   return (
@@ -48,7 +73,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
           {/* Global Back Button */}
           {!hideBack && (
               <button 
-                onClick={() => navigate(-1)} 
+                onClick={handleBack} 
                 className="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors mr-1"
                 title="بازگشت"
               >

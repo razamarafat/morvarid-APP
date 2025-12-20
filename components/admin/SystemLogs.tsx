@@ -51,20 +51,21 @@ const SystemLogs: React.FC = () => {
         </div>
       </div>
       
-      <div className="bg-gray-900 text-gray-300 rounded-lg p-4 font-mono text-sm h-96 overflow-y-auto shadow-inner custom-scrollbar">
-        {logs.length === 0 && <p className="text-gray-600 text-center py-10">هیچ لاگی ثبت نشده است.</p>}
+      {/* Updated background to be adaptive (light/gray-100 in light mode) */}
+      <div className="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-300 rounded-2xl p-4 font-mono text-sm h-96 overflow-y-auto shadow-inner custom-scrollbar border border-gray-200 dark:border-gray-700">
+        {logs.length === 0 && <p className="text-gray-500 text-center py-10">هیچ لاگی ثبت نشده است.</p>}
         {logs.map((log) => (
-          <div key={log.id} className="border-b border-gray-800 py-2 flex flex-wrap gap-2 md:gap-4 items-start hover:bg-gray-800/50 transition-colors select-text">
+          <div key={log.id} className="border-b border-gray-200 dark:border-gray-800 py-2 flex flex-wrap gap-2 md:gap-4 items-start hover:bg-gray-200 dark:hover:bg-gray-800/50 transition-colors select-text">
             <span className="text-gray-500 whitespace-nowrap text-xs md:text-sm select-none">{log.timestamp}</span>
             <div className="flex items-center gap-1 w-20 shrink-0">
                 {getLevelIcon(log.level)}
-                <span className={`uppercase font-bold text-xs ${log.level === 'error' ? 'text-red-400' : log.level === 'warn' ? 'text-yellow-400' : 'text-blue-400'}`}>
+                <span className={`uppercase font-bold text-xs ${log.level === 'error' ? 'text-red-600 dark:text-red-400' : log.level === 'warn' ? 'text-yellow-600 dark:text-yellow-400' : 'text-blue-600 dark:text-blue-400'}`}>
                 {log.level}
                 </span>
             </div>
-            <span className="text-purple-400 w-24 text-xs shrink-0">[{log.category}]</span>
-            <span className="text-gray-200 flex-1 break-all">{log.message}</span>
-            {log.userId && <span className="text-gray-600 text-xs whitespace-nowrap">User: {log.userId}</span>}
+            <span className="text-purple-600 dark:text-purple-400 w-24 text-xs shrink-0">[{log.category}]</span>
+            <span className="flex-1 break-all">{log.message}</span>
+            {log.userId && <span className="text-gray-400 text-xs whitespace-nowrap">User: {log.userId.substring(0,6)}...</span>}
           </div>
         ))}
       </div>

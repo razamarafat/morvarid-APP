@@ -36,10 +36,11 @@ const userSchema = z.object({
   assignedFarmIds: z.array(z.string()).optional(),
   notificationsEnabled: z.boolean().optional(),
 }).superRefine((data, ctx) => {
+    // TASK: Enforce farm assignment ONLY for REGISTRATION role
     if (data.role === UserRole.REGISTRATION && (!data.assignedFarmIds || data.assignedFarmIds.length === 0)) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: "لطفا حداقل یک فارم به کاربر اختصاص دهید",
+            message: "برای مسئول ثبت، انتخاب حداقل یک فارم الزامی است",
             path: ["assignedFarmIds"]
         });
     }
@@ -107,7 +108,10 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
     });
 
     if (confirmed) {
-        const assignedFarms = data.assignedFarmIds?.map(id => farms.find(f => f.id === id)).filter(Boolean) as any[];
+        // TASK: Only pass assignedFarms if role is REGISTRATION.
+        // For other roles, we send an empty array to clear any existing associations (if changing role).
+        const finalAssignedIds = data.role === UserRole.REGISTRATION ? data.assignedFarmIds : [];
+        const assignedFarms = finalAssignedIds?.map(id => farms.find(f => f.id === id)).filter(Boolean) as any[];
 
         // Strict sanitization on submit to match UserStore logic
         const cleanUsername = data.username.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
@@ -126,7 +130,6 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
         if (user) {
            await updateUser({ ...userData, id: user.id });
         } else {
-           // Explicitly passing password for new users
            await addUser({ ...userData, password: data.password });
         }
         onClose();
@@ -155,7 +158,6 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
                 <input 
                     dir="ltr" 
                     {...register('username')} 
-                    // REMOVED readOnly to allow editing
                     className={inputClass}
                     placeholder="ali_mohammadi" 
                     autoComplete="new-username"
@@ -191,9 +193,13 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
             </select>
         </div>
 
+        {/* TASK: ONLY Show farm assignment for REGISTRATION role */}
         {selectedRole === UserRole.REGISTRATION && (
-            <div className="border p-4 rounded-2xl bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800">
-                <label className="block text-sm font-bold mb-3 text-orange-800 dark:text-orange-300">تخصیص فارم‌ها (الزامی)</label>
+            <div className={`border p-4 rounded-2xl ${errors.assignedFarmIds ? 'bg-red-50 border-red-200' : 'bg-gray-50 dark:bg-gray-900/10 border-gray-200 dark:border-gray-700'}`}>
+                <label className="block text-sm font-bold mb-3 dark:text-gray-300">
+                    تخصیص فارم‌ها 
+                    <span className="text-red-500 text-xs mr-1">(الزامی برای مسئول ثبت)</span>
+                </label>
                 <Controller
                     name="assignedFarmIds"
                     control={control}

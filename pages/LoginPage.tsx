@@ -63,11 +63,12 @@ const LoginPage: React.FC = () => {
         addLog('info', 'auth', `کاربر ${data.username} با موفقیت وارد شد`, currentUser?.id);
         addToast(`خوش آمدید ${currentUser?.fullName}`, 'success');
         
+        // Use replace: true to prevent back button from returning to login page
         switch (currentUser?.role) {
-            case UserRole.ADMIN: navigate('/admin'); break;
-            case UserRole.REGISTRATION: navigate('/registration'); break;
-            case UserRole.SALES: navigate('/sales'); break;
-            default: navigate('/home');
+            case UserRole.ADMIN: navigate('/admin', { replace: true }); break;
+            case UserRole.REGISTRATION: navigate('/registration', { replace: true }); break;
+            case UserRole.SALES: navigate('/sales', { replace: true }); break;
+            default: navigate('/home', { replace: true });
         }
     } else {
         setError(result.error || 'خطا در ورود');
