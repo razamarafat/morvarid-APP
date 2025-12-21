@@ -12,6 +12,7 @@ import JalaliDatePicker from '../common/JalaliDatePicker';
 import * as XLSX from 'xlsx';
 import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange } from '../../utils/dateUtils';
 import { UserRole } from '../../types';
+import { useConfirm } from '../../hooks/useConfirm';
 
 type ReportTab = 'stats' | 'invoices' | 'users';
 
@@ -22,6 +23,7 @@ const Reports: React.FC = () => {
     const { invoices } = useInvoiceStore();
     const { users } = useUserStore();
     const { addToast } = useToastStore();
+    const { confirm } = useConfirm();
 
     const isAdmin = user?.role === UserRole.ADMIN;
     
@@ -93,11 +95,20 @@ const Reports: React.FC = () => {
         }, 300);
     };
 
-    const handleExportExcel = () => {
+    const handleExportExcel = async () => {
         if (previewData.length === 0) {
             addToast('داده‌ای برای خروجی وجود ندارد.', 'warning');
             return;
         }
+
+        const yes = await confirm({ 
+            title: 'خروجی اکسل', 
+            message: `آیا می‌خواهید ${toPersianDigits(previewData.length)} رکورد را در قالب اکسل دانلود کنید؟`, 
+            confirmText: 'دانلود', 
+            type: 'info' 
+        });
+        
+        if (!yes) return;
 
         try {
             const wb = XLSX.utils.book_new();

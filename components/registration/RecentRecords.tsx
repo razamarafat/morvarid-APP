@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { useStatisticsStore, DailyStatistic } from '../../store/statisticsStore';
 import { useInvoiceStore } from '../../store/invoiceStore';
@@ -226,8 +227,11 @@ const RecentRecords: React.FC = () => {
         });
     };
 
-    const handleSaveStat = () => {
+    const handleSaveStat = async () => {
         if (!editStat) return;
+        const yes = await confirm({ title: 'ویرایش آمار', message: 'آیا از ذخیره تغییرات اطمینان دارید؟', type: 'info' });
+        if (!yes) return;
+
         const newInventory = statValues.prev + statValues.prod - statValues.sales;
         updateStatistic(editStat.id, {
             production: statValues.prod,
@@ -250,8 +254,11 @@ const RecentRecords: React.FC = () => {
         });
     };
 
-    const handleSaveInvoice = () => {
+    const handleSaveInvoice = async () => {
         if (!editInvoice) return;
+        const yes = await confirm({ title: 'ویرایش حواله', message: 'آیا از ذخیره تغییرات اطمینان دارید؟', type: 'info' });
+        if (!yes) return;
+
         updateInvoice(editInvoice.id, {
             totalCartons: invoiceValues.cartons,
             totalWeight: invoiceValues.weight,

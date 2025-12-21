@@ -12,6 +12,7 @@ interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
   onNavigate: (view: string) => void;
+  variant?: 'mobile' | 'desktop';
 }
 
 const NavLink: React.FC<{ icon: React.ElementType, label: string, view: string, currentView: string, role: UserRole, onClick: () => void }> = ({ icon: Icon, label, view, currentView, role, onClick }) => {
@@ -45,7 +46,7 @@ const NavLink: React.FC<{ icon: React.ElementType, label: string, view: string, 
     );
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate, variant = 'mobile' }) => {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const { confirm } = useConfirm();
@@ -128,21 +129,29 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
     ));
   };
 
+  // Logic to handle Desktop vs Mobile display
+  // Desktop: Relative positioning, always visible (controlled by parent layout)
+  // Mobile: Fixed positioning, controlled by isOpen state
+  const baseClasses = "h-full w-80 bg-[#F3F3F3] dark:bg-[#2D2D2D] shadow-2xl z-[101] flex flex-col border-l dark:border-gray-700 transition-transform duration-300 ease-out";
+  
+  const desktopClasses = "relative translate-x-0 w-72";
+  const mobileClasses = `fixed top-0 right-0 transform ${isOpen ? 'translate-x-0' : 'translate-x-full'}`;
+
+  const finalClasses = `${baseClasses} ${variant === 'desktop' ? desktopClasses : mobileClasses}`;
+
   return (
     <>
-      {/* Overlay - Extremely High Z-Index */}
-      <div
-        className={`fixed inset-0 bg-black/80 z-[100] transition-opacity lg:hidden ${
-          isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
-        onClick={onClose}
-      />
-      {/* Sidebar - Even Higher Z-Index */}
-      <aside
-        className={`fixed top-0 right-0 h-full w-80 bg-[#F3F3F3] dark:bg-[#2D2D2D] shadow-2xl z-[101] transform transition-transform duration-300 ease-out ${
-          isOpen ? 'translate-x-0' : 'translate-x-full'
-        } lg:relative lg:translate-x-0 lg:w-72 flex flex-col border-l dark:border-gray-700`}
-      >
+      {/* Overlay - Mobile Only */}
+      {variant === 'mobile' && (
+        <div
+          className={`fixed inset-0 bg-black/80 z-[100] transition-opacity lg:hidden ${
+            isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
+          onClick={onClose}
+        />
+      )}
+      
+      <aside className={finalClasses}>
         <div 
             className={`h-24 ${headerColor} flex items-center px-6 cursor-pointer hover:opacity-90 transition-opacity`}
             onClick={handleHome}

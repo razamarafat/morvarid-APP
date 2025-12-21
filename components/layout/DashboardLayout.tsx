@@ -27,17 +27,25 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, onNa
 
   return (
     <div className={`flex h-screen ${themeColors.background} text-black dark:text-white overflow-hidden font-sans`}>
-      {/* Desktop Sidebar */}
+      {/* Desktop Sidebar - Always visible on large screens */}
       <div className="hidden lg:block h-full border-l border-gray-800">
-         <Sidebar isOpen={false} onClose={() => {}} onNavigate={onNavigate}/>
+         <Sidebar 
+            isOpen={true} 
+            onClose={() => {}} 
+            onNavigate={onNavigate} 
+            variant="desktop" 
+         />
       </div>
 
-      {/* Mobile Drawer Sidebar */}
-      <Sidebar 
-        isOpen={isSidebarOpen} 
-        onClose={() => setSidebarOpen(false)} 
-        onNavigate={onNavigate}
-      />
+      {/* Mobile Drawer Sidebar - Only for small screens */}
+      <div className="lg:hidden">
+        <Sidebar 
+            isOpen={isSidebarOpen} 
+            onClose={() => setSidebarOpen(false)} 
+            onNavigate={onNavigate}
+            variant="mobile"
+        />
+      </div>
 
       <div className="flex-1 flex flex-col h-full w-full relative">
         <Header onMenuClick={handleToggleSidebar} title={title} />

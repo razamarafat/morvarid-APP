@@ -4,10 +4,12 @@ import { useLogStore } from '../../store/logStore';
 import { useToastStore } from '../../store/toastStore';
 import { Icons } from '../common/Icons';
 import Button from '../common/Button';
+import { useConfirm } from '../../hooks/useConfirm';
 
 const SystemLogs: React.FC = () => {
   const { logs, clearLogs, fetchLogs } = useLogStore();
   const { addToast } = useToastStore();
+  const { confirm } = useConfirm();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const getLevelIcon = (level: string) => {
@@ -44,6 +46,20 @@ const SystemLogs: React.FC = () => {
     }
   };
 
+  const handleClearLogs = async () => {
+      const yes = await confirm({
+          title: 'پاکسازی لاگ‌ها',
+          message: 'آیا از پاک کردن تمام لاگ‌های محلی اطمینان دارید؟',
+          type: 'danger',
+          confirmText: 'پاکسازی'
+      });
+      
+      if (yes) {
+          clearLogs();
+          addToast('لاگ‌های محلی پاک شدند', 'success');
+      }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -57,7 +73,7 @@ const SystemLogs: React.FC = () => {
                 <Icons.FileText className="ml-2 h-4 w-4" />
                 کپی
             </Button>
-            <button onClick={clearLogs} className="text-sm text-red-500 hover:text-red-700 px-3 py-2 border border-red-200 rounded-md hover:bg-red-50 transition-colors">
+            <button onClick={handleClearLogs} className="text-sm text-red-500 hover:text-red-700 px-3 py-2 border border-red-200 rounded-md hover:bg-red-50 transition-colors">
                 پاکسازی
             </button>
         </div>

@@ -39,7 +39,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
           message: 'آیا می‌خواهید از حساب کاربری خود خارج شوید؟',
           confirmText: 'خروج',
           cancelText: 'انصراف',
-          type: 'warning'
+          type: 'danger' // Critical action
       });
       
       if (confirmed) {
@@ -60,6 +60,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
     <header className={`${themeColors.surface} ${themeColors.text} shadow-sm sticky top-0 z-30 transition-colors duration-300 border-b-2 border-gray-100 dark:border-gray-800`}>
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <div className="flex items-center gap-3">
+          {/* Force hide on large screens with explicit display css if needed, but Tailwind lg:hidden should work */}
           <button 
             onClick={onMenuClick} 
             className="lg:hidden p-3 -ml-2 hover:bg-black/5 dark:hover:bg-white/10 transition-colors active:scale-95"
