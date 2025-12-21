@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import Button from '../common/Button';
 import { useToastStore } from '../../store/toastStore';
 import { useLogStore } from '../../store/logStore'; 
+import { useAlertStore } from '../../store/alertStore'; 
+import { useFarmStore } from '../../store/farmStore';
 import { supabase } from '../../lib/supabase';
 import { Icons } from '../common/Icons';
 import * as XLSX from 'xlsx';
@@ -10,12 +12,13 @@ import * as XLSX from 'xlsx';
 const FeatureTesting: React.FC = () => {
   const { addToast } = useToastStore();
   const { addLog } = useLogStore(); 
+  const { sendAlert, channel } = useAlertStore();
+  const { farms } = useFarmStore();
   const [results, setResults] = useState<Record<string, string>>({});
 
   const runTest = async (feature: string) => {
     setResults(prev => ({ ...prev, [feature]: 'running' }));
     
-    // Slight delay to show UI state change
     await new Promise(resolve => setTimeout(resolve, 500));
 
     let success = false;
@@ -24,98 +27,125 @@ const FeatureTesting: React.FC = () => {
 
     try {
         switch(feature) {
+            case 'alert_system':
+                const socketState = (channel as any)?.conn?.readyState || 'N/A';
+                const startTime = Date.now();
+                
+                // پیدا کردن آیدی واقعی فارم مهرآباد از استور
+                const realMehrabadFarm = farms.find(f => f.name.includes('مهرآباد'));
+                const targetId = realMehrabadFarm ? realMehrabadFarm.id : 'NOT_FOUND_UUID';
+                const targetName = realMehrabadFarm ? realMehrabadFarm.name : 'مهرآباد (یافت نشد)';
+
+                const response = await sendAlert(
+                    targetId, 
+                    targetName, 
+                    `تست فنی نفوذ هشدار آنی - هدف: ${targetName} - زمان: ${new Date().toLocaleTimeString('fa-IR')}`
+                );
+                
+                const duration = Date.now() - startTime;
+
+                if (response.success) {
+                    success = true;
+                    logMessage = `سیستم هشدار تایید شد (Broadcast: ${response.detail})`;
+                    technicalDetails = `RTT: ${duration}ms | Payload: ${response.bytes}B | TargetID: ${targetId.substring(0,8)}... | Socket: ${socketState}`;
+                    
+                    if (!realMehrabadFarm) {
+                        logMessage += " - هشدار: فارم مهرآباد در لیست یافت نشد، از آیدی فرضی استفاده شد.";
+                    }
+                } else {
+                    success = false;
+                    logMessage = `خطا در زیرساخت Realtime (${response.detail})`;
+                    technicalDetails = `Status: ${response.detail} | SocketState: ${socketState}`;
+                }
+                break;
+
             case 'notification':
                 if (!('Notification' in window)) {
                     success = false;
-                    logMessage = 'Notification API not supported.';
+                    logMessage = 'API اعلان توسط مرورگر پشتیبانی نمی‌شود.';
                 } else {
-                   // Request permission explicitly on user click
                    const permission = await Notification.requestPermission();
                    if (permission === 'granted') {
                        success = true;
-                       logMessage = 'Notification Permission Granted.';
+                       logMessage = 'مجوز اعلان دریافت شد.';
                        new Notification('تست فنی مروارید', { 
                            body: `Notification System Check: OK\nTimestamp: ${new Date().toISOString()}`,
                            dir: 'rtl'
                        });
                    } else {
                        success = false;
-                       logMessage = `Notification Permission Denied (State: ${permission}).`;
+                       logMessage = `دسترسی اعلان رد شد (وضعیت: ${permission}).`;
                    }
-                   technicalDetails = `Permission State: ${permission} | MaxActions: ${(Notification as any).maxActions || 'Unknown'}`;
+                   technicalDetails = `State: ${permission} | Vendor: ${navigator.vendor}`;
                 }
                 break;
 
             case 'excel':
                 if (XLSX && XLSX.utils) {
                     success = true;
-                    logMessage = 'SheetJS Engine Loaded Successfully.';
-                    technicalDetails = `Version: ${XLSX.version} | Cpus: ${navigator.hardwareConcurrency || 'Unknown'}`;
+                    logMessage = 'موتور SheetJS بارگذاری شد.';
+                    technicalDetails = `v${XLSX.version} | Build: Browserify`;
                 } else {
                     success = false;
-                    logMessage = 'XLSX Module not found.';
+                    logMessage = 'کتابخانه XLSX یافت نشد.';
                 }
                 break;
 
             case 'database':
                 try {
-                    // Ping Supabase by selecting count of products
                     const start = Date.now();
-                    const { data, error, status, statusText } = await supabase.from('products').select('count', { count: 'exact', head: true });
-                    const duration = Date.now() - start;
+                    const { error, status } = await supabase.from('products').select('count', { count: 'exact', head: true });
+                    const durationDb = Date.now() - start;
 
-                    // Accept any 2xx status code (200, 201, 204, 206) as success
-                    // 206 Partial Content is often returned by PostgREST/Supabase even for head requests
                     if (!error && (status >= 200 && status < 300)) {
                         success = true;
-                        logMessage = `Supabase Connection OK (${duration}ms).`;
-                        technicalDetails = `Status: ${status} ${statusText || 'OK'} | Latency: ${duration}ms`;
+                        logMessage = `اتصال دیتابیس برقرار است (${durationDb}ms).`;
+                        technicalDetails = `HTTP: ${status} | Latency: ${durationDb}ms | Mode: Head-Request`;
                     } else {
                         success = false;
-                        logMessage = `Supabase Connection Failed: ${error?.message || 'Unknown Error'}`;
-                        technicalDetails = `Code: ${error?.code || 'N/A'} | Hint: ${error?.hint || 'N/A'} | Status: ${status}`;
+                        logMessage = `خطا در اتصال Supabase: ${error?.message || 'Unknown'}`;
+                        technicalDetails = `Code: ${error?.code || 'N/A'} | Status: ${status}`;
                     }
                 } catch(e: any) {
                     success = false;
-                    logMessage = `Exception during DB Check: ${e.name}`;
+                    logMessage = `خطای استثنا در دیتابیس: ${e.name}`;
                     technicalDetails = e.message;
                 }
                 break;
         }
     } catch(e: any) {
         success = false;
-        logMessage = `Unexpected Runtime Error: ${e.message}`;
-        technicalDetails = e.stack || 'No stack trace';
+        logMessage = `خطای سیستمی: ${e.message}`;
+        technicalDetails = `Trace: ${e.stack?.substring(0, 50)}...`;
     }
     
-    // Detailed System Log
     addLog(
         success ? 'info' : 'error', 
         'frontend', 
-        `[TEST:${feature.toUpperCase()}] ${logMessage} || DETAILS: { ${technicalDetails} }`
+        `[TEST:${feature.toUpperCase()}] ${logMessage} | جزئیات فنی: ${technicalDetails}`
     );
 
     setResults(prev => ({ ...prev, [feature]: success ? 'success' : 'failed' }));
     if(success) addToast(`تست ${feature} موفق بود`, 'success');
-    else addToast(`تست ${feature} ناموفق بود. جزئیات در لاگ سیستم ثبت شد.`, 'error');
+    else addToast(`تست ${feature} ناموفق بود.`, 'error');
   };
   
   const TestCard = ({ title, icon: Icon, id, desc }: any) => (
-    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md flex justify-between items-center transition-colors duration-200">
+    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md flex justify-between items-center transition-colors duration-200 border-r-4 border-violet-500">
         <div className="flex items-center gap-4">
             <div className="p-3 bg-violet-100 dark:bg-violet-900/30 rounded-full text-violet-600 dark:text-violet-400">
                 <Icon className="w-6 h-6" />
             </div>
             <div>
                 <h3 className="font-bold dark:text-white">{title}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">{desc}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{desc}</p>
             </div>
         </div>
         <div className="flex items-center gap-3">
             {results[id] === 'running' && <Icons.Refresh className="w-5 h-5 animate-spin text-blue-500" />}
             {results[id] === 'success' && <Icons.Check className="w-5 h-5 text-green-500" />}
             {results[id] === 'failed' && <Icons.X className="w-5 h-5 text-red-500" />}
-            <Button size="sm" onClick={() => runTest(id)} disabled={results[id] === 'running'}>بررسی فنی</Button>
+            <Button size="sm" onClick={() => runTest(id)} disabled={results[id] === 'running'}>شروع تست</Button>
         </div>
     </div>
   );
@@ -124,9 +154,10 @@ const FeatureTesting: React.FC = () => {
     <div className="space-y-6">
       <h2 className="text-2xl font-bold dark:text-white">سنجش ویژگی‌های فنی</h2>
       <div className="grid gap-4">
-        <TestCard id="notification" title="سیستم اعلان" icon={Icons.Bell} desc="بررسی مجوزهای مرورگر" />
-        <TestCard id="excel" title="موتور اکسل" icon={Icons.FileText} desc="بررسی کتابخانه SheetJS" />
-        <TestCard id="database" title="اتصال Supabase" icon={Icons.HardDrive} desc="بررسی پینگ و دسترسی دیتابیس" />
+        <TestCard id="alert_system" title="سیستم هشدار مهرآباد (Realtime)" icon={Icons.AlertCircle} desc="تست برادکست آنی و پایش متغیرهای شبکه و سوکت" />
+        <TestCard id="notification" title="اعلان مرورگر" icon={Icons.Bell} desc="بررسی دسترسی‌های Push Notification" />
+        <TestCard id="excel" title="خروجی اکسل" icon={Icons.FileText} desc="تست کتابخانه پردازش فایل‌های XLSX" />
+        <TestCard id="database" title="دیتابیس ابری" icon={Icons.HardDrive} desc="تست پینگ و تراکنش‌های خواندنی Supabase" />
       </div>
     </div>
   );

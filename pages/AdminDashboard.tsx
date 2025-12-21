@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { Icons } from '../components/common/Icons';
 import FarmManagement from '../components/admin/FarmManagement';
@@ -8,9 +8,22 @@ import BackupManagement from '../components/admin/BackupManagement';
 import SystemLogs from '../components/admin/SystemLogs';
 import FeatureTesting from '../components/admin/FeatureTesting';
 import Reports from '../components/admin/Reports';
+import MetroTile from '../components/common/MetroTile';
+import { useLogStore } from '../store/logStore';
 
 const AdminDashboard: React.FC = () => {
     const [currentView, setCurrentView] = useState('dashboard');
+    const { fetchLogs, subscribeToLogs } = useLogStore();
+
+    // Enable Live Logs
+    useEffect(() => {
+        fetchLogs();
+        const subscription = subscribeToLogs();
+        return () => {
+             // Clean up if needed, though zustand store usually persists.
+             // Supabase handles unsubscribe via client normally.
+        }
+    }, []);
 
     const renderContent = () => {
         switch (currentView) {
@@ -32,7 +45,7 @@ const AdminDashboard: React.FC = () => {
             case 'backup': return 'پشتیبان‌گیری';
             case 'logs': return 'لاگ‌های سیستم';
             case 'testing': return 'سنجش ویژگی‌ها';
-            default: return 'داشبورد مدیر';
+            default: return 'داشبورد مدیریت';
         }
     }
 
@@ -44,27 +57,55 @@ const AdminDashboard: React.FC = () => {
 };
 
 const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNavigate }) => {
-    const cards = [
-        { title: 'مدیریت فارم‌ها', icon: Icons.Home, view: 'farms' },
-        { title: 'مدیریت کاربران', icon: Icons.Users, view: 'users' },
-        { title: 'گزارشات', icon: Icons.FileText, view: 'reports' },
-        { title: 'پشتیبان‌گیری', icon: Icons.HardDrive, view: 'backup' },
-        { title: 'لاگ‌های سیستم', icon: Icons.AlertCircle, view: 'logs' },
-        { title: 'سنجش ویژگی‌ها', icon: Icons.TestTube, view: 'testing' },
-    ];
-
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {cards.map((card, index) => (
-                <button
-                    key={index}
-                    onClick={() => onNavigate(card.view)}
-                    className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg hover:shadow-xl dark:hover:shadow-violet-500/20 transform hover:-translate-y-1 transition-all duration-300 text-center"
-                >
-                    <card.icon className="w-12 h-12 mx-auto text-violet-500 dark:text-violet-400 mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">{card.title}</h3>
-                </button>
-            ))}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 animate-in slide-in-from-bottom-5 duration-500">
+            <MetroTile 
+                title="مدیریت فارم‌ها" 
+                icon={Icons.Home} 
+                color="bg-metro-green" 
+                size="wide"
+                onClick={() => onNavigate('farms')} 
+            />
+            <MetroTile 
+                title="مدیریت کاربران" 
+                icon={Icons.Users} 
+                color="bg-metro-purple" 
+                size="wide"
+                onClick={() => onNavigate('users')} 
+            />
+            <MetroTile 
+                title="گزارشات" 
+                icon={Icons.FileText} 
+                color="bg-metro-blue" 
+                size="medium"
+                onClick={() => onNavigate('reports')} 
+            />
+            <MetroTile 
+                title="پشتیبان‌گیری" 
+                icon={Icons.HardDrive} 
+                color="bg-metro-orange" 
+                size="medium"
+                onClick={() => onNavigate('backup')} 
+            />
+            <MetroTile 
+                title="لاگ‌های سیستم" 
+                icon={Icons.AlertCircle} 
+                color="bg-metro-red" 
+                size="medium"
+                onClick={() => onNavigate('logs')} 
+            />
+            <MetroTile 
+                title="سنجش فنی" 
+                icon={Icons.TestTube} 
+                color="bg-metro-teal" 
+                size="medium"
+                onClick={() => onNavigate('testing')} 
+            />
+            
+            {/* Decorative Static Tiles */}
+            <div className="col-span-1 h-32 sm:h-40 bg-gray-700 p-4 flex items-end justify-center">
+                <span className="text-white text-xs opacity-50">v1.0.1</span>
+            </div>
         </div>
     );
 };

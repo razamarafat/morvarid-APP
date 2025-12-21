@@ -15,6 +15,7 @@ export interface Invoice {
     plateNumber?: string;
     isYesterday: boolean;
     createdAt: number;
+    updatedAt?: number;
 }
 
 // Legacy ID mapping helper - ROBUST
@@ -47,7 +48,6 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           return;
       }
 
-      // Order by 'date' (text) descending is safe and correct.
       const { data, error } = await supabase
           .from('invoices')
           .select('*')
@@ -61,14 +61,13 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
               invoiceNumber: i.invoice_number,
               totalCartons: i.total_cartons,
               totalWeight: i.total_weight,
-              // FIX: Map legacy IDs here too
               productId: i.product_id ? mapLegacyProductId(i.product_id) : i.product_id,
               driverName: i.driver_name,
               driverPhone: i.driver_phone,
               plateNumber: i.plate_number,
               isYesterday: i.is_yesterday,
-              // Safe date parsing
-              createdAt: i.created_at ? new Date(i.created_at).getTime() : Date.now()
+              createdAt: i.created_at ? new Date(i.created_at).getTime() : Date.now(),
+              updatedAt: i.updated_at ? new Date(i.updated_at).getTime() : undefined
           }));
           set({ invoices: mappedInvoices, isLoading: false });
       } else {
@@ -105,9 +104,15 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
   },
 
   updateInvoice: async (id, updates) => {
-      const dbUpdates: any = {};
+      const dbUpdates: any = {
+          updated_at: new Date().toISOString()
+      };
+      // Allow updating all fields
       if (updates.totalCartons !== undefined) dbUpdates.total_cartons = updates.totalCartons;
       if (updates.totalWeight !== undefined) dbUpdates.total_weight = updates.totalWeight;
+      if (updates.driverName !== undefined) dbUpdates.driver_name = updates.driverName;
+      if (updates.driverPhone !== undefined) dbUpdates.driver_phone = updates.driverPhone;
+      if (updates.plateNumber !== undefined) dbUpdates.plate_number = updates.plateNumber;
       
       const { error } = await supabase.from('invoices').update(dbUpdates).eq('id', id);
       

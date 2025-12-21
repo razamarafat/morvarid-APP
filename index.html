@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
   <head>
@@ -6,6 +7,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>سامانه مدیریت یکپارچه آمار مروارید</title>
     
+    <!-- PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="مروارید">
+    <link rel="apple-touch-icon" href="/vite.svg">
+    <meta name="theme-color" content="#2D89EF">
+    <link rel="manifest" href="manifest.json">
+
     <!-- Fonts and Styles -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,13 +26,22 @@
         theme: {
           extend: {
             fontFamily: {
-              sans: ['Vazirmatn', 'sans-serif'],
+              sans: ['Vazirmatn', 'Segoe UI', 'Tahoma', 'sans-serif'],
             },
             colors: {
-              gray: {
-                750: '#2d3748',
-                850: '#1a202c',
-                950: '#0f172a',
+              metro: {
+                teal: '#00ABA9',
+                green: '#00A300',
+                lime: '#8CBF26',
+                blue: '#2D89EF',
+                purple: '#9F00A7',
+                darkPurple: '#603CBA',
+                red: '#EE1111',
+                orange: '#F09609',
+                magenta: '#FF0097',
+                cobalt: '#0050EF',
+                dark: '#1D1D1D',
+                gray: '#555555'
               }
             },
             spacing: {
@@ -33,9 +51,48 @@
         }
       }
     </script>
+    <style>
+      /* FORCE METRO UI STYLE: NO ROUNDED CORNERS ANYWHERE */
+      * {
+        border-radius: 0 !important;
+      }
+      
+      /* Scrollbar Metro Style */
+      ::-webkit-scrollbar {
+        width: 12px;
+        background: #1D1D1D;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #555555;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #888888;
+      }
 
-    <meta name="theme-color" content="#8B5CF6">
-    <link rel="manifest" href="/manifest.json">
+      /* Fix Body Background Transition */
+      body {
+        transition: background-color 0.3s ease, color 0.3s ease;
+      }
+      
+      /* Input autofill fix for dark mode */
+      input:-webkit-autofill,
+      input:-webkit-autofill:hover, 
+      input:-webkit-autofill:focus, 
+      input:-webkit-autofill:active{
+          -webkit-box-shadow: 0 0 0 30px #2d2d2d inset !important;
+          -webkit-text-fill-color: white !important;
+      }
+      
+      /* Light mode autofill fix */
+      html.light input:-webkit-autofill,
+      html.light input:-webkit-autofill:hover, 
+      html.light input:-webkit-autofill:focus, 
+      html.light input:-webkit-autofill:active{
+          -webkit-box-shadow: 0 0 0 30px #ffffff inset !important;
+          -webkit-text-fill-color: black !important;
+      }
+    </style>
+
   <script type="importmap">
 {
   "imports": {
@@ -59,7 +116,7 @@
 }
 </script>
 </head>
-  <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200 overflow-x-hidden selection:bg-violet-500 selection:text-white">
+  <body class="bg-[#F3F3F3] text-gray-900 dark:bg-[#1D1D1D] dark:text-white transition-colors duration-200 overflow-x-hidden selection:bg-metro-blue selection:text-white">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

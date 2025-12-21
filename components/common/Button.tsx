@@ -12,19 +12,20 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', isLoading = false, children, ...props }, ref) => {
-    const baseClasses = 'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none';
+    // METRO STYLE: No rounded, bold borders/colors
+    const baseClasses = 'inline-flex items-center justify-center font-bold transition-all focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98]';
 
     const variantClasses = {
-      primary: 'bg-violet-600 text-white hover:bg-violet-700 dark:bg-violet-500 dark:hover:bg-violet-600 focus:ring-violet-500',
-      secondary: 'bg-gray-100 text-gray-900 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600 focus:ring-gray-500',
-      danger: 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 focus:ring-red-500',
-      ghost: 'hover:bg-gray-100 dark:hover:bg-gray-700',
+      primary: 'bg-metro-blue text-white hover:bg-metro-cobalt border-2 border-transparent',
+      secondary: 'bg-transparent border-2 border-gray-400 text-gray-700 dark:text-gray-200 hover:border-gray-600 dark:hover:border-white',
+      danger: 'bg-metro-red text-white hover:bg-red-700 border-2 border-transparent',
+      ghost: 'hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-200',
     };
 
     const sizeClasses = {
-      sm: 'h-9 px-3',
-      md: 'h-10 px-4 py-2',
-      lg: 'h-11 px-8',
+      sm: 'h-8 px-3 text-xs',
+      md: 'h-10 px-6 text-sm',
+      lg: 'h-12 px-10 text-base',
       icon: 'h-10 w-10',
     };
 

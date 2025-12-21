@@ -1,0 +1,37 @@
+
+{
+  "name": "سامانه مدیریت آمار مروارید",
+  "short_name": "مروارید",
+  "id": "com.morvarid.app",
+  "description": "سیستم یکپارچه مدیریت آمار تولید، فروش و انبارداری فارم‌های مروارید",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#1D1D1D",
+  "theme_color": "#2D89EF",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/vite.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/vite.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "dir": "rtl",
+  "lang": "fa-IR",
+  "prefer_related_applications": false
+}

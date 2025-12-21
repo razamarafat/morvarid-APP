@@ -4,74 +4,74 @@ import { UserRole } from './types';
 export const THEMES = {
   light: {
     [UserRole.ADMIN]: {
-      primary: 'bg-violet-600',
-      primaryHover: 'hover:bg-violet-700',
-      primaryText: 'text-violet-600',
-      background: 'bg-gray-100',
-      surface: 'bg-white',
-      text: 'text-gray-900',
-      border: 'border-violet-600',
-      gradient: 'from-violet-50 to-purple-100',
-      icon: 'text-violet-500'
+      primary: 'bg-metro-purple',
+      primaryHover: 'hover:bg-metro-darkPurple',
+      primaryText: 'text-metro-purple',
+      background: 'bg-white',
+      surface: 'bg-[#F3F3F3]',
+      text: 'text-black',
+      border: 'border-metro-purple',
+      gradient: 'from-metro-purple to-metro-darkPurple',
+      icon: 'text-white'
     },
     [UserRole.REGISTRATION]: {
-      primary: 'bg-orange-500',
-      primaryHover: 'hover:bg-orange-600',
-      primaryText: 'text-orange-500',
-      background: 'bg-orange-50',
-      surface: 'bg-white',
-      text: 'text-gray-900',
-      border: 'border-orange-500',
-      gradient: 'from-orange-50 to-amber-100',
-      icon: 'text-orange-500'
+      primary: 'bg-metro-orange',
+      primaryHover: 'hover:bg-amber-600',
+      primaryText: 'text-metro-orange',
+      background: 'bg-white',
+      surface: 'bg-[#F3F3F3]',
+      text: 'text-black',
+      border: 'border-metro-orange',
+      gradient: 'from-metro-orange to-amber-600',
+      icon: 'text-white'
     },
     [UserRole.SALES]: {
-      primary: 'bg-blue-600',
-      primaryHover: 'hover:bg-blue-700',
-      primaryText: 'text-blue-600',
-      background: 'bg-blue-50',
-      surface: 'bg-white',
-      text: 'text-gray-900',
-      border: 'border-blue-600',
-      gradient: 'from-blue-50 to-sky-100',
-      icon: 'text-blue-500'
+      primary: 'bg-metro-blue',
+      primaryHover: 'hover:bg-metro-cobalt',
+      primaryText: 'text-metro-blue',
+      background: 'bg-white',
+      surface: 'bg-[#F3F3F3]',
+      text: 'text-black',
+      border: 'border-metro-blue',
+      gradient: 'from-metro-blue to-metro-cobalt',
+      icon: 'text-white'
     },
   },
   dark: {
     [UserRole.ADMIN]: {
-      primary: 'bg-violet-500',
-      primaryHover: 'hover:bg-violet-600',
-      primaryText: 'text-violet-400',
-      background: 'bg-gray-900',
-      surface: 'bg-gray-800',
-      text: 'text-gray-100',
-      border: 'border-violet-500',
-      gradient: 'from-gray-800 to-violet-900',
-      icon: 'text-violet-400'
+      primary: 'bg-metro-purple',
+      primaryHover: 'hover:opacity-90',
+      primaryText: 'text-metro-purple',
+      background: 'bg-[#1D1D1D]',
+      surface: 'bg-[#2D2D2D]',
+      text: 'text-white',
+      border: 'border-metro-purple',
+      gradient: 'from-metro-purple to-metro-darkPurple',
+      icon: 'text-white'
     },
     [UserRole.REGISTRATION]: {
-      primary: 'bg-orange-500',
-      primaryHover: 'hover:bg-orange-600',
-      primaryText: 'text-orange-400',
-      background: 'bg-gray-900',
-      surface: 'bg-gray-800',
-      text: 'text-gray-100',
-      border: 'border-orange-500',
-      gradient: 'from-gray-800 to-orange-900',
-      icon: 'text-orange-400'
+      primary: 'bg-metro-orange',
+      primaryHover: 'hover:opacity-90',
+      primaryText: 'text-metro-orange',
+      background: 'bg-[#1D1D1D]',
+      surface: 'bg-[#2D2D2D]',
+      text: 'text-white',
+      border: 'border-metro-orange',
+      gradient: 'from-metro-orange to-amber-600',
+      icon: 'text-white'
     },
     [UserRole.SALES]: {
-      primary: 'bg-blue-500',
-      primaryHover: 'hover:bg-blue-600',
-      primaryText: 'text-blue-400',
-      background: 'bg-gray-900',
-      surface: 'bg-gray-800',
-      text: 'text-gray-100',
-      border: 'border-blue-500',
-      gradient: 'from-gray-800 to-blue-900',
-      icon: 'text-blue-400'
+      primary: 'bg-metro-blue',
+      primaryHover: 'hover:opacity-90',
+      primaryText: 'text-metro-blue',
+      background: 'bg-[#1D1D1D]',
+      surface: 'bg-[#2D2D2D]',
+      text: 'text-white',
+      border: 'border-metro-blue',
+      gradient: 'from-metro-blue to-metro-cobalt',
+      icon: 'text-white'
     },
   }
 };
 
-export const APP_VERSION = '1.0.1';
+export const APP_VERSION = '1.0.1 - Metro UI';

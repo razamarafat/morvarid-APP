@@ -8,6 +8,12 @@ export const toEnglishDigits = (str: string): string => {
   return result;
 };
 
+export const toPersianDigits = (str: string | number): string => {
+    if (str === undefined || str === null) return '';
+    const s = String(str);
+    return s.replace(/[0-9]/g, (d) => String.fromCharCode(d.charCodeAt(0) + 1728));
+};
+
 export const normalizeDate = (dateStr: string): string => {
   if (!dateStr) return '';
   
@@ -65,12 +71,20 @@ export const formatJalali = (date: Date | string | number): string => {
 };
 
 export const getCurrentTime = (): string => {
-    // @ts-ignore
-    return new Date().toLocaleTimeString('fa-IR', { 
+    // Return time with Persian digits
+    const date = new Date();
+    const timeStr = date.toLocaleTimeString('fa-IR', { 
         hour: '2-digit', 
         minute: '2-digit', 
-        numberingSystem: 'latn' 
+        second: '2-digit',
+        hour12: false
     });
+    return toPersianDigits(timeStr);
+};
+
+export const getTodayJalaliPersian = (): string => {
+    const enDate = getTodayJalali();
+    return toPersianDigits(enDate);
 };
 
 export const isDateInRange = (date: string, startDate: string, endDate: string): boolean => {

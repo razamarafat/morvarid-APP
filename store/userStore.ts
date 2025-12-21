@@ -60,6 +60,7 @@ export const useUserStore = create<UserState>((set, get) => ({
                       role: p.role as UserRole,
                       isActive: p.is_active,
                       phoneNumber: p.phone_number,
+                      createdAt: p.created_at, // Map creation date
                       assignedFarms: assignedFarms
                   };
               });

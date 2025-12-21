@@ -2,11 +2,10 @@
 import React from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { Icons } from '../common/Icons';
-import { APP_VERSION, THEMES } from '../../constants';
+import { APP_VERSION } from '../../constants';
 import { UserRole } from '../../types';
 import { useNavigate } from 'react-router-dom';
 import { useConfirm } from '../../hooks/useConfirm';
-import Logo from '../common/Logo';
 import { useThemeStore } from '../../store/themeStore';
 
 interface SidebarProps {
@@ -15,43 +14,79 @@ interface SidebarProps {
   onNavigate: (view: string) => void;
 }
 
-const NavLink: React.FC<{ icon: React.ElementType, label: string, onClick: () => void }> = ({ icon: Icon, label, onClick }) => (
-  <button onClick={onClick} className="w-full text-right flex items-center p-4 rounded-2xl hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-all duration-200 group mb-1">
-    <Icon className="w-5 h-5 ml-2 text-gray-400 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors" />
-    <span className="font-bold inherit group-hover:opacity-100 transition-opacity">{label}</span>
-  </button>
-);
+const NavLink: React.FC<{ icon: React.ElementType, label: string, view: string, currentView: string, role: UserRole, onClick: () => void }> = ({ icon: Icon, label, view, currentView, role, onClick }) => {
+    let activeClass = '';
+    let hoverClass = '';
+    
+    switch(role) {
+        case UserRole.REGISTRATION:
+            activeClass = 'bg-metro-orange text-white border-white';
+            hoverClass = 'hover:bg-metro-orange hover:text-white';
+            break;
+        case UserRole.SALES:
+            activeClass = 'bg-metro-blue text-white border-white';
+            hoverClass = 'hover:bg-metro-blue hover:text-white';
+            break;
+        default: // ADMIN
+            activeClass = 'bg-metro-purple text-white border-white';
+            hoverClass = 'hover:bg-metro-purple hover:text-white';
+    }
+
+    const isActive = currentView === view;
+
+    return (
+      <button 
+        onClick={onClick} 
+        className={`w-full text-right flex items-center p-4 transition-all duration-200 group mb-1 border-r-4 ${isActive ? activeClass : `border-transparent text-gray-700 dark:text-gray-300 ${hoverClass}`}`}
+      >
+        <Icon className={`w-5 h-5 ml-2 transition-transform ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
+        <span className="font-bold">{label}</span>
+      </button>
+    );
+};
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
   const { user, logout } = useAuthStore();
-  const { theme } = useThemeStore();
   const navigate = useNavigate();
   const { confirm } = useConfirm();
-
+  
   const role = user?.role || UserRole.ADMIN;
-  const themeColors = THEMES[theme][role];
+  let headerColor = 'bg-metro-purple';
+  if (role === UserRole.REGISTRATION) headerColor = 'bg-metro-orange';
+  if (role === UserRole.SALES) headerColor = 'bg-metro-blue';
+
+  const [active, setActive] = React.useState('dashboard');
 
   const handleLogout = async () => {
-    const confirmed = await confirm({
-        title: 'خروج از حساب',
-        message: 'آیا می‌خواهید از حساب کاربری خود خارج شوید؟',
-        confirmText: 'خروج',
-        cancelText: 'انصراف',
-        type: 'warning'
-    });
+    // TASK: Ensure modal is visible by closing sidebar first on mobile
+    if (window.innerWidth < 1024) onClose();
     
-    if (confirmed) {
-        logout();
-        navigate('/login');
-    }
+    // Allow animation to start
+    setTimeout(async () => {
+        const confirmed = await confirm({
+            title: 'خروج از حساب',
+            message: 'آیا می‌خواهید از حساب کاربری خود خارج شوید؟',
+            confirmText: 'خروج',
+            cancelText: 'انصراف',
+            type: 'danger'
+        });
+        
+        if (confirmed) {
+            logout();
+            navigate('/login');
+        }
+    }, 150);
   };
   
   const handleNavigation = (view: string) => {
     onNavigate(view);
-    onClose();
+    if (window.innerWidth < 1024) {
+        onClose();
+    }
   }
 
   const handleHome = () => {
+      setActive('dashboard');
       handleNavigation('dashboard');
   };
 
@@ -78,61 +113,62 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
   ];
 
   const getNavLinks = () => {
-    switch (user?.role) {
-      case UserRole.ADMIN:
-        return adminLinks.map(link => <NavLink key={link.view} {...link} onClick={() => handleNavigation(link.view)} />);
-      case UserRole.REGISTRATION:
-        return registrationLinks.map(link => <NavLink key={link.view} {...link} onClick={() => handleNavigation(link.view)} />);
-      case UserRole.SALES:
-        return salesLinks.map(link => <NavLink key={link.view} {...link} onClick={() => handleNavigation(link.view)} />);
-      default:
-        return null;
-    }
+    const links = user?.role === UserRole.ADMIN ? adminLinks : 
+                  user?.role === UserRole.REGISTRATION ? registrationLinks : 
+                  salesLinks;
+
+    return links.map(link => (
+        <NavLink 
+            key={link.view} 
+            {...link} 
+            role={role}
+            currentView={active}
+            onClick={() => { setActive(link.view); handleNavigation(link.view); }} 
+        />
+    ));
   };
 
   return (
     <>
+      {/* Overlay - Z-Index 40 to allow Modal (Z-50) above */}
       <div
-        className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] transition-opacity lg:hidden ${
+        className={`fixed inset-0 bg-black/80 z-40 transition-opacity lg:hidden ${
           isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
         onClick={onClose}
       />
+      {/* Sidebar - Z-Index 45 */}
       <aside
-        className={`fixed top-0 right-0 h-full w-80 ${themeColors.surface} ${themeColors.text} shadow-2xl z-[70] transform transition-transform duration-300 ease-out ${
+        className={`fixed top-0 right-0 h-full w-80 bg-[#F3F3F3] dark:bg-[#2D2D2D] shadow-2xl z-45 transform transition-transform duration-300 ease-out ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
-        } lg:relative lg:translate-x-0 lg:w-72 flex flex-col border-l border-gray-100 dark:border-gray-700`}
+        } lg:relative lg:translate-x-0 lg:w-72 flex flex-col`}
       >
         <div 
-            className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center gap-3 cursor-pointer"
+            className={`h-20 ${headerColor} flex items-center px-6 cursor-pointer hover:opacity-90 transition-opacity`}
             onClick={handleHome}
         >
-            <div className="w-12 h-12 bg-gray-50 dark:bg-gray-700 rounded-2xl flex items-center justify-center p-1 shadow-sm shrink-0 border border-gray-100 dark:border-gray-600">
-                <Logo className="w-full h-full object-contain" />
-            </div>
-            <div className="overflow-hidden">
-                <h2 className="text-sm font-black leading-tight">شرکت صنایع غذایی و تولیدی مروارید</h2>
-                <p className="text-[10px] opacity-60 font-bold mt-0.5">سامانه جامع پایش فارم ها</p>
+            <div className="text-white">
+                <h2 className="text-lg font-black leading-tight">M.I.S</h2>
+                <p className="text-xs opacity-80 font-normal">سیستم مدیریت مروارید</p>
             </div>
         </div>
         
-        <nav className="flex-1 p-4 overflow-y-auto custom-scrollbar space-y-1">
+        <nav className="flex-1 py-4 overflow-y-auto custom-scrollbar space-y-1">
             {getNavLinks()}
         </nav>
         
-        <div className="p-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 pb-8 lg:pb-4">
+        <div className="p-4 bg-gray-200 dark:bg-black/20">
             <button 
                 onClick={handleLogout} 
-                className="w-full flex items-center justify-between p-4 rounded-2xl bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors group"
+                className="w-full flex items-center justify-between p-3 bg-metro-red text-white hover:bg-red-700 transition-colors font-bold"
             >
                 <div className="flex items-center">
                     <Icons.LogOut className="w-5 h-5 ml-2" />
-                    <span className="font-bold">خروج از حساب</span>
+                    <span className="text-sm">خروج از حساب</span>
                 </div>
-                <Icons.ChevronLeft className="w-4 h-4 opacity-50 group-hover:-translate-x-1 transition-transform" />
             </button>
-            <div className="text-center text-xs opacity-50 mt-4 font-mono">
-                v{APP_VERSION}
+            <div className="text-center text-[10px] text-gray-500 mt-2 font-mono">
+                {APP_VERSION}
             </div>
         </div>
       </aside>

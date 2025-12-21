@@ -10,7 +10,8 @@ import ThemeToggle from '../components/common/ThemeToggle';
 import { Icons } from '../components/common/Icons';
 import { UserRole } from '../types';
 import { useToastStore } from '../store/toastStore';
-import Logo from '../components/common/Logo';
+import { getTodayJalaliPersian, getCurrentTime } from '../utils/dateUtils';
+import { APP_VERSION } from '../constants';
 
 const loginSchema = z.object({
   username: z.string().min(1, "نام کاربری الزامی است"),
@@ -24,10 +25,18 @@ const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { login, blockUntil, savedUsername, loadSavedUsername } = useAuthStore();
   const { addLog } = useLogStore();
-  const { addToast } = useToastStore();
   
-  const [showPassword, setShowPassword] = useState(false);
+  const [currentTime, setCurrentTime] = useState(getCurrentTime());
+  const [currentDate, setCurrentDate] = useState(getTodayJalaliPersian());
   const [error, setError] = useState<string | null>(null);
+
+  // Time Updater
+  useEffect(() => {
+    const timer = setInterval(() => {
+        setCurrentTime(getCurrentTime());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const { register, handleSubmit, setValue, formState: { isSubmitting } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -50,7 +59,7 @@ const LoginPage: React.FC = () => {
   const onSubmit = async (data: LoginFormValues) => {
     setError(null);
     if (isBlocked) {
-        setError('حساب مسدود است. لطفا بعدا تلاش کنید.');
+        setError('حساب مسدود است.');
         return;
     }
 
@@ -59,7 +68,6 @@ const LoginPage: React.FC = () => {
     if (result.success) {
         const currentUser = useAuthStore.getState().user;
         addLog('info', 'auth', `کاربر ${data.username} وارد شد`, currentUser?.id);
-        addToast(`خوش آمدید ${currentUser?.fullName}`, 'success');
         
         switch (currentUser?.role) {
             case UserRole.ADMIN: navigate('/admin', { replace: true }); break;
@@ -68,89 +76,121 @@ const LoginPage: React.FC = () => {
             default: navigate('/home', { replace: true });
         }
     } else {
-        setError(result.error || 'نام کاربری یا رمز عبور اشتباه است');
+        setError(result.error || 'خطا در ورود');
         addLog('warn', 'security', `تلاش ناموفق: ${data.username}`);
     }
   };
 
-  const inputClass = "w-full px-5 py-3.5 bg-white dark:bg-gray-700/50 border border-gray-200 dark:border-transparent focus:bg-white focus:border-violet-500 rounded-2xl text-gray-900 dark:text-white outline-none transition-all font-bold text-base text-center focus:ring-4 focus:ring-violet-500/10";
+  const inputClass = "w-full p-3 bg-white/10 dark:bg-black/20 hover:bg-white/20 dark:hover:bg-black/40 focus:bg-white dark:focus:bg-gray-800 text-white dark:focus:text-white focus:text-black border-2 border-white/30 dark:border-gray-600 focus:border-white dark:focus:border-gray-400 outline-none transition-all placeholder-transparent";
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col items-center justify-center p-4 transition-colors">
-      <div className="absolute top-6 left-6">
-        <ThemeToggle />
+    <div className="min-h-screen bg-[#004E98] dark:bg-[#0f172a] relative overflow-hidden flex flex-col md:flex-row transition-colors duration-300">
+      {/* Background Pattern with Animation */}
+      <div className="absolute inset-0 opacity-10 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] animate-[pulse_10s_ease-in-out_infinite]"></div>
+      
+      {/* Floating Circles for Dynamism */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
+          <div className="absolute top-[10%] left-[20%] w-64 h-64 bg-white/5 rounded-full blur-3xl animate-[bounce_8s_infinite]"></div>
+          <div className="absolute bottom-[20%] right-[20%] w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-[bounce_12s_infinite]"></div>
       </div>
 
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-6">
-            <div className="w-20 h-20 bg-white dark:bg-gray-800 rounded-2xl shadow-xl mx-auto mb-4 flex items-center justify-center p-2 border border-gray-100 dark:border-gray-700">
-                <Logo className="w-full h-full object-contain" />
-            </div>
-            <h1 className="text-xl font-black text-gray-800 dark:text-white">شرکت صنایع غذایی و تولیدی مروارید</h1>
-            <p className="text-xs text-gray-400 font-bold mt-1">سامانه جامع پایش فارم ها</p>
-        </div>
+      {/* Left Side: Lock Screen Clock (Desktop) */}
+      <div className="hidden md:flex flex-1 flex-col justify-end p-12 lg:p-24 text-white z-10 bg-gradient-to-r from-black/40 to-transparent">
+          <h1 className="text-[7rem] lg:text-[9rem] font-black leading-none font-sans tracking-tighter drop-shadow-2xl">
+              {currentTime}
+          </h1>
+          <h2 className="text-4xl lg:text-5xl font-bold mt-4 opacity-95 drop-shadow-md">
+              {currentDate}
+          </h2>
+          <div className="mt-8 border-r-4 border-metro-orange pr-6">
+              <p className="text-2xl lg:text-3xl font-black opacity-100 text-metro-orange">
+                  سامانه جامع پایش فارم‌های مروارید
+              </p>
+              <p className="text-sm mt-2 opacity-80">مدیریت یکپارچه تولید، فروش و انبار</p>
+          </div>
+      </div>
 
-        <div className="bg-white dark:bg-gray-800 shadow-2xl rounded-[32px] p-6 md:p-8 relative overflow-hidden border border-gray-100 dark:border-gray-700/50">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 relative z-10">
-            {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-2xl text-xs font-bold text-center border border-red-100">{error}</div>}
-            
-            <div>
-              <label className="text-[10px] font-black text-gray-400 uppercase mr-2 tracking-widest">نام کاربری</label>
-              <div className="relative mt-1">
-                  <input
-                    type="text"
-                    dir="ltr"
-                    disabled={isBlocked}
-                    {...register('username')}
-                    className={inputClass}
-                  />
-                  <Icons.User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 w-4 h-4" />
-              </div>
-            </div>
-
-            <div>
-               <label className="text-[10px] font-black text-gray-400 uppercase mr-2 tracking-widest">رمز عبور</label>
-               <div className="relative mt-1">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  dir="ltr"
-                  disabled={isBlocked}
-                  {...register('password')}
-                  className={inputClass}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 px-4 text-gray-300 hover:text-violet-500 transition-colors"
-                >
-                  {showPassword ? <Icons.EyeOff className="w-4 h-4" /> : <Icons.Eye className="w-4 h-4" />}
-                </button>
-              </div>
+      {/* Right Side: Login Form */}
+      <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12 bg-[#1D1D1D] dark:bg-[#111827] md:bg-[#1D1D1D]/90 dark:md:bg-[#111827]/95 backdrop-blur-md z-20 shadow-2xl border-l border-white/10 dark:border-gray-700 transition-colors duration-300">
+        <div className="w-full max-w-sm space-y-8">
+            <div className="flex flex-col items-center gap-4 mb-8">
+                 <div className="w-24 h-24 bg-gray-600 dark:bg-gray-700 rounded-full flex items-center justify-center overflow-hidden border-4 border-gray-500 dark:border-gray-600 shadow-xl relative group">
+                     <div className="absolute inset-0 bg-white/10 group-hover:bg-transparent transition-colors"></div>
+                     <Icons.User className="w-12 h-12 text-gray-300 relative z-10" />
+                 </div>
+                 <h2 className="text-2xl text-white font-bold">ورود به سیستم</h2>
             </div>
 
-            <div className="flex items-center justify-start py-1">
-                <label className="flex items-center gap-2 cursor-pointer group select-none">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                {error && <div className="bg-metro-red p-3 text-white text-sm font-bold text-center animate-pulse border-2 border-red-400">{error}</div>}
+                
+                <div className="group relative">
+                    <label className="block text-xs uppercase text-gray-400 mb-1 font-bold">نام کاربری</label>
+                    <div className="flex shadow-lg">
+                        <div className="bg-white/10 dark:bg-black/20 p-3 flex items-center justify-center border-2 border-white/30 dark:border-gray-600 border-l-0">
+                            <Icons.User className="w-5 h-5 text-white/70" />
+                        </div>
+                        <input
+                            type="text"
+                            dir="ltr"
+                            disabled={isBlocked}
+                            {...register('username')}
+                            className={inputClass}
+                            autoComplete="off"
+                        />
+                    </div>
+                </div>
+
+                <div className="group relative">
+                    <label className="block text-xs uppercase text-gray-400 mb-1 font-bold">رمز عبور</label>
+                    <div className="flex shadow-lg">
+                        <div className="bg-white/10 dark:bg-black/20 p-3 flex items-center justify-center border-2 border-white/30 dark:border-gray-600 border-l-0">
+                            <Icons.Fingerprint className="w-5 h-5 text-white/70" />
+                        </div>
+                        <input
+                            type="password"
+                            dir="ltr"
+                            disabled={isBlocked}
+                            {...register('password')}
+                            className={inputClass}
+                            autoComplete="off"
+                        />
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-2 mt-4">
                     <input 
                         type="checkbox" 
                         {...register('rememberMe')} 
-                        className="w-4 h-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500 transition-all cursor-pointer"
+                        id="remember"
+                        className="w-5 h-5 border-2 border-gray-500 bg-transparent text-metro-blue focus:ring-0 checked:bg-metro-blue"
                     />
-                    <span className="text-xs font-bold text-gray-400 group-hover:text-violet-600 transition-colors">
-                        مرا به خاطر بسپار
-                    </span>
-                </label>
-            </div>
+                    <label htmlFor="remember" className="text-sm text-gray-300 cursor-pointer font-bold">مرا به خاطر بسپار</label>
+                </div>
 
-            <button
-                type="submit"
-                disabled={isSubmitting || isBlocked}
-                className="w-full py-4 rounded-2xl font-black text-base text-white bg-violet-600 hover:bg-violet-700 active:scale-95 transition-all shadow-lg shadow-violet-600/20 disabled:opacity-50 mt-2"
-            >
-                {isSubmitting ? 'در حال ورود...' : 'ورود به سیستم'}
-            </button>
-          </form>
+                <button
+                    type="submit"
+                    disabled={isSubmitting || isBlocked}
+                    className="w-full py-4 mt-6 bg-metro-blue hover:bg-metro-cobalt dark:bg-blue-700 dark:hover:bg-blue-600 text-white font-black text-lg transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg hover:shadow-metro-blue/50"
+                >
+                    {isSubmitting ? '...' : <><Icons.ChevronLeft className="w-6 h-6" /> ورود</>}
+                </button>
+            </form>
+            
+            <div className="mt-12 text-center">
+                 <p className="text-gray-500 text-xs font-mono mb-4">v{APP_VERSION}</p>
+                 <div className="inline-block bg-white/10 dark:bg-black/20 rounded-full px-4 py-2">
+                    <ThemeToggle />
+                 </div>
+            </div>
         </div>
-        <p className="text-center text-gray-400 text-[10px] mt-6 font-bold tracking-tight">تمامی حقوق این نرم افزار متعلق به شرکت مروارید میباشد</p>
+      </div>
+      
+      {/* Mobile Clock overlay */}
+      <div className="md:hidden absolute top-8 left-6 right-6 text-white text-center z-10 pointer-events-none">
+          <div className="font-black text-5xl drop-shadow-lg font-sans">{currentTime}</div>
+          <div className="text-lg mt-1 font-bold opacity-90">{currentDate}</div>
+          <div className="text-metro-orange font-black text-xl mt-4 drop-shadow-md">سامانه مدیریت مروارید</div>
       </div>
     </div>
   );

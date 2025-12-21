@@ -14,6 +14,7 @@ import { useFarmStore } from './store/farmStore';
 import { useStatisticsStore } from './store/statisticsStore';
 import { useInvoiceStore } from './store/invoiceStore';
 import { useUserStore } from './store/userStore';
+import { useAlertStore } from './store/alertStore'; // Import Alert Store
 import ConfirmDialog from './components/common/ConfirmDialog';
 import ToastContainer from './components/common/Toast';
 
@@ -24,6 +25,7 @@ function App() {
   const { fetchStatistics } = useStatisticsStore();
   const { fetchInvoices } = useInvoiceStore();
   const { fetchUsers } = useUserStore();
+  const { initListener } = useAlertStore(); // Get listener init
 
   useEffect(() => {
     document.documentElement.classList.remove('light', 'dark');
@@ -37,6 +39,7 @@ function App() {
           // Load public/shared data
           fetchFarms();
           fetchProducts();
+          initListener(); // Start listening for alerts immediately
       };
       init();
   }, []);

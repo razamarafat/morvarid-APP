@@ -70,7 +70,7 @@ const UserManagement: React.FC = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">مدیریت کاربران</h2>
+        <h2 className="text-2xl font-bold dark:text-white">مدیریت کاربران</h2>
         <Button onClick={handleAdd}>
           <Icons.Plus className="ml-2 h-4 w-4" />
           ایجاد کاربر جدید
@@ -84,7 +84,6 @@ const UserManagement: React.FC = () => {
               <th scope="col" className="px-6 py-3">نام کامل</th>
               <th scope="col" className="px-6 py-3">نام کاربری</th>
               <th scope="col" className="px-6 py-3">نقش</th>
-              <th scope="col" className="px-6 py-3">آخرین بازدید</th>
               <th scope="col" className="px-6 py-3">وضعیت</th>
               <th scope="col" className="px-6 py-3">عملیات</th>
             </tr>
@@ -97,7 +96,6 @@ const UserManagement: React.FC = () => {
                 </th>
                 <td className="px-6 py-4 font-mono">{user.username}</td>
                 <td className="px-6 py-4">{getRoleBadge(user.role)}</td>
-                <td className="px-6 py-4 text-xs">{user.lastVisit || '-'}</td>
                 <td className="px-6 py-4">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${user.isActive ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'}`}>
                     {user.isActive ? 'فعال' : 'غیرفعال'}
