@@ -52,6 +52,12 @@ export const getTodayJalali = (): string => {
   return normalizeDate(faDate);
 };
 
+export const getTodayDayName = (): string => {
+    const date = new Date();
+    // @ts-ignore
+    return new Intl.DateTimeFormat('fa-IR', { weekday: 'long', calendar: 'persian' }).format(date);
+};
+
 export const formatJalali = (date: Date | string | number): string => {
   if (!date) return '';
   const d = new Date(date);
@@ -70,15 +76,18 @@ export const formatJalali = (date: Date | string | number): string => {
   }
 };
 
-export const getCurrentTime = (): string => {
+export const getCurrentTime = (withSeconds: boolean = true): string => {
     // Return time with Persian digits
     const date = new Date();
-    const timeStr = date.toLocaleTimeString('fa-IR', { 
+    const options: Intl.DateTimeFormatOptions = { 
         hour: '2-digit', 
         minute: '2-digit', 
-        second: '2-digit',
         hour12: false
-    });
+    };
+    if (withSeconds) {
+        options.second = '2-digit';
+    }
+    const timeStr = date.toLocaleTimeString('fa-IR', options);
     return toPersianDigits(timeStr);
 };
 

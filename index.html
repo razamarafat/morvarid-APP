@@ -91,11 +91,22 @@
           -webkit-box-shadow: 0 0 0 30px #ffffff inset !important;
           -webkit-text-fill-color: black !important;
       }
+
+      /* Hide Number Input Spinners (Arrows) */
+      input[type=number]::-webkit-inner-spin-button, 
+      input[type=number]::-webkit-outer-spin-button { 
+        -webkit-appearance: none; 
+        margin: 0; 
+      }
+      input[type=number] {
+        -moz-appearance: textfield;
+      }
     </style>
 
   <script type="importmap">
 {
   "imports": {
+    "@/": "./",
     "react": "https://esm.sh/react@^19.2.3",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "react/": "https://esm.sh/react@^19.2.3/",

@@ -9,19 +9,28 @@ import MetroTile from '../components/common/MetroTile';
 
 const RegistrationDashboard: React.FC = () => {
     const [currentView, setCurrentView] = useState('dashboard');
-    const dashboardTitle = 'داشبورد ثبت اطلاعات';
+    const dashboardTitle = 'داشبورد ثبت اطلاعات روزانه';
 
     const renderContent = () => {
         switch (currentView) {
-            case 'stats': return <StatisticsForm />;
+            case 'stats': return <StatisticsForm onNavigate={setCurrentView} />;
             case 'invoice': return <InvoiceForm />;
             case 'recent': return <RecentRecords />;
             default: return <DashboardHome onNavigate={setCurrentView} />;
         }
     };
 
+    const getTitle = () => {
+        switch (currentView) {
+            case 'stats': return 'بخش آمار';
+            case 'invoice': return 'ثبت حواله فروش';
+            case 'recent': return 'سوابق اخیر و ویرایش';
+            default: return dashboardTitle;
+        }
+    }
+
     return (
-        <DashboardLayout title={dashboardTitle} onNavigate={setCurrentView}>
+        <DashboardLayout title={getTitle()} onNavigate={setCurrentView}>
             {renderContent()}
         </DashboardLayout>
     );
@@ -29,7 +38,7 @@ const RegistrationDashboard: React.FC = () => {
 
 const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNavigate }) => {
     return (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 animate-in fade-in duration-500">
             <MetroTile 
                 title="ثبت آمار تولید" 
                 icon={Icons.BarChart} 
@@ -47,16 +56,20 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
             />
             
             <MetroTile 
-                title="سوابق اخیر" 
+                title="سوابق اخیر و ویرایش" 
                 icon={Icons.Refresh} 
                 color="bg-metro-green" 
                 size="wide"
                 onClick={() => onNavigate('recent')} 
             />
 
-             <div className="col-span-2 bg-metro-dark p-4 text-white flex flex-col justify-end">
-                <h4 className="font-light text-2xl">اطلاعیه</h4>
-                <p className="text-sm opacity-70 mt-2">لطفا قبل از پایان شیفت آمار را نهایی کنید.</p>
+             <div className="col-span-2 bg-metro-dark p-6 text-white flex flex-col justify-end shadow-lg border-l-8 border-metro-orange">
+                <h4 className="font-light text-2xl uppercase tracking-tighter">اطلاعیه انبار</h4>
+                <p className="text-sm opacity-70 mt-3 leading-relaxed">
+                    همکار گرامی، لطفاً پیش از پایان شیفت کاری، تمامی آمارهای تولید و حواله‌های خروج را با دقت نهایی کنید.
+                    <br/>
+                    <span className="text-orange-400 font-bold">موجود انبار به صورت آنی بروزرسانی می‌شود.</span>
+                </p>
             </div>
         </div>
     );

@@ -130,26 +130,26 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
 
   return (
     <>
-      {/* Overlay - Z-Index 40 to allow Modal (Z-50) above */}
+      {/* Overlay - Extremely High Z-Index */}
       <div
-        className={`fixed inset-0 bg-black/80 z-40 transition-opacity lg:hidden ${
+        className={`fixed inset-0 bg-black/80 z-[100] transition-opacity lg:hidden ${
           isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
         onClick={onClose}
       />
-      {/* Sidebar - Z-Index 45 */}
+      {/* Sidebar - Even Higher Z-Index */}
       <aside
-        className={`fixed top-0 right-0 h-full w-80 bg-[#F3F3F3] dark:bg-[#2D2D2D] shadow-2xl z-45 transform transition-transform duration-300 ease-out ${
+        className={`fixed top-0 right-0 h-full w-80 bg-[#F3F3F3] dark:bg-[#2D2D2D] shadow-2xl z-[101] transform transition-transform duration-300 ease-out ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
-        } lg:relative lg:translate-x-0 lg:w-72 flex flex-col`}
+        } lg:relative lg:translate-x-0 lg:w-72 flex flex-col border-l dark:border-gray-700`}
       >
         <div 
-            className={`h-20 ${headerColor} flex items-center px-6 cursor-pointer hover:opacity-90 transition-opacity`}
+            className={`h-24 ${headerColor} flex items-center px-6 cursor-pointer hover:opacity-90 transition-opacity`}
             onClick={handleHome}
         >
             <div className="text-white">
-                <h2 className="text-lg font-black leading-tight">M.I.S</h2>
-                <p className="text-xs opacity-80 font-normal">سیستم مدیریت مروارید</p>
+                <h2 className="text-2xl font-black leading-tight">M.I.S</h2>
+                <p className="text-sm opacity-80 font-normal">سیستم مدیریت مروارید</p>
             </div>
         </div>
         
@@ -160,7 +160,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
         <div className="p-4 bg-gray-200 dark:bg-black/20">
             <button 
                 onClick={handleLogout} 
-                className="w-full flex items-center justify-between p-3 bg-metro-red text-white hover:bg-red-700 transition-colors font-bold"
+                className="w-full flex items-center justify-between p-4 bg-metro-red text-white hover:bg-red-700 transition-colors font-bold"
             >
                 <div className="flex items-center">
                     <Icons.LogOut className="w-5 h-5 ml-2" />

@@ -57,23 +57,21 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
   const hideBack = ['/', '/login'].includes(location.pathname) || isRootPath;
 
   return (
-    <header className={`${themeColors.surface} ${themeColors.text} shadow-sm sticky top-0 z-30 transition-colors duration-300`}>
+    <header className={`${themeColors.surface} ${themeColors.text} shadow-sm sticky top-0 z-30 transition-colors duration-300 border-b-2 border-gray-100 dark:border-gray-800`}>
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <div className="flex items-center gap-3">
-          {/* Menu Button - Larger Touch Target */}
           <button 
             onClick={onMenuClick} 
-            className="lg:hidden p-3 -ml-2 rounded-2xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors active:scale-95"
+            className="lg:hidden p-3 -ml-2 hover:bg-black/5 dark:hover:bg-white/10 transition-colors active:scale-95"
             aria-label="Menu"
           >
             <Icons.Menu className="w-7 h-7" />
           </button>
           
-          {/* Back Button */}
           {!hideBack && (
               <button 
                 onClick={handleBack} 
-                className="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors mr-1"
+                className="p-2 hover:bg-black/5 dark:hover:bg-white/10 transition-colors mr-1"
                 title="بازگشت"
               >
                   <Icons.ChevronRight className="w-6 h-6" />
@@ -82,7 +80,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
 
           <h1 
             onClick={handleHomeClick}
-            className="text-lg md:text-xl font-black tracking-tight cursor-pointer hover:opacity-80 transition-opacity select-none truncate max-w-[150px] sm:max-w-none"
+            className="text-lg md:text-xl font-black tracking-tighter cursor-pointer hover:opacity-80 transition-opacity select-none truncate max-w-[150px] sm:max-w-none"
           >
             {title}
           </h1>
@@ -91,18 +89,17 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
         <div className="flex items-center gap-2 sm:gap-3">
           <div 
             onClick={handleHomeClick}
-            className="hidden sm:flex items-center gap-2 cursor-pointer bg-gray-100 dark:bg-gray-700/50 px-3 py-1.5 rounded-2xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            className="hidden sm:flex items-center gap-2 cursor-pointer bg-gray-100 dark:bg-gray-700/50 px-3 py-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
           >
-            <div className={`p-1 rounded-full ${themeColors.primary} text-white`}>
+            <div className={`p-1 ${themeColors.primary} text-white`}>
                 <Icons.User className="w-4 h-4" />
             </div>
-            <span className="font-bold text-sm">{user?.fullName}</span>
+            <span className="font-black text-sm">{user?.fullName}</span>
           </div>
 
-          {/* Mobile Logout Button - Direct Access */}
           <button 
             onClick={handleLogout}
-            className="sm:hidden p-2 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors active:scale-95"
+            className="sm:hidden p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors active:scale-95"
             title="خروج"
           >
              <Icons.LogOut className="w-6 h-6" />

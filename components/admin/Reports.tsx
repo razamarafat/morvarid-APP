@@ -8,8 +8,9 @@ import { useAuthStore } from '../../store/authStore';
 import { useToastStore } from '../../store/toastStore';
 import { Icons } from '../common/Icons';
 import Button from '../common/Button';
+import JalaliDatePicker from '../common/JalaliDatePicker';
 import * as XLSX from 'xlsx';
-import { toPersianDigits } from '../../utils/dateUtils';
+import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange } from '../../utils/dateUtils';
 import { UserRole } from '../../types';
 
 type ReportTab = 'stats' | 'invoices' | 'users';
@@ -23,33 +24,39 @@ const Reports: React.FC = () => {
     const { addToast } = useToastStore();
 
     const isAdmin = user?.role === UserRole.ADMIN;
-    // اگر ادمین نیست، تب‌های مدیریتی را نشان نده
-    const initialTab: ReportTab = isAdmin ? 'users' : 'stats';
+    
+    // Default tab
+    const initialTab: ReportTab = 'invoices';
 
     const [reportTab, setReportTab] = useState<ReportTab>(initialTab);
     
-    // فیلترها (پیش‌فرض: همه)
+    // Filters
     const [selectedFarmId, setSelectedFarmId] = useState<string>('all');
     const [selectedProductId, setSelectedProductId] = useState<string>('all');
+    const [startDate, setStartDate] = useState(getTodayJalali());
+    const [endDate, setEndDate] = useState(getTodayJalali());
     
-    // داده‌های فیلتر شده برای نمایش و اکسل
+    // Data for preview
     const [previewData, setPreviewData] = useState<any[]>([]);
     const [hasSearched, setHasSearched] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
 
-    // با تغییر تب، نتایج قبلی پاک شود
     useEffect(() => {
         setHasSearched(false);
         setPreviewData([]);
         setSelectedFarmId('all');
         setSelectedProductId('all');
+        setStartDate(getTodayJalali());
+        setEndDate(getTodayJalali());
     }, [reportTab]);
 
     const handleSearch = () => {
         setIsSearching(true);
         setHasSearched(true);
         
-        // شبیه‌سازی تاخیر برای حس بهتر پردازش
+        const normalizedStart = normalizeDate(startDate);
+        const normalizedEnd = normalizeDate(endDate);
+
         setTimeout(() => {
             let data: any[] = [];
 
@@ -57,19 +64,20 @@ const Reports: React.FC = () => {
                 data = statistics.filter(s => {
                     const farmMatch = selectedFarmId === 'all' || s.farmId === selectedFarmId;
                     const productMatch = selectedProductId === 'all' || s.productId === selectedProductId;
-                    return farmMatch && productMatch;
+                    const dateMatch = isDateInRange(s.date, normalizedStart, normalizedEnd);
+                    return farmMatch && productMatch && dateMatch;
                 });
             } else if (reportTab === 'invoices') {
                 data = invoices.filter(i => {
                     const farmMatch = selectedFarmId === 'all' || i.farmId === selectedFarmId;
                     const productMatch = selectedProductId === 'all' || i.productId === selectedProductId;
-                    return farmMatch && productMatch;
+                    const dateMatch = isDateInRange(i.date, normalizedStart, normalizedEnd);
+                    return farmMatch && productMatch && dateMatch;
                 });
             } else if (reportTab === 'users' && isAdmin) {
                 data = users;
             }
 
-            // مرتب‌سازی بر اساس تاریخ (نزولی)
             if (reportTab !== 'users') {
                 data.sort((a, b) => b.date.localeCompare(a.date));
             }
@@ -80,7 +88,7 @@ const Reports: React.FC = () => {
             if (data.length === 0) {
                 addToast('داده‌ای با این مشخصات یافت نشد.', 'warning');
             } else {
-                addToast(`${data.length} رکورد پیدا شد.`, 'success');
+                addToast(`${toPersianDigits(data.length)} رکورد پیدا شد.`, 'success');
             }
         }, 300);
     };
@@ -93,7 +101,7 @@ const Reports: React.FC = () => {
 
         try {
             const wb = XLSX.utils.book_new();
-            wb.Workbook = { Views: [{ RTL: true }] }; // تنظیم راست‌چین شیت اکسل
+            wb.Workbook = { Views: [{ RTL: true }] }; 
             let wsData: any[] = [];
             let fileName = '';
 
@@ -111,12 +119,10 @@ const Reports: React.FC = () => {
                 }));
             } else if (reportTab === 'invoices') {
                 fileName = `Sales_Invoices_${new Date().toISOString().slice(0,10)}`;
-                // ترتیب ستون‌ها دقیقا طبق درخواست: 
-                // تاریخ - نام فارم - رمز حواله - محصول - تعداد - وزن - نام راننده - شماره پلاک - شماره تماس - وضعیت - توضیحات
                 wsData = previewData.map(i => ({
+                    'رمز حواله': i.invoiceNumber,
                     'تاریخ': i.date,
                     'نام فارم': farms.find(f => f.id === i.farmId)?.name || 'ناشناس',
-                    'رمز حواله': i.invoiceNumber,
                     'محصول': products.find(p => p.id === i.productId)?.name || 'ناشناس',
                     'تعداد': i.totalCartons,
                     'وزن': i.totalWeight,
@@ -139,8 +145,6 @@ const Reports: React.FC = () => {
             }
 
             const ws = XLSX.utils.json_to_sheet(wsData);
-            
-            // تنظیم عرض ستون‌ها (اختیاری برای زیبایی)
             const wscols = Object.keys(wsData[0] || {}).map(() => ({ wch: 20 }));
             ws['!cols'] = wscols;
 
@@ -159,66 +163,70 @@ const Reports: React.FC = () => {
         <div className="space-y-6">
             {/* Tabs */}
             <div className="flex bg-gray-200 dark:bg-gray-800 p-1 shadow-inner border-b-4 border-metro-dark rounded-t-lg overflow-hidden">
-                {isAdmin ? (
-                    <button className="flex-1 py-4 font-black text-lg bg-metro-purple text-white shadow-lg flex items-center justify-center gap-2">
-                        <Icons.Users className="w-6 h-6" />
+                <button 
+                    onClick={() => setReportTab('invoices')}
+                    className={`flex-1 py-4 font-black text-sm transition-all flex items-center justify-center gap-2 ${reportTab === 'invoices' ? 'bg-metro-orange text-white shadow-lg' : 'text-gray-500 hover:bg-gray-300 dark:hover:bg-gray-700'}`}
+                >
+                    <Icons.FileText className="w-5 h-5" />
+                    گزارش حواله فروش
+                </button>
+                <button 
+                    onClick={() => setReportTab('stats')}
+                    className={`flex-1 py-4 font-black text-sm transition-all flex items-center justify-center gap-2 ${reportTab === 'stats' ? 'bg-metro-blue text-white shadow-lg' : 'text-gray-500 hover:bg-gray-300 dark:hover:bg-gray-700'}`}
+                >
+                    <Icons.BarChart className="w-5 h-5" />
+                    گزارش آمار تولید
+                </button>
+                {isAdmin && (
+                    <button 
+                        onClick={() => setReportTab('users')}
+                        className={`flex-1 py-4 font-black text-sm transition-all flex items-center justify-center gap-2 ${reportTab === 'users' ? 'bg-metro-purple text-white shadow-lg' : 'text-gray-500 hover:bg-gray-300 dark:hover:bg-gray-700'}`}
+                    >
+                        <Icons.Users className="w-5 h-5" />
                         گزارش عملکرد کاربران
                     </button>
-                ) : (
-                    <>
-                        <button 
-                            onClick={() => setReportTab('stats')}
-                            className={`flex-1 py-4 font-black text-sm transition-all flex items-center justify-center gap-2 ${reportTab === 'stats' ? 'bg-metro-blue text-white shadow-lg' : 'text-gray-500 hover:bg-gray-300 dark:hover:bg-gray-700'}`}
-                        >
-                            <Icons.BarChart className="w-5 h-5" />
-                            گزارش آمار تولید
-                        </button>
-                        <button 
-                            onClick={() => setReportTab('invoices')}
-                            className={`flex-1 py-4 font-black text-sm transition-all flex items-center justify-center gap-2 ${reportTab === 'invoices' ? 'bg-metro-orange text-white shadow-lg' : 'text-gray-500 hover:bg-gray-300 dark:hover:bg-gray-700'}`}
-                        >
-                            <Icons.FileText className="w-5 h-5" />
-                            گزارش حواله فروش
-                        </button>
-                    </>
                 )}
             </div>
 
             {/* Filters Section */}
-            <div className={`bg-white dark:bg-gray-800 p-6 border-l-8 shadow-md rounded-b-lg ${isAdmin ? 'border-metro-purple' : 'border-metro-blue'}`}>
-                <div className="flex flex-wrap items-end gap-4">
-                    {!isAdmin && (
+            <div className={`bg-white dark:bg-gray-800 p-6 border-l-8 shadow-md rounded-b-lg ${reportTab === 'users' ? 'border-metro-purple' : reportTab === 'invoices' ? 'border-metro-orange' : 'border-metro-blue'}`}>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                    {reportTab !== 'users' ? (
                         <>
-                            <div className="flex-1 min-w-[200px]">
+                            <div className="w-full">
                                 <label className="text-xs font-bold text-gray-500 mb-1 block">انتخاب فارم</label>
                                 <select value={selectedFarmId} onChange={(e) => setSelectedFarmId(e.target.value)} className={selectClass}>
                                     <option value="all">همه فارم‌ها</option>
                                     {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                                 </select>
                             </div>
-                            <div className="flex-1 min-w-[200px]">
+                            <div className="w-full">
                                 <label className="text-xs font-bold text-gray-500 mb-1 block">انتخاب محصول</label>
                                 <select value={selectedProductId} onChange={(e) => setSelectedProductId(e.target.value)} className={selectClass}>
                                     <option value="all">همه محصولات</option>
                                     {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                 </select>
                             </div>
+                            <div className="w-full">
+                                <JalaliDatePicker value={startDate} onChange={setStartDate} label="از تاریخ" />
+                            </div>
+                            <div className="w-full">
+                                <JalaliDatePicker value={endDate} onChange={setEndDate} label="تا تاریخ" />
+                            </div>
                         </>
-                    )}
-                    
-                    {isAdmin && (
-                        <div className="flex-1">
+                    ) : (
+                        <div className="col-span-1 md:col-span-2 lg:col-span-4">
                             <p className="text-sm font-bold text-gray-600 dark:text-gray-400">
                                 گزارش کامل تمامی کاربران سیستم، شامل نقش‌ها و وضعیت فعالیت.
                             </p>
                         </div>
                     )}
 
-                    <div className="flex gap-2 w-full md:w-auto mt-4 md:mt-0">
+                    <div className="flex gap-2 w-full col-span-1 md:col-span-2 lg:col-span-4 mt-4 justify-end">
                         <Button 
                             onClick={handleSearch} 
                             isLoading={isSearching} 
-                            className={`h-[46px] px-8 flex-1 md:flex-none font-black text-lg ${isAdmin ? 'bg-metro-purple hover:bg-metro-darkPurple' : 'bg-metro-dark hover:bg-black'}`}
+                            className={`h-[46px] px-12 font-black text-lg ${reportTab === 'users' ? 'bg-metro-purple hover:bg-metro-darkPurple' : reportTab === 'invoices' ? 'bg-metro-orange hover:bg-amber-600' : 'bg-metro-blue hover:bg-metro-cobalt'}`}
                         >
                             <Icons.Search className="ml-2 w-5 h-5" />
                             جستجو
@@ -228,7 +236,7 @@ const Reports: React.FC = () => {
                             <Button 
                                 onClick={handleExportExcel} 
                                 variant="secondary" 
-                                className="h-[46px] border-green-600 text-green-600 hover:bg-green-50 font-black"
+                                className="h-[46px] border-green-600 text-green-600 hover:bg-green-50 font-black px-8"
                             >
                                 <Icons.FileText className="ml-2 w-5 h-5" />
                                 خروجی اکسل
@@ -242,7 +250,7 @@ const Reports: React.FC = () => {
             <div className="bg-white dark:bg-gray-800 shadow-xl overflow-hidden min-h-[400px] border border-gray-200 dark:border-gray-700 rounded-lg">
                 <div className="p-4 bg-gray-50 dark:bg-gray-900 border-b dark:border-gray-700 flex justify-between items-center">
                     <h3 className="font-black text-gray-700 dark:text-gray-200 flex items-center gap-2">
-                        <Icons.Eye className={`w-5 h-5 ${isAdmin ? 'text-metro-purple' : 'text-metro-blue'}`} />
+                        <Icons.Eye className={`w-5 h-5 ${reportTab === 'users' ? 'text-metro-purple' : reportTab === 'invoices' ? 'text-metro-orange' : 'text-metro-blue'}`} />
                         پیش‌نمایش داده‌ها
                     </h3>
                     {hasSearched && (
@@ -285,9 +293,9 @@ const Reports: React.FC = () => {
                                     )}
                                     {reportTab === 'invoices' && (
                                         <>
+                                            <th className="p-4 border-b dark:border-gray-700 text-xs font-black whitespace-nowrap text-center">حواله</th>
                                             <th className="p-4 border-b dark:border-gray-700 text-xs font-black whitespace-nowrap">تاریخ</th>
                                             <th className="p-4 border-b dark:border-gray-700 text-xs font-black whitespace-nowrap">فارم</th>
-                                            <th className="p-4 border-b dark:border-gray-700 text-xs font-black whitespace-nowrap text-center">حواله</th>
                                             <th className="p-4 border-b dark:border-gray-700 text-xs font-black whitespace-nowrap">محصول</th>
                                             <th className="p-4 border-b dark:border-gray-700 text-xs font-black text-center">تعداد</th>
                                             <th className="p-4 border-b dark:border-gray-700 text-xs font-black text-center">وزن</th>
@@ -325,9 +333,9 @@ const Reports: React.FC = () => {
                                         )}
                                         {reportTab === 'invoices' && (
                                             <>
+                                                <td className="p-4 font-black text-metro-orange text-center">{toPersianDigits(row.invoiceNumber)}</td>
                                                 <td className="p-4 font-mono text-xs whitespace-nowrap">{toPersianDigits(row.date)}</td>
                                                 <td className="p-4 font-bold text-xs whitespace-nowrap">{farms.find(f => f.id === row.farmId)?.name}</td>
-                                                <td className="p-4 font-black text-metro-orange text-center">{toPersianDigits(row.invoiceNumber)}</td>
                                                 <td className="p-4 text-xs whitespace-nowrap">{products.find(p => p.id === row.productId)?.name}</td>
                                                 <td className="p-4 text-center font-bold">{toPersianDigits(row.totalCartons)}</td>
                                                 <td className="p-4 text-center font-bold">{toPersianDigits(row.totalWeight)}</td>

@@ -8,10 +8,14 @@ export interface DailyStatistic {
     farmId: string;
     date: string;
     productId: string;
-    previousBalance?: number; 
+    previousBalance: number; 
+    previousBalanceKg?: number;
     production: number;
-    sales?: number; 
-    currentInventory?: number;
+    productionKg?: number;
+    sales: number; 
+    salesKg?: number;
+    currentInventory: number;
+    currentInventoryKg?: number;
     createdAt: number;
     updatedAt?: number;
     creatorName?: string; 
@@ -32,7 +36,8 @@ interface StatisticsState {
     addStatistic: (stat: Omit<DailyStatistic, 'id' | 'createdAt'>) => Promise<{ success: boolean; error?: any }>;
     updateStatistic: (id: string, updates: Partial<DailyStatistic>) => Promise<{ success: boolean; error?: any }>;
     deleteStatistic: (id: string) => Promise<void>;
-    getLatestInventory: (farmId: string, productId: string) => number;
+    bulkUpsertStatistics: (stats: Omit<DailyStatistic, 'id' | 'createdAt'>[]) => Promise<{ success: boolean; error?: any }>;
+    getLatestInventory: (farmId: string, productId: string) => { units: number; kg: number };
 }
 
 export const useStatisticsStore = create<StatisticsState>((set, get) => ({
@@ -48,20 +53,17 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           return;
       }
 
-      // Fetch statistics without automatic join to avoid relationship/schema cache errors
       const { data: statsData, error: statsError } = await supabase
           .from('daily_statistics')
           .select('*')
           .order('date', { ascending: false });
       
       if (statsError) {
-          console.warn('Error fetching statistics:', statsError.message);
           set({ isLoading: false });
           return;
       }
 
       if (statsData) {
-          // Manually fetch profiles for all creators to resolve names to bypass schema relationship issues
           const creatorIds = Array.from(new Set(statsData.map((s: any) => s.created_by).filter(Boolean)));
           let profileMap: Record<string, string> = {};
 
@@ -84,10 +86,14 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
               farmId: s.farm_id,
               date: normalizeDate(s.date),
               productId: mapLegacyProductId(s.product_id),
-              previousBalance: s.previous_balance,
-              production: s.production,
-              sales: s.sales,
-              currentInventory: s.current_inventory,
+              previousBalance: s.previous_balance || 0,
+              previousBalanceKg: s.previous_balance_kg || 0, 
+              production: s.production || 0,
+              productionKg: s.production_kg || 0,
+              sales: s.sales || 0,
+              salesKg: s.sales_kg || 0,
+              currentInventory: s.current_inventory || 0,
+              currentInventoryKg: s.current_inventory_kg || 0, 
               createdAt: s.created_at ? new Date(s.created_at).getTime() : Date.now(),
               updatedAt: s.updated_at ? new Date(s.updated_at).getTime() : undefined,
               creatorName: profileMap[s.created_by] || 'ناشناس',
@@ -100,45 +106,83 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
   },
 
   addStatistic: async (stat) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return { success: false, error: "Not authenticated" };
-
-      const normalizedDateStr = normalizeDate(stat.date);
-
-      const dbStat = {
-          farm_id: stat.farmId,
-          date: normalizedDateStr,
-          product_id: stat.productId,
-          previous_balance: stat.previousBalance,
-          production: stat.production,
-          sales: stat.sales,
-          current_inventory: stat.currentInventory,
-          created_by: user.id
-      };
-      
-      const { error } = await supabase.from('daily_statistics').insert(dbStat);
-      
-      if (!error) {
-          await get().fetchStatistics();
-          return { success: true };
-      }
-      return { success: false, error: error?.message };
+      // Wrapper for single add to reuse logic
+      return await get().bulkUpsertStatistics([stat]);
   },
 
   updateStatistic: async (id, updates) => {
       const dbUpdates: any = {
           updated_at: new Date().toISOString()
       };
-      if (updates.production !== undefined) dbUpdates.production = updates.production;
-      if (updates.sales !== undefined) dbUpdates.sales = updates.sales;
-      if (updates.previousBalance !== undefined) dbUpdates.previous_balance = updates.previousBalance;
-      if (updates.currentInventory !== undefined) dbUpdates.current_inventory = updates.currentInventory;
+      if (updates.production !== undefined) dbUpdates.production = Number(updates.production) || 0;
+      if (updates.sales !== undefined) dbUpdates.sales = Number(updates.sales) || 0;
+      if (updates.previousBalance !== undefined) dbUpdates.previous_balance = Number(updates.previousBalance) || 0;
+      if (updates.currentInventory !== undefined) dbUpdates.current_inventory = Number(updates.currentInventory) || 0;
       if (updates.date) dbUpdates.date = normalizeDate(updates.date);
 
       const { error } = await supabase.from('daily_statistics').update(dbUpdates).eq('id', id);
       
       if (!error) {
           get().fetchStatistics();
+          return { success: true };
+      }
+      return { success: false, error: error?.message };
+  },
+
+  bulkUpsertStatistics: async (stats) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { success: false, error: "Not authenticated" };
+      
+      if (stats.length === 0) return { success: true };
+
+      // FIX: The DB likely misses a unique constraint on (farm_id, date, product_id).
+      // Strategy: Fetch existing records for this context first to get IDs, then upsert using ID (PK).
+      
+      const farmId = stats[0].farmId;
+      const date = normalizeDate(stats[0].date);
+
+      // 1. Fetch existing record IDs for this farm/date
+      const { data: existingRecords } = await supabase
+          .from('daily_statistics')
+          .select('id, product_id')
+          .eq('farm_id', farmId)
+          .eq('date', date);
+      
+      const idMap = new Map();
+      if (existingRecords) {
+          existingRecords.forEach((r: any) => idMap.set(String(r.product_id), r.id));
+      }
+
+      // 2. Prepare Payloads with IDs if they exist
+      const dbPayloads = stats.map(stat => {
+          const payload: any = {
+              farm_id: stat.farmId,
+              date: normalizeDate(stat.date),
+              product_id: stat.productId,
+              previous_balance: Number(stat.previousBalance) || 0,
+              production: Number(stat.production) || 0,
+              sales: Number(stat.sales) || 0,
+              current_inventory: Number(stat.currentInventory) || 0,
+              created_by: user.id,
+              // kg columns excluded as per schema
+          };
+
+          // If record exists, add ID to force UPDATE on Primary Key
+          const existingId = idMap.get(String(stat.productId));
+          if (existingId) {
+              payload.id = existingId;
+          }
+          
+          return payload;
+      });
+
+      // 3. Upsert without 'onConflict' (Supabase uses ID automatically if present)
+      const { error } = await supabase
+          .from('daily_statistics')
+          .upsert(dbPayloads); 
+
+      if (!error) {
+          await get().fetchStatistics();
           return { success: true };
       }
       return { success: false, error: error?.message };
@@ -151,7 +195,10 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
 
   getLatestInventory: (farmId, productId) => {
     const stats = get().statistics.filter(s => s.farmId === farmId && s.productId === productId);
-    if (stats.length === 0) return 0;
-    return stats[0].currentInventory || 0;
+    if (stats.length === 0) return { units: 0, kg: 0 };
+    return { 
+        units: stats[0].currentInventory || 0, 
+        kg: stats[0].currentInventoryKg || 0 
+    };
   }
 }));

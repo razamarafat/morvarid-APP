@@ -1,7 +1,5 @@
-
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useStatisticsStore, DailyStatistic } from '../../store/statisticsStore';
-// Fix: Removed Invoice from invoiceStore import as it is not exported there
 import { useInvoiceStore } from '../../store/invoiceStore';
 import { useFarmStore } from '../../store/farmStore';
 import { useAuthStore } from '../../store/authStore';
@@ -10,9 +8,120 @@ import { useConfirm } from '../../hooks/useConfirm';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 import { useToastStore } from '../../store/toastStore';
-import { toPersianDigits } from '../../utils/dateUtils';
-// Fix: Import Invoice from types.ts
+import { toPersianDigits, getTodayJalali, normalizeDate } from '../../utils/dateUtils';
 import { Invoice } from '../../types';
+import { AnimatePresence, motion } from 'framer-motion';
+
+interface StatCardProps {
+    stat: DailyStatistic;
+    getProductName: (id: string) => string;
+    getProductUnit: (id: string) => string;
+    isEditable: (createdAt?: number) => boolean;
+    onEdit: (stat: DailyStatistic) => void;
+    onDelete: (id: string) => void;
+}
+
+const StatCard: React.FC<StatCardProps> = ({ stat, getProductName, getProductUnit, isEditable, onEdit, onDelete }) => (
+    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 relative overflow-hidden group hover:shadow-md transition-shadow">
+        <div className="flex justify-between items-start mb-4">
+            <div>
+                <h4 className="font-black text-lg md:text-xl text-gray-800 dark:text-gray-100">{getProductName(stat.productId)}</h4>
+                <span className="text-xs text-gray-400 font-bold">{getProductUnit(stat.productId)}</span>
+            </div>
+            
+            <div className="flex gap-2">
+                {isEditable(stat.createdAt) ? (
+                    <>
+                        <button onClick={() => onEdit(stat)} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">
+                            <Icons.Edit className="w-5 h-5" />
+                        </button>
+                        <button onClick={() => onDelete(stat.id)} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors">
+                            <Icons.Trash className="w-5 h-5" />
+                        </button>
+                    </>
+                ) : (
+                    <Icons.Lock className="w-5 h-5 text-gray-300" />
+                )}
+            </div>
+        </div>
+
+        <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-900/50 rounded-xl p-3">
+            <div className="flex flex-col items-center flex-1 border-l border-gray-200 dark:border-gray-700">
+                <span className="text-xs font-bold text-gray-500 mb-1">تولید</span>
+                <span className="text-2xl font-black text-green-600">+{toPersianDigits(stat.production)}</span>
+            </div>
+            <div className="flex flex-col items-center flex-1 border-l border-gray-200 dark:border-gray-700">
+                <span className="text-xs font-bold text-gray-500 mb-1">فروش</span>
+                <span className="text-xl font-black text-red-500">-{toPersianDigits(stat.sales || 0)}</span>
+            </div>
+            <div className="flex flex-col items-center flex-1">
+                <span className="text-xs font-bold text-gray-500 mb-1">موجودی</span>
+                <span className="text-2xl font-black text-metro-blue">{toPersianDigits(stat.currentInventory)}</span>
+            </div>
+        </div>
+        
+        {stat.updatedAt && (
+            <div className="absolute bottom-1 left-3 text-[10px] text-amber-600 font-bold bg-amber-50 px-2 rounded-full">
+                ویرایش شده
+            </div>
+        )}
+    </div>
+);
+
+interface InvoiceCardProps {
+    inv: Invoice;
+    getProductName: (id: string) => string;
+    isEditable: (createdAt?: number) => boolean;
+    onEdit: (inv: Invoice) => void;
+    onDelete: (id: string) => void;
+}
+
+const InvoiceCard: React.FC<InvoiceCardProps> = ({ inv, getProductName, isEditable, onEdit, onDelete }) => (
+    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border-r-4 border-metro-orange p-5 relative group hover:shadow-md transition-shadow">
+        <div className="flex justify-between items-start mb-2">
+            <div className="flex items-center gap-2">
+                <div className="bg-orange-100 dark:bg-orange-900/20 p-2 rounded-full text-orange-600">
+                    <Icons.FileText className="w-6 h-6" />
+                </div>
+                <div>
+                    <span className="block text-xs font-bold text-gray-400">شماره حواله</span>
+                    <span className="font-mono text-xl font-black tracking-widest text-gray-800 dark:text-gray-100">{toPersianDigits(inv.invoiceNumber)}</span>
+                </div>
+            </div>
+            
+            <div className="flex gap-2">
+                {isEditable(inv.createdAt) ? (
+                    <>
+                        <button onClick={() => onEdit(inv)} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">
+                            <Icons.Edit className="w-5 h-5" />
+                        </button>
+                        <button onClick={() => onDelete(inv.id)} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors">
+                            <Icons.Trash className="w-5 h-5" />
+                        </button>
+                    </>
+                ) : (
+                    <Icons.Lock className="w-5 h-5 text-gray-300" />
+                )}
+            </div>
+        </div>
+
+        <div className="mb-4">
+                <h4 className="font-bold text-lg text-gray-700 dark:text-gray-200">{getProductName(inv.productId || '')}</h4>
+                {inv.driverName && <p className="text-sm text-gray-500 mt-1">راننده: {inv.driverName} | پلاک: {toPersianDigits(inv.plateNumber || '-')}</p>}
+        </div>
+
+        <div className="flex items-center gap-3">
+            <div className="flex-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-2 text-center">
+                <span className="block text-[10px] font-bold text-gray-500">تعداد</span>
+                <span className="font-black text-xl text-gray-800 dark:text-white">{toPersianDigits(inv.totalCartons)}</span>
+            </div>
+            <div className="flex-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-2 text-center">
+                <span className="block text-[10px] font-bold text-gray-500">وزن (Kg)</span>
+                <span className="font-black text-xl text-metro-blue">{toPersianDigits(inv.totalWeight)}</span>
+            </div>
+        </div>
+    </div>
+);
 
 const RecentRecords: React.FC = () => {
     const { statistics, deleteStatistic, updateStatistic } = useStatisticsStore();
@@ -22,11 +131,15 @@ const RecentRecords: React.FC = () => {
     const { confirm } = useConfirm();
     const { addToast } = useToastStore();
     
+    // View State
+    const [activeTab, setActiveTab] = useState<'stats' | 'invoices'>('stats');
+    const [expandedHistoryDates, setExpandedHistoryDates] = useState<string[]>([]);
+
     // Edit States
     const [editStat, setEditStat] = useState<DailyStatistic | null>(null);
     const [editInvoice, setEditInvoice] = useState<Invoice | null>(null);
     
-    // Values
+    // Values for Edit
     const [statValues, setStatValues] = useState({ prod: 0, sales: 0, prev: 0 });
     const [invoiceValues, setInvoiceValues] = useState({ 
         cartons: 0, 
@@ -37,19 +150,61 @@ const RecentRecords: React.FC = () => {
     });
 
     const farmId = user?.assignedFarms?.[0]?.id;
-    // Show recent first
-    const myStats = statistics.filter(s => s.farmId === farmId).sort((a,b) => b.createdAt - a.createdAt).slice(0, 20);
-    const myInvoices = invoices.filter(i => i.farmId === farmId).sort((a,b) => b.createdAt - a.createdAt).slice(0, 20);
+    const today = normalizeDate(getTodayJalali());
 
-    const getProductName = (id: string) => products.find(p => p.id === id)?.name || id;
+    // --- Data Processing ---
+    const getProductName = (id: string) => products.find(p => p.id === id)?.name || 'محصول حذف شده';
+    const getProductUnit = (id: string) => products.find(p => p.id === id)?.unit === 'CARTON' ? 'کارتن' : 'واحد';
 
-    // 24 Hour check logic
     const isEditable = (createdAt?: number) => {
         if (!createdAt) return false;
         const now = Date.now();
         const diff = now - createdAt;
-        const twentyFourHours = 24 * 60 * 60 * 1000;
-        return diff < twentyFourHours;
+        return diff < 5 * 60 * 60 * 1000; // 5 Hours
+    };
+
+    // Filter and Sort Data
+    const { todayStats, historyStatsGrouped } = useMemo<{
+        todayStats: DailyStatistic[];
+        historyStatsGrouped: Record<string, DailyStatistic[]>;
+    }>(() => {
+        const farmStats = statistics.filter(s => s.farmId === farmId);
+        const todayRecs = farmStats.filter(s => s.date === today).sort((a,b) => b.createdAt - a.createdAt);
+        const historyRecs = farmStats.filter(s => s.date !== today).sort((a,b) => b.date.localeCompare(a.date));
+
+        // Group history by date
+        const grouped: Record<string, DailyStatistic[]> = {};
+        historyRecs.forEach(rec => {
+            if (!grouped[rec.date]) grouped[rec.date] = [];
+            grouped[rec.date].push(rec);
+        });
+
+        return { todayStats: todayRecs, historyStatsGrouped: grouped };
+    }, [statistics, farmId, today]);
+
+    const { todayInvoices, historyInvoicesGrouped } = useMemo<{
+        todayInvoices: Invoice[];
+        historyInvoicesGrouped: Record<string, Invoice[]>;
+    }>(() => {
+        const farmInvoices = invoices.filter(i => i.farmId === farmId);
+        const todayRecs = farmInvoices.filter(i => i.date === today).sort((a,b) => b.createdAt - a.createdAt);
+        const historyRecs = farmInvoices.filter(i => i.date !== today).sort((a,b) => b.date.localeCompare(a.date));
+
+        const grouped: Record<string, Invoice[]> = {};
+        historyRecs.forEach(rec => {
+            if (!grouped[rec.date]) grouped[rec.date] = [];
+            grouped[rec.date].push(rec);
+        });
+
+        return { todayInvoices: todayRecs, historyInvoicesGrouped: grouped };
+    }, [invoices, farmId, today]);
+
+    // --- Handlers ---
+
+    const toggleHistoryDate = (date: string) => {
+        setExpandedHistoryDates(prev => 
+            prev.includes(date) ? prev.filter(d => d !== date) : [...prev, date]
+        );
     };
 
     const handleDeleteStat = async (id: string) => {
@@ -108,214 +263,262 @@ const RecentRecords: React.FC = () => {
         addToast('حواله با موفقیت ویرایش شد', 'success');
     };
 
-    const renderInvoiceNumber = (num: string) => {
-        const strNum = toPersianDigits(num);
-        if (strNum.length < 4) return <span className="text-gray-800 dark:text-gray-200">{strNum}</span>;
-        
-        const mainPart = strNum.slice(0, -4);
-        const lastPart = strNum.slice(-4);
-        
-        return (
-            <div className="flex justify-end items-center gap-0.5">
-                <span className="text-gray-500 dark:text-gray-400 font-bold">{mainPart}</span>
-                <span className="text-black dark:text-white font-black text-base">{lastPart}</span>
-            </div>
-        );
-    };
-
     return (
-        <div className="space-y-8 pb-20">
-            {/* Stats Section */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-4 overflow-hidden border-t-4 border-orange-500">
-                <h3 className="font-bold text-lg mb-4 text-gray-800 dark:text-gray-100 border-b pb-2 dark:border-gray-700 flex justify-between">
-                    <span>آخرین آمارهای ثبت شده</span>
-                    <span className="text-xs font-normal text-gray-500 dark:text-gray-400 self-center">نمایش ۲۰ مورد اخیر</span>
-                </h3>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-right text-gray-700 dark:text-gray-300">
-                        <thead className="bg-gray-50 dark:bg-gray-700/50 text-xs uppercase text-gray-600 dark:text-gray-400">
-                            <tr>
-                                <th className="px-4 py-2">تاریخ</th>
-                                <th className="px-4 py-2">محصول</th>
-                                <th className="px-4 py-2">تولید</th>
-                                <th className="px-4 py-2">موجودی</th>
-                                <th className="px-4 py-2">وضعیت</th>
-                                <th className="px-4 py-2 text-left">عملیات</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                            {myStats.length === 0 && <tr><td colSpan={6} className="text-center py-4 text-gray-400">موردی یافت نشد</td></tr>}
-                            {myStats.map(stat => (
-                                <tr key={stat.id} className="last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                                    <td className="px-4 py-3 whitespace-nowrap font-medium">{toPersianDigits(stat.date)}</td>
-                                    <td className="px-4 py-3 font-bold">{getProductName(stat.productId)}</td>
-                                    <td className="px-4 py-3 text-green-600 dark:text-green-400 font-bold">+{toPersianDigits(stat.production)}</td>
-                                    <td className="px-4 py-3 font-bold text-blue-600 dark:text-blue-400">{toPersianDigits(stat.currentInventory)}</td>
-                                    <td className="px-4 py-3 text-xs">
-                                        {stat.updatedAt ? (
-                                            <span className="text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-2 py-1 rounded">ویرایش شده</span>
-                                        ) : <span className="text-gray-400 dark:text-gray-500">ثبت اولیه</span>}
-                                    </td>
-                                    <td className="px-4 py-3 flex gap-2 justify-end">
-                                        {isEditable(stat.createdAt) ? (
-                                            <>
-                                                <button onClick={() => handleEditStatOpen(stat)} className="text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 p-2 rounded-lg" title="ویرایش">
-                                                    <Icons.Edit className="w-4 h-4" />
-                                                </button>
-                                                <button onClick={() => handleDeleteStat(stat.id)} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-lg" title="حذف">
-                                                    <Icons.Trash className="w-4 h-4" />
-                                                </button>
-                                            </>
-                                        ) : (
-                                            <Icons.Lock className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+        <div className="pb-24">
+            {/* --- Custom Tab Switcher --- */}
+            <div className="flex p-1 bg-gray-200 dark:bg-gray-700 rounded-xl mb-6 mx-auto max-w-lg sticky top-0 z-20 shadow-lg">
+                <button 
+                    onClick={() => setActiveTab('stats')}
+                    className={`flex-1 py-3 rounded-lg text-sm font-black transition-all flex items-center justify-center gap-2 ${
+                        activeTab === 'stats' 
+                        ? 'bg-white dark:bg-gray-800 text-metro-blue shadow-md scale-[1.02]' 
+                        : 'text-gray-500 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-gray-600'
+                    }`}
+                >
+                    <Icons.BarChart className="w-5 h-5" />
+                    آمار تولید
+                </button>
+                <button 
+                    onClick={() => setActiveTab('invoices')}
+                    className={`flex-1 py-3 rounded-lg text-sm font-black transition-all flex items-center justify-center gap-2 ${
+                        activeTab === 'invoices' 
+                        ? 'bg-white dark:bg-gray-800 text-metro-orange shadow-md scale-[1.02]' 
+                        : 'text-gray-500 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-gray-600'
+                    }`}
+                >
+                    <Icons.FileText className="w-5 h-5" />
+                    حواله‌های فروش
+                </button>
             </div>
 
-            {/* Invoices Section */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-4 overflow-hidden border-t-4 border-blue-500">
-                <h3 className="font-bold text-lg mb-4 text-gray-800 dark:text-gray-100 border-b pb-2 dark:border-gray-700">آخرین حواله‌های ثبت شده</h3>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-right text-gray-700 dark:text-gray-300">
-                        <thead className="bg-gray-50 dark:bg-gray-700/50 text-xs uppercase text-gray-600 dark:text-gray-400">
-                            <tr>
-                                <th className="px-4 py-2">تاریخ</th>
-                                <th className="px-4 py-2 text-center">کد حواله</th>
-                                <th className="px-4 py-2">محصول</th>
-                                <th className="px-4 py-2">کارتن/وزن</th>
-                                <th className="px-4 py-2">راننده</th>
-                                <th className="px-4 py-2">وضعیت</th>
-                                <th className="px-4 py-2 text-left">عملیات</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                            {myInvoices.length === 0 && <tr><td colSpan={7} className="text-center py-4 text-gray-400">موردی یافت نشد</td></tr>}
-                            {myInvoices.map(inv => (
-                                <tr key={inv.id} className="last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                                    <td className="px-4 py-3 whitespace-nowrap font-medium">{toPersianDigits(inv.date)}</td>
-                                    <td className="px-4 py-3 text-center dir-ltr" dir="ltr">
-                                        {renderInvoiceNumber(inv.invoiceNumber)}
-                                    </td>
-                                    <td className="px-4 py-3 text-xs">{inv.productId ? getProductName(inv.productId) : '-'}</td>
-                                    <td className="px-4 py-3">
-                                        <div className="flex flex-col">
-                                            <span className="font-bold">{toPersianDigits(inv.totalCartons)} کارتن</span>
-                                            <span className="text-xs text-gray-400">{toPersianDigits(inv.totalWeight)} کیلو</span>
+            <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in duration-300">
+                
+                {/* --- Section: TODAY --- */}
+                <div className="space-y-4">
+                    <div className="flex items-center gap-2 px-2">
+                        <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                        <h3 className="font-black text-xl text-gray-800 dark:text-white">امروز ({toPersianDigits(today)})</h3>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                        {activeTab === 'stats' ? (
+                            todayStats.length > 0 ? (
+                                todayStats.map(stat => (
+                                    <StatCard 
+                                        key={stat.id} 
+                                        stat={stat} 
+                                        getProductName={getProductName}
+                                        getProductUnit={getProductUnit}
+                                        isEditable={isEditable}
+                                        onEdit={handleEditStatOpen}
+                                        onDelete={handleDeleteStat}
+                                    />
+                                ))
+                            ) : (
+                                <div className="col-span-full p-8 text-center text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700">
+                                    هنوز آماری برای امروز ثبت نشده است.
+                                </div>
+                            )
+                        ) : (
+                            todayInvoices.length > 0 ? (
+                                todayInvoices.map(inv => (
+                                    <InvoiceCard 
+                                        key={inv.id} 
+                                        inv={inv} 
+                                        getProductName={getProductName}
+                                        isEditable={isEditable}
+                                        onEdit={handleEditInvoiceOpen}
+                                        onDelete={handleDeleteInv}
+                                    />
+                                ))
+                            ) : (
+                                <div className="col-span-full p-8 text-center text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700">
+                                    هنوز حواله‌ای برای امروز ثبت نشده است.
+                                </div>
+                            )
+                        )}
+                    </div>
+                </div>
+
+                {/* --- Section: HISTORY --- */}
+                <div className="space-y-4 pt-4 border-t-2 border-dashed border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center gap-2 px-2 opacity-70">
+                        <Icons.Refresh className="w-5 h-5" />
+                        <h3 className="font-bold text-lg text-gray-600 dark:text-gray-300">روزهای گذشته</h3>
+                    </div>
+
+                    <div className="space-y-2">
+                        {activeTab === 'stats' ? (
+                            Object.entries(historyStatsGrouped).length === 0 ? (
+                                <p className="text-center text-gray-400 text-sm py-4">سابقه‌ای یافت نشد.</p>
+                            ) : (
+                                Object.entries(historyStatsGrouped).map(([date, items]) => {
+                                    const stats = items as DailyStatistic[];
+                                    return (
+                                        <div key={date} className="bg-gray-100 dark:bg-gray-800 rounded-xl overflow-hidden">
+                                            <button 
+                                                onClick={() => toggleHistoryDate(date)}
+                                                className="w-full flex items-center justify-between p-4 hover:bg-white dark:hover:bg-gray-700 transition-colors"
+                                            >
+                                                <span className="font-black text-gray-700 dark:text-gray-200">{toPersianDigits(date)}</span>
+                                                <div className="flex items-center gap-3">
+                                                    <span className="text-xs font-bold bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded text-gray-600 dark:text-gray-300">
+                                                        {toPersianDigits(stats.length)} مورد
+                                                    </span>
+                                                    <Icons.ChevronDown className={`w-5 h-5 transition-transform ${expandedHistoryDates.includes(date) ? 'rotate-180' : ''}`} />
+                                                </div>
+                                            </button>
+                                            <AnimatePresence>
+                                                {expandedHistoryDates.includes(date) && (
+                                                    <motion.div 
+                                                        initial={{ height: 0 }} 
+                                                        animate={{ height: 'auto' }} 
+                                                        exit={{ height: 0 }} 
+                                                        className="overflow-hidden"
+                                                    >
+                                                        <div className="p-4 grid gap-4 md:grid-cols-2 border-t border-gray-200 dark:border-gray-700">
+                                                            {stats.map(stat => (
+                                                                <StatCard 
+                                                                    key={stat.id} 
+                                                                    stat={stat} 
+                                                                    getProductName={getProductName}
+                                                                    getProductUnit={getProductUnit}
+                                                                    isEditable={isEditable}
+                                                                    onEdit={handleEditStatOpen}
+                                                                    onDelete={handleDeleteStat}
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
                                         </div>
-                                    </td>
-                                    <td className="px-4 py-3 text-xs">
-                                        {inv.driverName || '-'} 
-                                        {inv.plateNumber && <div className="font-mono mt-1 dark:text-gray-400">{toPersianDigits(inv.plateNumber)}</div>}
-                                    </td>
-                                    <td className="px-4 py-3 text-xs">
-                                        <div className="flex flex-col gap-1">
-                                            <span className={`px-2 py-0.5 rounded-full w-fit ${inv.isYesterday ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}`}>
-                                                {inv.isYesterday ? 'دیروزی' : 'عادی'}
-                                            </span>
-                                            {inv.updatedAt && (
-                                                <span className="text-amber-600 dark:text-amber-400 font-bold" title={`زمان ویرایش: ${new Date(inv.updatedAt).toLocaleTimeString('fa-IR')}`}>
-                                                    (ویرایش شده)
-                                                </span>
-                                            )}
+                                    );
+                                })
+                            )
+                        ) : (
+                             Object.entries(historyInvoicesGrouped).length === 0 ? (
+                                <p className="text-center text-gray-400 text-sm py-4">سابقه‌ای یافت نشد.</p>
+                            ) : (
+                                Object.entries(historyInvoicesGrouped).map(([date, items]) => {
+                                    const invs = items as Invoice[];
+                                    return (
+                                        <div key={date} className="bg-gray-100 dark:bg-gray-800 rounded-xl overflow-hidden">
+                                            <button 
+                                                onClick={() => toggleHistoryDate(date)}
+                                                className="w-full flex items-center justify-between p-4 hover:bg-white dark:hover:bg-gray-700 transition-colors"
+                                            >
+                                                <span className="font-black text-gray-700 dark:text-gray-200">{toPersianDigits(date)}</span>
+                                                <div className="flex items-center gap-3">
+                                                    <span className="text-xs font-bold bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded text-gray-600 dark:text-gray-300">
+                                                        {toPersianDigits(invs.length)} حواله
+                                                    </span>
+                                                    <Icons.ChevronDown className={`w-5 h-5 transition-transform ${expandedHistoryDates.includes(date) ? 'rotate-180' : ''}`} />
+                                                </div>
+                                            </button>
+                                            <AnimatePresence>
+                                                {expandedHistoryDates.includes(date) && (
+                                                    <motion.div 
+                                                        initial={{ height: 0 }} 
+                                                        animate={{ height: 'auto' }} 
+                                                        exit={{ height: 0 }} 
+                                                        className="overflow-hidden"
+                                                    >
+                                                        <div className="p-4 grid gap-4 md:grid-cols-2 border-t border-gray-200 dark:border-gray-700">
+                                                            {invs.map(inv => (
+                                                                <InvoiceCard 
+                                                                    key={inv.id} 
+                                                                    inv={inv} 
+                                                                    getProductName={getProductName}
+                                                                    isEditable={isEditable}
+                                                                    onEdit={handleEditInvoiceOpen}
+                                                                    onDelete={handleDeleteInv}
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
                                         </div>
-                                    </td>
-                                    <td className="px-4 py-3 flex gap-2 justify-end items-center">
-                                        {isEditable(inv.createdAt) ? (
-                                            <>
-                                                <button onClick={() => handleEditInvoiceOpen(inv)} className="text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 p-2 rounded-lg" title="ویرایش کامل">
-                                                    <Icons.Edit className="w-4 h-4" />
-                                                </button>
-                                                <button onClick={() => handleDeleteInv(inv.id)} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-lg" title="حذف">
-                                                    <Icons.Trash className="w-4 h-4" />
-                                                </button>
-                                            </>
-                                        ) : (
-                                            <Icons.Lock className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                                    );
+                                })
+                            )
+                        )}
+                    </div>
                 </div>
             </div>
 
             {/* Edit Stat Modal */}
             <Modal isOpen={!!editStat} onClose={() => setEditStat(null)} title="ویرایش آمار">
                 <div className="space-y-4">
-                    <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded text-xs text-blue-800 dark:text-blue-300 mb-4">
-                        توجه: با تغییر مقادیر، موجودی نهایی به صورت خودکار بازآرایی می‌شود.
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg text-xs font-bold text-blue-800 dark:text-blue-300 mb-4 leading-loose">
+                        توجه: با تغییر مقادیر تولید یا فروش، موجودی نهایی به صورت خودکار محاسبه می‌شود.
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold mb-1 dark:text-gray-300">تولید (کارتن/دبه)</label>
+                            <label className="block text-xs font-bold mb-2 dark:text-gray-300">تولید (کارتن/دبه)</label>
                             <input 
                                 type="number" 
-                                className="w-full p-2 border rounded-lg text-center font-bold bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                className="w-full p-3 border-2 border-gray-200 rounded-xl text-center font-black text-xl bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:border-green-500 outline-none"
                                 value={statValues.prod}
                                 onChange={(e) => setStatValues({ ...statValues, prod: Number(e.target.value) })}
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold mb-1 dark:text-gray-300">فروش</label>
+                            <label className="block text-xs font-bold mb-2 dark:text-gray-300">فروش</label>
                             <input 
                                 type="number" 
-                                className="w-full p-2 border rounded-lg text-center font-bold bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                className="w-full p-3 border-2 border-gray-200 rounded-xl text-center font-black text-xl bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:border-red-500 outline-none"
                                 value={statValues.sales}
                                 onChange={(e) => setStatValues({ ...statValues, sales: Number(e.target.value) })}
                             />
                         </div>
                     </div>
                     <div>
-                        <label className="block text-xs font-bold mb-1 dark:text-gray-300">مانده قبل (اصلاح دستی)</label>
+                        <label className="block text-xs font-bold mb-2 dark:text-gray-300">مانده قبل (اصلاح دستی)</label>
                         <input 
                             type="number" 
-                            className="w-full p-2 border rounded-lg text-center font-bold bg-gray-50 dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+                            className="w-full p-3 border rounded-xl text-center font-bold bg-gray-50 dark:bg-gray-600 dark:border-gray-500 dark:text-white"
                             value={statValues.prev}
                             onChange={(e) => setStatValues({ ...statValues, prev: Number(e.target.value) })}
                         />
                     </div>
-                    <div className="flex justify-end gap-2 pt-4">
+                    <div className="flex justify-end gap-2 pt-4 border-t dark:border-gray-700 mt-2">
                         <Button variant="secondary" onClick={() => setEditStat(null)}>انصراف</Button>
                         <Button onClick={handleSaveStat}>ذخیره تغییرات</Button>
                     </div>
                 </div>
             </Modal>
 
-            {/* Edit Invoice Modal - FULL FIELDS */}
+            {/* Edit Invoice Modal */}
             <Modal isOpen={!!editInvoice} onClose={() => setEditInvoice(null)} title="ویرایش کامل حواله">
                  <div className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold mb-1 dark:text-gray-300">تعداد کارتن</label>
+                            <label className="block text-xs font-bold mb-2 dark:text-gray-300">تعداد کارتن</label>
                             <input 
                                 type="number" 
-                                className="w-full p-2 border rounded-lg text-center font-bold bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                className="w-full p-3 border-2 border-gray-200 rounded-xl text-center font-black text-xl bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:border-metro-orange outline-none"
                                 value={invoiceValues.cartons}
                                 onChange={(e) => setInvoiceValues({ ...invoiceValues, cartons: Number(e.target.value) })}
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold mb-1 dark:text-gray-300">وزن (کیلوگرم)</label>
+                            <label className="block text-xs font-bold mb-2 dark:text-gray-300">وزن (کیلوگرم)</label>
                             <input 
                                 type="number" 
-                                className="w-full p-2 border rounded-lg text-center font-bold bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                className="w-full p-3 border-2 border-gray-200 rounded-xl text-center font-black text-xl bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:border-metro-orange outline-none"
                                 value={invoiceValues.weight}
                                 onChange={(e) => setInvoiceValues({ ...invoiceValues, weight: Number(e.target.value) })}
                             />
                         </div>
                     </div>
                     
-                    <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-2">
-                        <label className="block text-xs font-bold mb-1 dark:text-gray-300">نام راننده</label>
+                    <div className="border-t border-gray-100 dark:border-gray-700 pt-4 mt-2">
+                        <label className="block text-xs font-bold mb-2 dark:text-gray-300">نام راننده</label>
                         <input 
                             type="text" 
-                            className="w-full p-2 border rounded-lg text-right bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            className="w-full p-3 border rounded-xl text-right bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white font-bold"
                             value={invoiceValues.driverName}
                             onChange={(e) => setInvoiceValues({ ...invoiceValues, driverName: e.target.value })}
                             placeholder="نام راننده"
@@ -324,21 +527,21 @@ const RecentRecords: React.FC = () => {
                     
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold mb-1 dark:text-gray-300">شماره تماس</label>
+                            <label className="block text-xs font-bold mb-2 dark:text-gray-300">شماره تماس</label>
                             <input 
                                 type="text" 
                                 dir="ltr"
-                                className="w-full p-2 border rounded-lg text-center bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                className="w-full p-3 border rounded-xl text-center bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white font-mono"
                                 value={invoiceValues.driverPhone}
                                 onChange={(e) => setInvoiceValues({ ...invoiceValues, driverPhone: e.target.value })}
                                 placeholder="09..."
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold mb-1 dark:text-gray-300">پلاک خودرو</label>
+                            <label className="block text-xs font-bold mb-2 dark:text-gray-300">پلاک خودرو</label>
                             <input 
                                 type="text" 
-                                className="w-full p-2 border rounded-lg text-center bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                className="w-full p-3 border rounded-xl text-center bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white font-bold"
                                 value={invoiceValues.plateNumber}
                                 onChange={(e) => setInvoiceValues({ ...invoiceValues, plateNumber: e.target.value })}
                                 placeholder="پلاک"
@@ -346,7 +549,7 @@ const RecentRecords: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="flex justify-end gap-2 pt-4">
+                    <div className="flex justify-end gap-2 pt-4 border-t dark:border-gray-700 mt-2">
                         <Button variant="secondary" onClick={() => setEditInvoice(null)}>انصراف</Button>
                         <Button onClick={handleSaveInvoice}>ذخیره تغییرات</Button>
                     </div>

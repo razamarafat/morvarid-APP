@@ -10,6 +10,7 @@ import FeatureTesting from '../components/admin/FeatureTesting';
 import Reports from '../components/admin/Reports';
 import MetroTile from '../components/common/MetroTile';
 import { useLogStore } from '../store/logStore';
+import { APP_VERSION } from '../constants';
 
 const AdminDashboard: React.FC = () => {
     const [currentView, setCurrentView] = useState('dashboard');
@@ -18,10 +19,9 @@ const AdminDashboard: React.FC = () => {
     // Enable Live Logs
     useEffect(() => {
         fetchLogs();
-        const subscription = subscribeToLogs();
+        const unsubscribe = subscribeToLogs();
         return () => {
-             // Clean up if needed, though zustand store usually persists.
-             // Supabase handles unsubscribe via client normally.
+             if (typeof unsubscribe === 'function') unsubscribe();
         }
     }, []);
 
@@ -102,9 +102,9 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
                 onClick={() => onNavigate('testing')} 
             />
             
-            {/* Decorative Static Tiles */}
+            {/* Decorative Static Tiles with Dynamic Version */}
             <div className="col-span-1 h-32 sm:h-40 bg-gray-700 p-4 flex items-end justify-center">
-                <span className="text-white text-xs opacity-50">v1.0.1</span>
+                <span className="text-white text-xs opacity-50">v{APP_VERSION}</span>
             </div>
         </div>
     );
