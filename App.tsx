@@ -14,7 +14,8 @@ import { useFarmStore } from './store/farmStore';
 import { useStatisticsStore } from './store/statisticsStore';
 import { useInvoiceStore } from './store/invoiceStore';
 import { useUserStore } from './store/userStore';
-import { useAlertStore } from './store/alertStore'; // Import Alert Store
+import { useAlertStore } from './store/alertStore';
+import { usePwaStore } from './store/pwaStore'; // Import PWA Store
 import ConfirmDialog from './components/common/ConfirmDialog';
 import ToastContainer from './components/common/Toast';
 
@@ -25,21 +26,46 @@ function App() {
   const { fetchStatistics } = useStatisticsStore();
   const { fetchInvoices } = useInvoiceStore();
   const { fetchUsers } = useUserStore();
-  const { initListener } = useAlertStore(); // Get listener init
+  const { initListener } = useAlertStore();
+  const { setDeferredPrompt, setIsInstalled } = usePwaStore(); // PWA Actions
 
   useEffect(() => {
     document.documentElement.classList.remove('light', 'dark');
     document.documentElement.classList.add(theme);
   }, [theme]);
 
+  // PWA Install Prompt Capture - MOVED HERE to ensure it's caught immediately
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: any) => {
+      // Prevent the mini-infobar from appearing on mobile
+      e.preventDefault();
+      // Stash the event so it can be triggered later.
+      console.log('PWA: Install prompt captured');
+      setDeferredPrompt(e);
+    };
+
+    const handleAppInstalled = () => {
+      console.log('PWA: App installed');
+      setIsInstalled(true);
+      setDeferredPrompt(null);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, [setDeferredPrompt, setIsInstalled]);
+
   // Initial Data Load
   useEffect(() => {
       const init = async () => {
           await checkSession();
-          // Load public/shared data
           fetchFarms();
           fetchProducts();
-          initListener(); // Start listening for alerts immediately
+          initListener();
       };
       init();
   }, []);

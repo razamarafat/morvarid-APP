@@ -19,7 +19,8 @@ const FeatureTesting: React.FC = () => {
   const runTest = async (feature: string) => {
     setResults(prev => ({ ...prev, [feature]: 'running' }));
     
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Give UI a moment to update
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     let success = false;
     let logMessage = '';
@@ -31,7 +32,6 @@ const FeatureTesting: React.FC = () => {
                 const socketState = (channel as any)?.conn?.readyState || 'N/A';
                 const startTime = Date.now();
                 
-                // پیدا کردن آیدی واقعی فارم مهرآباد از استور
                 const realMehrabadFarm = farms.find(f => f.name.includes('مهرآباد'));
                 const targetId = realMehrabadFarm ? realMehrabadFarm.id : 'NOT_FOUND_UUID';
                 const targetName = realMehrabadFarm ? realMehrabadFarm.name : 'مهرآباد (یافت نشد)';
@@ -48,10 +48,6 @@ const FeatureTesting: React.FC = () => {
                     success = true;
                     logMessage = `سیستم هشدار تایید شد (Broadcast: ${response.detail})`;
                     technicalDetails = `RTT: ${duration}ms | Payload: ${response.bytes}B | TargetID: ${targetId.substring(0,8)}... | Socket: ${socketState}`;
-                    
-                    if (!realMehrabadFarm) {
-                        logMessage += " - هشدار: فارم مهرآباد در لیست یافت نشد، از آیدی فرضی استفاده شد.";
-                    }
                 } else {
                     success = false;
                     logMessage = `خطا در زیرساخت Realtime (${response.detail})`;
@@ -67,13 +63,17 @@ const FeatureTesting: React.FC = () => {
                    const permission = await Notification.requestPermission();
                    if (permission === 'granted') {
                        try {
-                           // Android Chrome requires Service Worker for notifications (Illegal Constructor Fix)
+                           // Timeout Promise to prevent hanging if SW isn't ready
+                           const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
+                           
+                           // Check for SW support and Readiness
                            if ('serviceWorker' in navigator) {
-                               let registration = await navigator.serviceWorker.getRegistration();
-                               if (!registration) {
-                                   registration = await navigator.serviceWorker.ready;
-                               }
-                               
+                               // Race between SW ready and 3s timeout
+                               const registration = await Promise.race([
+                                   navigator.serviceWorker.ready,
+                                   timeout
+                               ]);
+
                                if (registration) {
                                    await registration.showNotification('تست فنی مروارید', { 
                                        body: `Notification System Check: OK (Via Service Worker)\nTimestamp: ${new Date().toISOString()}`,
@@ -86,32 +86,26 @@ const FeatureTesting: React.FC = () => {
                                    success = true;
                                    logMessage = 'مجوز اعلان تایید و تست از طریق Service Worker ارسال شد.';
                                } else {
-                                   // Fallback if SW registration is somehow missing despite support
-                                   throw new Error('Service Worker supported but no registration found.');
+                                   // Timed out or not found, fallback to standard
+                                   throw new Error('SW not ready or timed out, trying fallback.');
                                }
                            } else {
-                               // Fallback for browsers without SW support (e.g. old Safari)
-                               new Notification('تست فنی مروارید', { 
-                                   body: `Notification System Check: OK (Direct Constructor)\nTimestamp: ${new Date().toISOString()}`,
-                                   dir: 'rtl'
-                               });
-                               success = true;
-                               logMessage = 'مجوز اعلان تایید و تست به صورت مستقیم ارسال شد.';
+                               throw new Error('SW not supported, trying fallback.');
                            }
-                       } catch (e: any) {
-                           console.warn('Primary notification method failed:', e);
-                           // Last resort fallback (might fail on Android)
+                       } catch (swError: any) {
+                           console.warn('SW Notification failed or timed out:', swError);
+                           // Fallback for browsers without SW support (e.g. old Safari) OR if SW timed out
                            try {
                                new Notification('تست فنی مروارید', { 
-                                   body: `Notification System Check: OK (Fallback)\nTimestamp: ${new Date().toISOString()}`,
+                                   body: `Notification System Check: OK (Direct/Fallback)\nTimestamp: ${new Date().toISOString()}`,
                                    dir: 'rtl'
                                });
                                success = true;
-                               logMessage = 'مجوز تایید شد (ارسال در حالت Fallback).';
-                           } catch (err: any) {
+                               logMessage = 'مجوز اعلان تایید و تست به صورت مستقیم ارسال شد (Fallback).';
+                           } catch (directError: any) {
                                success = false;
-                               logMessage = `خطا در نمایش اعلان: ${err.message}`;
-                               technicalDetails = `Primary Error: ${e.message} | Fallback Error: ${err.message}`;
+                               logMessage = `خطا در نمایش اعلان: ${directError.message}`;
+                               technicalDetails = `SW Error: ${swError.message} | Direct Error: ${directError.message}`;
                            }
                        }
                    } else {
@@ -161,6 +155,7 @@ const FeatureTesting: React.FC = () => {
         technicalDetails = `Trace: ${e.stack?.substring(0, 50)}...`;
     }
     
+    // ALWAYS Log and Update State
     addLog(
         success ? 'info' : 'error', 
         'frontend', 

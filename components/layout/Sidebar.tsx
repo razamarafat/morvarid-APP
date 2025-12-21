@@ -1,12 +1,12 @@
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { Icons } from '../common/Icons';
 import { APP_VERSION } from '../../constants';
 import { UserRole } from '../../types';
 import { useNavigate } from 'react-router-dom';
 import { useConfirm } from '../../hooks/useConfirm';
-import { useThemeStore } from '../../store/themeStore';
+import { usePwaStore } from '../../store/pwaStore'; // Changed import
 
 interface SidebarProps {
   isOpen: boolean;
@@ -50,7 +50,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate, variant 
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const { confirm } = useConfirm();
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const { deferredPrompt, setDeferredPrompt, isInstalled } = usePwaStore(); // Use Global Store
   
   const role = user?.role || UserRole.ADMIN;
   let headerColor = 'bg-metro-purple';
@@ -58,19 +58,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate, variant 
   if (role === UserRole.SALES) headerColor = 'bg-metro-blue';
 
   const [active, setActive] = React.useState('dashboard');
-
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    };
-  }, []);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
@@ -184,13 +171,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate, variant 
         </nav>
         
         <div className="p-4 bg-gray-200 dark:bg-black/20 space-y-2">
-            {deferredPrompt && (
+            {!isInstalled && deferredPrompt && (
                 <button
                     onClick={handleInstallClick}
                     className="w-full flex items-center justify-center p-3 bg-metro-teal text-white hover:bg-teal-700 transition-colors font-bold shadow-md animate-pulse"
                 >
                     <Icons.HardDrive className="w-5 h-5 ml-2" />
-                    <span className="text-sm">نصب اپلیکیشن</span>
+                    <span className="text-sm">نصب اپلیکیشن (PWA)</span>
                 </button>
             )}
 

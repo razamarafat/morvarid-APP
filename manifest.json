@@ -2,9 +2,9 @@
 {
   "name": "سامانه مدیریت آمار مروارید",
   "short_name": "مروارید",
-  "id": "/",
+  "id": "/?source=pwa",
   "description": "سیستم یکپارچه مدیریت آمار تولید، فروش و انبارداری فارم‌های مروارید",
-  "start_url": "/",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
