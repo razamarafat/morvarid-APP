@@ -11,9 +11,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="مروارید">
+    <meta name="mobile-web-app-capable" content="yes">
     <link rel="apple-touch-icon" href="/vite.svg">
     <meta name="theme-color" content="#2D89EF">
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="/manifest.json">
 
     <!-- Fonts and Styles -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -55,6 +56,22 @@
       /* FORCE METRO UI STYLE: NO ROUNDED CORNERS ANYWHERE */
       * {
         border-radius: 0 !important;
+        -webkit-tap-highlight-color: transparent; /* Remove blue highlight on mobile tap */
+      }
+      
+      /* App-like behavior: Prevent pull-to-refresh and selection */
+      body {
+        transition: background-color 0.3s ease, color 0.3s ease;
+        overscroll-behavior-y: none; /* Disables pull-to-refresh */
+        -webkit-user-select: none; /* Disable text selection */
+        user-select: none;
+        -webkit-touch-callout: none;
+      }
+
+      /* Allow selection in inputs */
+      input, textarea {
+        -webkit-user-select: text;
+        user-select: text;
       }
       
       /* Scrollbar Metro Style */
@@ -67,11 +84,6 @@
       }
       ::-webkit-scrollbar-thumb:hover {
         background: #888888;
-      }
-
-      /* Fix Body Background Transition */
-      body {
-        transition: background-color 0.3s ease, color 0.3s ease;
       }
       
       /* Input autofill fix for dark mode */
@@ -126,7 +138,6 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
   <body class="bg-[#F3F3F3] text-gray-900 dark:bg-[#1D1D1D] dark:text-white transition-colors duration-200 overflow-x-hidden selection:bg-metro-blue selection:text-white">
     <div id="root"></div>

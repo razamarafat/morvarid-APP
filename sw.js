@@ -1,6 +1,6 @@
 
-// sw.js - Morvarid PWA Service Worker v1.9
-const CACHE_NAME = 'morvarid-v1.9';
+// sw.js - Morvarid PWA Service Worker v2.0
+const CACHE_NAME = 'morvarid-v2.0';
 
 // دارایی‌هایی که باید برای کارکرد آفلاین کش شوند
 const ASSETS_TO_CACHE = [
@@ -8,7 +8,8 @@ const ASSETS_TO_CACHE = [
   '/index.html',
   '/manifest.json',
   '/vite.svg',
-  'https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap'
+  'https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap',
+  'https://cdn.tailwindcss.com'
 ];
 
 // نصب سرویس ورکر
@@ -34,6 +35,7 @@ self.addEventListener('activate', (event) => {
 });
 
 // استراتژی کش: Network First, falling back to Cache
+// برای فایل‌های استاتیک و navigation fallback
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
@@ -42,9 +44,21 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // درخواست‌های Navigation (تغییر صفحه) را به index.html هدایت کن تا SPA کار کند
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .catch(() => {
+          return caches.match('/index.html');
+        })
+    );
+    return;
+  }
+
   event.respondWith(
     fetch(event.request)
       .then((response) => {
+        // کش کردن پاسخ‌های موفق
         if (response && response.status === 200 && response.type === 'basic') {
           const responseToCache = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
@@ -54,6 +68,7 @@ self.addEventListener('fetch', (event) => {
         return response;
       })
       .catch(() => {
+        // بازگشت از کش در صورت آفلاین بودن
         return caches.match(event.request);
       })
   );
@@ -63,9 +78,11 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // اگر پنجره‌ای باز است روی آن فوکوس کن
       for (const client of clientList) {
         if (client.url === '/' && 'focus' in client) return client.focus();
       }
+      // اگر نه، پنجره جدید باز کن
       if (clients.openWindow) return clients.openWindow('/');
     })
   );

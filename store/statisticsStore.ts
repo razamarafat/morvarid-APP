@@ -29,15 +29,31 @@ const mapLegacyProductId = (id: string | number): string => {
     return strId;
 };
 
+// Helper to translate DB errors
+const translateError = (error: any): string => {
+    if (!error) return 'خطای ناشناخته';
+    const msg = error.message || '';
+    const code = error.code || '';
+
+    if (code === '23505') return 'این رکورد قبلاً ثبت شده است (تکراری).';
+    if (code === '23503') return 'فارم یا محصول انتخاب شده نامعتبر است.';
+    if (msg.includes('network') || msg.includes('fetch')) return 'خطا در برقراری ارتباط با سرور. اینترنت خود را چک کنید.';
+    if (msg.includes('JWT')) return 'نشست کاربری منقضی شده است. لطفاً دوباره وارد شوید.';
+    
+    return `خطای سیستم: ${msg} (${code})`;
+};
+
 interface StatisticsState {
     statistics: DailyStatistic[];
     isLoading: boolean;
     fetchStatistics: () => Promise<void>;
-    addStatistic: (stat: Omit<DailyStatistic, 'id' | 'createdAt'>) => Promise<{ success: boolean; error?: any }>;
-    updateStatistic: (id: string, updates: Partial<DailyStatistic>) => Promise<{ success: boolean; error?: any }>;
+    subscribeToStatistics: () => () => void; 
+    addStatistic: (stat: Omit<DailyStatistic, 'id' | 'createdAt'>) => Promise<{ success: boolean; error?: string; debug?: any }>;
+    updateStatistic: (id: string, updates: Partial<DailyStatistic>) => Promise<{ success: boolean; error?: string; debug?: any }>;
     deleteStatistic: (id: string) => Promise<void>;
-    bulkUpsertStatistics: (stats: Omit<DailyStatistic, 'id' | 'createdAt'>[]) => Promise<{ success: boolean; error?: any }>;
+    bulkUpsertStatistics: (stats: Omit<DailyStatistic, 'id' | 'createdAt'>[]) => Promise<{ success: boolean; error?: string; debug?: any }>;
     getLatestInventory: (farmId: string, productId: string) => { units: number; kg: number };
+    syncSalesFromInvoices: (farmId: string, date: string, productId: string) => Promise<void>;
 }
 
 export const useStatisticsStore = create<StatisticsState>((set, get) => ({
@@ -60,6 +76,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
       
       if (statsError) {
           set({ isLoading: false });
+          console.error("Fetch Stats Error:", statsError);
           return;
       }
 
@@ -105,8 +122,20 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
       }
   },
 
+  subscribeToStatistics: () => {
+      const channel = supabase
+          .channel('public:daily_statistics')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_statistics' }, (payload) => {
+              get().fetchStatistics();
+          })
+          .subscribe();
+
+      return () => {
+          supabase.removeChannel(channel);
+      };
+  },
+
   addStatistic: async (stat) => {
-      // Wrapper for single add to reuse logic
       return await get().bulkUpsertStatistics([stat]);
   },
 
@@ -119,78 +148,108 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
       if (updates.previousBalance !== undefined) dbUpdates.previous_balance = Number(updates.previousBalance) || 0;
       if (updates.currentInventory !== undefined) dbUpdates.current_inventory = Number(updates.currentInventory) || 0;
       if (updates.date) dbUpdates.date = normalizeDate(updates.date);
-
+      
       const { error } = await supabase.from('daily_statistics').update(dbUpdates).eq('id', id);
       
       if (!error) {
           get().fetchStatistics();
           return { success: true };
       }
-      return { success: false, error: error?.message };
+      return { success: false, error: translateError(error), debug: error };
   },
 
   bulkUpsertStatistics: async (stats) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return { success: false, error: "Not authenticated" };
-      
-      if (stats.length === 0) return { success: true };
+      try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) return { success: false, error: "کاربر احراز هویت نشده است." };
+          
+          if (stats.length === 0) return { success: true };
 
-      // FIX: The DB likely misses a unique constraint on (farm_id, date, product_id).
-      // Strategy: Fetch existing records for this context first to get IDs, then upsert using ID (PK).
-      
-      const farmId = stats[0].farmId;
-      const date = normalizeDate(stats[0].date);
+          const farmId = stats[0].farmId;
+          const date = normalizeDate(stats[0].date);
 
-      // 1. Fetch existing record IDs for this farm/date
-      const { data: existingRecords } = await supabase
-          .from('daily_statistics')
-          .select('id, product_id')
-          .eq('farm_id', farmId)
-          .eq('date', date);
-      
-      const idMap = new Map();
-      if (existingRecords) {
-          existingRecords.forEach((r: any) => idMap.set(String(r.product_id), r.id));
-      }
-
-      // 2. Prepare Payloads with IDs if they exist
-      const dbPayloads = stats.map(stat => {
-          const payload: any = {
-              farm_id: stat.farmId,
-              date: normalizeDate(stat.date),
-              product_id: stat.productId,
-              previous_balance: Number(stat.previousBalance) || 0,
-              production: Number(stat.production) || 0,
-              sales: Number(stat.sales) || 0,
-              current_inventory: Number(stat.currentInventory) || 0,
-              created_by: user.id,
-              // kg columns excluded as per schema
-          };
-
-          // If record exists, add ID to force UPDATE on Primary Key
-          const existingId = idMap.get(String(stat.productId));
-          if (existingId) {
-              payload.id = existingId;
+          // 1. Fetch existing record IDs to decide Insert vs Update
+          const { data: existingRecords, error: fetchError } = await supabase
+              .from('daily_statistics')
+              .select('id, product_id, sales')
+              .eq('farm_id', farmId)
+              .eq('date', date);
+          
+          if (fetchError) {
+              return { success: false, error: translateError(fetchError), debug: fetchError };
           }
           
-          return payload;
-      });
+          const idMap = new Map();
+          const salesMap = new Map(); 
 
-      // 3. Upsert without 'onConflict' (Supabase uses ID automatically if present)
-      const { error } = await supabase
-          .from('daily_statistics')
-          .upsert(dbPayloads); 
+          if (existingRecords) {
+              existingRecords.forEach((r: any) => {
+                  idMap.set(String(r.product_id), r.id);
+                  salesMap.set(String(r.product_id), { unit: r.sales });
+              });
+          }
 
-      if (!error) {
-          await get().fetchStatistics();
+          // 2. Prepare Payloads
+          const dbPayloads = stats.map(stat => {
+              const existingSales = salesMap.get(String(stat.productId));
+              const finalSales = existingSales ? existingSales.unit : (Number(stat.sales) || 0);
+              
+              const prod = Number(stat.production) || 0;
+              const prev = Number(stat.previousBalance) || 0;
+              const currentInv = prev + prod - finalSales;
+
+              const payload: any = {
+                  farm_id: stat.farmId,
+                  date: normalizeDate(stat.date),
+                  product_id: stat.productId,
+                  previous_balance: prev,
+                  production: prod,
+                  sales: finalSales, 
+                  current_inventory: currentInv,
+                  created_by: user.id,
+              };
+
+              const existingId = idMap.get(String(stat.productId));
+              if (existingId) {
+                  payload.id = existingId;
+              }
+              
+              return payload;
+          });
+
+          // 3. Separate Inserts and Updates
+          const inserts = [];
+          const updates = [];
+
+          for (const p of dbPayloads) {
+              if (p.id) updates.push(p);
+              else inserts.push(p);
+          }
+
+          if (inserts.length > 0) {
+              const { error } = await supabase.from('daily_statistics').insert(inserts);
+              if (error) return { success: false, error: translateError(error), debug: error };
+          }
+
+          if (updates.length > 0) {
+              for (const u of updates) {
+                  const { id, ...rest } = u;
+                  const { error } = await supabase.from('daily_statistics').update(rest).eq('id', id);
+                  if (error) return { success: false, error: translateError(error), debug: error };
+              }
+          }
+
+          get().fetchStatistics();
           return { success: true };
+
+      } catch (err: any) {
+          return { success: false, error: `خطای غیرمنتظره: ${err.message}`, debug: err };
       }
-      return { success: false, error: error?.message };
   },
 
   deleteStatistic: async (id) => {
       const { error } = await supabase.from('daily_statistics').delete().eq('id', id);
-      if (!error) get().fetchStatistics();
+      if (error) console.error("Delete Stat Error:", error);
   },
 
   getLatestInventory: (farmId, productId) => {
@@ -200,5 +259,46 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
         units: stats[0].currentInventory || 0, 
         kg: stats[0].currentInventoryKg || 0 
     };
+  },
+
+  syncSalesFromInvoices: async (farmId, date, productId) => {
+      const normalizedDate = normalizeDate(date);
+      
+      const { data: invoices, error: invError } = await supabase
+          .from('invoices')
+          .select('total_cartons, total_weight')
+          .eq('farm_id', farmId)
+          .eq('date', normalizedDate)
+          .eq('product_id', productId);
+
+      if (invError) {
+          console.error("Sync Error: Failed to fetch invoices", invError);
+          return;
+      }
+
+      const totalSales = invoices?.reduce((sum, inv) => sum + (inv.total_cartons || 0), 0) || 0;
+      
+      const { data: statRecord, error: statError } = await supabase
+          .from('daily_statistics')
+          .select('id, production, previous_balance, current_inventory')
+          .eq('farm_id', farmId)
+          .eq('date', normalizedDate)
+          .eq('product_id', productId)
+          .single();
+
+      if (statError && statError.code !== 'PGRST116') {
+          console.error("Sync Error: Failed to fetch statistics", statError);
+          return;
+      }
+
+      if (statRecord) {
+          const newInventory = (statRecord.previous_balance || 0) + (statRecord.production || 0) - totalSales;
+          
+          await supabase.from('daily_statistics').update({
+              sales: totalSales,
+              current_inventory: newInventory,
+              updated_at: new Date().toISOString()
+          }).eq('id', statRecord.id);
+      }
   }
 }));

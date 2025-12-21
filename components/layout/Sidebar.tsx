@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { Icons } from '../common/Icons';
 import { APP_VERSION } from '../../constants';
@@ -50,6 +50,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate, variant 
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const { confirm } = useConfirm();
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   
   const role = user?.role || UserRole.ADMIN;
   let headerColor = 'bg-metro-purple';
@@ -58,11 +59,31 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate, variant 
 
   const [active, setActive] = React.useState('dashboard');
 
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
+  };
+
   const handleLogout = async () => {
-    // TASK: Ensure modal is visible by closing sidebar first on mobile
     if (window.innerWidth < 1024) onClose();
     
-    // Allow animation to start
     setTimeout(async () => {
         const confirmed = await confirm({
             title: 'خروج از حساب',
@@ -129,9 +150,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate, variant 
     ));
   };
 
-  // Logic to handle Desktop vs Mobile display
-  // Desktop: Relative positioning, always visible (controlled by parent layout)
-  // Mobile: Fixed positioning, controlled by isOpen state
   const baseClasses = "h-full w-80 bg-[#F3F3F3] dark:bg-[#2D2D2D] shadow-2xl z-[101] flex flex-col border-l dark:border-gray-700 transition-transform duration-300 ease-out";
   
   const desktopClasses = "relative translate-x-0 w-72";
@@ -141,7 +159,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate, variant 
 
   return (
     <>
-      {/* Overlay - Mobile Only */}
       {variant === 'mobile' && (
         <div
           className={`fixed inset-0 bg-black/80 z-[100] transition-opacity lg:hidden ${
@@ -166,7 +183,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate, variant 
             {getNavLinks()}
         </nav>
         
-        <div className="p-4 bg-gray-200 dark:bg-black/20">
+        <div className="p-4 bg-gray-200 dark:bg-black/20 space-y-2">
+            {deferredPrompt && (
+                <button
+                    onClick={handleInstallClick}
+                    className="w-full flex items-center justify-center p-3 bg-metro-teal text-white hover:bg-teal-700 transition-colors font-bold shadow-md animate-pulse"
+                >
+                    <Icons.HardDrive className="w-5 h-5 ml-2" />
+                    <span className="text-sm">نصب اپلیکیشن</span>
+                </button>
+            )}
+
             <button 
                 onClick={handleLogout} 
                 className="w-full flex items-center justify-between p-4 bg-metro-red text-white hover:bg-red-700 transition-colors font-bold"

@@ -6,7 +6,11 @@ import { useLogStore } from './store/logStore';
 
 // --- GLOBAL ERROR TRAPPING START ---
 window.onerror = (message, source, lineno, colno, error) => {
-    const errorDetails = `Global Error: ${message} at ${source}:${lineno}:${colno}`;
+    // Explicitly grab the error message string
+    const errorMessage = error?.message || String(message) || 'Unknown Error';
+    const errorStack = error?.stack ? error.stack.substring(0, 300) : 'No Stack';
+    const errorDetails = `Uncaught Exception: ${errorMessage} @ ${source}:${lineno} | Stack: ${errorStack}`;
+    
     setTimeout(() => {
         useLogStore.getState().addLog('error', 'frontend', errorDetails, 'SYSTEM_TRAP');
     }, 0);
@@ -15,8 +19,11 @@ window.onerror = (message, source, lineno, colno, error) => {
 
 window.addEventListener('unhandledrejection', (event) => {
     const reason = event.reason?.message || event.reason || 'Unknown Async Error';
-    const errorDetails = `Unhandled Promise: ${reason}`;
+    const errorDetails = `Unhandled Promise Rejection: ${reason}`;
+    
+    // Ignore harmless ResizeObserver errors commonly found in dev mode
     if (typeof reason === 'string' && reason.includes('ResizeObserver')) return;
+    
     setTimeout(() => {
         useLogStore.getState().addLog('error', 'network', errorDetails, 'SYSTEM_TRAP');
     }, 0);
@@ -34,7 +41,6 @@ if ('serviceWorker' in navigator) {
     const hostname = window.location.hostname;
     const href = window.location.href;
     
-    // Expanded list of preview/sandbox environments that restrict SW or cause Origin Mismatches
     const isSandbox = 
         hostname.includes('usercontent.goog') || 
         hostname.includes('ai.studio') ||
@@ -48,15 +54,12 @@ if ('serviceWorker' in navigator) {
       return;
     }
 
-    // Using a simple relative path is the most robust way to register a SW 
-    // without triggering origin mismatch errors in proxied environments.
     navigator.serviceWorker.register('sw.js', { scope: './' })
       .then(registration => {
         console.log('Morvarid PWA: ServiceWorker registered successfully on scope:', registration.scope);
       })
       .catch(err => {
         const msg = err?.message || String(err);
-        // Silently handle common sandbox/security restrictions to keep the console clean
         if (
             msg.includes('origin') || 
             msg.includes('scriptURL') || 

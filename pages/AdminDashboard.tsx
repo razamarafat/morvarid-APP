@@ -8,6 +8,7 @@ import BackupManagement from '../components/admin/BackupManagement';
 import SystemLogs from '../components/admin/SystemLogs';
 import FeatureTesting from '../components/admin/FeatureTesting';
 import Reports from '../components/admin/Reports';
+import GlobalRecordManager from '../components/admin/GlobalRecordManager';
 import MetroTile from '../components/common/MetroTile';
 import { useLogStore } from '../store/logStore';
 import { APP_VERSION } from '../constants';
@@ -30,6 +31,7 @@ const AdminDashboard: React.FC = () => {
             case 'farms': return <FarmManagement />;
             case 'users': return <UserManagement />;
             case 'reports': return <Reports />;
+            case 'records': return <GlobalRecordManager />;
             case 'backup': return <BackupManagement />;
             case 'logs': return <SystemLogs />;
             case 'testing': return <FeatureTesting />;
@@ -42,6 +44,7 @@ const AdminDashboard: React.FC = () => {
             case 'farms': return 'مدیریت فارم‌ها';
             case 'users': return 'مدیریت کاربران';
             case 'reports': return 'گزارشات';
+            case 'records': return 'مدیریت جامع داده‌ها';
             case 'backup': return 'پشتیبان‌گیری';
             case 'logs': return 'لاگ‌های سیستم';
             case 'testing': return 'سنجش ویژگی‌ها';
@@ -72,6 +75,13 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
                 color="bg-metro-purple" 
                 size="wide"
                 onClick={() => onNavigate('users')} 
+            />
+             <MetroTile 
+                title="مدیریت جامع داده‌ها" 
+                icon={Icons.HardDrive} 
+                color="bg-indigo-600" 
+                size="large"
+                onClick={() => onNavigate('records')} 
             />
             <MetroTile 
                 title="گزارشات" 

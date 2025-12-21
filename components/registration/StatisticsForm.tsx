@@ -5,7 +5,8 @@ import { useFarmStore } from '../../store/farmStore';
 import { useStatisticsStore } from '../../store/statisticsStore';
 import { useToastStore } from '../../store/toastStore';
 import { useThemeStore } from '../../store/themeStore';
-import { FarmType, ProductUnit, UserRole } from '../../types';
+import { useLogStore } from '../../store/logStore';
+import { FarmType, UserRole } from '../../types';
 import { THEMES } from '../../constants';
 import { getTodayJalali, getTodayDayName, getCurrentTime, normalizeDate, toPersianDigits } from '../../utils/dateUtils';
 import Button from '../common/Button';
@@ -31,6 +32,7 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
     const { getProductById } = useFarmStore();
     const { statistics, bulkUpsertStatistics, fetchStatistics } = useStatisticsStore();
     const { addToast } = useToastStore();
+    const { addLog } = useLogStore();
     const theme = useThemeStore(state => state.theme);
     const { confirm } = useConfirm();
     
@@ -49,6 +51,8 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
 
     const role = user?.role || UserRole.REGISTRATION;
     const themeColors = THEMES[theme][role];
+    
+    const isMotefereghe = selectedFarm?.type === FarmType.MOTEFEREGHE;
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(getCurrentTime(false)), 30000);
@@ -68,8 +72,8 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
             newState[pid] = {
                 production: record?.production !== undefined ? String(record.production) : '',
                 productionKg: record?.productionKg !== undefined ? String(record.productionKg) : '',
-                sales: record?.sales !== undefined ? String(record.sales) : '',
-                salesKg: record?.salesKg !== undefined ? String(record.salesKg) : '',
+                sales: record?.sales !== undefined ? String(record.sales) : '0',
+                salesKg: record?.salesKg !== undefined ? String(record.salesKg) : '0',
                 previousBalance: record?.previousBalance !== undefined ? String(record.previousBalance) : '',
                 previousBalanceKg: record?.previousBalanceKg !== undefined ? String(record.previousBalanceKg) : ''
             };
@@ -95,30 +99,32 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
         const payloads = [];
         for (const pid of selectedFarm.productIds) {
             if (registeredProductIds.includes(pid)) continue;
+            
             const vals = formsState[pid];
             if (!vals) continue;
 
             const prod = vals.production === '' ? 0 : Number(vals.production);
-            const sale = vals.sales === '' ? 0 : Number(vals.sales);
             const prev = vals.previousBalance === '' ? 0 : Number(vals.previousBalance);
             const prodKg = vals.productionKg === '' ? 0 : Number(vals.productionKg);
-            const saleKg = vals.salesKg === '' ? 0 : Number(vals.salesKg);
             const prevKg = vals.previousBalanceKg === '' ? 0 : Number(vals.previousBalanceKg);
+            
+            const sale = 0; 
+            const saleKg = 0;
 
-            if (prod === 0 && sale === 0 && prev === 0 && prodKg === 0 && saleKg === 0 && prevKg === 0) continue;
+            if (prod === 0 && prev === 0 && prodKg === 0 && prevKg === 0) continue;
 
-            const current = selectedFarm.type === FarmType.MOTEFEREGHE ? prod : (prev + prod - sale);
-            const currentKg = selectedFarm.type === FarmType.MOTEFEREGHE ? prodKg : (prevKg + prodKg - saleKg);
+            const current = isMotefereghe ? prod : (prev + prod - sale);
+            const currentKg = isMotefereghe ? prodKg : (prevKg + prodKg - saleKg);
 
             payloads.push({
                 farmId: selectedFarmId,
                 date: normalizedDate,
                 productId: pid,
-                previousBalance: prev,
+                previousBalance: isMotefereghe ? 0 : prev,
                 production: prod,
-                sales: sale,
+                sales: sale, 
                 currentInventory: current,
-                previousBalanceKg: prevKg,
+                previousBalanceKg: isMotefereghe ? 0 : prevKg,
                 productionKg: prodKg,
                 salesKg: saleKg,
                 currentInventoryKg: currentKg
@@ -126,7 +132,7 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
         }
 
         if (payloads.length === 0) {
-            addToast('تغییری برای ثبت وجود ندارد.', 'warning');
+            addToast('تغییری برای ثبت وجود ندارد یا تمام محصولات قبلاً ثبت شده‌اند.', 'warning');
             return;
         }
 
@@ -146,7 +152,9 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
         if (result.success) {
             addToast('آمار با موفقیت ثبت شد.', 'success');
         } else {
-            addToast('خطا در ثبت آمار', 'error');
+            addToast(`خطا: ${result.error}`, 'error');
+            addLog('error', 'database', `Stats Batch Fail: ${result.error}`, user?.id);
+            if(result.debug) console.error("Technical Stats Error:", result.debug);
         }
     };
 
@@ -154,10 +162,9 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
 
     return (
         <div className="max-w-4xl mx-auto space-y-4 pb-12"> 
-            {/* TASK 3: Animated Header Background */}
             <div className="bg-metro-orange p-8 text-white shadow-xl relative overflow-hidden flex flex-col items-center justify-center gap-4 border-b-8 border-orange-700/20">
                 <div className="absolute inset-0 z-0 bg-gradient-to-r from-metro-orange via-amber-500 to-metro-orange bg-[length:200%_200%] animate-[gradient-xy_3s_ease_infinite]"></div>
-                <Icons.BarChart className="absolute -right-12 -bottom-8 w-64 h-64 opacity-10 pointer-events-none rotate-12" />
+                <Icons.BarChart className="absolute -right-12 -bottom-8 w-64 h-64 opacity-10 pointer-events-none rotate-12 animate-pulse" />
                 
                 <div className="relative z-10 flex justify-center items-center gap-4 text-xl font-bold bg-white/10 backdrop-blur-md px-8 py-3 w-full max-w-sm border-r-4 border-white shadow-lg transition-transform hover:scale-[1.02]">
                     <span className="opacity-90">{todayDayName}</span>
@@ -178,7 +185,8 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                     const isRegistered = statistics.some(s => s.farmId === selectedFarmId && s.date === normalizedDate && s.productId === pid);
                     
                     const num = (v: string) => v === '' ? 0 : Number(v);
-                    const currentInventory = selectedFarm.type === FarmType.MOTEFEREGHE ? num(vals.production) : (num(vals.previousBalance) + num(vals.production) - num(vals.sales));
+                    
+                    const currentInventory = isMotefereghe ? num(vals.production) : (num(vals.previousBalance) + num(vals.production) - num(vals.sales));
                     const isNegative = currentInventory < 0;
 
                     return (
@@ -199,40 +207,75 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="border-t border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-900/20">
                                         <div className={`space-y-6 ${isRegistered ? 'pointer-events-none grayscale-[0.5] opacity-70' : ''}`}>
                                             {isRegistered && <div className="bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded border border-yellow-200 dark:border-yellow-800 text-center mb-4"><p className="text-xs text-yellow-800 dark:text-yellow-200 font-bold">این محصول قبلا ثبت شده است.</p></div>}
-                                            {!isRegistered && isNegative && selectedFarm.type !== FarmType.MOTEFEREGHE && <div className="bg-red-50 dark:bg-red-900/20 p-2 rounded border border-red-200 dark:border-red-800 text-center animate-pulse"><p className="text-xs text-red-600 dark:text-red-300 font-bold">هشدار: موجودی منفی است</p></div>}
+                                            {!isRegistered && isNegative && !isMotefereghe && <div className="bg-red-50 dark:bg-red-900/20 p-2 rounded border border-red-200 dark:border-red-800 text-center animate-pulse"><p className="text-xs text-red-600 dark:text-red-300 font-bold">هشدار: موجودی منفی است</p></div>}
+                                            
                                             <div className="space-y-4">
                                                 <h4 className="text-sm font-black text-metro-orange flex items-center gap-2"><Icons.BarChart className="w-4 h-4" />کارتن</h4>
                                                 <div className="flex items-end gap-3">
+                                                     {!isMotefereghe && (
+                                                         <div className="flex-1">
+                                                            <label className="block text-xs font-bold text-gray-500 mb-1">موجودی قبل</label>
+                                                            <input type="number" disabled={isRegistered} value={vals.previousBalance} onChange={e => handleInputChange(pid, 'previousBalance', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-center font-bold text-2xl rounded focus:border-metro-orange outline-none h-14" />
+                                                         </div>
+                                                     )}
+                                                     
                                                      <div className="flex-1">
-                                                        <label className="block text-xs font-bold text-gray-500 mb-1">موجودی قبل</label>
-                                                        <input type="number" disabled={isRegistered} value={vals.previousBalance} onChange={e => handleInputChange(pid, 'previousBalance', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-center font-bold text-2xl rounded focus:border-metro-orange outline-none h-14" />
-                                                     </div>
-                                                     <div className="flex-1">
-                                                        <label className="block text-xs font-bold text-green-600 mb-1">تولید</label>
+                                                        <label className="block text-xs font-bold text-green-600 mb-1">{isMotefereghe ? 'موجودی اعلامی' : 'تولید روز'}</label>
                                                         <input type="number" disabled={isRegistered} value={vals.production} onChange={e => handleInputChange(pid, 'production', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-center font-bold text-2xl rounded focus:border-metro-orange outline-none h-14" />
                                                      </div>
-                                                     <div className="flex-1">
-                                                        <label className="block text-xs font-bold text-red-600 mb-1">فروش</label>
-                                                        <input type="number" disabled={isRegistered} value={vals.sales} onChange={e => handleInputChange(pid, 'sales', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-center font-bold text-2xl rounded focus:border-metro-orange outline-none h-14" />
-                                                     </div>
+                                                     
+                                                     {!isMotefereghe && (
+                                                         <div className="flex-1 relative">
+                                                            <label className="block text-xs font-bold text-red-600 mb-1">فروش (خودکار)</label>
+                                                            <div className="relative">
+                                                                <input 
+                                                                    type="number" 
+                                                                    disabled={true} 
+                                                                    value={vals.sales} 
+                                                                    className="w-full p-2 bg-gray-100 dark:bg-gray-800 border-2 border-dashed border-red-200 dark:border-red-900 text-center font-bold text-2xl rounded text-gray-500 cursor-not-allowed h-14" 
+                                                                />
+                                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10">
+                                                                    <Icons.Lock className="w-6 h-6 text-red-500" />
+                                                                </div>
+                                                            </div>
+                                                            <span className="text-[9px] text-gray-400 absolute -bottom-4 right-0 w-full text-center">محاسبه از حواله</span>
+                                                         </div>
+                                                     )}
                                                 </div>
                                             </div>
+                                            
                                             {product?.hasKilogramUnit && (
                                                 <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                                                     <h4 className="text-sm font-black text-metro-blue flex items-center gap-2"><Icons.HardDrive className="w-4 h-4" />کیلوگرم</h4>
                                                     <div className="flex items-end gap-3">
+                                                         {!isMotefereghe && (
+                                                             <div className="flex-1">
+                                                                <label className="block text-xs font-bold text-gray-500 mb-1">قبل (Kg)</label>
+                                                                <input type="number" step="0.1" disabled={isRegistered} value={vals.previousBalanceKg} onChange={e => handleInputChange(pid, 'previousBalanceKg', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-center font-bold text-2xl rounded focus:border-metro-blue outline-none h-14" />
+                                                             </div>
+                                                         )}
                                                          <div className="flex-1">
-                                                            <label className="block text-xs font-bold text-gray-500 mb-1">قبل (Kg)</label>
-                                                            <input type="number" step="0.1" disabled={isRegistered} value={vals.previousBalanceKg} onChange={e => handleInputChange(pid, 'previousBalanceKg', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-center font-bold text-2xl rounded focus:border-metro-blue outline-none h-14" />
-                                                         </div>
-                                                         <div className="flex-1">
-                                                            <label className="block text-xs font-bold text-green-600 mb-1">تولید (Kg)</label>
+                                                            <label className="block text-xs font-bold text-green-600 mb-1">{isMotefereghe ? 'موجودی (Kg)' : 'تولید (Kg)'}</label>
                                                             <input type="number" step="0.1" disabled={isRegistered} value={vals.productionKg} onChange={e => handleInputChange(pid, 'productionKg', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-center font-bold text-2xl rounded focus:border-metro-blue outline-none h-14" />
                                                          </div>
-                                                         <div className="flex-1">
-                                                            <label className="block text-xs font-bold text-red-600 mb-1">فروش (Kg)</label>
-                                                            <input type="number" step="0.1" disabled={isRegistered} value={vals.salesKg} onChange={e => handleInputChange(pid, 'salesKg', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-center font-bold text-2xl rounded focus:border-metro-blue outline-none h-14" />
-                                                         </div>
+                                                         
+                                                         {!isMotefereghe && (
+                                                             <div className="flex-1 relative">
+                                                                <label className="block text-xs font-bold text-red-600 mb-1">فروش (Kg)</label>
+                                                                <div className="relative">
+                                                                    <input 
+                                                                        type="number" 
+                                                                        step="0.1" 
+                                                                        disabled={true} 
+                                                                        value={vals.salesKg} 
+                                                                        className="w-full p-2 bg-gray-100 dark:bg-gray-800 border-2 border-dashed border-red-200 dark:border-red-900 text-center font-bold text-2xl rounded text-gray-500 cursor-not-allowed h-14" 
+                                                                    />
+                                                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10">
+                                                                        <Icons.Lock className="w-6 h-6 text-red-500" />
+                                                                    </div>
+                                                                </div>
+                                                             </div>
+                                                         )}
                                                     </div>
                                                 </div>
                                             )}
