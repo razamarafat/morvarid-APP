@@ -1,89 +1,80 @@
 
-// sw.js - Morvarid PWA Service Worker v2.0
-const CACHE_NAME = 'morvarid-v2.0';
-
-// دارایی‌هایی که باید برای کارکرد آفلاین کش شوند
-const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/vite.svg',
-  'https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap',
-  'https://cdn.tailwindcss.com'
+const CACHE_NAME = 'morvarid-pwa-v3.3'; // Increment version to force update
+const ASSETS = [
+  './',
+  './index.html',
+  './vite.svg',
+  './manifest.json'
 ];
 
-// نصب سرویس ورکر
+// 1. Install Event: Cache assets and force activation
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
+  self.skipWaiting(); // IMPORTANT: Forces the waiting SW to become the active SW
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
+      return cache.addAll(ASSETS);
     })
   );
 });
 
-// فعال‌سازی و حذف کش‌های قدیمی
+// 2. Activate Event: Clean old caches and claim clients immediately
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
+    caches.keys().then((keys) => {
       return Promise.all(
-        cacheNames.filter(name => name !== CACHE_NAME).map(name => caches.delete(name))
+        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
       );
     })
   );
-  self.clients.claim();
+  return self.clients.claim(); // IMPORTANT: Takes control of the page immediately
 });
 
-// استراتژی کش: Network First, falling back to Cache
-// برای فایل‌های استاتیک و navigation fallback
+// 3. Fetch Event: Network First strategy (safest for dynamic apps)
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
+  // Skip cross-origin requests (like Supabase)
+  if (!event.request.url.startsWith(self.location.origin)) return;
 
-  // جلوگیری از کش کردن درخواست‌های API (Supabase)
-  if (event.request.url.includes('supabase.co')) {
-    return;
-  }
-
-  // درخواست‌های Navigation (تغییر صفحه) را به index.html هدایت کن تا SPA کار کند
+  // Handle navigation requests (SPA support)
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request)
-        .catch(() => {
-          return caches.match('/index.html');
-        })
+      fetch(event.request).catch(() => {
+        return caches.match('./index.html');
+      })
     );
     return;
   }
 
+  // General Resource Strategy: Cache First, fall back to Network
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        // کش کردن پاسخ‌های موفق
-        if (response && response.status === 200 && response.type === 'basic') {
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
+    caches.match(event.request).then((cachedResponse) => {
+      return cachedResponse || fetch(event.request).then((response) => {
+          return caches.open(CACHE_NAME).then((cache) => {
+              // Only cache valid responses
+              if(response.status === 200) {
+                  cache.put(event.request, response.clone());
+              }
+              return response;
           });
-        }
-        return response;
-      })
-      .catch(() => {
-        // بازگشت از کش در صورت آفلاین بودن
-        return caches.match(event.request);
-      })
+      });
+    })
   );
 });
 
+// 4. Notification Click Handler
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // اگر پنجره‌ای باز است روی آن فوکوس کن
-      for (const client of clientList) {
-        if (client.url === '/' && 'focus' in client) return client.focus();
+      if (clientList.length > 0) {
+        let client = clientList[0];
+        for (let i = 0; i < clientList.length; i++) {
+          if (clientList[i].focused) {
+            client = clientList[i];
+          }
+        }
+        return client.focus();
       }
-      // اگر نه، پنجره جدید باز کن
-      if (clients.openWindow) return clients.openWindow('/');
+      return clients.openWindow('./');
     })
   );
 });

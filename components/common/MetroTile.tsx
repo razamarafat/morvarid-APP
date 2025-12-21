@@ -42,12 +42,20 @@ const MetroTile: React.FC<MetroTileProps> = ({
       onClick={onClick}
       className={`${sizeClasses[size]} ${color} relative p-4 flex flex-col justify-between cursor-pointer select-none overflow-hidden group ${className}`}
     >
-        {/* Animated Icon Background */}
-        <div className="absolute -right-6 -bottom-6 opacity-10 group-hover:opacity-20 transition-opacity duration-500">
-             <Icon className="w-28 h-28 md:w-32 md:h-32 animate-[wiggle_6s_ease-in-out_infinite]" />
+        {/* === ANIMATION LAYERS === */}
+        
+        {/* 1. Moving Dot Pattern Overlay */}
+        <div className="metro-pattern-overlay" />
+        
+        {/* 2. Passing Shine Effect */}
+        <div className="metro-shine-overlay" />
+
+        {/* 3. Animated Icon Background (Wiggling) */}
+        <div className="absolute -right-6 -bottom-6 opacity-10 group-hover:opacity-20 transition-opacity duration-500 z-0">
+             <Icon className="w-28 h-28 md:w-32 md:h-32 animate-wiggle" />
         </div>
         
-        {/* Main Content */}
+        {/* === MAIN CONTENT (Higher Z-Index) === */}
         <div className="relative z-10 flex justify-between items-start">
              <Icon className="w-6 h-6 md:w-8 md:h-8 text-white drop-shadow-md" />
              {count !== undefined && (

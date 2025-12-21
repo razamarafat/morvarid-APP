@@ -11,6 +11,8 @@ import Reports from '../components/admin/Reports';
 import GlobalRecordManager from '../components/admin/GlobalRecordManager';
 import MetroTile from '../components/common/MetroTile';
 import { useLogStore } from '../store/logStore';
+import { usePwaStore } from '../store/pwaStore';
+import { useToastStore } from '../store/toastStore';
 import { APP_VERSION } from '../constants';
 
 const AdminDashboard: React.FC = () => {
@@ -60,6 +62,40 @@ const AdminDashboard: React.FC = () => {
 };
 
 const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNavigate }) => {
+    const { deferredPrompt, setDeferredPrompt, isInstalled } = usePwaStore();
+    const { addToast } = useToastStore();
+    const { addLog } = useLogStore();
+
+    const handleInstallClick = async () => {
+        if (isInstalled) {
+            addToast('این اپلیکیشن قبلاً نصب شده است.', 'info');
+            return;
+        }
+
+        if (!deferredPrompt) {
+            const isHttps = window.location.protocol === 'https:';
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            
+            let errorMsg = 'امکان نصب وجود ندارد.';
+            if (!isHttps && !isLocal) errorMsg += ' (عدم استفاده از HTTPS)';
+            else errorMsg += ' (مرورگر پشتیبانی نمی‌کند یا قبلا نصب شده)';
+
+            addToast(errorMsg, 'warning');
+            addLog('warn', 'frontend', `PWA Install Failed: Prompt is null. HTTPS: ${isHttps}, Local: ${isLocal}, Installed: ${isInstalled}`, 'USER');
+            return;
+        }
+        
+        addLog('info', 'frontend', 'PWA: User clicked install button. Prompting...', 'USER');
+        deferredPrompt.prompt();
+        
+        const { outcome } = await deferredPrompt.userChoice;
+        addLog('info', 'frontend', `PWA: Install prompt outcome: ${outcome}`, 'USER');
+        
+        if (outcome === 'accepted') {
+            setDeferredPrompt(null);
+        }
+    };
+
     return (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 animate-in slide-in-from-bottom-5 duration-500">
             <MetroTile 
@@ -110,6 +146,16 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
                 color="bg-metro-teal" 
                 size="medium"
                 onClick={() => onNavigate('testing')} 
+            />
+
+            {/* Smart Install Button */}
+            <MetroTile 
+                title={isInstalled ? "اپلیکیشن نصب شده" : deferredPrompt ? "نصب اپلیکیشن" : "وضعیت PWA"} 
+                icon={isInstalled ? Icons.Check : Icons.Download} 
+                color={isInstalled ? "bg-green-700" : deferredPrompt ? "bg-teal-600" : "bg-gray-500"} 
+                size="medium"
+                onClick={handleInstallClick}
+                className={deferredPrompt && !isInstalled ? "animate-pulse" : "opacity-90"}
             />
             
             {/* Decorative Static Tiles with Dynamic Version */}

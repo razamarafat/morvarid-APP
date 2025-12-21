@@ -3,76 +3,70 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { useLogStore } from './store/logStore';
+import { usePwaStore } from './store/pwaStore';
 
-// --- GLOBAL ERROR TRAPPING START ---
+// --- GLOBAL ERROR TRAPPING ---
 window.onerror = (message, source, lineno, colno, error) => {
-    // Explicitly grab the error message string
     const errorMessage = error?.message || String(message) || 'Unknown Error';
-    const errorStack = error?.stack ? error.stack.substring(0, 300) : 'No Stack';
-    const errorDetails = `Uncaught Exception: ${errorMessage} @ ${source}:${lineno} | Stack: ${errorStack}`;
-    
     setTimeout(() => {
-        useLogStore.getState().addLog('error', 'frontend', errorDetails, 'SYSTEM_TRAP');
+        useLogStore.getState().addLog('error', 'frontend', `Global Error: ${errorMessage}`, 'SYSTEM_TRAP');
     }, 0);
     return false;
 };
 
-window.addEventListener('unhandledrejection', (event) => {
-    const reason = event.reason?.message || event.reason || 'Unknown Async Error';
-    const errorDetails = `Unhandled Promise Rejection: ${reason}`;
-    
-    // Ignore harmless ResizeObserver errors commonly found in dev mode
-    if (typeof reason === 'string' && reason.includes('ResizeObserver')) return;
-    
-    setTimeout(() => {
-        useLogStore.getState().addLog('error', 'network', errorDetails, 'SYSTEM_TRAP');
-    }, 0);
+// --- PWA EARLY CAPTURE ---
+// Important: This listener must be attached immediately to capture the event 
+// if it fires before the React app is fully mounted.
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    usePwaStore.getState().setDeferredPrompt(e);
+    useLogStore.getState().addLog('info', 'frontend', 'PWA: "beforeinstallprompt" event captured successfully in Global Scope.', 'SYSTEM');
+    console.log('PWA: Event captured in index.tsx');
 });
-// --- GLOBAL ERROR TRAPPING END ---
 
 const rootElement = document.getElementById('root');
-if (!rootElement) {
-  throw new Error("Could not find root element to mount to");
+if (!rootElement) throw new Error("Could not find root element to mount to");
+
+// --- ENVIRONMENT CHECKS ---
+const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const isHttps = window.location.protocol === 'https:';
+
+if (!isHttps && !isLocal) {
+    useLogStore.getState().addLog('warn', 'network', 'PWA: App is NOT serving over HTTPS. Installation may be blocked by browser.', 'SYSTEM');
 }
 
-// PWA Service Worker Registration Logic
+// --- ROBUST SERVICE WORKER REGISTRATION ---
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    const hostname = window.location.hostname;
-    const href = window.location.href;
+    // FIX: Use absolute URL derived from window.location to prevent origin mismatch errors
+    const swUrl = new URL('sw.js', window.location.href).href;
     
-    const isSandbox = 
-        hostname.includes('usercontent.goog') || 
-        hostname.includes('ai.studio') ||
-        hostname.includes('googleusercontent.com') ||
-        hostname.includes('webcontainer.io') ||
-        hostname.includes('stackblitz.io') ||
-        href.includes('scf.usercontent.goog');
+    useLogStore.getState().addLog('debug', 'network', 'PWA: Starting Service Worker registration...', 'SYSTEM');
 
-    if (isSandbox) {
-      console.info('Morvarid PWA: Service Worker registration intentionally skipped on preview domain to prevent security/origin errors.');
-      return;
-    }
-
-    navigator.serviceWorker.register('sw.js', { scope: './' })
+    navigator.serviceWorker.register(swUrl)
       .then(registration => {
-        console.log('Morvarid PWA: ServiceWorker registered successfully on scope:', registration.scope);
+        useLogStore.getState().addLog('info', 'network', `PWA: ServiceWorker registered successfully. Scope: ${registration.scope}`, 'SYSTEM');
+        
+        // Check for updates
+        registration.onupdatefound = () => {
+          const installingWorker = registration.installing;
+          if (installingWorker) {
+            installingWorker.onstatechange = () => {
+              if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                useLogStore.getState().addLog('info', 'network', 'PWA: New content available (Update Found).', 'SYSTEM');
+                console.log('PWA: New content is available; please refresh.');
+              }
+            };
+          }
+        };
       })
       .catch(err => {
-        const msg = err?.message || String(err);
-        if (
-            msg.includes('origin') || 
-            msg.includes('scriptURL') || 
-            msg.includes('SecurityError') || 
-            msg.includes('disallowed') ||
-            msg.includes('Operation is not supported')
-        ) {
-            console.warn('Morvarid PWA: SW registration skipped (Environment restriction):', msg);
-            return;
-        }
-        console.error('Morvarid PWA: ServiceWorker registration failed:', err);
+        useLogStore.getState().addLog('error', 'network', `PWA: ServiceWorker registration failed: ${err.message}`, 'SYSTEM');
+        console.error('PWA: ServiceWorker registration failed:', err);
       });
   });
+} else {
+    useLogStore.getState().addLog('warn', 'network', 'PWA: Service Worker is not supported in this browser.', 'SYSTEM');
 }
 
 const root = ReactDOM.createRoot(rootElement);

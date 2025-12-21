@@ -17,10 +17,11 @@ const FeatureTesting: React.FC = () => {
   const [results, setResults] = useState<Record<string, string>>({});
 
   const runTest = async (feature: string) => {
+    // 1. Set State to Running
     setResults(prev => ({ ...prev, [feature]: 'running' }));
     
-    // Give UI a moment to update
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // 2. Small Delay for UI
+    await new Promise(resolve => setTimeout(resolve, 300));
 
     let success = false;
     let logMessage = '';
@@ -29,9 +30,6 @@ const FeatureTesting: React.FC = () => {
     try {
         switch(feature) {
             case 'alert_system':
-                const socketState = (channel as any)?.conn?.readyState || 'N/A';
-                const startTime = Date.now();
-                
                 const realMehrabadFarm = farms.find(f => f.name.includes('مهرآباد'));
                 const targetId = realMehrabadFarm ? realMehrabadFarm.id : 'NOT_FOUND_UUID';
                 const targetName = realMehrabadFarm ? realMehrabadFarm.name : 'مهرآباد (یافت نشد)';
@@ -39,88 +37,71 @@ const FeatureTesting: React.FC = () => {
                 const response = await sendAlert(
                     targetId, 
                     targetName, 
-                    `تست فنی نفوذ هشدار آنی - هدف: ${targetName} - زمان: ${new Date().toLocaleTimeString('fa-IR')}`
+                    `تست فنی هشدار - ${new Date().toLocaleTimeString('fa-IR')}`
                 );
-                
-                const duration = Date.now() - startTime;
 
                 if (response.success) {
                     success = true;
-                    logMessage = `سیستم هشدار تایید شد (Broadcast: ${response.detail})`;
-                    technicalDetails = `RTT: ${duration}ms | Payload: ${response.bytes}B | TargetID: ${targetId.substring(0,8)}... | Socket: ${socketState}`;
+                    logMessage = `هشدار ارسال شد (Channel: ${response.detail})`;
+                    technicalDetails = `Bytes: ${response.bytes} | Target: ${targetName}`;
                 } else {
                     success = false;
-                    logMessage = `خطا در زیرساخت Realtime (${response.detail})`;
-                    technicalDetails = `Status: ${response.detail} | SocketState: ${socketState}`;
+                    logMessage = `خطا در ارسال: ${response.detail}`;
                 }
                 break;
 
             case 'notification':
+                // SIMPLIFIED LOGIC TO PREVENT HANGING
                 if (!('Notification' in window)) {
-                    success = false;
-                    logMessage = 'API اعلان توسط مرورگر پشتیبانی نمی‌شود.';
-                } else {
-                   const permission = await Notification.requestPermission();
-                   if (permission === 'granted') {
-                       try {
-                           // Timeout Promise to prevent hanging if SW isn't ready
-                           const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
-                           
-                           // Check for SW support and Readiness
-                           if ('serviceWorker' in navigator) {
-                               // Race between SW ready and 3s timeout
-                               const registration = await Promise.race([
-                                   navigator.serviceWorker.ready,
-                                   timeout
-                               ]);
+                    throw new Error('This browser does not support notifications.');
+                }
 
-                               if (registration) {
-                                   await registration.showNotification('تست فنی مروارید', { 
-                                       body: `Notification System Check: OK (Via Service Worker)\nTimestamp: ${new Date().toISOString()}`,
-                                       dir: 'rtl',
-                                       icon: '/vite.svg',
-                                       badge: '/vite.svg',
-                                       tag: 'test-notification-sw',
-                                       vibrate: [200, 100, 200]
-                                   } as any);
-                                   success = true;
-                                   logMessage = 'مجوز اعلان تایید و تست از طریق Service Worker ارسال شد.';
-                               } else {
-                                   // Timed out or not found, fallback to standard
-                                   throw new Error('SW not ready or timed out, trying fallback.');
-                               }
-                           } else {
-                               throw new Error('SW not supported, trying fallback.');
-                           }
-                       } catch (swError: any) {
-                           console.warn('SW Notification failed or timed out:', swError);
-                           // Fallback for browsers without SW support (e.g. old Safari) OR if SW timed out
-                           try {
-                               new Notification('تست فنی مروارید', { 
-                                   body: `Notification System Check: OK (Direct/Fallback)\nTimestamp: ${new Date().toISOString()}`,
-                                   dir: 'rtl'
-                               });
-                               success = true;
-                               logMessage = 'مجوز اعلان تایید و تست به صورت مستقیم ارسال شد (Fallback).';
-                           } catch (directError: any) {
-                               success = false;
-                               logMessage = `خطا در نمایش اعلان: ${directError.message}`;
-                               technicalDetails = `SW Error: ${swError.message} | Direct Error: ${directError.message}`;
-                           }
-                       }
-                   } else {
-                       success = false;
-                       logMessage = `دسترسی اعلان رد شد (وضعیت: ${permission}).`;
-                   }
-                   if(!technicalDetails) technicalDetails = `State: ${permission} | Vendor: ${navigator.vendor}`;
+                // 1. Request Permission
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                    success = false;
+                    logMessage = `کاربر دسترسی را رد کرد (Status: ${permission})`;
+                } else {
+                    // 2. Try Service Worker (Preferred for Mobile)
+                    let swReg = null;
+                    if ('serviceWorker' in navigator) {
+                        swReg = await navigator.serviceWorker.getRegistration();
+                    }
+
+                    try {
+                        if (swReg) {
+                            await swReg.showNotification('تست مروارید', {
+                                body: 'این اعلان از طریق Service Worker ارسال شد (PWA Ready).',
+                                icon: '/vite.svg',
+                                badge: '/vite.svg',
+                                dir: 'rtl'
+                            } as any);
+                            success = true;
+                            logMessage = 'اعلان با موفقیت از طریق Service Worker ارسال شد.';
+                            technicalDetails = `SW Scope: ${swReg.scope}`;
+                        } else {
+                            // 3. Fallback (Desktop / No SW)
+                            // Note: This throws on Android Chrome if called directly without SW
+                            new Notification('تست مروارید', {
+                                body: 'این اعلان به صورت مستقیم ارسال شد (Desktop Mode).',
+                                dir: 'rtl'
+                            });
+                            success = true;
+                            logMessage = 'اعلان به صورت مستقیم (Direct) ارسال شد.';
+                            technicalDetails = 'No Active Service Worker found, used constructor.';
+                        }
+                    } catch (err: any) {
+                        success = false;
+                        logMessage = `خطا در نمایش اعلان: ${err.message}`;
+                        technicalDetails = `Error Name: ${err.name}`;
+                    }
                 }
                 break;
 
             case 'excel':
                 if (XLSX && XLSX.utils) {
                     success = true;
-                    logMessage = 'موتور SheetJS بارگذاری شد.';
-                    technicalDetails = `v${XLSX.version} | Build: Browserify`;
+                    logMessage = 'کتابخانه Excel بارگذاری شد.';
                 } else {
                     success = false;
                     logMessage = 'کتابخانه XLSX یافت نشد.';
@@ -128,43 +109,33 @@ const FeatureTesting: React.FC = () => {
                 break;
 
             case 'database':
-                try {
-                    const start = Date.now();
-                    const { error, status } = await supabase.from('products').select('count', { count: 'exact', head: true });
-                    const durationDb = Date.now() - start;
-
-                    if (!error && (status >= 200 && status < 300)) {
-                        success = true;
-                        logMessage = `اتصال دیتابیس برقرار است (${durationDb}ms).`;
-                        technicalDetails = `HTTP: ${status} | Latency: ${durationDb}ms | Mode: Head-Request`;
-                    } else {
-                        success = false;
-                        logMessage = `خطا در اتصال Supabase: ${error?.message || 'Unknown'}`;
-                        technicalDetails = `Code: ${error?.code || 'N/A'} | Status: ${status}`;
-                    }
-                } catch(e: any) {
+                const { error, status } = await supabase.from('products').select('count', { count: 'exact', head: true });
+                if (!error && status >= 200 && status < 300) {
+                    success = true;
+                    logMessage = 'اتصال دیتابیس برقرار است.';
+                    technicalDetails = `Status: ${status}`;
+                } else {
                     success = false;
-                    logMessage = `خطای استثنا در دیتابیس: ${e.name}`;
-                    technicalDetails = e.message;
+                    logMessage = 'خطا در اتصال به دیتابیس.';
                 }
                 break;
         }
     } catch(e: any) {
         success = false;
-        logMessage = `خطای سیستمی: ${e.message}`;
-        technicalDetails = `Trace: ${e.stack?.substring(0, 50)}...`;
+        logMessage = `خطای غیرمنتظره: ${e.message}`;
+        technicalDetails = e.stack ? e.stack.substring(0, 100) : 'No stack';
     }
     
-    // ALWAYS Log and Update State
+    // Log Result
     addLog(
         success ? 'info' : 'error', 
         'frontend', 
-        `[TEST:${feature.toUpperCase()}] ${logMessage} | جزئیات فنی: ${technicalDetails}`
+        `[TEST:${feature}] ${logMessage}`, 
+        'TESTER'
     );
 
     setResults(prev => ({ ...prev, [feature]: success ? 'success' : 'failed' }));
-    if(success) addToast(`تست ${feature} موفق بود`, 'success');
-    else addToast(`تست ${feature} ناموفق بود.`, 'error');
+    addToast(success ? `تست ${feature} موفق بود` : `تست ${feature} شکست خورد`, success ? 'success' : 'error');
   };
   
   const TestCard = ({ title, icon: Icon, id, desc }: any) => (

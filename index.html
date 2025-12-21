@@ -47,6 +47,15 @@
             },
             spacing: {
               'safe': 'env(safe-area-inset-bottom)'
+            },
+            animation: {
+              'wiggle': 'wiggle 6s ease-in-out infinite',
+            },
+            keyframes: {
+              wiggle: {
+                '0%, 100%': { transform: 'rotate(-3deg)' },
+                '50%': { transform: 'rotate(3deg)' },
+              }
             }
           }
         }
@@ -112,6 +121,42 @@
       }
       input[type=number] {
         -moz-appearance: textfield;
+      }
+
+      /* --- METRO TILE ANIMATIONS --- */
+      @keyframes metro-shine {
+          0% { left: -100%; opacity: 0; }
+          20% { opacity: 0.3; }
+          100% { left: 200%; opacity: 0; }
+      }
+      
+      @keyframes metro-pattern-move {
+          0% { background-position: 0 0; }
+          100% { background-position: 40px 40px; }
+      }
+
+      .metro-shine-overlay {
+          position: absolute;
+          top: 0;
+          left: -100%;
+          width: 60%;
+          height: 100%;
+          background: linear-gradient(to right, transparent, rgba(255,255,255,0.25), transparent);
+          transform: skewX(-25deg);
+          animation: metro-shine 5s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
+          pointer-events: none;
+          z-index: 5;
+      }
+
+      .metro-pattern-overlay {
+          position: absolute;
+          inset: 0;
+          background-image: radial-gradient(rgba(255, 255, 255, 0.15) 1.5px, transparent 1.5px);
+          background-size: 20px 20px;
+          opacity: 0.6;
+          animation: metro-pattern-move 15s linear infinite;
+          pointer-events: none;
+          z-index: 1;
       }
     </style>
 

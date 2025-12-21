@@ -16,6 +16,7 @@ import { useInvoiceStore } from './store/invoiceStore';
 import { useUserStore } from './store/userStore';
 import { useAlertStore } from './store/alertStore';
 import { usePwaStore } from './store/pwaStore'; // Import PWA Store
+import { useLogStore } from './store/logStore'; // Import Log Store
 import ConfirmDialog from './components/common/ConfirmDialog';
 import ToastContainer from './components/common/Toast';
 
@@ -27,37 +28,36 @@ function App() {
   const { fetchInvoices } = useInvoiceStore();
   const { fetchUsers } = useUserStore();
   const { initListener } = useAlertStore();
-  const { setDeferredPrompt, setIsInstalled } = usePwaStore(); // PWA Actions
+  const { setDeferredPrompt, setIsInstalled } = usePwaStore(); 
+  const { addLog } = useLogStore();
 
   useEffect(() => {
     document.documentElement.classList.remove('light', 'dark');
     document.documentElement.classList.add(theme);
   }, [theme]);
 
-  // PWA Install Prompt Capture - MOVED HERE to ensure it's caught immediately
+  // PWA Status & Installation Handlers
   useEffect(() => {
-    const handleBeforeInstallPrompt = (e: any) => {
-      // Prevent the mini-infobar from appearing on mobile
-      e.preventDefault();
-      // Stash the event so it can be triggered later.
-      console.log('PWA: Install prompt captured');
-      setDeferredPrompt(e);
-    };
+    // 1. Check if app is already running in standalone mode (Installed)
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+        setIsInstalled(true);
+        addLog('info', 'frontend', 'PWA: App is running in Standalone Mode (Installed).', 'SYSTEM');
+    }
 
+    // 2. Handle successful installation event
     const handleAppInstalled = () => {
+      addLog('info', 'frontend', 'PWA: App was successfully installed (appinstalled event).', 'SYSTEM');
       console.log('PWA: App installed');
       setIsInstalled(true);
       setDeferredPrompt(null);
     };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
-  }, [setDeferredPrompt, setIsInstalled]);
+  }, [setDeferredPrompt, setIsInstalled, addLog]);
 
   // Initial Data Load
   useEffect(() => {
