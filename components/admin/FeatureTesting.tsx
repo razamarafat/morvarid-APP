@@ -66,17 +66,59 @@ const FeatureTesting: React.FC = () => {
                 } else {
                    const permission = await Notification.requestPermission();
                    if (permission === 'granted') {
-                       success = true;
-                       logMessage = 'مجوز اعلان دریافت شد.';
-                       new Notification('تست فنی مروارید', { 
-                           body: `Notification System Check: OK\nTimestamp: ${new Date().toISOString()}`,
-                           dir: 'rtl'
-                       });
+                       try {
+                           // Android Chrome requires Service Worker for notifications (Illegal Constructor Fix)
+                           if ('serviceWorker' in navigator) {
+                               let registration = await navigator.serviceWorker.getRegistration();
+                               if (!registration) {
+                                   registration = await navigator.serviceWorker.ready;
+                               }
+                               
+                               if (registration) {
+                                   await registration.showNotification('تست فنی مروارید', { 
+                                       body: `Notification System Check: OK (Via Service Worker)\nTimestamp: ${new Date().toISOString()}`,
+                                       dir: 'rtl',
+                                       icon: '/vite.svg',
+                                       badge: '/vite.svg',
+                                       tag: 'test-notification-sw',
+                                       vibrate: [200, 100, 200]
+                                   } as any);
+                                   success = true;
+                                   logMessage = 'مجوز اعلان تایید و تست از طریق Service Worker ارسال شد.';
+                               } else {
+                                   // Fallback if SW registration is somehow missing despite support
+                                   throw new Error('Service Worker supported but no registration found.');
+                               }
+                           } else {
+                               // Fallback for browsers without SW support (e.g. old Safari)
+                               new Notification('تست فنی مروارید', { 
+                                   body: `Notification System Check: OK (Direct Constructor)\nTimestamp: ${new Date().toISOString()}`,
+                                   dir: 'rtl'
+                               });
+                               success = true;
+                               logMessage = 'مجوز اعلان تایید و تست به صورت مستقیم ارسال شد.';
+                           }
+                       } catch (e: any) {
+                           console.warn('Primary notification method failed:', e);
+                           // Last resort fallback (might fail on Android)
+                           try {
+                               new Notification('تست فنی مروارید', { 
+                                   body: `Notification System Check: OK (Fallback)\nTimestamp: ${new Date().toISOString()}`,
+                                   dir: 'rtl'
+                               });
+                               success = true;
+                               logMessage = 'مجوز تایید شد (ارسال در حالت Fallback).';
+                           } catch (err: any) {
+                               success = false;
+                               logMessage = `خطا در نمایش اعلان: ${err.message}`;
+                               technicalDetails = `Primary Error: ${e.message} | Fallback Error: ${err.message}`;
+                           }
+                       }
                    } else {
                        success = false;
                        logMessage = `دسترسی اعلان رد شد (وضعیت: ${permission}).`;
                    }
-                   technicalDetails = `State: ${permission} | Vendor: ${navigator.vendor}`;
+                   if(!technicalDetails) technicalDetails = `State: ${permission} | Vendor: ${navigator.vendor}`;
                 }
                 break;
 
