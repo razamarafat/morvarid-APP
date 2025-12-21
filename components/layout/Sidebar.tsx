@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { useAuthStore } from '../../store/authStore';
+import { useLogStore } from '../../store/logStore';
 import { Icons } from '../common/Icons';
 import { APP_VERSION } from '../../constants';
 import { UserRole } from '../../types';
@@ -48,6 +49,7 @@ const NavLink: React.FC<{ icon: React.ElementType, label: string, view: string, 
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
   const { user, logout } = useAuthStore();
+  const { logAction } = useLogStore();
   const navigate = useNavigate();
   const { confirm } = useConfirm();
   const { deferredPrompt, setDeferredPrompt, isInstalled } = usePwaStore();
@@ -61,6 +63,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
   const [active, setActive] = React.useState('dashboard');
 
   const handleInstallClick = async () => {
+    logAction('info', 'user_action', 'کاربر درخواست نصب PWA را از منوی سایدبار ارسال کرد.');
     if (isInstalled) {
         addToast('اپلیکیشن قبلاً نصب شده است.', 'success');
         return;
@@ -71,6 +74,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
     }
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
+    logAction('info', 'frontend', `نتیجه درخواست نصب PWA: ${outcome}`);
     if (outcome === 'accepted') {
       setDeferredPrompt(null);
     }
@@ -87,20 +91,23 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
             type: 'danger'
         });
         if (confirmed) {
+            logAction('info', 'auth', `خروج کاربر از طریق سایدبار انجام شد.`, { userId: user?.id });
             logout();
             navigate('/login');
         }
     }, 150);
   };
   
-  const handleNavigation = (view: string) => {
+  const handleNavigation = (view: string, label: string) => {
+    logAction('info', 'user_action', `تغییر نمای سایدبار به: [${label}]`, { view });
     onNavigate(view);
     onClose();
   }
 
   const handleHome = () => {
+      logAction('info', 'user_action', 'کلیک بر روی لوگو/عنوان در سایدبار برای بازگشت به داشبورد.');
       setActive('dashboard');
-      handleNavigation('dashboard');
+      handleNavigation('dashboard', 'داشبورد اصلی');
   };
 
   // Base links per role
@@ -138,10 +145,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
                     {...link} 
                     role={role}
                     currentView={active}
-                    onClick={() => { setActive(link.view); handleNavigation(link.view); }} 
+                    onClick={() => { setActive(link.view); handleNavigation(link.view, link.label); }} 
                 />
             ))}
-            {/* Added PWA Link to Menu */}
             <NavLink 
                 icon={isInstalled ? Icons.Check : Icons.Download}
                 label={isInstalled ? 'اپلیکیشن فعال است' : 'نصب نسخه PWA'}
@@ -163,7 +169,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
         className={`fixed inset-0 bg-black/80 z-[100] transition-opacity duration-300 ${
           isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
-        onClick={onClose}
+        onClick={() => {
+            logAction('info', 'user_action', 'بستن منوی سایدبار با کلیک روی فضای بیرونی.');
+            onClose();
+        }}
       />
       
       <aside className={sidebarClasses}>
@@ -175,7 +184,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
                 <h2 className="text-2xl lg:text-4xl font-black leading-tight tracking-tight">M.I.S</h2>
                 <p className="text-sm lg:text-base opacity-90 font-normal mt-1">سیستم مدیریت مروارید</p>
             </div>
-            <button onClick={onClose} className="absolute top-4 left-4 text-white/70 hover:text-white">
+            <button onClick={(e) => {
+                e.stopPropagation();
+                logAction('info', 'user_action', 'بستن منوی سایدبار با دکمه ضربدر.');
+                onClose();
+            }} className="absolute top-4 left-4 text-white/70 hover:text-white">
                 <Icons.X className="w-6 h-6" />
             </button>
         </div>

@@ -7,41 +7,39 @@ interface LogState {
   logs: SystemLog[];
   isLoading: boolean;
   
-  // Core Action: Sends log to DB
   logAction: (
       level: SystemLog['level'], 
       category: SystemLog['category'], 
       summary: string, 
-      technicalDetails?: any, 
+      techData?: any, 
       forceUserId?: string | null
   ) => Promise<void>;
 
-  // Wrapper for backward compatibility
-  addLog: (
-      level: SystemLog['level'], 
-      category: SystemLog['category'], 
-      message: string, 
-      userId?: string
-  ) => Promise<void>;
+  addLog: (level: any, cat: any, msg: string, uid?: string) => Promise<void>;
 
-  fetchLogs: (filters?: { userId?: string; date?: string }) => Promise<void>;
-  subscribeToLogs: () => () => void;
-  deleteLogsByUserId: (userId: string) => Promise<void>;
+  fetchLogs: (filters?: { userId?: string }) => Promise<void>;
   clearLocalLogs: () => void;
+  deleteLogsByUserId: (userId: string) => Promise<void>;
+  subscribeToLogs: () => () => void;
 }
 
-const getTechnicalContext = () => {
+// Internal helper for full device context
+const captureDeviceSpecs = () => {
     try {
-        const nav = navigator as any;
+        if (typeof window === 'undefined' || typeof navigator === 'undefined') return {};
+        
         return {
+            window: `${window.innerWidth}x${window.innerHeight}`,
+            screen: typeof screen !== 'undefined' ? `${screen.width}x${screen.height}` : 'unknown',
+            userAgent: navigator.userAgent,
+            platform: (navigator as any).platform || 'unknown',
             url: window.location.href,
-            userAgent: nav.userAgent,
-            platform: nav.platform,
-            screen: `${window.screen.width}x${window.screen.height}`,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            language: navigator.language,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
         };
     } catch (e) {
-        return { error: 'Context extraction failed' };
+        return { error: 'Device info capture failed' };
     }
 };
 
@@ -49,77 +47,48 @@ export const useLogStore = create<LogState>((set, get) => ({
   logs: [],
   isLoading: false,
 
-  logAction: async (level, category, summary, technicalDetails = {}, forceUserId) => {
-      // 1. Resolve User ID securely
-      let finalUserId: string | null = null;
-
-      // Validate UUID format if forced
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      
-      if (forceUserId && uuidRegex.test(forceUserId)) {
-          finalUserId = forceUserId;
-      } else {
-          // If not forced, try to get from current session
-          const { data } = await supabase.auth.getSession();
-          if (data.session?.user?.id) {
-              finalUserId = data.session.user.id;
-          }
-      }
-
-      const techContext = getTechnicalContext();
-      const fullDetails = { ...technicalDetails, ...techContext };
-
-      // 2. Primary Attempt: Use 'details' JSON column
-      const logPayload = {
-          level,
-          category,
-          message: summary,
-          details: fullDetails,
-          user_id: finalUserId,
-          timestamp: new Date().toISOString()
-      };
-
-      // 3. Console Log for Dev
-      if (process.env.NODE_ENV === 'development') {
-          console.log(`[LOGGER] ${category.toUpperCase()}: ${summary}`, logPayload);
-      }
-
+  logAction: async (level, category, summary, techData = {}, forceUserId) => {
       try {
-          const { error } = await supabase.from('system_logs').insert(logPayload);
+          // 1. Resolve User (Non-blocking)
+          let userId: string | null = null;
+          if (forceUserId) {
+              userId = forceUserId;
+          } else {
+              const { data } = await supabase.auth.getSession();
+              userId = data.session?.user?.id || null;
+          }
+
+          // 2. Prepare Data
+          const techContext = captureDeviceSpecs();
+          const finalPayload = {
+              level,
+              category,
+              message: summary,
+              details: { ...techData, _technical: techContext },
+              user_id: userId,
+              timestamp: new Date().toISOString()
+          };
+
+          console.log(`%c[LOG:${category}] ${summary}`, "color: #00ff00; background: #000; padding: 2px", finalPayload);
+
+          // 3. Database Save (Robust)
+          const { error } = await supabase.from('system_logs').insert(finalPayload);
 
           if (error) {
-              // 4. Fallback Strategy: If 'details' column is missing (PGRST204) or any undefined column error (42703)
-              if (error.code === '42703' || error.code === 'PGRST204') { 
-                   console.warn("LogStore: 'details' column missing. Falling back to legacy format.");
-                   
-                   // Serialize details into the message string
-                   const legacyMessage = `${summary} | [TECH_DETAILS]: ${JSON.stringify(fullDetails)}`;
-                   const legacyPayload = {
-                      level,
-                      category,
-                      message: legacyMessage.slice(0, 5000), // Ensure it fits in text column
-                      user_id: finalUserId,
-                      timestamp: logPayload.timestamp
-                   };
-                   
-                   // Try inserting without 'details' field
-                   const { error: legacyError } = await supabase.from('system_logs').insert(legacyPayload);
-                   if (legacyError) {
-                       if (legacyError.code === '42501') {
-                           console.warn('Log Legacy Insert Blocked by RLS.', legacyError.message);
-                       } else {
-                           console.error('CRITICAL: Log Legacy Insert Failed. Msg:', legacyError.message, 'Code:', legacyError.code, 'Details:', legacyError.details);
-                       }
-                   }
-              } else if (error.code === '42501') {
-                  // RLS Violation (Permission Denied) - common for anonymous
-                  console.warn('Log Insert Blocked by RLS (Policy Violation). Expected for anonymous users.', error.message);
-              } else {
-                  console.error('CRITICAL: Log Insert Failed. Message:', error.message, 'Code:', error.code, 'Details:', error.details);
-              }
+              console.warn('Primary log insert failed, attempting fallback:', error.message);
+              // Fallback for Schema Mismatches (e.g. if 'details' column is missing or strict)
+              const safePayload = {
+                  level,
+                  category,
+                  message: `${summary} | DATA: ${JSON.stringify(techData).substring(0, 500)}`,
+                  user_id: userId,
+                  timestamp: finalPayload.timestamp
+              };
+              // Try inserting simplified payload
+              await supabase.from('system_logs').insert(safePayload);
           }
-      } catch (err: any) {
-          console.error('CRITICAL: Logger Exception', err?.message || err);
+      } catch (err) {
+          console.error('Critical Logger Failure', err);
       }
   },
 
@@ -130,107 +99,89 @@ export const useLogStore = create<LogState>((set, get) => ({
   fetchLogs: async (filters) => {
       set({ isLoading: true });
       try {
+          // STRATEGY: Fetch Logs FIRST, then map users manually.
+          // This prevents "Foreign Key" errors from breaking the entire list.
+          
+          // 1. Fetch raw logs
           let query = supabase
             .from('system_logs')
-            .select(`
-                *,
-                profiles:user_id ( full_name, username )
-            `)
+            .select('*')
             .order('timestamp', { ascending: false })
-            .limit(200);
+            .limit(100);
 
           if (filters?.userId && filters.userId !== 'all') {
               query = query.eq('user_id', filters.userId);
           }
 
-          const { data, error } = await query;
+          const { data: logsData, error: logsError } = await query;
 
-          if (error) throw error;
+          if (logsError) {
+              console.error('Fetch logs error:', logsError);
+              throw logsError;
+          }
+          
+          if (logsData && logsData.length > 0) {
+              // 2. Extract unique User IDs
+              const userIds = Array.from(new Set(logsData.map((l: any) => l.user_id).filter(Boolean)));
+              let userMap: Record<string, string> = {};
 
-          if (data) {
-              const mappedLogs: SystemLog[] = data.map((l: any) => {
-                  // If details is null (legacy fallback), try to parse from message if it has the tag
-                  let finalDetails = l.details || {};
-                  let finalMessage = l.message;
+              // 3. Fetch User Names (If any users exist)
+              if (userIds.length > 0) {
+                  const { data: profiles } = await supabase
+                      .from('profiles')
+                      .select('id, full_name, username')
+                      .in('id', userIds);
+                  
+                  if (profiles) {
+                      profiles.forEach((p: any) => {
+                          userMap[p.id] = p.full_name || p.username || 'کاربر';
+                      });
+                  }
+              }
 
-                  if (!l.details && l.message && l.message.includes('[TECH_DETAILS]:')) {
+              // 4. Map Data together
+              const mapped: SystemLog[] = logsData.map((l: any) => {
+                  let d = l.details || {};
+                  let m = l.message;
+                  
+                  // Handle legacy fallback parsing
+                  if (!l.details && l.message?.includes('| DATA:')) {
                       try {
-                          const parts = l.message.split('[TECH_DETAILS]:');
-                          finalMessage = parts[0].trim().replace(/ \| $/, '');
-                          finalDetails = JSON.parse(parts[1]);
-                      } catch (e) {
-                          // Keep as is if parsing fails
-                      }
+                          const parts = l.message.split('| DATA:');
+                          m = parts[0].trim();
+                          d = { recovered_data: parts[1] };
+                      } catch (e) {}
                   }
 
                   return {
                       id: l.id,
                       level: l.level,
                       category: l.category,
-                      message: finalMessage,
-                      details: finalDetails,
+                      message: m,
+                      details: d,
                       userId: l.user_id,
-                      user_full_name: l.profiles?.full_name || (l.user_id ? 'کاربر حذف شده' : 'سیستم / ناشناس'),
+                      user_full_name: userMap[l.user_id] || (l.user_id ? 'کاربر حذف شده/نامشخص' : 'سیستم'),
                       timestamp: l.timestamp
                   };
               });
-              set({ logs: mappedLogs, isLoading: false });
+              set({ logs: mapped, isLoading: false });
+          } else {
+              set({ logs: [], isLoading: false });
           }
-      } catch (error: any) {
-          if (error?.code !== '42501') { 
-              console.error("Fetch Logs Error:", error?.message || error);
-          }
+      } catch (e) {
+          console.error('Fetch Logs Exception:', e);
           set({ isLoading: false });
       }
   },
 
   subscribeToLogs: () => {
       const channel = supabase
-          .channel('realtime_logs_global')
-          .on(
-              'postgres_changes',
-              { event: 'INSERT', schema: 'public', table: 'system_logs' },
-              async (payload) => {
-                  const newLog = payload.new;
-                  
-                  let userName = 'سیستم / ناشناس';
-                  if (newLog.user_id) {
-                      const { data } = await supabase.from('profiles').select('full_name').eq('id', newLog.user_id).single();
-                      if (data) userName = data.full_name;
-                  }
-
-                  // Handle legacy fallback parsing in realtime too
-                  let finalDetails = newLog.details || {};
-                  let finalMessage = newLog.message;
-                  if (!newLog.details && newLog.message && newLog.message.includes('[TECH_DETAILS]:')) {
-                      try {
-                          const parts = newLog.message.split('[TECH_DETAILS]:');
-                          finalMessage = parts[0].trim().replace(/ \| $/, '');
-                          finalDetails = JSON.parse(parts[1]);
-                      } catch (e) {}
-                  }
-
-                  const formattedLog: SystemLog = {
-                      id: newLog.id,
-                      level: newLog.level,
-                      category: newLog.category,
-                      message: finalMessage,
-                      details: finalDetails,
-                      userId: newLog.user_id,
-                      user_full_name: userName,
-                      timestamp: newLog.timestamp
-                  };
-
-                  set(state => ({
-                      logs: [formattedLog, ...state.logs].slice(0, 200)
-                  }));
-              }
-          )
+          .channel('realtime_logs_viewer')
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'system_logs' }, () => {
+              get().fetchLogs();
+          })
           .subscribe();
-
-      return () => {
-          supabase.removeChannel(channel);
-      };
+      return () => { supabase.removeChannel(channel); };
   },
 
   deleteLogsByUserId: async (userId) => {

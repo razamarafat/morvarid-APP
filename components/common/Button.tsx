@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { useLogStore } from '../../store/logStore';
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
 type ButtonSize = 'sm' | 'md' | 'lg' | 'icon';
@@ -11,8 +12,31 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'md', isLoading = false, children, ...props }, ref) => {
-    // METRO STYLE: No rounded, bold borders/colors
+  ({ className, variant = 'primary', size = 'md', isLoading = false, children, onClick, ...props }, ref) => {
+    
+    // Direct store access to avoid re-renders
+    const handleInternalClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+        let buttonLabel = 'unnamed_button';
+        if (typeof children === 'string') {
+            buttonLabel = children;
+        } else if (props.title) {
+            buttonLabel = props.title;
+        } else if (props['aria-label']) {
+            buttonLabel = props['aria-label'];
+        }
+
+        // Fire and forget log
+        useLogStore.getState().logAction('info', 'user_action', `کلیک دکمه: [${buttonLabel}]`, { 
+            variant, 
+            size, 
+            class: className 
+        });
+
+        if (onClick) {
+            onClick(e);
+        }
+    };
+
     const baseClasses = 'inline-flex items-center justify-center font-bold transition-all focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98]';
 
     const variantClasses = {
@@ -34,6 +58,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
         ref={ref}
         disabled={isLoading || props.disabled}
+        onClick={handleInternalClick}
         {...props}
       >
         {isLoading && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current ml-2"></div>}

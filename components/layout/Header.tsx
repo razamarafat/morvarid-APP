@@ -2,6 +2,7 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
+import { useLogStore } from '../../store/logStore';
 import { Icons } from '../common/Icons';
 import ThemeToggle from '../common/ThemeToggle';
 import { UserRole } from '../../types';
@@ -16,6 +17,7 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
   const { user, logout } = useAuthStore();
+  const { logAction } = useLogStore();
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useThemeStore(state => state.theme);
@@ -25,11 +27,15 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
   const themeColors = THEMES[theme][role];
 
   const handleHomeClick = (e: React.MouseEvent) => {
-    e.preventDefault(); // Prevent any default form submission if inside a form
+    e.preventDefault();
+    logAction('info', 'user_action', `درخواست بازگشت به داشبورد اصلی از مسیر ${location.pathname}`, { userId: user?.id });
+    
     if (!user) {
         navigate('/login');
         return;
     }
+
+    // Role based exact navigation
     switch (user.role) {
         case UserRole.ADMIN: navigate('/admin'); break;
         case UserRole.REGISTRATION: navigate('/registration'); break;
@@ -48,12 +54,14 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
       });
       
       if (confirmed) {
+          logAction('info', 'auth', `کاربر ${user?.fullName} دستور خروج از سیستم را صادر کرد.`, { userId: user?.id });
           await logout();
           navigate('/login');
       }
   };
 
-  const handleBack = async () => {
+  const handleBack = () => {
+      logAction('info', 'user_action', `بازگشت به صفحه قبل از ${location.pathname}`);
       navigate(-1);
   };
 
@@ -65,17 +73,18 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
     <header className={`${themeColors.surface} ${themeColors.text} shadow-md sticky top-0 z-30 transition-colors duration-300 border-b-2 border-gray-100 dark:border-gray-800`}>
       <div className="container mx-auto px-4 py-3 flex justify-between items-center max-w-full">
         
-        {/* Right Side: Menu + Dashboard Button + Title */}
         <div className="flex items-center gap-4">
           <button 
-            onClick={onMenuClick} 
+            onClick={() => {
+                logAction('info', 'user_action', 'منوی همبرگری باز شد');
+                onMenuClick();
+            }} 
             className="p-2.5 -ml-2 hover:bg-black/5 dark:hover:bg-white/10 transition-colors active:scale-95 rounded-full"
             aria-label="Menu"
           >
             <Icons.Menu className="w-8 h-8" />
           </button>
 
-          {/* DASHBOARD BUTTON - Moved Here */}
           <button 
             onClick={handleHomeClick}
             type="button"
@@ -95,18 +104,13 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
               </button>
           )}
 
-          {/* Page Title */}
           <h1 className="text-lg md:text-2xl font-black tracking-tighter truncate max-w-[150px] sm:max-w-none border-r-2 border-gray-300 dark:border-gray-600 pr-4 mr-2">
             {title}
           </h1>
         </div>
         
-        {/* Left Side: User Info + Logout + Theme */}
         <div className="flex items-center gap-3">
-          
-          <div 
-            className="hidden sm:flex items-center gap-2 bg-gray-100 dark:bg-gray-700/50 px-3 py-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors rounded-full"
-          >
+          <div className="hidden sm:flex items-center gap-2 bg-gray-100 dark:bg-gray-700/50 px-3 py-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors rounded-full">
             <div className={`p-1 ${themeColors.primary} text-white rounded-full`}>
                 <Icons.User className="w-4 h-4" />
             </div>
