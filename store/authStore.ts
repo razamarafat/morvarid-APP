@@ -130,10 +130,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   login: async (username, password, rememberMe) => {
     const { loginAttempts, blockUntil } = get();
-    useLogStore.getState().addLog('info', 'auth', `Login attempt for user: ${username}`);
     
     if (blockUntil && Date.now() < blockUntil) {
-      useLogStore.getState().addLog('warn', 'security', `Blocked login attempt for ${username}`);
+      // Use await to ensure log is saved before returning
+      await useLogStore.getState().logAction('warn', 'security', `تلاش ورود به حساب مسدود شده: ${username}`, { attempt: loginAttempts }, null);
       return { success: false, error: 'حساب موقتا مسدود است. لطفا صبر کنید.' };
     }
 
@@ -157,7 +157,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (!error && data.user) {
             loginData = data;
             loginError = null;
-            useLogStore.getState().addLog('debug', 'auth', `Login successful using domain: ${domain}`, data.user.id);
             break; 
         } else {
             loginError = error;
@@ -166,7 +165,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     if (loginError || !loginData) {
         get().recordFailedAttempt();
-        useLogStore.getState().addLog('warn', 'auth', `Login failed for ${cleanUsername}`);
+        // IMPORTANT: Pass 'null' for userId, NOT 'ANONYMOUS' or empty string
+        await useLogStore.getState().logAction(
+            'warn', 
+            'auth', 
+            `تلاش ناموفق ورود برای ${cleanUsername}`, 
+            { error: loginError?.message }, 
+            null
+        );
         return { success: false, error: 'نام کاربری یا رمز عبور اشتباه است' };
     }
 
@@ -176,7 +182,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         
         if (profile && !profile.is_active) {
             await supabase.auth.signOut();
-            useLogStore.getState().addLog('warn', 'auth', `Inactive user attempted login: ${username}`);
+            await useLogStore.getState().logAction('warn', 'auth', `کاربر غیرفعال تلاش برای ورود کرد: ${username}`, {}, loginData.user.id);
             return { success: false, error: 'حساب کاربری شما غیرفعال شده است. با مدیر تماس بگیرید.' };
         }
 
@@ -193,7 +199,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         await get().checkSession();
         const currentUser = get().user;
         if (currentUser) {
-            useLogStore.getState().addLog('info', 'auth', `User ${username} logged in successfully`, currentUser.id);
+            // Log successful login with explicit user ID and await it
+            await useLogStore.getState().logAction(
+                'info', 
+                'auth', 
+                `کاربر ${currentUser.fullName} با موفقیت وارد شد.`, 
+                { role: currentUser.role }, 
+                currentUser.id
+            );
             return { success: true };
         } else {
              return { success: false, error: 'حساب کاربری یافت نشد (پروفایل ناقص)' };
@@ -205,7 +218,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: async () => {
     const user = get().user;
-    useLogStore.getState().addLog('info', 'auth', `User logged out`, user?.id);
+    if (user) {
+        // Await the log before signing out
+        await useLogStore.getState().logAction('info', 'auth', `کاربر ${user.fullName} خارج شد.`, {}, user.id);
+    }
     await supabase.auth.signOut();
     set({ user: null });
   },

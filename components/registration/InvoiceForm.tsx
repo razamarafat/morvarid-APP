@@ -17,18 +17,28 @@ import { FarmType } from '../../types';
 import JalaliDatePicker from '../common/JalaliDatePicker';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// Regex: Only numbers, max 15 digits
-const strictNumberRegex = /^[0-9]{1,15}$/;
+// Regex Definitions
+const noLatinRegex = /^[^a-zA-Z]*$/;
+const mobileRegex = /^09\d{9}$/;
+const invoiceNumberRegex = /^(17|18)\d{8}$/; // Starts with 17 or 18, followed by 8 digits (Total 10)
+// Plate format: 2 digits - 3 digits + Persian Char - 2 digits (flexible on dashes)
+const plateRegex = /^\d{2}[\s-]?\d{3}[\s-]?[\u0600-\u06FF][\s-]?\d{2}$/;
 
 const invoiceGlobalSchema = z.object({
     invoiceNumber: z.string()
         .min(1, 'شماره حواله الزامی است')
-        .regex(strictNumberRegex, 'شماره حواله باید فقط عدد باشد (بدون فاصله یا حروف)'),
-    contactPhone: z.string().min(1, 'شماره تماس الزامی است'),
-    driverName: z.string().optional(),
-    plateNumber: z.string().optional(),
-    driverMobile: z.string().optional(),
-    description: z.string().optional(),
+        .regex(invoiceNumberRegex, 'شماره حواله باید ۱۰ رقم باشد و با ۱۷ یا ۱۸ شروع شود (مثال: ۱۷۶۱۲۳۴۵۶۷)'),
+    contactPhone: z.string()
+        .min(1, 'شماره تماس الزامی است')
+        .regex(mobileRegex, 'شماره همراه باید ۱۱ رقم و با ۰۹ شروع شود (مثال: ۰۹۱۲۳۴۵۶۷۸۹)'),
+    driverName: z.string().optional()
+        .refine(val => !val || noLatinRegex.test(val), 'استفاده از حروف انگلیسی در نام راننده مجاز نیست'),
+    plateNumber: z.string().optional()
+        .refine(val => !val || plateRegex.test(val), 'فرمت پلاک صحیح نیست. مثال: ۱۵-۳۶۵ج۱۱'),
+    driverMobile: z.string().optional()
+        .refine(val => !val || mobileRegex.test(val), 'شماره موبایل راننده معتبر نیست (فرمت: ۰۹xxxxxxxxx)'),
+    description: z.string().optional()
+        .refine(val => !val || noLatinRegex.test(val), 'استفاده از حروف انگلیسی در توضیحات مجاز نیست'),
 });
 
 type GlobalValues = z.infer<typeof invoiceGlobalSchema>;
@@ -225,13 +235,13 @@ export const InvoiceForm: React.FC = () => {
         }
     };
 
-    const inputClass = "w-full p-3 border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-black text-center focus:border-metro-blue outline-none transition-all text-lg shadow-sm";
-    const labelClass = "block text-[10px] font-black text-gray-400 dark:text-gray-500 mb-1 uppercase text-right px-1";
+    const inputClass = "w-full p-3 lg:p-4 lg:text-2xl lg:h-16 border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-black text-center focus:border-metro-blue outline-none transition-all text-lg shadow-sm";
+    const labelClass = "block text-[10px] lg:text-sm font-black text-gray-400 dark:text-gray-500 mb-1 uppercase text-right px-1";
 
     if (!selectedFarm) return <div className="p-20 text-center font-bold text-gray-400">فارمی یافت نشد.</div>;
 
     return (
-        <div className="max-w-4xl mx-auto space-y-6 pb-20">
+        <div className="max-w-4xl mx-auto space-y-6 lg:space-y-10 pb-20">
             {/* Animated Header */}
             <div className="bg-metro-blue p-8 text-white shadow-xl relative overflow-hidden flex flex-col items-center justify-center gap-4 border-b-8 border-blue-900/30">
                 <div className="absolute inset-0 z-0 bg-gradient-to-r from-metro-blue via-metro-cobalt to-metro-blue bg-[length:200%_200%] animate-[gradient-xy_3s_ease_infinite]"></div>
@@ -239,19 +249,19 @@ export const InvoiceForm: React.FC = () => {
                 <div className="relative z-10 flex justify-center items-center gap-4 text-xl font-bold bg-white/10 backdrop-blur-md px-8 py-3 w-full max-w-sm border-r-4 border-white shadow-lg transition-transform hover:scale-[1.02]">
                     <span className="opacity-90">{todayDayName}</span>
                     <div className="w-[2px] h-6 bg-white/30 rounded-full"></div>
-                    <span className="font-sans tracking-tight text-3xl font-black drop-shadow-sm">{toPersianDigits(referenceDate)}</span>
+                    <span className="font-sans tracking-tight text-3xl lg:text-4xl font-black drop-shadow-sm">{toPersianDigits(referenceDate)}</span>
                 </div>
-                <div className="relative z-10 text-7xl font-black font-sans tracking-widest mt-2 drop-shadow-2xl flex items-center gap-2">{currentTime}</div>
+                <div className="relative z-10 text-7xl lg:text-8xl font-black font-sans tabular-nums tracking-widest mt-2 drop-shadow-2xl flex items-center gap-2">{currentTime}</div>
             </div>
 
             {/* TASK 1: Main Specifications Section */}
-            <div className="bg-white dark:bg-gray-800 p-6 shadow-md border-l-[12px] border-metro-blue rounded-xl space-y-6 relative">
-                <div className="absolute top-0 right-0 bg-metro-blue text-white px-3 py-1 text-xs font-bold rounded-bl-lg">مشخصات اصلی حواله</div>
+            <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 shadow-md border-l-[12px] border-metro-blue rounded-xl space-y-6 relative">
+                <div className="absolute top-0 right-0 bg-metro-blue text-white px-3 py-1 text-xs lg:text-sm font-bold rounded-bl-lg">مشخصات اصلی حواله</div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-8 mt-2">
                     <div className="group">
-                        <label className={labelClass}>رمز حواله (فقط عدد)</label>
-                        <input dir="ltr" type="tel" inputMode="numeric" {...register('invoiceNumber')} className={`${inputClass} !text-2xl tracking-[0.2em] border-metro-blue/30`} placeholder="000000" />
+                        <label className={labelClass}>رمز حواله (شروع با ۱۷ یا ۱۸ - ۱۰ رقم)</label>
+                        <input dir="ltr" type="tel" inputMode="numeric" {...register('invoiceNumber')} className={`${inputClass} !text-2xl lg:!text-3xl tracking-[0.2em] border-metro-blue/30`} placeholder="" maxLength={10} />
                         {errors.invoiceNumber && <p className="text-red-500 text-xs mt-1 font-bold">{errors.invoiceNumber.message}</p>}
                     </div>
 
@@ -262,25 +272,25 @@ export const InvoiceForm: React.FC = () => {
 
                 <div>
                     <label className={labelClass}>شماره تماس (اصلی)</label>
-                    <input dir="ltr" {...register('contactPhone')} className={`${inputClass} !text-xl font-mono border-metro-blue/30`} placeholder="09..." />
+                    <input dir="ltr" type="tel" inputMode="numeric" {...register('contactPhone')} className={`${inputClass} !text-xl lg:!text-3xl font-mono border-metro-blue/30`} placeholder="" maxLength={11} />
                     {errors.contactPhone && <p className="text-red-500 text-xs mt-1 font-bold">{errors.contactPhone.message}</p>}
                 </div>
             </div>
 
             {/* TASK 2: Product Dropdown Selection */}
-            <div className="bg-white dark:bg-gray-800 p-6 shadow-md border-l-[12px] border-metro-orange rounded-xl space-y-2">
+            <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 shadow-md border-l-[12px] border-metro-orange rounded-xl space-y-2">
                 <button 
                     onClick={() => setIsProductSelectorOpen(!isProductSelectorOpen)}
-                    className="w-full flex justify-between items-center bg-gray-100 dark:bg-gray-700 p-4 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                    className="w-full flex justify-between items-center bg-gray-100 dark:bg-gray-700 p-4 lg:p-6 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                 >
                     <div className="flex items-center gap-2">
-                        <Icons.Check className="w-5 h-5 text-metro-orange" />
-                        <span className="font-bold text-gray-700 dark:text-white">انتخاب محصولات</span>
-                        <span className="text-xs bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full font-bold mr-2">
+                        <Icons.Check className="w-5 h-5 lg:w-8 lg:h-8 text-metro-orange" />
+                        <span className="font-bold text-gray-700 dark:text-white lg:text-xl">انتخاب محصولات</span>
+                        <span className="text-xs lg:text-base bg-orange-100 text-orange-800 px-2 lg:px-4 py-0.5 lg:py-1 rounded-full font-bold mr-2">
                             {toPersianDigits(selectedProductIds.length)} مورد
                         </span>
                     </div>
-                    <Icons.ChevronDown className={`w-5 h-5 transition-transform text-gray-500 ${isProductSelectorOpen ? 'rotate-180' : ''}`} />
+                    <Icons.ChevronDown className={`w-5 h-5 lg:w-8 lg:h-8 transition-transform text-gray-500 ${isProductSelectorOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 <AnimatePresence>
@@ -291,25 +301,25 @@ export const InvoiceForm: React.FC = () => {
                             exit={{ height: 0, opacity: 0 }}
                             className="overflow-hidden bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700"
                         >
-                            <div className="p-2 space-y-1">
+                            <div className="p-2 lg:p-4 space-y-1 lg:space-y-2">
                                 {selectedFarm.productIds.map(pid => {
                                     const p = getProductById(pid);
                                     const isSelected = selectedProductIds.includes(pid);
                                     return (
                                         <label 
                                             key={pid} 
-                                            className="flex items-center p-3 rounded-md hover:bg-white dark:hover:bg-gray-800 cursor-pointer transition-colors select-none"
+                                            className="flex items-center p-3 lg:p-4 rounded-md hover:bg-white dark:hover:bg-gray-800 cursor-pointer transition-colors select-none"
                                         >
                                             <input 
                                                 type="checkbox" 
-                                                className="w-5 h-5 ml-3 rounded text-metro-orange focus:ring-metro-orange border-gray-300"
+                                                className="w-5 h-5 lg:w-6 lg:h-6 ml-3 rounded text-metro-orange focus:ring-metro-orange border-gray-300"
                                                 checked={isSelected}
                                                 onChange={() => handleProductToggle(pid)}
                                             />
-                                            <span className={`flex-1 font-medium ${isSelected ? 'text-metro-orange font-bold' : 'text-gray-700 dark:text-gray-300'}`}>
+                                            <span className={`flex-1 font-medium lg:text-xl ${isSelected ? 'text-metro-orange font-bold' : 'text-gray-700 dark:text-gray-300'}`}>
                                                 {p?.name}
                                             </span>
-                                            <span className="text-[10px] text-gray-400">
+                                            <span className="text-[10px] lg:text-sm text-gray-400">
                                                 {p?.unit === 'CARTON' ? 'کارتن' : 'واحد'}
                                             </span>
                                         </label>
@@ -324,9 +334,9 @@ export const InvoiceForm: React.FC = () => {
             {/* TASK 2: Dynamic Input Tables for Selected Products */}
             <AnimatePresence>
                 {selectedProductIds.length > 0 && (
-                    <div className="space-y-4">
-                        <h4 className="text-sm font-black text-gray-500 dark:text-gray-400 px-2 flex items-center gap-2">
-                            <Icons.Edit className="w-4 h-4" />
+                    <div className="space-y-4 lg:space-y-6">
+                        <h4 className="text-sm lg:text-lg font-black text-gray-500 dark:text-gray-400 px-2 flex items-center gap-2">
+                            <Icons.Edit className="w-4 h-4 lg:w-6 lg:h-6" />
                             ورود اطلاعات اقلام
                         </h4>
                         {selectedProductIds.map(pid => {
@@ -344,26 +354,26 @@ export const InvoiceForm: React.FC = () => {
                                     initial={{ opacity: 0, x: -20 }} 
                                     animate={{ opacity: 1, x: 0 }} 
                                     exit={{ opacity: 0, scale: 0.95 }} 
-                                    className="bg-white dark:bg-gray-800 p-4 border-r-8 border-metro-green shadow-sm rounded-lg flex flex-col md:flex-row items-center gap-4"
+                                    className="bg-white dark:bg-gray-800 p-4 lg:p-6 border-r-8 border-metro-green shadow-sm rounded-lg flex flex-col md:flex-row items-center gap-4 lg:gap-8"
                                 >
                                     <div className="w-full md:w-1/3 flex flex-col gap-2 border-b-2 md:border-b-0 md:border-l-2 border-gray-100 dark:border-gray-700 pb-2 md:pb-0 md:pl-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="bg-green-100 text-green-700 p-2 rounded-full">
-                                                <Icons.Check className="w-5 h-5" />
+                                            <div className="bg-green-100 text-green-700 p-2 lg:p-3 rounded-full">
+                                                <Icons.Check className="w-5 h-5 lg:w-8 lg:h-8" />
                                             </div>
                                             <div>
-                                                <h5 className="font-black text-gray-800 dark:text-white">{p?.name}</h5>
-                                                <span className="text-[10px] text-gray-400">{p?.unit === 'CARTON' ? 'واحد: کارتن' : 'واحد: عدد'}</span>
+                                                <h5 className="font-black text-gray-800 dark:text-white lg:text-2xl">{p?.name}</h5>
+                                                <span className="text-[10px] lg:text-sm text-gray-400">{p?.unit === 'CARTON' ? 'واحد: کارتن' : 'واحد: عدد'}</span>
                                             </div>
                                         </div>
                                         
                                         {/* Available Inventory Badge */}
-                                        <div className={`text-xs px-2 py-1 rounded font-bold text-center ${hasStats ? 'bg-blue-50 text-blue-700' : 'bg-red-50 text-red-700 animate-pulse'}`}>
+                                        <div className={`text-xs lg:text-sm px-2 lg:px-4 py-1 lg:py-2 rounded font-bold text-center ${hasStats ? 'bg-blue-50 text-blue-700' : 'bg-red-50 text-red-700 animate-pulse'}`}>
                                             {hasStats ? `موجودی قابل فروش: ${toPersianDigits(currentInv)}` : 'هشدار: آمار ثبت نشده است'}
                                         </div>
                                     </div>
                                     
-                                    <div className="grid grid-cols-2 gap-4 flex-1 w-full">
+                                    <div className="grid grid-cols-2 gap-4 lg:gap-8 flex-1 w-full">
                                         <div>
                                             <label className={labelClass}>تعداد</label>
                                             <input 
@@ -372,7 +382,7 @@ export const InvoiceForm: React.FC = () => {
                                                 value={state.cartons} 
                                                 onChange={e => handleItemChange(pid, 'cartons', e.target.value)} 
                                                 className={inputClass} 
-                                                placeholder="0" 
+                                                placeholder="" 
                                             />
                                         </div>
                                         <div>
@@ -390,10 +400,10 @@ export const InvoiceForm: React.FC = () => {
                                     
                                     <button 
                                         onClick={() => handleProductToggle(pid)} 
-                                        className="p-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
+                                        className="p-3 lg:p-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
                                         title="حذف این قلم"
                                     >
-                                        <Icons.Trash className="w-6 h-6" />
+                                        <Icons.Trash className="w-6 h-6 lg:w-8 lg:h-8" />
                                     </button>
                                 </motion.div>
                             );
@@ -403,38 +413,42 @@ export const InvoiceForm: React.FC = () => {
             </AnimatePresence>
 
             {/* TASK 1: Optional Specifications (Bottom Section) */}
-            <div className="bg-gray-100 dark:bg-gray-900/50 p-6 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700 space-y-4 mt-8">
-                <h4 className="text-xs font-black text-gray-500 uppercase flex items-center gap-2">
-                    <Icons.Plus className="w-4 h-4" />
+            <div className="bg-gray-100 dark:bg-gray-900/50 p-6 lg:p-8 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700 space-y-4 lg:space-y-6 mt-8">
+                <h4 className="text-xs lg:text-base font-black text-gray-500 uppercase flex items-center gap-2">
+                    <Icons.Plus className="w-4 h-4 lg:w-6 lg:h-6" />
                     اطلاعات تکمیلی (اختیاری)
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
                     <div>
                         <label className={labelClass}>نام راننده</label>
-                        <input {...register('driverName')} className={`${inputClass} !text-sm`} placeholder="-" />
+                        <input {...register('driverName')} className={`${inputClass} !text-sm lg:!text-lg`} placeholder="فقط حروف فارسی" />
+                        {errors.driverName && <p className="text-red-500 text-xs mt-1">{errors.driverName.message}</p>}
                     </div>
                     <div>
                         <label className={labelClass}>شماره پلاک</label>
-                        <input {...register('plateNumber')} className={`${inputClass} !text-sm`} placeholder="-" />
+                        <input {...register('plateNumber')} className={`${inputClass} !text-sm lg:!text-lg`} placeholder="مثال: ۱۵-۳۶۵ج۱۱" />
+                        {errors.plateNumber && <p className="text-red-500 text-xs mt-1">{errors.plateNumber.message}</p>}
                     </div>
                     <div>
                         <label className={labelClass}>موبایل راننده</label>
-                        <input dir="ltr" {...register('driverMobile')} className={`${inputClass} !text-sm font-mono`} placeholder="09..." />
+                        <input dir="ltr" inputMode="numeric" {...register('driverMobile')} className={`${inputClass} !text-sm lg:!text-lg font-mono`} placeholder="" maxLength={11} />
+                        {errors.driverMobile && <p className="text-red-500 text-xs mt-1">{errors.driverMobile.message}</p>}
                     </div>
                 </div>
                 <div>
                     <label className={labelClass}>توضیحات تکمیلی</label>
-                    <textarea {...register('description')} className={`${inputClass} !text-sm h-20 text-right !font-medium py-2`} placeholder="..."></textarea>
+                    <textarea {...register('description')} className={`${inputClass} !text-sm lg:!text-lg h-20 lg:h-32 text-right !font-medium py-2`} placeholder="فقط حروف فارسی..."></textarea>
+                    {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description.message}</p>}
                 </div>
             </div>
 
-            <div className="pt-6">
+            <div className="pt-6 lg:pt-8">
                 <Button 
                     onClick={handleSubmit(handleFinalSubmit)} 
                     isLoading={isSubmitting} 
-                    className="w-full h-16 text-2xl font-black bg-metro-green hover:bg-green-600 shadow-xl rounded-xl"
+                    className="w-full h-16 lg:h-20 text-2xl lg:text-3xl font-black bg-metro-green hover:bg-green-600 shadow-xl rounded-xl"
                 >
-                    <Icons.Check className="mr-2 w-8 h-8" />
+                    <Icons.Check className="mr-2 w-8 h-8 lg:w-10 lg:h-10" />
                     ثبت نهایی حواله
                 </Button>
             </div>

@@ -51,10 +51,12 @@ export interface Farm {
 export interface SystemLog {
   id: string;
   level: 'info' | 'warn' | 'error' | 'debug';
-  category: 'network' | 'auth' | 'database' | 'security' | 'frontend' | 'alert';
-  message: string;
+  category: 'network' | 'auth' | 'database' | 'security' | 'frontend' | 'alert' | 'user_action';
+  message: string; // Persian Summary
+  details?: any;   // Technical JSON
   timestamp: string;
   userId?: string;
+  user_full_name?: string; // Virtual field for display
 }
 
 export interface Invoice {

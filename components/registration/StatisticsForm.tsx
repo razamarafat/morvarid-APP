@@ -70,10 +70,11 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
         selectedFarm.productIds.forEach(pid => {
             const record = statistics.find(s => s.farmId === selectedFarmId && s.date === normalizedDate && s.productId === pid);
             newState[pid] = {
+                // If record exists, show it. If not, empty string (no default 0).
                 production: record?.production !== undefined ? String(record.production) : '',
                 productionKg: record?.productionKg !== undefined ? String(record.productionKg) : '',
-                sales: record?.sales !== undefined ? String(record.sales) : '0',
-                salesKg: record?.salesKg !== undefined ? String(record.salesKg) : '0',
+                sales: record?.sales !== undefined ? String(record.sales) : '',
+                salesKg: record?.salesKg !== undefined ? String(record.salesKg) : '',
                 previousBalance: record?.previousBalance !== undefined ? String(record.previousBalance) : '',
                 previousBalanceKg: record?.previousBalanceKg !== undefined ? String(record.previousBalanceKg) : ''
             };
@@ -108,10 +109,12 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
             const prodKg = vals.productionKg === '' ? 0 : Number(vals.productionKg);
             const prevKg = vals.previousBalanceKg === '' ? 0 : Number(vals.previousBalanceKg);
             
+            // Sales are automatically calculated from invoices, so we submit 0 initially unless manually entered logic changes
             const sale = 0; 
             const saleKg = 0;
 
-            if (prod === 0 && prev === 0 && prodKg === 0 && prevKg === 0) continue;
+            // Skip empty submissions if user didn't touch anything
+            if (vals.production === '' && vals.previousBalance === '' && vals.productionKg === '' && vals.previousBalanceKg === '') continue;
 
             const current = isMotefereghe ? prod : (prev + prod - sale);
             const currentKg = isMotefereghe ? prodKg : (prevKg + prodKg - saleKg);
@@ -172,7 +175,7 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                     <span className="font-sans tracking-tight text-3xl font-black drop-shadow-sm">{toPersianDigits(normalizedDate)}</span>
                 </div>
 
-                <div className="relative z-10 text-7xl font-black font-sans tracking-widest mt-2 drop-shadow-2xl flex items-center gap-2">
+                <div className="relative z-10 text-7xl font-black font-sans tabular-nums tracking-widest mt-2 drop-shadow-2xl flex items-center gap-2">
                     {currentTime}
                 </div>
             </div>
@@ -206,7 +209,12 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                                 {isExpanded && (
                                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="border-t border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-900/20">
                                         <div className={`space-y-6 ${isRegistered ? 'pointer-events-none grayscale-[0.5] opacity-70' : ''}`}>
-                                            {isRegistered && <div className="bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded border border-yellow-200 dark:border-yellow-800 text-center mb-4"><p className="text-xs text-yellow-800 dark:text-yellow-200 font-bold">این محصول قبلا ثبت شده است.</p></div>}
+                                            {isRegistered && (
+                                                <div className="bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded border border-yellow-200 dark:border-yellow-800 text-center mb-4 flex flex-col gap-1">
+                                                    <p className="text-xs text-yellow-800 dark:text-yellow-200 font-bold">این محصول قبلا ثبت شده است.</p>
+                                                    <p className="text-[10px] text-yellow-700 dark:text-yellow-300 font-bold">(برای ویرایش به قسمت سوابق اخیر مراجعه کنید)</p>
+                                                </div>
+                                            )}
                                             {!isRegistered && isNegative && !isMotefereghe && <div className="bg-red-50 dark:bg-red-900/20 p-2 rounded border border-red-200 dark:border-red-800 text-center animate-pulse"><p className="text-xs text-red-600 dark:text-red-300 font-bold">هشدار: موجودی منفی است</p></div>}
                                             
                                             <div className="space-y-4">
@@ -215,13 +223,13 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                                                      {!isMotefereghe && (
                                                          <div className="flex-1">
                                                             <label className="block text-xs font-bold text-gray-500 mb-1">موجودی قبل</label>
-                                                            <input type="number" disabled={isRegistered} value={vals.previousBalance} onChange={e => handleInputChange(pid, 'previousBalance', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-center font-bold text-2xl rounded focus:border-metro-orange outline-none h-14" />
+                                                            <input type="number" disabled={isRegistered} value={vals.previousBalance} onChange={e => handleInputChange(pid, 'previousBalance', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-center font-bold text-2xl rounded focus:border-metro-orange outline-none h-14" placeholder="" />
                                                          </div>
                                                      )}
                                                      
                                                      <div className="flex-1">
                                                         <label className="block text-xs font-bold text-green-600 mb-1">{isMotefereghe ? 'موجودی اعلامی' : 'تولید روز'}</label>
-                                                        <input type="number" disabled={isRegistered} value={vals.production} onChange={e => handleInputChange(pid, 'production', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-center font-bold text-2xl rounded focus:border-metro-orange outline-none h-14" />
+                                                        <input type="number" disabled={isRegistered} value={vals.production} onChange={e => handleInputChange(pid, 'production', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-center font-bold text-2xl rounded focus:border-metro-orange outline-none h-14" placeholder="" />
                                                      </div>
                                                      
                                                      {!isMotefereghe && (
@@ -233,6 +241,7 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                                                                     disabled={true} 
                                                                     value={vals.sales} 
                                                                     className="w-full p-2 bg-gray-100 dark:bg-gray-800 border-2 border-dashed border-red-200 dark:border-red-900 text-center font-bold text-2xl rounded text-gray-500 cursor-not-allowed h-14" 
+                                                                    placeholder=""
                                                                 />
                                                                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10">
                                                                     <Icons.Lock className="w-6 h-6 text-red-500" />
@@ -251,12 +260,12 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                                                          {!isMotefereghe && (
                                                              <div className="flex-1">
                                                                 <label className="block text-xs font-bold text-gray-500 mb-1">قبل (Kg)</label>
-                                                                <input type="number" step="0.1" disabled={isRegistered} value={vals.previousBalanceKg} onChange={e => handleInputChange(pid, 'previousBalanceKg', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-center font-bold text-2xl rounded focus:border-metro-blue outline-none h-14" />
+                                                                <input type="number" step="0.1" disabled={isRegistered} value={vals.previousBalanceKg} onChange={e => handleInputChange(pid, 'previousBalanceKg', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-center font-bold text-2xl rounded focus:border-metro-blue outline-none h-14" placeholder="" />
                                                              </div>
                                                          )}
                                                          <div className="flex-1">
                                                             <label className="block text-xs font-bold text-green-600 mb-1">{isMotefereghe ? 'موجودی (Kg)' : 'تولید (Kg)'}</label>
-                                                            <input type="number" step="0.1" disabled={isRegistered} value={vals.productionKg} onChange={e => handleInputChange(pid, 'productionKg', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-center font-bold text-2xl rounded focus:border-metro-blue outline-none h-14" />
+                                                            <input type="number" step="0.1" disabled={isRegistered} value={vals.productionKg} onChange={e => handleInputChange(pid, 'productionKg', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-center font-bold text-2xl rounded focus:border-metro-blue outline-none h-14" placeholder="" />
                                                          </div>
                                                          
                                                          {!isMotefereghe && (
@@ -269,6 +278,7 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                                                                         disabled={true} 
                                                                         value={vals.salesKg} 
                                                                         className="w-full p-2 bg-gray-100 dark:bg-gray-800 border-2 border-dashed border-red-200 dark:border-red-900 text-center font-bold text-2xl rounded text-gray-500 cursor-not-allowed h-14" 
+                                                                        placeholder=""
                                                                     />
                                                                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10">
                                                                         <Icons.Lock className="w-6 h-6 text-red-500" />

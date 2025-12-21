@@ -8,19 +8,31 @@ import { usePwaStore } from './store/pwaStore';
 // --- GLOBAL ERROR TRAPPING ---
 window.onerror = (message, source, lineno, colno, error) => {
     const errorMessage = error?.message || String(message) || 'Unknown Error';
-    setTimeout(() => {
-        useLogStore.getState().addLog('error', 'frontend', `Global Error: ${errorMessage}`, 'SYSTEM_TRAP');
-    }, 0);
+    const stack = error?.stack || 'No Stack Trace';
+    
+    // Use the new logAction directly
+    useLogStore.getState().logAction(
+        'error', 
+        'frontend', 
+        `خطای سیستمی (Global Error): ${errorMessage}`,
+        { source, lineno, colno, stack }
+    );
     return false;
 };
 
+window.addEventListener('unhandledrejection', (event) => {
+    useLogStore.getState().logAction(
+        'error', 
+        'frontend', 
+        `خطای Promise مدیریت نشده`,
+        { reason: event.reason }
+    );
+});
+
 // --- PWA EARLY CAPTURE ---
-// Important: This listener must be attached immediately to capture the event 
-// if it fires before the React app is fully mounted.
 window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     usePwaStore.getState().setDeferredPrompt(e);
-    useLogStore.getState().addLog('info', 'frontend', 'PWA: "beforeinstallprompt" event captured successfully in Global Scope.', 'SYSTEM');
     console.log('PWA: Event captured in index.tsx');
 });
 
@@ -32,41 +44,41 @@ const isLocal = window.location.hostname === 'localhost' || window.location.host
 const isHttps = window.location.protocol === 'https:';
 
 if (!isHttps && !isLocal) {
-    useLogStore.getState().addLog('warn', 'network', 'PWA: App is NOT serving over HTTPS. Installation may be blocked by browser.', 'SYSTEM');
+    useLogStore.getState().logAction('warn', 'network', 'عدم استفاده از HTTPS', { protocol: window.location.protocol });
 }
 
 // --- ROBUST SERVICE WORKER REGISTRATION ---
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    // FIX: Use absolute URL derived from window.location to prevent origin mismatch errors
-    const swUrl = new URL('sw.js', window.location.href).href;
+  window.addEventListener('load', async () => {
+    const logStore = useLogStore.getState();
+    const isBlob = window.location.protocol === 'blob:' || window.location.href.startsWith('blob:');
+    const isData = window.location.protocol === 'data:';
     
-    useLogStore.getState().addLog('debug', 'network', 'PWA: Starting Service Worker registration...', 'SYSTEM');
+    if (isBlob || isData) return;
 
-    navigator.serviceWorker.register(swUrl)
-      .then(registration => {
-        useLogStore.getState().addLog('info', 'network', `PWA: ServiceWorker registered successfully. Scope: ${registration.scope}`, 'SYSTEM');
+    const swUrl = './sw.js';
+
+    try {
+        const registration = await navigator.serviceWorker.register(swUrl, { scope: './' });
         
-        // Check for updates
+        // Log success silently/debug
+        console.log(`PWA: ServiceWorker registered. Scope: ${registration.scope}`);
+        
         registration.onupdatefound = () => {
           const installingWorker = registration.installing;
           if (installingWorker) {
             installingWorker.onstatechange = () => {
               if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                useLogStore.getState().addLog('info', 'network', 'PWA: New content available (Update Found).', 'SYSTEM');
+                logStore.logAction('info', 'network', 'نسخه جدید اپلیکیشن موجود است', { type: 'update_found' });
                 console.log('PWA: New content is available; please refresh.');
               }
             };
           }
         };
-      })
-      .catch(err => {
-        useLogStore.getState().addLog('error', 'network', `PWA: ServiceWorker registration failed: ${err.message}`, 'SYSTEM');
-        console.error('PWA: ServiceWorker registration failed:', err);
-      });
+    } catch (error: any) {
+        logStore.logAction('error', 'network', 'خطا در ثبت سرویس‌ورکر (PWA)', { error: error.message });
+    }
   });
-} else {
-    useLogStore.getState().addLog('warn', 'network', 'PWA: Service Worker is not supported in this browser.', 'SYSTEM');
 }
 
 const root = ReactDOM.createRoot(rootElement);

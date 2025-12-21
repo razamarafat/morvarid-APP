@@ -7,15 +7,25 @@ interface MobileNavProps {
   currentView?: string;
 }
 
-const MobileNav: React.FC<MobileNavProps> = ({ onNavigate }) => {
+const MobileNav: React.FC<MobileNavProps> = ({ onNavigate, currentView }) => {
+  const isActive = currentView === 'dashboard';
+
   return (
     <div className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#F3F3F3]/95 dark:bg-[#2D2D2D]/95 backdrop-blur-lg border-t border-gray-200 dark:border-gray-700 z-40 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] pb-safe">
       <div className="flex items-center justify-center h-full max-w-md mx-auto px-4">
         <button 
           onClick={() => onNavigate('dashboard')}
-          className="flex flex-col items-center justify-center w-full h-full space-y-1 text-gray-600 dark:text-gray-400 hover:text-metro-blue dark:hover:text-metro-blue active:scale-95 transition-all group"
+          className={`flex flex-col items-center justify-center w-full h-full space-y-1 active:scale-95 transition-all group ${
+            isActive 
+              ? 'text-metro-blue dark:text-metro-blue' 
+              : 'text-gray-600 dark:text-gray-400 hover:text-metro-blue dark:hover:text-metro-blue'
+          }`}
         >
-          <div className="p-1.5 rounded-full group-hover:bg-metro-blue/10 dark:group-hover:bg-white/5 transition-colors">
+          <div className={`p-1.5 rounded-full transition-colors ${
+            isActive 
+              ? 'bg-metro-blue/10 dark:bg-metro-blue/20' 
+              : 'group-hover:bg-metro-blue/10 dark:group-hover:bg-white/5'
+          }`}>
              <Icons.Home className="w-7 h-7" />
           </div>
           <span className="text-[11px] font-black">داشبورد اصلی</span>

@@ -102,7 +102,7 @@ const LoginPage: React.FC = () => {
               {currentDate}
           </h1>
           {/* Time is secondary */}
-          <h2 className="text-4xl lg:text-5xl font-light mt-2 opacity-90 drop-shadow-md font-sans">
+          <h2 className="text-4xl lg:text-5xl font-light mt-2 opacity-90 drop-shadow-md font-sans tabular-nums">
               {currentTime}
           </h2>
           
@@ -122,7 +122,7 @@ const LoginPage: React.FC = () => {
              {/* Date Big (Reduced size) */}
              <div className="font-sans tabular-nums font-black text-5xl tracking-tighter drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)]">{currentDate}</div>
              {/* Time Small */}
-             <div className="text-lg mt-1 font-light opacity-90 font-sans drop-shadow-md">{currentTime}</div>
+             <div className="text-lg mt-1 font-light opacity-90 font-sans drop-shadow-md tabular-nums">{currentTime}</div>
              
              <div className="mt-4">
                 <span className="text-white font-light text-lg tracking-wide drop-shadow-md border-b border-white/30 pb-2">سامانه مدیریت مروارید</span>

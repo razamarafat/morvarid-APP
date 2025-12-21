@@ -36,30 +36,7 @@ function App() {
     document.documentElement.classList.add(theme);
   }, [theme]);
 
-  // PWA Status & Installation Handlers
-  useEffect(() => {
-    // 1. Check if app is already running in standalone mode (Installed)
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-        setIsInstalled(true);
-        addLog('info', 'frontend', 'PWA: App is running in Standalone Mode (Installed).', 'SYSTEM');
-    }
-
-    // 2. Handle successful installation event
-    const handleAppInstalled = () => {
-      addLog('info', 'frontend', 'PWA: App was successfully installed (appinstalled event).', 'SYSTEM');
-      console.log('PWA: App installed');
-      setIsInstalled(true);
-      setDeferredPrompt(null);
-    };
-
-    window.addEventListener('appinstalled', handleAppInstalled);
-
-    return () => {
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
-  }, [setDeferredPrompt, setIsInstalled, addLog]);
-
-  // Initial Data Load
+  // Initial Data Load & PWA Checks
   useEffect(() => {
       const init = async () => {
           await checkSession();
@@ -68,7 +45,33 @@ function App() {
           initListener();
       };
       init();
-  }, []);
+
+      // --- PWA Logic ---
+      
+      // 1. Check if app is already running in standalone mode (Installed)
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches 
+                        || (window.navigator as any).standalone 
+                        || document.referrer.includes('android-app://');
+
+      if (isStandalone) {
+          setIsInstalled(true);
+          addLog('info', 'frontend', 'PWA: App is running in Standalone Mode (Installed).', 'SYSTEM');
+      }
+
+      // 2. Handle successful installation event
+      const handleAppInstalled = () => {
+        addLog('info', 'frontend', 'PWA: App was successfully installed (appinstalled event).', 'SYSTEM');
+        console.log('PWA: App installed');
+        setIsInstalled(true);
+        setDeferredPrompt(null);
+      };
+
+      window.addEventListener('appinstalled', handleAppInstalled);
+
+      return () => {
+        window.removeEventListener('appinstalled', handleAppInstalled);
+      };
+  }, []); // Run once on mount
 
   // Fetch private data when user is logged in
   useEffect(() => {

@@ -24,8 +24,13 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
   const role = user?.role || UserRole.ADMIN;
   const themeColors = THEMES[theme][role];
 
-  const handleHomeClick = () => {
-    switch (role) {
+  const handleHomeClick = (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent any default form submission if inside a form
+    if (!user) {
+        navigate('/login');
+        return;
+    }
+    switch (user.role) {
         case UserRole.ADMIN: navigate('/admin'); break;
         case UserRole.REGISTRATION: navigate('/registration'); break;
         case UserRole.SALES: navigate('/sales'); break;
@@ -39,7 +44,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
           message: 'آیا می‌خواهید از حساب کاربری خود خارج شوید؟',
           confirmText: 'خروج',
           cancelText: 'انصراف',
-          type: 'danger' // Critical action
+          type: 'danger' 
       });
       
       if (confirmed) {
@@ -57,42 +62,52 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
   const hideBack = ['/', '/login'].includes(location.pathname) || isRootPath;
 
   return (
-    <header className={`${themeColors.surface} ${themeColors.text} shadow-sm sticky top-0 z-30 transition-colors duration-300 border-b-2 border-gray-100 dark:border-gray-800`}>
-      <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          {/* Force hide on large screens with explicit display css if needed, but Tailwind lg:hidden should work */}
+    <header className={`${themeColors.surface} ${themeColors.text} shadow-md sticky top-0 z-30 transition-colors duration-300 border-b-2 border-gray-100 dark:border-gray-800`}>
+      <div className="container mx-auto px-4 py-3 flex justify-between items-center max-w-full">
+        
+        {/* Right Side: Menu + Dashboard Button + Title */}
+        <div className="flex items-center gap-4">
           <button 
             onClick={onMenuClick} 
-            className="lg:hidden p-3 -ml-2 hover:bg-black/5 dark:hover:bg-white/10 transition-colors active:scale-95"
+            className="p-2.5 -ml-2 hover:bg-black/5 dark:hover:bg-white/10 transition-colors active:scale-95 rounded-full"
             aria-label="Menu"
           >
-            <Icons.Menu className="w-7 h-7" />
+            <Icons.Menu className="w-8 h-8" />
+          </button>
+
+          {/* DASHBOARD BUTTON - Moved Here */}
+          <button 
+            onClick={handleHomeClick}
+            type="button"
+            className={`hidden md:flex items-center gap-2 px-4 py-2 ${themeColors.primary} text-white hover:opacity-90 transition-opacity shadow-sm rounded-lg active:scale-95`}
+          >
+             <Icons.Home className="w-4 h-4" />
+             <span className="font-bold text-sm">سیستم مدیریت مروارید</span>
           </button>
           
           {!hideBack && (
               <button 
                 onClick={handleBack} 
-                className="p-2 hover:bg-black/5 dark:hover:bg-white/10 transition-colors mr-1"
+                className="p-2 hover:bg-black/5 dark:hover:bg-white/10 transition-colors mr-1 rounded-full"
                 title="بازگشت"
               >
                   <Icons.ChevronRight className="w-6 h-6" />
               </button>
           )}
 
-          <h1 
-            onClick={handleHomeClick}
-            className="text-lg md:text-xl font-black tracking-tighter cursor-pointer hover:opacity-80 transition-opacity select-none truncate max-w-[150px] sm:max-w-none"
-          >
+          {/* Page Title */}
+          <h1 className="text-lg md:text-2xl font-black tracking-tighter truncate max-w-[150px] sm:max-w-none border-r-2 border-gray-300 dark:border-gray-600 pr-4 mr-2">
             {title}
           </h1>
         </div>
         
-        <div className="flex items-center gap-2 sm:gap-3">
+        {/* Left Side: User Info + Logout + Theme */}
+        <div className="flex items-center gap-3">
+          
           <div 
-            onClick={handleHomeClick}
-            className="hidden sm:flex items-center gap-2 cursor-pointer bg-gray-100 dark:bg-gray-700/50 px-3 py-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            className="hidden sm:flex items-center gap-2 bg-gray-100 dark:bg-gray-700/50 px-3 py-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors rounded-full"
           >
-            <div className={`p-1 ${themeColors.primary} text-white`}>
+            <div className={`p-1 ${themeColors.primary} text-white rounded-full`}>
                 <Icons.User className="w-4 h-4" />
             </div>
             <span className="font-black text-sm">{user?.fullName}</span>
@@ -100,7 +115,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
 
           <button 
             onClick={handleLogout}
-            className="sm:hidden p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors active:scale-95"
+            className="sm:hidden p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors active:scale-95 rounded-full"
             title="خروج"
           >
              <Icons.LogOut className="w-6 h-6" />

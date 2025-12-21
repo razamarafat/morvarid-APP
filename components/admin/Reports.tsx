@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useFarmStore } from '../../store/farmStore';
 import { useStatisticsStore } from '../../store/statisticsStore';
 import { useInvoiceStore } from '../../store/invoiceStore';
@@ -13,6 +13,8 @@ import * as XLSX from 'xlsx';
 import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange } from '../../utils/dateUtils';
 import { UserRole } from '../../types';
 import { useConfirm } from '../../hooks/useConfirm';
+import Modal from '../common/Modal';
+import { supabase } from '../../lib/supabase';
 
 type ReportTab = 'stats' | 'invoices' | 'users';
 
@@ -27,10 +29,7 @@ const Reports: React.FC = () => {
 
     const isAdmin = user?.role === UserRole.ADMIN;
     
-    // Default tab
-    const initialTab: ReportTab = 'invoices';
-
-    const [reportTab, setReportTab] = useState<ReportTab>(initialTab);
+    const [reportTab, setReportTab] = useState<ReportTab>('invoices');
     
     // Filters
     const [selectedFarmId, setSelectedFarmId] = useState<string>('all');
@@ -42,6 +41,11 @@ const Reports: React.FC = () => {
     const [previewData, setPreviewData] = useState<any[]>([]);
     const [hasSearched, setHasSearched] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
+
+    // --- User Detail Modal State ---
+    const [selectedUserForReport, setSelectedUserForReport] = useState<any>(null);
+    const [userLogs, setUserLogs] = useState<any[]>([]);
+    const [loadingLogs, setLoadingLogs] = useState(false);
 
     useEffect(() => {
         setHasSearched(false);
@@ -59,6 +63,7 @@ const Reports: React.FC = () => {
         const normalizedStart = normalizeDate(startDate);
         const normalizedEnd = normalizeDate(endDate);
 
+        // Allow UI to update before blocking calculation
         setTimeout(() => {
             let data: any[] = [];
 
@@ -77,6 +82,8 @@ const Reports: React.FC = () => {
                     return farmMatch && productMatch && dateMatch;
                 });
             } else if (reportTab === 'users' && isAdmin) {
+                // For users, we don't filter by date range for the list, 
+                // but we will filter logs by date when clicked.
                 data = users;
             }
 
@@ -92,18 +99,15 @@ const Reports: React.FC = () => {
             } else {
                 addToast(`${toPersianDigits(data.length)} رکورد پیدا شد.`, 'success');
             }
-        }, 300);
+        }, 100);
     };
 
     const handleExportExcel = async () => {
-        if (previewData.length === 0) {
-            addToast('داده‌ای برای خروجی وجود ندارد.', 'warning');
-            return;
-        }
+        if (previewData.length === 0) return;
 
         const yes = await confirm({ 
             title: 'خروجی اکسل', 
-            message: `آیا می‌خواهید ${toPersianDigits(previewData.length)} رکورد را در قالب اکسل دانلود کنید؟`, 
+            message: `آیا می‌خواهید ${toPersianDigits(previewData.length)} رکورد را دانلود کنید؟`, 
             confirmText: 'دانلود', 
             type: 'info' 
         });
@@ -117,276 +121,234 @@ const Reports: React.FC = () => {
             let fileName = '';
 
             if (reportTab === 'stats') {
-                fileName = `Production_Report_${new Date().toISOString().slice(0,10)}`;
+                fileName = `Production_${new Date().toISOString().slice(0,10)}`;
                 wsData = previewData.map(s => ({
                     'تاریخ': s.date,
-                    'نام فارم': farms.find(f => f.id === s.farmId)?.name || 'ناشناس',
-                    'محصول': products.find(p => p.id === s.productId)?.name || 'ناشناس',
-                    'مانده قبلی': s.previousBalance,
+                    'فارم': farms.find(f => f.id === s.farmId)?.name || '-',
+                    'محصول': products.find(p => p.id === s.productId)?.name || '-',
                     'تولید': s.production,
                     'فروش': s.sales,
-                    'موجودی نهایی': s.currentInventory,
-                    'ثبت کننده': s.creatorName || '-'
+                    'موجودی': s.currentInventory,
+                    'کاربر': s.creatorName || '-'
                 }));
             } else if (reportTab === 'invoices') {
-                fileName = `Sales_Invoices_${new Date().toISOString().slice(0,10)}`;
+                fileName = `Sales_${new Date().toISOString().slice(0,10)}`;
                 wsData = previewData.map(i => ({
-                    'رمز حواله': i.invoiceNumber,
+                    'کد حواله': i.invoiceNumber,
                     'تاریخ': i.date,
-                    'نام فارم': farms.find(f => f.id === i.farmId)?.name || 'ناشناس',
-                    'محصول': products.find(p => p.id === i.productId)?.name || 'ناشناس',
+                    'فارم': farms.find(f => f.id === i.farmId)?.name || '-',
                     'تعداد': i.totalCartons,
                     'وزن': i.totalWeight,
-                    'نام راننده': i.driverName || '-',
-                    'شماره پلاک': i.plateNumber || '-',
-                    'شماره تماس': i.driverPhone || '-',
-                    'وضعیت': i.isYesterday ? 'دیروزی' : 'امروز',
-                    'توضیحات': i.description || '-'
-                }));
-            } else if (reportTab === 'users' && isAdmin) {
-                fileName = `Users_List_${new Date().toISOString().slice(0,10)}`;
-                wsData = previewData.map(u => ({
-                    'نام کامل': u.fullName,
-                    'نام کاربری': u.username,
-                    'نقش': u.role,
-                    'وضعیت': u.isActive ? 'فعال' : 'غیرفعال',
-                    'شماره تماس': u.phoneNumber || '-',
-                    'تاریخ عضویت': u.createdAt ? new Date(u.createdAt).toLocaleDateString('fa-IR') : '-'
+                    'راننده': i.driverName || '-',
+                    'پلاک': i.plateNumber || '-'
                 }));
             }
 
             const ws = XLSX.utils.json_to_sheet(wsData);
-            const wscols = Object.keys(wsData[0] || {}).map(() => ({ wch: 20 }));
-            ws['!cols'] = wscols;
-
-            XLSX.utils.book_append_sheet(wb, ws, 'Report Data');
+            XLSX.utils.book_append_sheet(wb, ws, 'Data');
             XLSX.writeFile(wb, `${fileName}.xlsx`);
             addToast('فایل اکسل دانلود شد.', 'success');
         } catch (error) {
-            console.error(error);
             addToast('خطا در ایجاد فایل اکسل', 'error');
         }
     };
 
-    const selectClass = "w-full p-2.5 border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white font-bold outline-none focus:border-metro-blue rounded-lg";
+    // --- REAL User Logs Fetching ---
+    const handleUserClick = async (userRow: any) => {
+        if (reportTab !== 'users') return;
+        
+        setSelectedUserForReport(userRow);
+        setLoadingLogs(true);
+        setUserLogs([]);
+
+        // Fetch logs for the selected user
+        try {
+            const { data, error } = await supabase
+                .from('system_logs')
+                .select('*')
+                .eq('user_id', userRow.id)
+                .order('timestamp', { ascending: false })
+                .limit(100); // Limit to last 100 actions
+
+            if (error) throw error;
+            
+            if (data) {
+                // Pre-process logs to handle text-fallback details
+                const cleanLogs = data.map((l: any) => {
+                    let msg = l.message;
+                    if (msg && msg.includes('[TECH_DETAILS]:')) {
+                        msg = msg.split('[TECH_DETAILS]:')[0].trim().replace(/ \| $/, '');
+                    }
+                    return { ...l, message: msg };
+                });
+                setUserLogs(cleanLogs);
+            }
+        } catch (e: any) {
+            console.error("Failed to fetch user logs", e);
+            addToast('خطا در دریافت لاگ‌های کاربر: ' + e.message, 'error');
+        } finally {
+            setLoadingLogs(false);
+        }
+    };
+
+    const formatLogCategory = (cat: string) => {
+        switch(cat) {
+            case 'auth': return { text: 'ورود/خروج', color: 'bg-blue-100 text-blue-800' };
+            case 'database': return { text: 'ثبت داده', color: 'bg-green-100 text-green-800' };
+            case 'error': return { text: 'خطا', color: 'bg-red-100 text-red-800' };
+            case 'user_action': return { text: 'عملیات', color: 'bg-purple-100 text-purple-800' };
+            default: return { text: 'سیستمی', color: 'bg-gray-100 text-gray-800' };
+        }
+    };
+
+    const selectClass = "w-full p-3 border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white font-bold outline-none focus:border-metro-blue rounded-none lg:text-base";
 
     return (
         <div className="space-y-6">
             {/* Tabs */}
-            <div className="flex bg-gray-200 dark:bg-gray-800 p-1 shadow-inner border-b-4 border-metro-dark rounded-t-lg overflow-hidden">
-                <button 
-                    onClick={() => setReportTab('invoices')}
-                    className={`flex-1 py-4 font-black text-sm transition-all flex items-center justify-center gap-2 ${reportTab === 'invoices' ? 'bg-metro-orange text-white shadow-lg' : 'text-gray-500 hover:bg-gray-300 dark:hover:bg-gray-700'}`}
-                >
-                    <Icons.FileText className="w-5 h-5" />
-                    گزارش حواله فروش
-                </button>
-                <button 
-                    onClick={() => setReportTab('stats')}
-                    className={`flex-1 py-4 font-black text-sm transition-all flex items-center justify-center gap-2 ${reportTab === 'stats' ? 'bg-metro-blue text-white shadow-lg' : 'text-gray-500 hover:bg-gray-300 dark:hover:bg-gray-700'}`}
-                >
-                    <Icons.BarChart className="w-5 h-5" />
-                    گزارش آمار تولید
-                </button>
-                {isAdmin && (
-                    <button 
-                        onClick={() => setReportTab('users')}
-                        className={`flex-1 py-4 font-black text-sm transition-all flex items-center justify-center gap-2 ${reportTab === 'users' ? 'bg-metro-purple text-white shadow-lg' : 'text-gray-500 hover:bg-gray-300 dark:hover:bg-gray-700'}`}
-                    >
-                        <Icons.Users className="w-5 h-5" />
-                        گزارش عملکرد کاربران
-                    </button>
-                )}
+            <div className="flex bg-gray-200 dark:bg-gray-800 border-b-4 border-metro-dark overflow-hidden">
+                <button onClick={() => setReportTab('invoices')} className={`flex-1 py-4 font-black transition-all ${reportTab === 'invoices' ? 'bg-metro-orange text-white' : 'text-gray-500 hover:bg-gray-300'}`}>گزارش فروش</button>
+                <button onClick={() => setReportTab('stats')} className={`flex-1 py-4 font-black transition-all ${reportTab === 'stats' ? 'bg-metro-blue text-white' : 'text-gray-500 hover:bg-gray-300'}`}>آمار تولید</button>
+                {isAdmin && <button onClick={() => setReportTab('users')} className={`flex-1 py-4 font-black transition-all ${reportTab === 'users' ? 'bg-metro-purple text-white' : 'text-gray-500 hover:bg-gray-300'}`}>عملکرد کاربران</button>}
             </div>
 
-            {/* Filters Section */}
-            <div className={`bg-white dark:bg-gray-800 p-6 border-l-8 shadow-md rounded-b-lg ${reportTab === 'users' ? 'border-metro-purple' : reportTab === 'invoices' ? 'border-metro-orange' : 'border-metro-blue'}`}>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+            {/* Filters */}
+            <div className={`bg-white dark:bg-gray-800 p-6 border-l-[8px] shadow-sm ${reportTab === 'users' ? 'border-metro-purple' : reportTab === 'invoices' ? 'border-metro-orange' : 'border-metro-blue'}`}>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-end">
                     {reportTab !== 'users' ? (
                         <>
-                            <div className="w-full">
-                                <label className="text-xs font-bold text-gray-500 mb-1 block">انتخاب فارم</label>
-                                <select value={selectedFarmId} onChange={(e) => setSelectedFarmId(e.target.value)} className={selectClass}>
-                                    <option value="all">همه فارم‌ها</option>
-                                    {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-                                </select>
-                            </div>
-                            <div className="w-full">
-                                <label className="text-xs font-bold text-gray-500 mb-1 block">انتخاب محصول</label>
-                                <select value={selectedProductId} onChange={(e) => setSelectedProductId(e.target.value)} className={selectClass}>
-                                    <option value="all">همه محصولات</option>
-                                    {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                                </select>
-                            </div>
-                            <div className="w-full">
-                                <JalaliDatePicker value={startDate} onChange={setStartDate} label="از تاریخ" />
-                            </div>
-                            <div className="w-full">
-                                <JalaliDatePicker value={endDate} onChange={setEndDate} label="تا تاریخ" />
-                            </div>
+                            <div><label className="text-xs font-bold text-gray-500 mb-1 block">فارم</label><select value={selectedFarmId} onChange={(e) => setSelectedFarmId(e.target.value)} className={selectClass}><option value="all">همه</option>{farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}</select></div>
+                            <div><label className="text-xs font-bold text-gray-500 mb-1 block">محصول</label><select value={selectedProductId} onChange={(e) => setSelectedProductId(e.target.value)} className={selectClass}><option value="all">همه</option>{products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
+                            <div><JalaliDatePicker value={startDate} onChange={setStartDate} label="از" /></div>
+                            <div><JalaliDatePicker value={endDate} onChange={setEndDate} label="تا" /></div>
                         </>
                     ) : (
-                        <div className="col-span-1 md:col-span-2 lg:col-span-4">
-                            <p className="text-sm font-bold text-gray-600 dark:text-gray-400">
-                                گزارش کامل تمامی کاربران سیستم، شامل نقش‌ها و وضعیت فعالیت.
-                            </p>
+                        <div className="col-span-4 text-center py-2 text-gray-500 font-bold">
+                            برای مشاهده گزارش دقیق فعالیت‌ها (زمان ورود، ثبت، خروج)، روی نام کاربر در لیست کلیک کنید.
                         </div>
                     )}
-
-                    <div className="flex gap-2 w-full col-span-1 md:col-span-2 lg:col-span-4 mt-4 justify-end">
-                        <Button 
-                            onClick={handleSearch} 
-                            isLoading={isSearching} 
-                            className={`h-[46px] px-12 font-black text-lg ${reportTab === 'users' ? 'bg-metro-purple hover:bg-metro-darkPurple' : reportTab === 'invoices' ? 'bg-metro-orange hover:bg-amber-600' : 'bg-metro-blue hover:bg-metro-cobalt'}`}
-                        >
-                            <Icons.Search className="ml-2 w-5 h-5" />
-                            جستجو
-                        </Button>
-
-                        {hasSearched && previewData.length > 0 && (
-                            <Button 
-                                onClick={handleExportExcel} 
-                                variant="secondary" 
-                                className="h-[46px] border-green-600 text-green-600 hover:bg-green-50 font-black px-8"
-                            >
-                                <Icons.FileText className="ml-2 w-5 h-5" />
-                                خروجی اکسل
-                            </Button>
-                        )}
+                    
+                    <div className="col-span-full flex justify-end gap-3 mt-2">
+                        <Button onClick={handleSearch} isLoading={isSearching} className="h-12 px-10 text-lg font-black bg-metro-dark hover:bg-black">جستجو</Button>
+                        {hasSearched && previewData.length > 0 && <Button onClick={handleExportExcel} variant="secondary" className="h-12 px-6 font-bold">دانلود اکسل</Button>}
                     </div>
                 </div>
             </div>
 
-            {/* Preview Section */}
-            <div className="bg-white dark:bg-gray-800 shadow-xl overflow-hidden min-h-[400px] border border-gray-200 dark:border-gray-700 rounded-lg">
-                <div className="p-4 bg-gray-50 dark:bg-gray-900 border-b dark:border-gray-700 flex justify-between items-center">
-                    <h3 className="font-black text-gray-700 dark:text-gray-200 flex items-center gap-2">
-                        <Icons.Eye className={`w-5 h-5 ${reportTab === 'users' ? 'text-metro-purple' : reportTab === 'invoices' ? 'text-metro-orange' : 'text-metro-blue'}`} />
-                        پیش‌نمایش داده‌ها
-                    </h3>
-                    {hasSearched && (
-                        <span className="text-xs bg-gray-200 dark:bg-gray-700 px-3 py-1 rounded font-bold">
-                            {toPersianDigits(previewData.length)} رکورد
-                        </span>
-                    )}
-                </div>
-
-                {!hasSearched ? (
-                    <div className="flex flex-col items-center justify-center py-24 opacity-40">
-                        <Icons.Search className="w-24 h-24 mb-4 text-gray-300" />
-                        <p className="font-bold text-xl text-gray-500">برای مشاهده گزارش، دکمه جستجو را بزنید.</p>
-                    </div>
-                ) : isSearching ? (
-                    <div className="flex flex-col items-center justify-center py-24">
-                        <div className="w-12 h-12 border-4 border-metro-blue border-t-transparent rounded-full animate-spin mb-4"></div>
-                        <p className="font-bold text-gray-500">در حال دریافت اطلاعات...</p>
-                    </div>
-                ) : previewData.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-24 text-red-500 opacity-80">
-                        <Icons.AlertCircle className="w-16 h-16 mb-4" />
-                        <p className="font-bold text-lg">هیچ داده‌ای یافت نشد.</p>
-                    </div>
-                ) : (
-                    <div className="overflow-x-auto max-h-[600px] custom-scrollbar">
-                        <table className="w-full text-right border-collapse">
-                            <thead className="bg-gray-100 dark:bg-gray-900 sticky top-0 z-10 shadow-sm">
-                                <tr>
-                                    {reportTab === 'stats' && (
-                                        <>
-                                            <th className="p-4 border-b dark:border-gray-700 text-xs font-black whitespace-nowrap">تاریخ</th>
-                                            <th className="p-4 border-b dark:border-gray-700 text-xs font-black whitespace-nowrap">فارم</th>
-                                            <th className="p-4 border-b dark:border-gray-700 text-xs font-black whitespace-nowrap">محصول</th>
-                                            <th className="p-4 border-b dark:border-gray-700 text-xs font-black text-center">تولید</th>
-                                            <th className="p-4 border-b dark:border-gray-700 text-xs font-black text-center">فروش</th>
-                                            <th className="p-4 border-b dark:border-gray-700 text-xs font-black text-center">موجودی</th>
-                                            <th className="p-4 border-b dark:border-gray-700 text-xs font-black text-center">کاربر</th>
-                                        </>
-                                    )}
-                                    {reportTab === 'invoices' && (
-                                        <>
-                                            <th className="p-4 border-b dark:border-gray-700 text-xs font-black whitespace-nowrap text-center">حواله</th>
-                                            <th className="p-4 border-b dark:border-gray-700 text-xs font-black whitespace-nowrap">تاریخ</th>
-                                            <th className="p-4 border-b dark:border-gray-700 text-xs font-black whitespace-nowrap">فارم</th>
-                                            <th className="p-4 border-b dark:border-gray-700 text-xs font-black whitespace-nowrap">محصول</th>
-                                            <th className="p-4 border-b dark:border-gray-700 text-xs font-black text-center">تعداد</th>
-                                            <th className="p-4 border-b dark:border-gray-700 text-xs font-black text-center">وزن</th>
-                                            <th className="p-4 border-b dark:border-gray-700 text-xs font-black whitespace-nowrap">راننده</th>
-                                            <th className="p-4 border-b dark:border-gray-700 text-xs font-black text-center">پلاک</th>
-                                            <th className="p-4 border-b dark:border-gray-700 text-xs font-black text-center">تماس</th>
-                                            <th className="p-4 border-b dark:border-gray-700 text-xs font-black text-center">وضعیت</th>
-                                            <th className="p-4 border-b dark:border-gray-700 text-xs font-black">توضیحات</th>
-                                        </>
-                                    )}
-                                    {reportTab === 'users' && (
-                                        <>
-                                            <th className="p-4 border-b dark:border-gray-700 text-xs font-black whitespace-nowrap">نام کامل</th>
-                                            <th className="p-4 border-b dark:border-gray-700 text-xs font-black text-center">نقش</th>
-                                            <th className="p-4 border-b dark:border-gray-700 text-xs font-black text-center">نام کاربری</th>
-                                            <th className="p-4 border-b dark:border-gray-700 text-xs font-black text-center">وضعیت</th>
-                                            <th className="p-4 border-b dark:border-gray-700 text-xs font-black whitespace-nowrap">عضویت</th>
-                                        </>
-                                    )}
+            {/* Data Table */}
+            <div className="bg-white dark:bg-gray-800 shadow-lg min-h-[400px]">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-right border-collapse">
+                        <thead className="bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-300 text-sm font-black">
+                            <tr>
+                                {reportTab === 'stats' && <><th className="p-4">تاریخ</th><th className="p-4">فارم</th><th className="p-4">محصول</th><th className="p-4 text-center">تولید</th><th className="p-4 text-center">فروش</th><th className="p-4 text-center">موجودی</th><th className="p-4">کاربر</th></>}
+                                {reportTab === 'invoices' && <><th className="p-4 text-center">حواله</th><th className="p-4">تاریخ</th><th className="p-4">فارم</th><th className="p-4">تعداد</th><th className="p-4">وزن</th><th className="p-4">راننده</th><th className="p-4">وضعیت</th></>}
+                                {reportTab === 'users' && <><th className="p-4">نام کامل</th><th className="p-4">نام کاربری</th><th className="p-4 text-center">نقش</th><th className="p-4 text-center">وضعیت</th><th className="p-4 text-center">عملیات</th></>}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {previewData.map((row, idx) => (
+                                <tr key={idx} 
+                                    onClick={() => handleUserClick(row)}
+                                    className={`border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${reportTab === 'users' ? 'cursor-pointer' : ''}`}
+                                >
+                                    {reportTab === 'stats' && <>
+                                        <td className="p-4 font-mono">{toPersianDigits(row.date)}</td>
+                                        <td className="p-4">{farms.find(f => f.id === row.farmId)?.name}</td>
+                                        <td className="p-4">{products.find(p => p.id === row.productId)?.name}</td>
+                                        <td className="p-4 text-center text-green-600 font-bold">{toPersianDigits(row.production)}</td>
+                                        <td className="p-4 text-center text-red-500 font-bold">{toPersianDigits(row.sales)}</td>
+                                        <td className="p-4 text-center font-black">{toPersianDigits(row.currentInventory)}</td>
+                                        <td className="p-4 text-xs">{row.creatorName}</td>
+                                    </>}
+                                    {reportTab === 'invoices' && <>
+                                        <td className="p-4 text-center font-black tracking-widest">{toPersianDigits(row.invoiceNumber)}</td>
+                                        <td className="p-4 font-mono">{toPersianDigits(row.date)}</td>
+                                        <td className="p-4">{farms.find(f => f.id === row.farmId)?.name}</td>
+                                        <td className="p-4 font-bold">{toPersianDigits(row.totalCartons)}</td>
+                                        <td className="p-4 text-blue-600 font-bold">{toPersianDigits(row.totalWeight)}</td>
+                                        <td className="p-4 text-sm">{row.driverName}</td>
+                                        <td className="p-4 text-sm font-bold">{row.isYesterday ? 'دیروزی' : 'عادی'}</td>
+                                    </>}
+                                    {reportTab === 'users' && <>
+                                        <td className="p-4 font-bold text-lg">{row.fullName}</td>
+                                        <td className="p-4 font-mono">{row.username}</td>
+                                        <td className="p-4 text-center"><span className="bg-gray-100 px-2 py-1 rounded text-xs font-bold">{row.role}</span></td>
+                                        <td className="p-4 text-center"><span className={`px-2 py-1 rounded text-xs text-white ${row.isActive ? 'bg-green-500' : 'bg-red-500'}`}>{row.isActive ? 'فعال' : 'غیرفعال'}</span></td>
+                                        <td className="p-4 text-center"><Icons.FileText className="w-5 h-5 mx-auto text-purple-500 opacity-70" /></td>
+                                    </>}
                                 </tr>
-                            </thead>
-                            <tbody>
-                                {previewData.map((row, idx) => (
-                                    <tr key={idx} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                        {reportTab === 'stats' && (
-                                            <>
-                                                <td className="p-4 font-mono text-xs">{toPersianDigits(row.date)}</td>
-                                                <td className="p-4 font-bold text-xs">{farms.find(f => f.id === row.farmId)?.name}</td>
-                                                <td className="p-4 text-xs">{products.find(p => p.id === row.productId)?.name}</td>
-                                                <td className="p-4 text-center font-bold text-green-600">+{toPersianDigits(row.production)}</td>
-                                                <td className="p-4 text-center font-bold text-red-600">-{toPersianDigits(row.sales || 0)}</td>
-                                                <td className="p-4 text-center font-bold text-metro-blue">{toPersianDigits(row.currentInventory)}</td>
-                                                <td className="p-4 text-center text-xs text-gray-400">{row.creatorName || '-'}</td>
-                                            </>
-                                        )}
-                                        {reportTab === 'invoices' && (
-                                            <>
-                                                <td className="p-4 font-black text-metro-orange text-center">{toPersianDigits(row.invoiceNumber)}</td>
-                                                <td className="p-4 font-mono text-xs whitespace-nowrap">{toPersianDigits(row.date)}</td>
-                                                <td className="p-4 font-bold text-xs whitespace-nowrap">{farms.find(f => f.id === row.farmId)?.name}</td>
-                                                <td className="p-4 text-xs whitespace-nowrap">{products.find(p => p.id === row.productId)?.name}</td>
-                                                <td className="p-4 text-center font-bold">{toPersianDigits(row.totalCartons)}</td>
-                                                <td className="p-4 text-center font-bold">{toPersianDigits(row.totalWeight)}</td>
-                                                <td className="p-4 text-xs">{row.driverName || '-'}</td>
-                                                <td className="p-4 text-center text-xs font-mono">{toPersianDigits(row.plateNumber || '-')}</td>
-                                                <td className="p-4 text-center text-xs font-mono">{toPersianDigits(row.driverPhone || '-')}</td>
-                                                <td className="p-4 text-center">
-                                                    <span className={`px-2 py-0.5 rounded text-[10px] text-white font-black ${row.isYesterday ? 'bg-metro-orange' : 'bg-metro-green'}`}>
-                                                        {row.isYesterday ? 'دیروزی' : 'امروز'}
-                                                    </span>
-                                                </td>
-                                                <td className="p-4 text-[10px] text-gray-500 max-w-[200px] truncate">{row.description || '-'}</td>
-                                            </>
-                                        )}
-                                        {reportTab === 'users' && (
-                                            <>
-                                                <td className="p-4 font-bold text-sm">{row.fullName}</td>
-                                                <td className="p-4 text-center">
-                                                    <span className="text-[10px] bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded font-black">
-                                                        {row.role}
-                                                    </span>
-                                                </td>
-                                                <td className="p-4 font-mono text-xs text-center">{row.username}</td>
-                                                <td className="p-4 text-center">
-                                                    <span className={`px-2 py-0.5 rounded text-[10px] text-white font-black ${row.isActive ? 'bg-metro-green' : 'bg-metro-red'}`}>
-                                                        {row.isActive ? 'فعال' : 'غیرفعال'}
-                                                    </span>
-                                                </td>
-                                                <td className="p-4 text-xs font-mono">
-                                                    {row.createdAt ? toPersianDigits(new Date(row.createdAt).toLocaleDateString('fa-IR')) : '-'}
-                                                </td>
-                                            </>
-                                        )}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
+                            ))}
+                        </tbody>
+                    </table>
+                    {previewData.length === 0 && <div className="p-10 text-center text-gray-400 font-bold">داده‌ای برای نمایش وجود ندارد.</div>}
+                </div>
             </div>
+
+            {/* Modal for User Logs */}
+            <Modal
+                isOpen={!!selectedUserForReport}
+                onClose={() => setSelectedUserForReport(null)}
+                title={`ریـز عملکرد کاربر: ${selectedUserForReport?.fullName || ''}`}
+            >
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center text-sm text-gray-500 mb-2">
+                        <span>۱۰۰ فعالیت اخیر کاربر در سیستم</span>
+                        <Button size="sm" variant="ghost" onClick={() => handleUserClick(selectedUserForReport)}>
+                            <Icons.Refresh className={`w-4 h-4 ${loadingLogs ? 'animate-spin' : ''}`} />
+                        </Button>
+                    </div>
+                    
+                    {loadingLogs ? (
+                        <div className="flex justify-center items-center h-40">
+                            <Icons.Refresh className="w-10 h-10 animate-spin text-metro-purple" />
+                        </div>
+                    ) : (
+                        <div className="max-h-[500px] overflow-y-auto custom-scrollbar border rounded-none shadow-inner bg-gray-50 dark:bg-gray-900">
+                            <table className="w-full text-right text-sm">
+                                <thead className="bg-gray-200 dark:bg-gray-800 font-bold sticky top-0 text-gray-700 dark:text-gray-300">
+                                    <tr>
+                                        <th className="p-3">زمان</th>
+                                        <th className="p-3">نوع</th>
+                                        <th className="p-3">توضیحات</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                    {userLogs.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={3} className="p-8 text-center text-gray-400">هیچ فعالیتی یافت نشد.</td>
+                                        </tr>
+                                    ) : (
+                                        userLogs.map((log) => {
+                                            const cat = formatLogCategory(log.category);
+                                            return (
+                                                <tr key={log.id} className="hover:bg-white dark:hover:bg-gray-800 transition-colors">
+                                                    <td className="p-3 font-mono text-xs text-gray-500 dir-ltr border-l dark:border-gray-700">
+                                                        {new Date(log.timestamp).toLocaleTimeString('fa-IR')}
+                                                        <br/>
+                                                        <span className="opacity-70">{new Date(log.timestamp).toLocaleDateString('fa-IR')}</span>
+                                                    </td>
+                                                    <td className="p-3 border-l dark:border-gray-700 w-24 text-center">
+                                                        <span className={`text-[10px] px-2 py-1 rounded font-bold whitespace-nowrap block ${cat.color}`}>
+                                                            {cat.text}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-3 font-medium text-gray-800 dark:text-gray-200">
+                                                        {log.message}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                    <div className="flex justify-end pt-4 border-t dark:border-gray-700">
+                        <Button onClick={() => setSelectedUserForReport(null)}>بستن</Button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 };

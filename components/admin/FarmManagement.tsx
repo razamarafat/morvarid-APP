@@ -38,46 +38,46 @@ const FarmManagement: React.FC = () => {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">لیست فارم‌ها</h2>
-        <Button onClick={handleAdd}>
-          <Icons.Plus className="ml-2 h-4 w-4" />
+      <div className="flex justify-between items-center mb-6 lg:mb-8">
+        <h2 className="text-2xl lg:text-3xl font-bold dark:text-white">لیست فارم‌ها</h2>
+        <Button onClick={handleAdd} className="lg:h-12 lg:text-lg lg:px-8">
+          <Icons.Plus className="ml-2 h-4 w-4 lg:h-6 lg:w-6" />
           ایجاد فارم جدید
         </Button>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-x-auto">
+      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-x-auto border border-gray-200 dark:border-gray-700">
         <table className="w-full text-sm text-right text-gray-500 dark:text-gray-400">
-          <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+          <thead className="text-xs lg:text-base text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400 font-bold">
             <tr>
-              <th scope="col" className="px-6 py-3">نام فارم</th>
-              <th scope="col" className="px-6 py-3">نوع</th>
-              <th scope="col" className="px-6 py-3">وضعیت</th>
-              <th scope="col" className="px-6 py-3">عملیات</th>
+              <th scope="col" className="px-6 py-3 lg:py-5 whitespace-nowrap">نام فارم</th>
+              <th scope="col" className="px-6 py-3 lg:py-5 whitespace-nowrap">نوع</th>
+              <th scope="col" className="px-6 py-3 lg:py-5 whitespace-nowrap">وضعیت</th>
+              <th scope="col" className="px-6 py-3 lg:py-5 whitespace-nowrap text-center">عملیات</th>
             </tr>
           </thead>
           <tbody>
             {farms.map((farm) => (
-              <tr key={farm.id} className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                <th scope="row" className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
+              <tr key={farm.id} className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                <th scope="row" className="px-6 py-4 lg:py-6 font-bold text-gray-900 whitespace-nowrap dark:text-white lg:text-lg">
                   {farm.name}
                 </th>
-                <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${farm.type === FarmType.MORVARIDI ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'}`}>
+                <td className="px-6 py-4 lg:py-6 whitespace-nowrap">
+                    <span className={`px-3 py-1.5 lg:px-4 lg:py-2 rounded-full text-xs lg:text-sm font-bold ${farm.type === FarmType.MORVARIDI ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'}`}>
                         {farm.type === FarmType.MORVARIDI ? 'مرواریدی' : 'متفرقه'}
                     </span>
                 </td>
-                <td className="px-6 py-4">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${farm.isActive ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'}`}>
+                <td className="px-6 py-4 lg:py-6 whitespace-nowrap">
+                  <span className={`px-3 py-1.5 lg:px-4 lg:py-2 rounded-full text-xs lg:text-sm font-bold ${farm.isActive ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'}`}>
                     {farm.isActive ? 'فعال' : 'غیرفعال'}
                   </span>
                 </td>
-                <td className="px-6 py-4 flex items-center gap-2">
-                  <Button size="icon" variant="ghost" onClick={() => handleEdit(farm)}>
-                    <Icons.Edit className="w-4 h-4" />
+                <td className="px-6 py-4 lg:py-6 flex items-center justify-center gap-2">
+                  <Button size="icon" variant="ghost" onClick={() => handleEdit(farm)} className="lg:w-12 lg:h-12">
+                    <Icons.Edit className="w-4 h-4 lg:w-6 lg:h-6" />
                   </Button>
-                  <Button size="icon" variant="ghost" className="text-red-500 hover:text-red-600" onClick={() => handleDelete(farm)}>
-                    <Icons.Trash className="w-4 h-4" />
+                  <Button size="icon" variant="ghost" className="text-red-500 hover:text-red-600 lg:w-12 lg:h-12" onClick={() => handleDelete(farm)}>
+                    <Icons.Trash className="w-4 h-4 lg:w-6 lg:h-6" />
                   </Button>
                 </td>
               </tr>

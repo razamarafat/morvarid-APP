@@ -68,6 +68,17 @@
         -webkit-tap-highlight-color: transparent; /* Remove blue highlight on mobile tap */
       }
       
+      /* HIDE SCROLLBAR BUT KEEP FUNCTIONALITY */
+      html, body {
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE/Edge */
+      }
+      ::-webkit-scrollbar {
+        display: none; /* Chrome/Safari/Opera */
+        width: 0px;
+        background: transparent;
+      }
+      
       /* App-like behavior: Prevent pull-to-refresh and selection */
       body {
         transition: background-color 0.3s ease, color 0.3s ease;
@@ -81,18 +92,6 @@
       input, textarea {
         -webkit-user-select: text;
         user-select: text;
-      }
-      
-      /* Scrollbar Metro Style */
-      ::-webkit-scrollbar {
-        width: 12px;
-        background: #1D1D1D;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #555555;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #888888;
       }
       
       /* Input autofill fix for dark mode */
@@ -123,16 +122,17 @@
         -moz-appearance: textfield;
       }
 
-      /* --- METRO TILE ANIMATIONS --- */
+      /* --- METRO TILE ANIMATIONS (New Modern Style) --- */
       @keyframes metro-shine {
           0% { left: -100%; opacity: 0; }
           20% { opacity: 0.3; }
           100% { left: 200%; opacity: 0; }
       }
       
-      @keyframes metro-pattern-move {
-          0% { background-position: 0 0; }
-          100% { background-position: 40px 40px; }
+      @keyframes metro-flow {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
       }
 
       .metro-shine-overlay {
@@ -148,13 +148,13 @@
           z-index: 5;
       }
 
-      .metro-pattern-overlay {
+      /* New: Modern animated background flow instead of dots */
+      .metro-flow-overlay {
           position: absolute;
           inset: 0;
-          background-image: radial-gradient(rgba(255, 255, 255, 0.15) 1.5px, transparent 1.5px);
-          background-size: 20px 20px;
-          opacity: 0.6;
-          animation: metro-pattern-move 15s linear infinite;
+          background: linear-gradient(45deg, rgba(255,255,255,0.05), rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+          background-size: 200% 200%;
+          animation: metro-flow 8s ease infinite;
           pointer-events: none;
           z-index: 1;
       }

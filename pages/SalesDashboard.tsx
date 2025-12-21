@@ -69,19 +69,19 @@ const FarmStatistics = () => {
     const isToday = normalizedSelectedDate === normalizeDate(todayJalali);
 
     return (
-        <div className="space-y-6">
-            <div className="bg-white dark:bg-gray-800 p-4 shadow-md border-l-4 border-metro-blue flex flex-col md:flex-row gap-4 items-end rounded-xl">
+        <div className="space-y-6 lg:space-y-8">
+            <div className="bg-white dark:bg-gray-800 p-4 lg:p-6 shadow-md border-l-4 border-metro-blue flex flex-col md:flex-row gap-4 lg:gap-6 items-end rounded-xl">
                 <div className="flex-1 w-full">
                     <JalaliDatePicker value={selectedDate} onChange={setSelectedDate} label="تاریخ پایش فروش" />
                 </div>
-                <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-lg">
+                <div className="flex items-center gap-2 text-xs lg:text-sm text-gray-500 bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-lg font-bold">
                     <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                     اتصال زنده به سرور برقرار است
                 </div>
             </div>
 
-            <div className="grid gap-3 animate-in slide-in-from-bottom-2 duration-500">
-                {isLoading && statistics.length === 0 && <div className="text-center py-8 text-gray-500 dark:text-gray-400 font-bold">در حال همگام‌سازی...</div>}
+            <div className="grid gap-3 lg:gap-6 animate-in slide-in-from-bottom-2 duration-500">
+                {isLoading && statistics.length === 0 && <div className="text-center py-8 text-gray-500 dark:text-gray-400 font-bold lg:text-xl">در حال همگام‌سازی...</div>}
                 
                 {farms.map(farm => {
                     const farmStats = statistics.filter(s => 
@@ -95,29 +95,29 @@ const FarmStatistics = () => {
                         <div key={farm.id} className="group shadow-md rounded-xl overflow-hidden border border-gray-100 dark:border-gray-700">
                             <div 
                                 onClick={() => toggleFarm(farm.id)}
-                                className={`p-4 flex items-center justify-between cursor-pointer transition-colors border-r-8 ${
+                                className={`p-4 lg:p-6 flex items-center justify-between cursor-pointer transition-colors border-r-8 ${
                                     hasStats 
                                         ? 'bg-white dark:bg-gray-800 border-green-500 hover:bg-gray-50 dark:hover:bg-gray-700' 
                                         : 'bg-white dark:bg-gray-800 border-red-500 hover:bg-red-50 dark:hover:bg-gray-900/50'
                                 }`}
                             >
-                                <div className="flex items-center gap-4">
-                                    <div className={`p-3 rounded-full shadow-sm text-white ${hasStats ? 'bg-gradient-to-br from-green-500 to-emerald-600' : 'bg-gradient-to-br from-red-500 to-rose-600'}`}>
-                                        <Icons.Home className="w-6 h-6" />
+                                <div className="flex items-center gap-4 lg:gap-6">
+                                    <div className={`p-3 lg:p-4 rounded-full shadow-sm text-white ${hasStats ? 'bg-gradient-to-br from-green-500 to-emerald-600' : 'bg-gradient-to-br from-red-500 to-rose-600'}`}>
+                                        <Icons.Home className="w-6 h-6 lg:w-8 lg:h-8" />
                                     </div>
                                     <div>
-                                        <h4 className="font-black text-xl text-gray-800 dark:text-white">{farm.name}</h4>
-                                        <span className={`text-xs font-bold ${hasStats ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                        <h4 className="font-black text-xl lg:text-3xl text-gray-800 dark:text-white">{farm.name}</h4>
+                                        <span className={`text-xs lg:text-base font-bold ${hasStats ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                                             {hasStats ? 'آمار تولید ثبت شده' : 'منتظر ثبت آمار'}
                                         </span>
                                     </div>
                                 </div>
                                 
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-3 lg:gap-6">
                                     {hasStats && (
                                         <div className="hidden sm:flex flex-col items-end mr-4">
-                                            <span className="text-[10px] text-gray-400 font-bold">محصولات</span>
-                                            <span className="text-lg font-black text-metro-blue">{toPersianDigits(farmStats.length)}</span>
+                                            <span className="text-[10px] lg:text-sm text-gray-400 font-bold">محصولات</span>
+                                            <span className="text-lg lg:text-2xl font-black text-metro-blue">{toPersianDigits(farmStats.length)}</span>
                                         </div>
                                     )}
                                     {/* Alert Button: Only visible if it is TODAY and NO Stats */}
@@ -127,13 +127,13 @@ const FarmStatistics = () => {
                                             variant="danger" 
                                             onClick={(e) => handleSendAlert(farm.id, farm.name, e)}
                                             isLoading={alertLoading === farm.id}
-                                            className="font-black"
+                                            className="font-black lg:text-lg lg:h-12 lg:px-6"
                                         >
-                                            <Icons.Bell className="w-4 h-4 ml-1" />
+                                            <Icons.Bell className="w-4 h-4 lg:w-6 lg:h-6 ml-1" />
                                             ارسال هشدار
                                         </Button>
                                     )}
-                                    <Icons.ChevronDown className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+                                    <Icons.ChevronDown className={`w-5 h-5 lg:w-8 lg:h-8 text-gray-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
                                 </div>
                             </div>
 
@@ -143,9 +143,9 @@ const FarmStatistics = () => {
                                         initial={{ height: 0, opacity: 0 }} 
                                         animate={{ height: 'auto', opacity: 1 }} 
                                         exit={{ height: 0, opacity: 0 }} 
-                                        className="bg-gray-50 dark:bg-black/20 p-4 border-t border-gray-200 dark:border-gray-700"
+                                        className="bg-gray-50 dark:bg-black/20 p-4 lg:p-8 border-t border-gray-200 dark:border-gray-700"
                                     >
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-8">
                                             {farmStats.map(stat => {
                                                 const p = products.find(prod => prod.id === stat.productId);
                                                 
@@ -173,32 +173,32 @@ const FarmStatistics = () => {
                                                 const soldPercent = calculatePercent(sold, totalCapacity);
 
                                                 return (
-                                                    <div key={stat.id} className="bg-white dark:bg-gray-700 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-600 relative overflow-hidden">
+                                                    <div key={stat.id} className="bg-white dark:bg-gray-700 rounded-xl p-5 lg:p-8 shadow-sm border border-gray-200 dark:border-gray-600 relative overflow-hidden">
                                                         {/* Header */}
-                                                        <div className="flex justify-between items-start mb-4 relative z-10">
+                                                        <div className="flex justify-between items-start mb-4 lg:mb-6 relative z-10">
                                                             <div>
-                                                                <h5 className="font-black text-lg text-gray-800 dark:text-white mb-1">{p?.name}</h5>
-                                                                <span className="text-[10px] bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded font-bold">
+                                                                <h5 className="font-black text-lg lg:text-2xl text-gray-800 dark:text-white mb-1">{p?.name}</h5>
+                                                                <span className="text-[10px] lg:text-sm bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 px-2 lg:px-3 py-0.5 rounded font-bold">
                                                                     واحد: {p?.unit === 'CARTON' ? 'کارتن' : 'عدد'}
                                                                 </span>
                                                             </div>
                                                             {/* Display Separated Metrics */}
-                                                            <div className="text-left space-y-1">
+                                                            <div className="text-left space-y-1 lg:space-y-2">
                                                                 {!isMotefereghe && (
-                                                                    <div className="flex items-center justify-end gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                                                    <div className="flex items-center justify-end gap-2 text-xs lg:text-base text-gray-500 dark:text-gray-400">
                                                                         <span>موجودی قبل:</span>
                                                                         <span className="font-bold text-gray-800 dark:text-white">{toPersianDigits(prevBalance)}</span>
                                                                     </div>
                                                                 )}
-                                                                <div className="flex items-center justify-end gap-2 text-xs text-green-600 dark:text-green-400">
+                                                                <div className="flex items-center justify-end gap-2 text-xs lg:text-base text-green-600 dark:text-green-400">
                                                                     <span>{isMotefereghe ? 'موجودی اعلامی:' : 'تولید روز:'}</span>
-                                                                    <span className="font-black text-lg">{toPersianDigits(production)}</span>
+                                                                    <span className="font-black text-lg lg:text-2xl">{toPersianDigits(production)}</span>
                                                                 </div>
                                                             </div>
                                                         </div>
 
                                                         {/* Visual Progress Bar */}
-                                                        <div className="mb-4 relative h-3 bg-gray-100 dark:bg-gray-900 rounded-full overflow-hidden">
+                                                        <div className="mb-4 lg:mb-6 relative h-3 lg:h-4 bg-gray-100 dark:bg-gray-900 rounded-full overflow-hidden">
                                                             <div 
                                                                 className="absolute top-0 right-0 h-full bg-metro-orange rounded-full transition-all duration-1000 ease-out" 
                                                                 style={{ width: `${soldPercent}%` }}
@@ -206,25 +206,25 @@ const FarmStatistics = () => {
                                                         </div>
 
                                                         {/* Metrics Grid */}
-                                                        <div className="grid grid-cols-2 gap-3 relative z-10">
-                                                            <div className="bg-red-50 dark:bg-red-900/10 p-3 rounded-lg border border-red-100 dark:border-red-900/30">
-                                                                <span className="block text-xs font-bold text-red-500 mb-1">فروش رفته (حواله)</span>
+                                                        <div className="grid grid-cols-2 gap-3 lg:gap-6 relative z-10">
+                                                            <div className="bg-red-50 dark:bg-red-900/10 p-3 lg:p-5 rounded-lg border border-red-100 dark:border-red-900/30">
+                                                                <span className="block text-xs lg:text-base font-bold text-red-500 mb-1 lg:mb-2">فروش رفته (حواله)</span>
                                                                 <div className="flex items-center gap-1">
-                                                                    <Icons.FileText className="w-4 h-4 text-red-500" />
-                                                                    <span className="text-xl font-black text-red-600">{toPersianDigits(sold)}</span>
+                                                                    <Icons.FileText className="w-4 h-4 lg:w-6 lg:h-6 text-red-500" />
+                                                                    <span className="text-xl lg:text-3xl font-black text-red-600">{toPersianDigits(sold)}</span>
                                                                 </div>
                                                             </div>
-                                                            <div className="bg-blue-50 dark:bg-blue-900/10 p-3 rounded-lg border border-blue-100 dark:border-blue-900/30">
-                                                                <span className="block text-xs font-bold text-blue-500 mb-1">موجودی انبار</span>
+                                                            <div className="bg-blue-50 dark:bg-blue-900/10 p-3 lg:p-5 rounded-lg border border-blue-100 dark:border-blue-900/30">
+                                                                <span className="block text-xs lg:text-base font-bold text-blue-500 mb-1 lg:mb-2">موجودی انبار</span>
                                                                 <div className="flex items-center gap-1">
-                                                                    <Icons.Check className="w-4 h-4 text-blue-500" />
-                                                                    <span className="text-xl font-black text-blue-600">{toPersianDigits(remaining)}</span>
+                                                                    <Icons.Check className="w-4 h-4 lg:w-6 lg:h-6 text-blue-500" />
+                                                                    <span className="text-xl lg:text-3xl font-black text-blue-600">{toPersianDigits(remaining)}</span>
                                                                 </div>
                                                             </div>
                                                         </div>
 
                                                         {/* Background Decoration */}
-                                                        <Icons.BarChart className="absolute -left-4 -bottom-4 w-32 h-32 text-gray-50 dark:text-gray-600 opacity-50 rotate-12 pointer-events-none" />
+                                                        <Icons.BarChart className="absolute -left-4 -bottom-4 w-32 h-32 lg:w-48 lg:h-48 text-gray-50 dark:text-gray-600 opacity-50 rotate-12 pointer-events-none" />
                                                     </div>
                                                 );
                                             })}
@@ -268,28 +268,28 @@ const InvoiceList = () => {
 
     const renderInvoiceNumber = (num: string) => {
         const strNum = toPersianDigits(num);
-        if (strNum.length < 4) return <span className="text-gray-800 dark:text-gray-200">{strNum}</span>;
+        if (strNum.length < 4) return <span className="text-gray-800 dark:text-gray-200 lg:text-xl">{strNum}</span>;
         const mainPart = strNum.slice(0, -4);
         const lastPart = strNum.slice(-4);
         return (
             <div className="flex justify-end items-center gap-0.5">
-                <span className="text-gray-500 dark:text-gray-400 font-bold">{mainPart}</span>
-                <span className="text-black dark:text-white font-black text-base">{lastPart}</span>
+                <span className="text-gray-500 dark:text-gray-400 font-bold lg:text-lg">{mainPart}</span>
+                <span className="text-black dark:text-white font-black text-base lg:text-2xl">{lastPart}</span>
             </div>
         );
     };
 
     return (
-        <div className="space-y-4">
-             <div className="bg-white dark:bg-gray-800 p-4 shadow-sm border-l-4 border-metro-orange flex flex-col md:flex-row gap-4 items-end rounded-xl">
+        <div className="space-y-4 lg:space-y-6">
+             <div className="bg-white dark:bg-gray-800 p-4 lg:p-6 shadow-sm border-l-4 border-metro-orange flex flex-col md:flex-row gap-4 lg:gap-6 items-end rounded-xl">
                 <div className="w-full md:w-1/3">
                     <JalaliDatePicker value={filterDate} onChange={setFilterDate} label="نمایش حواله‌های تاریخ" />
                 </div>
                 
                 <div className="w-full md:w-1/3">
-                    <label className="block text-xs font-bold mb-1 text-gray-700 dark:text-gray-300">فیلتر بر اساس فارم</label>
+                    <label className="block text-xs lg:text-sm font-bold mb-1 lg:mb-2 text-gray-700 dark:text-gray-300">فیلتر بر اساس فارم</label>
                     <select 
-                        className="w-full p-2 border-2 border-gray-300 bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white font-black outline-none focus:border-metro-orange h-[42px] rounded-lg"
+                        className="w-full p-2 lg:p-3 border-2 border-gray-300 bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white font-black outline-none focus:border-metro-orange h-[42px] lg:h-[52px] rounded-lg lg:text-lg"
                         value={selectedFarmId}
                         onChange={(e) => setSelectedFarmId(e.target.value)}
                     >
@@ -298,31 +298,31 @@ const InvoiceList = () => {
                     </select>
                 </div>
                 
-                <Button onClick={handleRefresh} disabled={isRefreshing} className="bg-metro-orange h-[42px] px-6 font-black w-full md:w-auto">
-                    <Icons.Refresh className={`w-4 h-4 ml-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <Button onClick={handleRefresh} disabled={isRefreshing} className="bg-metro-orange h-[42px] lg:h-[52px] px-6 font-black w-full md:w-auto lg:text-lg">
+                    <Icons.Refresh className={`w-4 h-4 lg:w-6 lg:h-6 ml-2 ${isRefreshing ? 'animate-spin' : ''}`} />
                     بروزرسانی لیست
                 </Button>
             </div>
 
             <div className="bg-white dark:bg-gray-800 p-0 shadow-sm overflow-hidden border border-gray-100 dark:border-gray-700 rounded-xl">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-right border-collapse">
-                        <thead className="bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                    <table className="w-full text-sm lg:text-base text-right border-collapse">
+                        <thead className="bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 whitespace-nowrap lg:text-lg font-bold">
                             <tr>
-                                <th className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">تاریخ خروج</th>
-                                <th className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 text-center">کد حواله</th>
-                                <th className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">فارم</th>
-                                <th className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 text-center">تعداد (کارتن)</th>
-                                <th className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">وزن (Kg)</th>
-                                <th className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">وضعیت</th>
+                                <th className="px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-200 dark:border-gray-700">تاریخ خروج</th>
+                                <th className="px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-200 dark:border-gray-700 text-center">کد حواله</th>
+                                <th className="px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-200 dark:border-gray-700">فارم</th>
+                                <th className="px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-200 dark:border-gray-700 text-center">تعداد (کارتن)</th>
+                                <th className="px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-200 dark:border-gray-700">وزن (Kg)</th>
+                                <th className="px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-200 dark:border-gray-700">وضعیت</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-800 font-sans tabular-nums">
                             {filteredInvoices.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="text-center py-10 text-gray-400">
+                                    <td colSpan={6} className="text-center py-10 lg:py-20 text-gray-400 font-bold lg:text-lg">
                                         <div className="flex flex-col items-center">
-                                            <Icons.FileText className="w-10 h-10 mb-2 opacity-30" />
+                                            <Icons.FileText className="w-10 h-10 lg:w-16 lg:h-16 mb-2 opacity-30" />
                                             <span>هیچ حواله‌ای برای تاریخ {toPersianDigits(normalizedFilterDate)} ثبت نشده است.</span>
                                         </div>
                                     </td>
@@ -330,20 +330,20 @@ const InvoiceList = () => {
                             ) : (
                                 filteredInvoices.map(i => (
                                     <tr key={i.id} className="hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors text-gray-800 dark:text-gray-200">
-                                        <td className="px-4 py-3 font-black whitespace-nowrap tracking-tighter text-base">{toPersianDigits(i.date)}</td>
-                                        <td className="px-4 py-3 text-center dir-ltr" dir="ltr">
+                                        <td className="px-4 py-3 lg:px-6 lg:py-6 font-black whitespace-nowrap tracking-tighter text-base lg:text-xl">{toPersianDigits(i.date)}</td>
+                                        <td className="px-4 py-3 lg:px-6 lg:py-6 text-center dir-ltr" dir="ltr">
                                             {renderInvoiceNumber(i.invoiceNumber)}
                                         </td>
-                                        <td className="px-4 py-3 whitespace-nowrap font-bold">{farms.find(f => f.id === i.farmId)?.name}</td>
-                                        <td className="px-4 py-3 text-center font-black">{toPersianDigits(i.totalCartons)}</td>
-                                        <td className="px-4 py-3 font-black text-metro-blue">{toPersianDigits(i.totalWeight)}</td>
-                                        <td className="px-4 py-3">
+                                        <td className="px-4 py-3 lg:px-6 lg:py-6 whitespace-nowrap font-bold lg:text-lg">{farms.find(f => f.id === i.farmId)?.name}</td>
+                                        <td className="px-4 py-3 lg:px-6 lg:py-6 text-center font-black lg:text-xl">{toPersianDigits(i.totalCartons)}</td>
+                                        <td className="px-4 py-3 lg:px-6 lg:py-6 font-black text-metro-blue lg:text-xl">{toPersianDigits(i.totalWeight)}</td>
+                                        <td className="px-4 py-3 lg:px-6 lg:py-6">
                                             <div className="flex flex-col gap-1">
-                                                <span className={`px-2 py-0.5 text-[10px] font-black text-white w-fit ${i.isYesterday ? 'bg-metro-orange' : 'bg-metro-green'}`}>
+                                                <span className={`px-2 lg:px-3 py-0.5 lg:py-1 text-[10px] lg:text-sm font-black text-white w-fit rounded ${i.isYesterday ? 'bg-metro-orange' : 'bg-metro-green'}`}>
                                                     {i.isYesterday ? 'دیروزی' : 'عادی'}
                                                 </span>
                                                 {i.updatedAt && (
-                                                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-black">(اصلاح شده)</span>
+                                                    <span className="text-[10px] lg:text-xs text-amber-600 dark:text-amber-400 font-black">(اصلاح شده)</span>
                                                 )}
                                             </div>
                                         </td>
@@ -410,18 +410,18 @@ const AnalyticsView = () => {
     const salesRate = chartData.totalProd > 0 ? ((chartData.totalSales / chartData.totalProd) * 100).toFixed(1) : '0';
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 lg:space-y-8">
             {/* Filters */}
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border-l-4 border-purple-500 flex flex-col sm:flex-row gap-4 justify-between items-center">
+            <div className="bg-white dark:bg-gray-800 p-4 lg:p-6 rounded-xl shadow-sm border-l-4 border-purple-500 flex flex-col sm:flex-row gap-4 justify-between items-center">
                 <div className="flex items-center gap-2">
-                    <Icons.BarChart className="w-6 h-6 text-purple-600" />
-                    <h3 className="font-black text-lg dark:text-white">تحلیل تولید و فروش</h3>
+                    <Icons.BarChart className="w-6 h-6 lg:w-8 lg:h-8 text-purple-600" />
+                    <h3 className="font-black text-lg lg:text-2xl dark:text-white">تحلیل تولید و فروش</h3>
                 </div>
                 <div className="flex gap-2 w-full sm:w-auto">
                     <select 
                         value={selectedFarmId} 
                         onChange={(e) => setSelectedFarmId(e.target.value)} 
-                        className="p-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white font-bold text-sm w-full sm:w-40"
+                        className="p-2 lg:p-3 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white font-bold text-sm lg:text-lg w-full sm:w-40"
                     >
                         <option value="all">همه فارم‌ها</option>
                         {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
@@ -429,7 +429,7 @@ const AnalyticsView = () => {
                     <select 
                         value={range} 
                         onChange={(e) => setRange(Number(e.target.value))} 
-                        className="p-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white font-bold text-sm"
+                        className="p-2 lg:p-3 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white font-bold text-sm lg:text-lg"
                     >
                         <option value={7}>۷ روز اخیر</option>
                         <option value={14}>۱۴ روز اخیر</option>
@@ -439,38 +439,38 @@ const AnalyticsView = () => {
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl border border-green-200 dark:border-green-800 flex items-center justify-between">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-8">
+                <div className="bg-green-50 dark:bg-green-900/20 p-4 lg:p-6 rounded-xl border border-green-200 dark:border-green-800 flex items-center justify-between">
                     <div>
-                        <span className="text-xs font-bold text-green-700 dark:text-green-300 block mb-1">مجموع تولید دوره</span>
-                        <span className="text-2xl font-black text-green-800 dark:text-green-100">{toPersianDigits(chartData.totalProd)}</span>
+                        <span className="text-xs lg:text-sm font-bold text-green-700 dark:text-green-300 block mb-1 lg:mb-2">مجموع تولید دوره</span>
+                        <span className="text-2xl lg:text-4xl font-black text-green-800 dark:text-green-100">{toPersianDigits(chartData.totalProd)}</span>
                     </div>
-                    <Icons.BarChart className="w-8 h-8 text-green-300 opacity-50" />
+                    <Icons.BarChart className="w-8 h-8 lg:w-12 lg:h-12 text-green-300 opacity-50" />
                 </div>
-                <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-xl border border-red-200 dark:border-red-800 flex items-center justify-between">
+                <div className="bg-red-50 dark:bg-red-900/20 p-4 lg:p-6 rounded-xl border border-red-200 dark:border-red-800 flex items-center justify-between">
                     <div>
-                        <span className="text-xs font-bold text-red-700 dark:text-red-300 block mb-1">مجموع فروش دوره</span>
-                        <span className="text-2xl font-black text-red-800 dark:text-red-100">{toPersianDigits(chartData.totalSales)}</span>
+                        <span className="text-xs lg:text-sm font-bold text-red-700 dark:text-red-300 block mb-1 lg:mb-2">مجموع فروش دوره</span>
+                        <span className="text-2xl lg:text-4xl font-black text-red-800 dark:text-red-100">{toPersianDigits(chartData.totalSales)}</span>
                     </div>
-                    <Icons.FileText className="w-8 h-8 text-red-300 opacity-50" />
+                    <Icons.FileText className="w-8 h-8 lg:w-12 lg:h-12 text-red-300 opacity-50" />
                 </div>
-                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-200 dark:border-blue-800 flex items-center justify-between">
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 lg:p-6 rounded-xl border border-blue-200 dark:border-blue-800 flex items-center justify-between">
                     <div>
-                        <span className="text-xs font-bold text-blue-700 dark:text-blue-300 block mb-1">نرخ فروش به تولید</span>
-                        <span className="text-2xl font-black text-blue-800 dark:text-blue-100">٪ {toPersianDigits(salesRate)}</span>
+                        <span className="text-xs lg:text-sm font-bold text-blue-700 dark:text-blue-300 block mb-1 lg:mb-2">نرخ فروش به تولید</span>
+                        <span className="text-2xl lg:text-4xl font-black text-blue-800 dark:text-blue-100">٪ {toPersianDigits(salesRate)}</span>
                     </div>
-                    <Icons.Refresh className="w-8 h-8 text-blue-300 opacity-50" />
+                    <Icons.Refresh className="w-8 h-8 lg:w-12 lg:h-12 text-blue-300 opacity-50" />
                 </div>
             </div>
 
             {/* Chart Area */}
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-x-auto">
-                <div className="min-w-[600px] h-[350px] relative pt-6 pb-8 px-4 flex items-end gap-2 md:gap-4">
+            <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-x-auto">
+                <div className="min-w-[600px] h-[350px] lg:h-[450px] relative pt-6 pb-8 px-4 flex items-end gap-2 md:gap-4 lg:gap-6">
                     {/* Background Grid Lines */}
                     <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-8 pt-6 px-4">
                         {[1, 0.75, 0.5, 0.25, 0].map((tick, i) => (
                             <div key={i} className="w-full border-b border-gray-100 dark:border-gray-700 h-0 relative">
-                                <span className="absolute -left-8 -top-2 text-[10px] text-gray-400 font-mono">
+                                <span className="absolute -left-8 -top-2 text-[10px] lg:text-sm text-gray-400 font-mono">
                                     {toPersianDigits(Math.round(chartData.maxVal * tick))}
                                 </span>
                             </div>
@@ -478,7 +478,7 @@ const AnalyticsView = () => {
                     </div>
 
                     {chartData.dataPoints.length === 0 ? (
-                        <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+                        <div className="absolute inset-0 flex items-center justify-center text-gray-400 lg:text-xl">
                             داده‌ای برای نمایش وجود ندارد
                         </div>
                     ) : (
@@ -489,7 +489,7 @@ const AnalyticsView = () => {
                             return (
                                 <div key={index} className="flex-1 flex flex-col justify-end items-center gap-1 group relative h-full z-10">
                                     {/* Tooltip */}
-                                    <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black text-white text-[10px] p-2 rounded pointer-events-none whitespace-nowrap z-20">
+                                    <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black text-white text-[10px] lg:text-sm p-2 lg:p-3 rounded pointer-events-none whitespace-nowrap z-20">
                                         <div className="text-center font-bold mb-1 border-b border-white/20 pb-1">{point.date}</div>
                                         <div>تولید: {toPersianDigits(point.prod)}</div>
                                         <div>فروش: {toPersianDigits(point.sale)}</div>
@@ -501,9 +501,9 @@ const AnalyticsView = () => {
                                             initial={{ height: 0 }} 
                                             animate={{ height: `${prodHeight}%` }}
                                             transition={{ duration: 0.5, delay: index * 0.05 }}
-                                            className="w-1/2 max-w-[20px] bg-green-500 rounded-t-sm hover:bg-green-400 transition-colors relative"
+                                            className="w-1/2 max-w-[20px] lg:max-w-[40px] bg-green-500 rounded-t-sm hover:bg-green-400 transition-colors relative"
                                         >
-                                            {prodHeight > 10 && <span className="absolute top-1 left-0 w-full text-center text-[8px] text-white/90 font-bold">{toPersianDigits(point.prod)}</span>}
+                                            {prodHeight > 10 && <span className="absolute top-1 left-0 w-full text-center text-[8px] lg:text-[10px] text-white/90 font-bold">{toPersianDigits(point.prod)}</span>}
                                         </motion.div>
                                         
                                         {/* Sales Bar */}
@@ -511,14 +511,14 @@ const AnalyticsView = () => {
                                             initial={{ height: 0 }} 
                                             animate={{ height: `${saleHeight}%` }}
                                             transition={{ duration: 0.5, delay: index * 0.05 + 0.1 }}
-                                            className="w-1/2 max-w-[20px] bg-red-500 rounded-t-sm hover:bg-red-400 transition-colors relative"
+                                            className="w-1/2 max-w-[20px] lg:max-w-[40px] bg-red-500 rounded-t-sm hover:bg-red-400 transition-colors relative"
                                         >
-                                            {saleHeight > 10 && <span className="absolute top-1 left-0 w-full text-center text-[8px] text-white/90 font-bold">{toPersianDigits(point.sale)}</span>}
+                                            {saleHeight > 10 && <span className="absolute top-1 left-0 w-full text-center text-[8px] lg:text-[10px] text-white/90 font-bold">{toPersianDigits(point.sale)}</span>}
                                         </motion.div>
                                     </div>
                                     
                                     <div className="h-8 flex items-center justify-center">
-                                        <span className="text-[10px] text-gray-500 dark:text-gray-400 -rotate-45 whitespace-nowrap origin-top-left translate-y-2 translate-x-2">
+                                        <span className="text-[10px] lg:text-sm text-gray-500 dark:text-gray-400 -rotate-45 whitespace-nowrap origin-top-left translate-y-2 translate-x-2">
                                             {toPersianDigits(point.date.slice(5))}
                                         </span>
                                     </div>
@@ -529,14 +529,14 @@ const AnalyticsView = () => {
                 </div>
                 
                 {/* Legend */}
-                <div className="flex justify-center gap-6 mt-4">
+                <div className="flex justify-center gap-6 lg:gap-10 mt-4 lg:mt-8">
                     <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-green-500 rounded-sm"></div>
-                        <span className="text-xs font-bold text-gray-600 dark:text-gray-300">تولید</span>
+                        <div className="w-3 h-3 lg:w-5 lg:h-5 bg-green-500 rounded-sm"></div>
+                        <span className="text-xs lg:text-base font-bold text-gray-600 dark:text-gray-300">تولید</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-red-500 rounded-sm"></div>
-                        <span className="text-xs font-bold text-gray-600 dark:text-gray-300">فروش</span>
+                        <div className="w-3 h-3 lg:w-5 lg:h-5 bg-red-500 rounded-sm"></div>
+                        <span className="text-xs lg:text-base font-bold text-gray-600 dark:text-gray-300">فروش</span>
                     </div>
                 </div>
             </div>
@@ -546,7 +546,7 @@ const AnalyticsView = () => {
 
 const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNavigate }) => {
     return (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 lg:gap-6">
             <MetroTile title="پایش آمار فارم‌ها" icon={Icons.BarChart} color="bg-metro-blue" size="wide" onClick={() => onNavigate('farm-stats')} />
             <MetroTile title="لیست حواله‌های فروش" icon={Icons.FileText} color="bg-metro-orange" size="wide" onClick={() => onNavigate('invoices')} />
             <MetroTile title="تحلیل نموداری" icon={Icons.BarChart} color="bg-purple-600" size="medium" onClick={() => onNavigate('analytics')} />
@@ -576,7 +576,7 @@ const SalesDashboard: React.FC = () => {
     };
 
     return (
-        <DashboardLayout title={getTitle()} onNavigate={setCurrentView}>
+        <DashboardLayout title={getTitle()} onNavigate={setCurrentView} currentView={currentView}>
             {renderContent()}
         </DashboardLayout>
     );

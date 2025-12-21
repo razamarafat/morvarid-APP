@@ -30,7 +30,7 @@ const RegistrationDashboard: React.FC = () => {
     }
 
     return (
-        <DashboardLayout title={getTitle()} onNavigate={setCurrentView}>
+        <DashboardLayout title={getTitle()} onNavigate={setCurrentView} currentView={currentView}>
             {renderContent()}
         </DashboardLayout>
     );
