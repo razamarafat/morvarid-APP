@@ -45,18 +45,10 @@ const InvoiceForm: React.FC = () => {
 
     const { register, handleSubmit, setValue, reset, watch, formState: { errors } } = useForm<InvoiceFormValues>({
         resolver: zodResolver(invoiceSchema),
-        defaultValues: { isYesterday: false, productId: '' }
+        defaultValues: { isYesterday: false, productId: '', description: '' }
     });
 
     const isMorvaridi = selectedFarm?.type === FarmType.MORVARIDI;
-
-    const onSubmit = async (data: InvoiceFormValues, event: any) => {
-        // Determine if this is "Save & Add Another" or "Final Save"
-        // For simplicity, we just save. The button that triggered this can handle the reset logic.
-        // But handleSubmit wraps this. 
-        // We will implement a custom handler logic inside.
-        await handleSave(data, false);
-    };
 
     const handleSave = async (data: InvoiceFormValues, keepInvoiceInfo: boolean) => {
         const confirmed = await confirm({
@@ -76,9 +68,10 @@ const InvoiceForm: React.FC = () => {
             totalCartons: data.totalCartons,
             totalWeight: data.totalWeight,
             productId: data.productId,
-            driverName: data.driverName,
-            driverPhone: data.driverPhone,
-            plateNumber: data.plateNumber,
+            driverName: data.driverName || '',
+            driverPhone: data.driverPhone || '',
+            plateNumber: data.plateNumber || '',
+            description: data.description || '',
             isYesterday: data.isYesterday
         });
         setIsSubmitting(false);
@@ -90,6 +83,7 @@ const InvoiceForm: React.FC = () => {
                 setValue('totalCartons', 0);
                 setValue('totalWeight', 0);
                 setValue('productId', '');
+                setValue('description', '');
                 addToast('اطلاعات محصول پاک شد، می‌توانید محصول بعدی این حواله را ثبت کنید.', 'info');
             } else {
                 reset();
@@ -112,21 +106,19 @@ const InvoiceForm: React.FC = () => {
 
             <div className="p-6">
                 <form id="invoiceForm" onSubmit={handleSubmit((d) => handleSave(d, false))} className="space-y-6">
-                    {/* Invoice Number & Date Mode */}
                     <div className="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-2xl border border-amber-100 dark:border-amber-900/30 flex justify-between items-center">
                         <label className="flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" {...register('isYesterday')} className="w-5 h-5 text-orange-600 rounded focus:ring-orange-500" />
                             <span className="font-bold text-gray-800 dark:text-gray-200 text-sm">حواله دیروز</span>
                         </label>
                         <div className="w-1/2">
-                            <input type="text" dir="ltr" {...register('invoiceNumber')} className={inputClass} placeholder="شماره حواله (۱۰ رقم)" />
-                            {errors.invoiceNumber && <p className="text-red-500 text-xs mt-1">{errors.invoiceNumber.message}</p>}
+                            <input type="text" dir="ltr" {...register('invoiceNumber')} className={inputClass} placeholder="شماره حواله" />
+                            {errors.invoiceNumber && <p className="text-red-500 text-xs mt-1 text-center font-bold">{errors.invoiceNumber.message}</p>}
                         </div>
                     </div>
 
-                    {/* Product Selection */}
                     <div>
-                        <label className="block text-sm font-black text-gray-400 mb-2 mr-2">محصول</label>
+                        <label className="block text-sm font-black text-gray-400 mb-2 mr-2 text-right">محصول</label>
                         <div className="grid grid-cols-2 gap-3">
                             {selectedFarm.productIds.map(pid => {
                                 const p = getProductById(pid);
@@ -140,37 +132,46 @@ const InvoiceForm: React.FC = () => {
                                 );
                             })}
                         </div>
-                        {errors.productId && <p className="text-red-500 text-xs mt-2 font-bold">{errors.productId.message}</p>}
+                        {errors.productId && <p className="text-red-500 text-xs mt-2 font-bold text-center">{errors.productId.message}</p>}
                     </div>
 
-                    {/* Weight & Cartons */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold mb-1 text-gray-500">تعداد کارتن</label>
+                            <label className="block text-xs font-bold mb-1 text-gray-500 text-center">تعداد کارتن</label>
                             <input type="number" {...register('totalCartons', { valueAsNumber: true })} className={inputClass} />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold mb-1 text-gray-500">وزن (کیلوگرم)</label>
+                            <label className="block text-xs font-bold mb-1 text-gray-500 text-center">وزن (کیلوگرم)</label>
                             <input type="number" step="0.01" {...register('totalWeight', { valueAsNumber: true })} className={inputClass} />
                         </div>
                     </div>
 
-                    {/* Morvaridi Specific Options */}
                     {isMorvaridi && (
                         <div className="border-t pt-4 border-dashed dark:border-gray-700 grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-bold mb-1 text-gray-500">نام راننده</label>
-                                <input {...register('driverName')} className={`${inputClass} text-sm`} placeholder="نام راننده" />
+                                <label className="block text-xs font-bold mb-1 text-gray-500 text-center">نام راننده (اختیاری)</label>
+                                <input {...register('driverName')} className={`${inputClass} text-sm font-normal`} placeholder="-" />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold mb-1 text-gray-500">شماره تماس</label>
-                                <input {...register('driverPhone')} className={`${inputClass} text-sm`} placeholder="0912..." dir="ltr" />
+                                <label className="block text-xs font-bold mb-1 text-gray-500 text-center">شماره تماس (اختیاری)</label>
+                                <input {...register('driverPhone')} className={`${inputClass} text-sm font-normal`} placeholder="-" dir="ltr" />
                             </div>
                             <div className="md:col-span-2">
-                                <label className="block text-xs font-bold mb-1 text-gray-500">پلاک خودرو</label>
-                                <input {...register('plateNumber')} className={`${inputClass} text-sm`} placeholder="۱۲ ع ۳۴۵ ایران ۶۶" />
+                                <label className="block text-xs font-bold mb-1 text-gray-500 text-center">پلاک خودرو (اختیاری)</label>
+                                <input {...register('plateNumber')} className={`${inputClass} text-sm font-normal`} placeholder="-" />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-xs font-bold mb-1 text-gray-500 text-center">توضیحات حواله (اختیاری)</label>
+                                <textarea {...register('description')} className={`${inputClass} text-sm font-normal h-20 text-right`} placeholder="توضیحات اضافی..."></textarea>
                             </div>
                         </div>
+                    )}
+
+                    {!isMorvaridi && (
+                         <div className="md:col-span-2">
+                             <label className="block text-xs font-bold mb-1 text-gray-500 text-center">توضیحات حواله (اختیاری)</label>
+                             <textarea {...register('description')} className={`${inputClass} text-sm font-normal h-20 text-right`} placeholder="توضیحات اضافی..."></textarea>
+                         </div>
                     )}
 
                     <div className="pt-4 flex flex-col gap-3">

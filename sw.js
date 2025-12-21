@@ -1,6 +1,6 @@
 
-// sw.js - Morvarid PWA Service Worker v1.7
-const CACHE_NAME = 'morvarid-v1.7';
+// sw.js - Morvarid PWA Service Worker v1.9
+const CACHE_NAME = 'morvarid-v1.9';
 
 // دارایی‌هایی که باید برای کارکرد آفلاین کش شوند
 const ASSETS_TO_CACHE = [
@@ -34,11 +34,10 @@ self.addEventListener('activate', (event) => {
 });
 
 // استراتژی کش: Network First, falling back to Cache
-// این بهترین استراتژی برای برنامه‌های آماری است که داده‌های تازه نیاز دارند
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
-  // جلوگیری از کش کردن درخواست‌های API (Supabase) برای جلوگیری از تداخل داده‌ای
+  // جلوگیری از کش کردن درخواست‌های API (Supabase)
   if (event.request.url.includes('supabase.co')) {
     return;
   }
@@ -46,7 +45,6 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // اگر پاسخ معتبر بود، آن را در کش کپی کن
         if (response && response.status === 200 && response.type === 'basic') {
           const responseToCache = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
@@ -56,13 +54,11 @@ self.addEventListener('fetch', (event) => {
         return response;
       })
       .catch(() => {
-        // اگر اینترنت نبود، از کش برگردان
         return caches.match(event.request);
       })
   );
 });
 
-// مدیریت نوتیفیکیشن
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   event.waitUntil(

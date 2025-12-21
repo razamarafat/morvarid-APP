@@ -23,7 +23,7 @@ export interface User {
   role: UserRole;
   isActive: boolean;
   lastVisit?: string;
-  createdAt?: string; // Added for reporting
+  createdAt?: string;
   assignedFarms?: Farm[];
   notificationsEnabled?: boolean;
   password?: string;
@@ -51,7 +51,7 @@ export interface Farm {
 export interface SystemLog {
   id: string;
   level: 'info' | 'warn' | 'error' | 'debug';
-  category: 'network' | 'auth' | 'database' | 'security' | 'frontend' | 'alert'; // Added 'alert'
+  category: 'network' | 'auth' | 'database' | 'security' | 'frontend' | 'alert';
   message: string;
   timestamp: string;
   userId?: string;
@@ -68,6 +68,7 @@ export interface Invoice {
     driverName?: string;
     driverPhone?: string;
     plateNumber?: string;
+    description?: string;
     isYesterday: boolean;
     createdAt: number;
     createdBy?: string;

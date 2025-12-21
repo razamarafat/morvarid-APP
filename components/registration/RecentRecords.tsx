@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
 import { useStatisticsStore, DailyStatistic } from '../../store/statisticsStore';
-import { useInvoiceStore, Invoice } from '../../store/invoiceStore';
+// Fix: Removed Invoice from invoiceStore import as it is not exported there
+import { useInvoiceStore } from '../../store/invoiceStore';
 import { useFarmStore } from '../../store/farmStore';
 import { useAuthStore } from '../../store/authStore';
 import { Icons } from '../common/Icons';
@@ -10,6 +11,8 @@ import Modal from '../common/Modal';
 import Button from '../common/Button';
 import { useToastStore } from '../../store/toastStore';
 import { toPersianDigits } from '../../utils/dateUtils';
+// Fix: Import Invoice from types.ts
+import { Invoice } from '../../types';
 
 const RecentRecords: React.FC = () => {
     const { statistics, deleteStatistic, updateStatistic } = useStatisticsStore();

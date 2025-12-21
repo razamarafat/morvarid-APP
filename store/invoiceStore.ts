@@ -1,22 +1,7 @@
 
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
-
-export interface Invoice {
-    id: string;
-    farmId: string;
-    date: string;
-    invoiceNumber: string;
-    totalCartons: number;
-    totalWeight: number;
-    productId?: string;
-    driverName?: string;
-    driverPhone?: string;
-    plateNumber?: string;
-    isYesterday: boolean;
-    createdAt: number;
-    updatedAt?: number;
-}
+import { Invoice } from '../types';
 
 // Legacy ID mapping helper - ROBUST
 const mapLegacyProductId = (id: string | number): string => {
@@ -65,6 +50,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
               driverName: i.driver_name,
               driverPhone: i.driver_phone,
               plateNumber: i.plate_number,
+              description: i.description,
               isYesterday: i.is_yesterday,
               createdAt: i.created_at ? new Date(i.created_at).getTime() : Date.now(),
               updatedAt: i.updated_at ? new Date(i.updated_at).getTime() : undefined
@@ -90,6 +76,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           driver_name: inv.driverName,
           driver_phone: inv.driverPhone,
           plate_number: inv.plateNumber,
+          description: inv.description,
           is_yesterday: inv.isYesterday,
           created_by: user.id
       };
@@ -107,12 +94,12 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
       const dbUpdates: any = {
           updated_at: new Date().toISOString()
       };
-      // Allow updating all fields
       if (updates.totalCartons !== undefined) dbUpdates.total_cartons = updates.totalCartons;
       if (updates.totalWeight !== undefined) dbUpdates.total_weight = updates.totalWeight;
       if (updates.driverName !== undefined) dbUpdates.driver_name = updates.driverName;
       if (updates.driverPhone !== undefined) dbUpdates.driver_phone = updates.driverPhone;
       if (updates.plateNumber !== undefined) dbUpdates.plate_number = updates.plateNumber;
+      if (updates.description !== undefined) dbUpdates.description = updates.description;
       
       const { error } = await supabase.from('invoices').update(dbUpdates).eq('id', id);
       

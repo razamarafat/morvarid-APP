@@ -28,37 +28,46 @@ if (!rootElement) {
   throw new Error("Could not find root element to mount to");
 }
 
-/**
- * مدیریت ثبت Service Worker
- * جلوگیری از ثبت در محیط‌های توسعه ابری که باعث خطای Origin Mismatch می‌شوند.
- */
+// PWA Service Worker Registration Logic
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     const hostname = window.location.hostname;
+    const href = window.location.href;
     
-    // لیست دامنه‌هایی که نباید در آن‌ها SW ثبت شود (محیط‌های پیش‌نمایش)
-    const isSandbox = hostname.includes('usercontent') || 
-                     hostname.includes('ai.studio') ||
-                     hostname.includes('google') ||
-                     hostname.includes('stackblitz') || 
-                     hostname.includes('webcontainer');
+    // Expanded list of preview/sandbox environments that restrict SW or cause Origin Mismatches
+    const isSandbox = 
+        hostname.includes('usercontent.goog') || 
+        hostname.includes('ai.studio') ||
+        hostname.includes('googleusercontent.com') ||
+        hostname.includes('webcontainer.io') ||
+        hostname.includes('stackblitz.io') ||
+        href.includes('scf.usercontent.goog');
 
-    // اگر محیط سندباکس است، کلاً بیخیال ثبت شو
     if (isSandbox) {
-      console.debug('Morvarid PWA: SW registration skipped (Sandbox environment detected).');
+      console.info('Morvarid PWA: Service Worker registration intentionally skipped on preview domain to prevent security/origin errors.');
       return;
     }
 
-    navigator.serviceWorker.register('sw.js')
+    // Using a simple relative path is the most robust way to register a SW 
+    // without triggering origin mismatch errors in proxied environments.
+    navigator.serviceWorker.register('sw.js', { scope: './' })
       .then(registration => {
-        console.log('Morvarid PWA: ServiceWorker registered successfully');
+        console.log('Morvarid PWA: ServiceWorker registered successfully on scope:', registration.scope);
       })
       .catch(err => {
-        // نادیده گرفتن خطاهای Origin برای جلوگیری از شلوغی کنسول در محیط‌های خاص
-        if (err.message && (err.message.includes('origin') || err.message.includes('scope'))) {
-            return; 
+        const msg = err?.message || String(err);
+        // Silently handle common sandbox/security restrictions to keep the console clean
+        if (
+            msg.includes('origin') || 
+            msg.includes('scriptURL') || 
+            msg.includes('SecurityError') || 
+            msg.includes('disallowed') ||
+            msg.includes('Operation is not supported')
+        ) {
+            console.warn('Morvarid PWA: SW registration skipped (Environment restriction):', msg);
+            return;
         }
-        console.warn('Morvarid PWA: ServiceWorker registration failed:', err.message);
+        console.error('Morvarid PWA: ServiceWorker registration failed:', err);
       });
   });
 }
