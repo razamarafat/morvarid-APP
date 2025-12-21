@@ -9,7 +9,7 @@ interface LogState {
   addLog: (level: SystemLog['level'], category: SystemLog['category'], message: string, userId?: string) => void;
   clearLogs: () => void;
   fetchLogs: () => Promise<void>;
-  subscribeToLogs: () => void;
+  subscribeToLogs: () => () => void; // Fixed: Now returns a cleanup function
   deleteLogsByUserId: (userId: string) => Promise<void>;
 }
 
@@ -78,7 +78,10 @@ export const useLogStore = create<LogState>((set, get) => ({
       })
       .subscribe();
       
-      return () => supabase.removeChannel(channel);
+      // Return a standard void function for cleanup
+      return () => {
+          supabase.removeChannel(channel);
+      };
   },
 
   addLog: async (level, category, message, userId) => {
