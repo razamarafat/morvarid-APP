@@ -82,25 +82,3 @@ export interface Backup {
   createdAt: string;
   createdBy: string;
 }
-
-// Logging Types
-export type LogLevel = 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR';
-
-export type LogCategory = 
-  | 'AUTH' 
-  | 'DATABASE' 
-  | 'NETWORK' 
-  | 'SYSTEM' 
-  | 'UI' 
-  | 'USER_ACTION' 
-  | 'FEATURE_TEST';
-
-export interface LogEntry {
-  id: string;
-  timestamp: string;
-  level: LogLevel;
-  category: LogCategory;
-  message: string;
-  details?: any;
-  synced: boolean;
-}
