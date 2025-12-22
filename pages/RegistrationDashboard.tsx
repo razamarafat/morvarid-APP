@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { Icons } from '../components/common/Icons';
 import StatisticsForm from '../components/registration/StatisticsForm';
-import InvoiceForm from '../components/registration/InvoiceForm';
+import { InvoiceForm } from '../components/registration/InvoiceForm';
 import RecentRecords from '../components/registration/RecentRecords';
 import MetroTile from '../components/common/MetroTile';
 
@@ -30,7 +30,7 @@ const RegistrationDashboard: React.FC = () => {
     }
 
     return (
-        <DashboardLayout title={getTitle()} onNavigate={setCurrentView}>
+        <DashboardLayout title={getTitle()} onNavigate={setCurrentView} currentView={currentView}>
             {renderContent()}
         </DashboardLayout>
     );

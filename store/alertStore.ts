@@ -64,12 +64,12 @@ export const useAlertStore = create<AlertState>((set, get) => ({
             const toastStore = useToastStore.getState();
 
             if (permission === "granted") {
-                logStore.addLog('info', 'alert', 'مجوز اعلان‌های سیستمی توسط کاربر تایید شد.');
+                logStore.logAction('info', 'alert', 'مجوز اعلان‌های سیستمی توسط کاربر تایید شد.');
                 return true;
             } else if (permission === "denied") {
                 // نمایش هشدار اما برگرداندن false برای جلوگیری از کرش
                 toastStore.addToast('اعلان‌ها مسدود هستند. لطفا برای دریافت هشدارها از تنظیمات مرورگر (آیکون قفل) دسترسی را باز کنید.', 'warning');
-                logStore.addLog('warn', 'alert', 'کاربر درخواست اعلان را رد کرد (Denied).');
+                logStore.logAction('warn', 'alert', 'کاربر درخواست اعلان را رد کرد (Denied).');
                 return false;
             }
         } catch (error) {
@@ -132,7 +132,7 @@ export const useAlertStore = create<AlertState>((set, get) => ({
             .subscribe((status) => {
                 if (status === 'SUBSCRIBED') {
                     set({ isListening: true });
-                    logStore.addLog('info', 'alert', 'اتصال آنی برای دریافت هشدارها برقرار شد.');
+                    logStore.logAction('info', 'alert', 'اتصال آنی برای دریافت هشدارها برقرار شد.');
                 }
             });
             
@@ -150,7 +150,7 @@ export const useAlertStore = create<AlertState>((set, get) => ({
         const payload = { targetFarmId: farmId, farmName, message, senderId: user.id, sentAt: Date.now(), action: 'missing_stats' };
         const result = await channel.send({ type: 'broadcast', event: 'farm_alert', payload });
         
-        useLogStore.getState().addLog('info', 'alert', `هشدار برای فارم ${farmName} ارسال شد.`, user.id);
+        useLogStore.getState().logAction('info', 'alert', `هشدار برای فارم ${farmName} ارسال شد.`, { farmId }, user.id);
         
         return { success: result === 'ok', detail: result as string, bytes: JSON.stringify(payload).length };
     }

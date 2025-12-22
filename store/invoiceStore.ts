@@ -2,8 +2,9 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { Invoice } from '../types';
+import { useStatisticsStore } from './statisticsStore';
+import { useLogStore } from './logStore';
 
-// Legacy ID mapping helper - ROBUST
 const mapLegacyProductId = (id: string | number): string => {
     const strId = String(id);
     if (strId === '1') return '11111111-1111-1111-1111-111111111111';
@@ -11,12 +12,25 @@ const mapLegacyProductId = (id: string | number): string => {
     return strId;
 };
 
+// Helper to translate DB errors
+const translateError = (error: any): string => {
+    if (!error) return 'خطای ناشناخته';
+    const msg = error.message || '';
+    const code = error.code || '';
+
+    if (code === '23505') return 'شماره حواله تکراری است.';
+    if (msg.includes('network') || msg.includes('fetch')) return 'خطا در اتصال به سرور.';
+    if (code === 'PGRST204') return 'خطای ساختار دیتابیس (ستون یافت نشد).';
+    
+    return `خطای ثبت حواله: ${msg} (${code})`;
+};
+
 interface InvoiceState {
     invoices: Invoice[];
     isLoading: boolean;
     fetchInvoices: () => Promise<void>;
-    addInvoice: (invoice: Omit<Invoice, 'id' | 'createdAt'>) => Promise<{ success: boolean; error?: any }>;
-    updateInvoice: (id: string, updates: Partial<Invoice>) => Promise<{ success: boolean; error?: any }>;
+    addInvoice: (invoice: Omit<Invoice, 'id' | 'createdAt'>) => Promise<{ success: boolean; error?: string; debug?: any }>;
+    updateInvoice: (id: string, updates: Partial<Invoice>) => Promise<{ success: boolean; error?: string; debug?: any }>;
     deleteInvoice: (id: string) => Promise<void>;
 }
 
@@ -53,6 +67,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
               description: i.description,
               isYesterday: i.is_yesterday,
               createdAt: i.created_at ? new Date(i.created_at).getTime() : Date.now(),
+              createdBy: i.created_by, // Mapped for Admin view
               updatedAt: i.updated_at ? new Date(i.updated_at).getTime() : undefined
           }));
           set({ invoices: mappedInvoices, isLoading: false });
@@ -63,34 +78,61 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
   },
 
   addInvoice: async (inv) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return { success: false, error: "Not authenticated" };
+      try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) return { success: false, error: "کاربر لاگین نیست." };
 
-      const dbInv = {
-          farm_id: inv.farmId,
-          date: inv.date,
-          invoice_number: inv.invoiceNumber,
-          total_cartons: inv.totalCartons,
-          total_weight: inv.totalWeight,
-          product_id: inv.productId,
-          driver_name: inv.driverName,
-          driver_phone: inv.driverPhone,
-          plate_number: inv.plateNumber,
-          description: inv.description,
-          is_yesterday: inv.isYesterday,
-          created_by: user.id
-      };
-      
-      const { error } = await supabase.from('invoices').insert(dbInv);
-      
-      if (!error) {
-          get().fetchInvoices();
-          return { success: true };
+          const dbInv: any = {
+              farm_id: inv.farmId,
+              date: inv.date,
+              invoice_number: inv.invoiceNumber,
+              total_cartons: inv.totalCartons,
+              total_weight: inv.totalWeight,
+              product_id: inv.productId,
+              driver_name: inv.driverName,
+              driver_phone: inv.driverPhone,
+              plate_number: inv.plateNumber,
+              description: inv.description,
+              is_yesterday: inv.isYesterday,
+              created_by: user.id
+          };
+          
+          let { error } = await supabase.from('invoices').insert(dbInv);
+          
+          // Fallback Strategy
+          if (error && error.code === 'PGRST204' && error.message.includes('description')) {
+              delete dbInv.description;
+              const retry = await supabase.from('invoices').insert(dbInv);
+              error = retry.error;
+          }
+          
+          if (!error) {
+              get().fetchInvoices();
+              if (inv.productId) {
+                  useStatisticsStore.getState().syncSalesFromInvoices(inv.farmId, inv.date, inv.productId);
+              }
+              
+              // NEW LOGGING
+              useLogStore.getState().logAction(
+                  'info', 
+                  'user_action', 
+                  `ثبت حواله جدید شماره ${inv.invoiceNumber}`,
+                  { invoice: dbInv }
+              );
+
+              return { success: true };
+          }
+          
+          useLogStore.getState().logAction('error', 'database', `خطا در ثبت حواله ${inv.invoiceNumber}`, { error });
+          return { success: false, error: translateError(error), debug: error };
+      } catch (e: any) {
+          return { success: false, error: `خطای غیرمنتظره: ${e.message}`, debug: e };
       }
-      return { success: false, error: error?.message || error };
   },
 
   updateInvoice: async (id, updates) => {
+      const original = get().invoices.find(i => i.id === id);
+
       const dbUpdates: any = {
           updated_at: new Date().toISOString()
       };
@@ -100,19 +142,41 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
       if (updates.driverPhone !== undefined) dbUpdates.driver_phone = updates.driverPhone;
       if (updates.plateNumber !== undefined) dbUpdates.plate_number = updates.plateNumber;
       if (updates.description !== undefined) dbUpdates.description = updates.description;
+      if (updates.invoiceNumber !== undefined) dbUpdates.invoice_number = updates.invoiceNumber;
       
-      const { error } = await supabase.from('invoices').update(dbUpdates).eq('id', id);
+      let { error } = await supabase.from('invoices').update(dbUpdates).eq('id', id);
+
+      if (error && error.code === 'PGRST204' && error.message.includes('description')) {
+          delete dbUpdates.description;
+          const retry = await supabase.from('invoices').update(dbUpdates).eq('id', id);
+          error = retry.error;
+      }
       
       if (!error) {
-          get().fetchInvoices();
+          await get().fetchInvoices();
+          if (original && original.productId) {
+              useStatisticsStore.getState().syncSalesFromInvoices(original.farmId, original.date, original.productId);
+          }
+          useLogStore.getState().logAction('info', 'user_action', `ویرایش حواله ${original?.invoiceNumber}`, { updates: dbUpdates });
           return { success: true };
       }
-      return { success: false, error: error?.message || error };
+      return { success: false, error: translateError(error), debug: error };
   },
 
   deleteInvoice: async (id) => {
+      const original = get().invoices.find(i => i.id === id);
       const { error } = await supabase.from('invoices').delete().eq('id', id);
-      if (!error) get().fetchInvoices();
-      else console.error('Error deleting invoice:', error?.message || error);
+      
+      if (!error) {
+          await get().fetchInvoices();
+          if (original && original.productId) {
+              useStatisticsStore.getState().syncSalesFromInvoices(original.farmId, original.date, original.productId);
+          }
+          useLogStore.getState().logAction('warn', 'user_action', `حذف حواله ${original?.invoiceNumber}`, { original });
+      }
+      else {
+          console.error('Error deleting invoice:', error?.message || error);
+          useLogStore.getState().logAction('error', 'database', `خطا در حذف حواله`, { error });
+      }
   }
 }));

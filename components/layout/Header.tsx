@@ -2,6 +2,7 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
+import { useLogStore } from '../../store/logStore';
 import { Icons } from '../common/Icons';
 import ThemeToggle from '../common/ThemeToggle';
 import { UserRole } from '../../types';
@@ -16,6 +17,7 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
   const { user, logout } = useAuthStore();
+  const { logAction } = useLogStore();
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useThemeStore(state => state.theme);
@@ -24,8 +26,15 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
   const role = user?.role || UserRole.ADMIN;
   const themeColors = THEMES[theme][role];
 
-  const handleHomeClick = () => {
-    switch (role) {
+  const handleGoToDashboard = () => {
+    if (!user) {
+        navigate('/login');
+        return;
+    }
+
+    logAction('INFO', 'UI', `Dashboard requested from ${location.pathname}`);
+
+    switch (user.role) {
         case UserRole.ADMIN: navigate('/admin'); break;
         case UserRole.REGISTRATION: navigate('/registration'); break;
         case UserRole.SALES: navigate('/sales'); break;
@@ -36,73 +45,63 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
   const handleLogout = async () => {
       const confirmed = await confirm({
           title: 'خروج از حساب',
-          message: 'آیا می‌خواهید از حساب کاربری خود خارج شوید؟',
+          message: 'آیا می‌خواهید خارج شوید؟',
           confirmText: 'خروج',
           cancelText: 'انصراف',
-          type: 'danger' // Critical action
+          type: 'danger' 
       });
       
       if (confirmed) {
+          logAction('INFO', 'AUTH', `Header logout`);
           await logout();
           navigate('/login');
       }
   };
 
-  const handleBack = async () => {
-      navigate(-1);
-  };
-
-  const rootPaths = ['/admin', '/registration', '/sales'];
-  const isRootPath = rootPaths.includes(location.pathname);
-  const hideBack = ['/', '/login'].includes(location.pathname) || isRootPath;
+  const dashboardPaths = ['/admin', '/registration', '/sales'];
+  const isAtDashboard = dashboardPaths.includes(location.pathname);
+  const shouldShowHome = !['/', '/login'].includes(location.pathname) && !isAtDashboard;
 
   return (
-    <header className={`${themeColors.surface} ${themeColors.text} shadow-sm sticky top-0 z-30 transition-colors duration-300 border-b-2 border-gray-100 dark:border-gray-800`}>
-      <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          {/* Force hide on large screens with explicit display css if needed, but Tailwind lg:hidden should work */}
+    <header className={`${themeColors.surface} ${themeColors.text} shadow-md sticky top-0 z-30 transition-colors duration-300 border-b-2 border-gray-100 dark:border-gray-800`}>
+      <div className="container mx-auto px-4 py-3 flex justify-between items-center max-w-full">
+        
+        <div className="flex items-center gap-1.5 md:gap-3">
           <button 
-            onClick={onMenuClick} 
-            className="lg:hidden p-3 -ml-2 hover:bg-black/5 dark:hover:bg-white/10 transition-colors active:scale-95"
+            onClick={() => {
+                logAction('INFO', 'UI', 'Hamburger clicked');
+                onMenuClick();
+            }} 
+            className="p-2.5 hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
             aria-label="Menu"
           >
-            <Icons.Menu className="w-7 h-7" />
+            <Icons.Menu className="w-8 h-8" />
           </button>
-          
-          {!hideBack && (
+
+          {shouldShowHome && (
               <button 
-                onClick={handleBack} 
-                className="p-2 hover:bg-black/5 dark:hover:bg-white/10 transition-colors mr-1"
-                title="بازگشت"
+                onClick={handleGoToDashboard} 
+                className={`p-2.5 ${themeColors.primary} text-white hover:opacity-90 shadow-sm transition-all active:scale-90 flex items-center justify-center`}
+                title="بازگشت به داشبورد"
               >
-                  <Icons.ChevronRight className="w-6 h-6" />
+                  <Icons.Home className="w-7 h-7" />
               </button>
           )}
 
-          <h1 
-            onClick={handleHomeClick}
-            className="text-lg md:text-xl font-black tracking-tighter cursor-pointer hover:opacity-80 transition-opacity select-none truncate max-w-[150px] sm:max-w-none"
-          >
+          <h1 className="text-lg md:text-2xl font-black tracking-tighter truncate max-w-[140px] sm:max-w-none border-r-2 border-gray-300 dark:border-gray-600 pr-3 mr-1">
             {title}
           </h1>
         </div>
         
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div 
-            onClick={handleHomeClick}
-            className="hidden sm:flex items-center gap-2 cursor-pointer bg-gray-100 dark:bg-gray-700/50 px-3 py-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-          >
+        <div className="flex items-center gap-3">
+          <div className="hidden sm:flex items-center gap-2 bg-gray-100 dark:bg-gray-700/50 px-3 py-1.5 rounded-none">
             <div className={`p-1 ${themeColors.primary} text-white`}>
                 <Icons.User className="w-4 h-4" />
             </div>
             <span className="font-black text-sm">{user?.fullName}</span>
           </div>
 
-          <button 
-            onClick={handleLogout}
-            className="sm:hidden p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors active:scale-95"
-            title="خروج"
-          >
+          <button onClick={handleLogout} className="sm:hidden p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
              <Icons.LogOut className="w-6 h-6" />
           </button>
 

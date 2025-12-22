@@ -85,14 +85,26 @@ function App() {
           fetchFarms();
           fetchProducts();
           initListener();
+          // Ensure background sync starts after a short delay
           setTimeout(() => syncQueue(), 5000);
       };
       init();
 
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-      if (isStandalone) setIsInstalled(true);
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches 
+                        || (window.navigator as any).standalone 
+                        || document.referrer.includes('android-app://');
 
-      const handleAppInstalled = () => setIsInstalled(true);
+      if (isStandalone) {
+          setIsInstalled(true);
+          info('SYSTEM', 'App running in Standalone Mode', { isStandalone: true });
+      }
+
+      const handleAppInstalled = () => {
+        info('SYSTEM', 'PWA Installed Successfully');
+        setIsInstalled(true);
+        setDeferredPrompt(null);
+      };
+
       window.addEventListener('appinstalled', handleAppInstalled);
       return () => window.removeEventListener('appinstalled', handleAppInstalled);
   }, []);

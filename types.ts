@@ -48,13 +48,12 @@ export interface Farm {
   productIds: string[];
 }
 
-export interface SystemLog {
-  id: string;
-  level: 'info' | 'warn' | 'error' | 'debug';
-  category: 'network' | 'auth' | 'database' | 'security' | 'frontend' | 'alert';
-  message: string;
-  timestamp: string;
-  userId?: string;
+export interface DeviceInfo {
+  userAgent: string;
+  screenResolution: string;
+  language: string;
+  platform: string;
+  connection?: string;
 }
 
 export interface Invoice {
@@ -82,4 +81,34 @@ export interface Backup {
   size: string;
   createdAt: string;
   createdBy: string;
+}
+
+// --- LOGGING SYSTEM TYPES (Enhanced for Build Compatibility) ---
+
+export type LogLevel = 
+  | 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR' | 'DEBUG'
+  | 'info' | 'success' | 'warning' | 'error' | 'warn' | 'debug';
+
+export type LogCategory = 
+  | 'SYSTEM' | 'USER' | 'DATABASE' | 'NETWORK' | 'UI' | 'AUTH' | 'SECURITY' | 'USER_ACTION' | 'FEATURE_TEST' | 'REPORT' | 'UNKNOWN'
+  | 'system' | 'user' | 'database' | 'network' | 'ui' | 'auth' | 'security' | 'user_action' | 'feature_test' | 'report';
+
+export interface LogEntry {
+  id: string;
+  timestamp: string;
+  level: LogLevel;
+  category: LogCategory;
+  message: string;
+  details: Record<string, any>;
+  userId?: string | null;
+  user_full_name?: string;
+  synced: boolean;
+}
+
+export interface LogFilter {
+  level?: LogLevel | 'ALL';
+  category?: LogCategory | 'ALL';
+  userId?: string | 'ALL';
+  startDate?: string;
+  endDate?: string;
 }
