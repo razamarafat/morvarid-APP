@@ -1,12 +1,10 @@
 
-// DEPRECATED
 export function useLogger() {
-  const noop = (...args: any[]) => {};
   return {
-    info: noop,
-    success: noop,
-    warning: noop,
-    error: noop,
-    log: noop
+    info: (category?: any, message?: any, metadata?: any) => {},
+    success: (category?: any, message?: any, metadata?: any) => {},
+    warning: (category?: any, message?: any, metadata?: any) => {},
+    error: (category?: any, message?: any, error?: any, metadata?: any) => { console.error(category, message, error); },
+    log: (entry?: any) => {}
   };
 }

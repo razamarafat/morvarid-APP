@@ -1,12 +1,11 @@
 
-// DEPRECATED HOOK
+// LOGGING SYSTEM DELETED
 export function useLogger() {
-  const noop = () => {};
   return {
-    info: noop,
-    success: noop,
-    warning: noop,
+    info: () => {},
+    success: () => {},
+    warning: () => {},
     error: (cat: any, msg: any, err: any) => console.error(cat, msg, err),
-    log: noop
+    log: () => {}
   };
 }

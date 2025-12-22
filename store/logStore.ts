@@ -1,33 +1,15 @@
 
 import { create } from 'zustand';
 
-// DEPRECATED STORE - REPLACED BY CONSOLE LOGGING
-export const useLogStore = create((set) => ({
+// LOGGING SYSTEM DELETED
+export const useLogStore = create(() => ({
   logs: [],
-  maxLogs: 0,
-  filter: {},
-  isLoading: false,
-  
   addEntry: () => {},
+  logAction: async () => {},
+  addLog: async () => {},
+  syncQueue: async () => {},
   clearLogs: () => {},
   setFilter: () => {},
   fetchLogs: async () => {},
   subscribeToLogs: () => () => {},
-  logTest: () => {},
-  logClick: () => {},
-  logError: () => {},
-  
-  log: () => {},
-  info: () => {},
-  success: () => {},
-  warn: () => {},
-  error: () => {},
-  
-  logAction: async () => {},
-  addLog: async () => {},
-  logUserAction: async () => {},
-  
-  flushPendingLogs: async () => {}, 
-  syncQueue: async () => {}, 
-  deleteLogsByUserId: async () => {},
 }));

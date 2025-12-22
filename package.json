@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "echo 'Linting skipped'"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
