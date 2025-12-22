@@ -150,7 +150,7 @@ export const useAlertStore = create<AlertState>((set, get) => ({
         const payload = { targetFarmId: farmId, farmName, message, senderId: user.id, sentAt: Date.now(), action: 'missing_stats' };
         const result = await channel.send({ type: 'broadcast', event: 'farm_alert', payload });
         
-        useLogStore.getState().logAction('info', 'alert', `هشدار برای فارم ${farmName} ارسال شد.`, { farmId }, user.id);
+        useLogStore.getState().logAction('info', 'alert', `هشدار برای فارم ${farmName} ارسال شد.`, { farmId });
         
         return { success: result === 'ok', detail: result as string, bytes: JSON.stringify(payload).length };
     }

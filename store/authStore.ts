@@ -46,7 +46,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError) {
-          useLogStore.getState().logError(sessionError, 'auth', 'checkSession', 'خطا در بررسی نشست کاربری');
+          useLogStore.getState().logError('خطا در بررسی نشست کاربری', sessionError);
           if (sessionError.message.includes('Refresh Token Not Found')) {
               await supabase.auth.signOut().catch(() => {});
               localStorage.removeItem('sb-bcdyieczslyynvvsfmmm-auth-token');
@@ -67,7 +67,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           .single();
 
       if (profileError) {
-           useLogStore.getState().logError(profileError, 'database', 'checkSession.fetchProfile', 'خطا در دریافت پروفایل کاربر');
+           useLogStore.getState().logError('خطا در دریافت پروفایل کاربر', profileError);
            set({ user: null, isLoading: false });
            return;
       }
@@ -111,7 +111,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           useLogStore.getState().flushPendingLogs();
       }
     } catch (error: any) {
-      useLogStore.getState().logError(error, 'auth', 'checkSession', 'خطای غیرمنتظره در بررسی نشست');
+      useLogStore.getState().logError('خطای غیرمنتظره در بررسی نشست', error);
       set({ user: null, isLoading: false });
     }
   },
