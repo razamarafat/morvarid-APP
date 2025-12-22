@@ -1,3 +1,4 @@
+
 import React, { useEffect, ErrorInfo, ReactNode } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import SplashPage from './pages/SplashPage';
@@ -29,10 +30,9 @@ interface ErrorBoundaryState {
 }
 
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false };
-  }
+  // Fix: Explicitly declare state and props to resolve TS errors where inheritance is not correctly mapped in some environments
+  public state: ErrorBoundaryState = { hasError: false };
+  public props!: ErrorBoundaryProps;
 
   static getDerivedStateFromError(_: Error): ErrorBoundaryState {
     return { hasError: true };
@@ -49,6 +49,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 
   render() {
+    // Fix: Access state property after explicit declaration
     if (this.state.hasError) {
       return (
         <div className="flex flex-col items-center justify-center h-screen bg-gray-100 dark:bg-gray-900 text-center p-4">
@@ -60,11 +61,13 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
         </div>
       );
     }
+    // Fix: Access props property after explicit declaration
     return this.props.children;
   }
 }
 
 function App() {
+  // Restore Point: System State Checkpoint
   const { theme } = useThemeStore();
   const { checkSession, user } = useAuthStore();
   const { fetchFarms, fetchProducts } = useFarmStore();

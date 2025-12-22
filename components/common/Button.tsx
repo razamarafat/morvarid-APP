@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { useLogStore } from '../../store/logStore';
+import { useLogStore } from '../../store/logStore.ts';
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
 type ButtonSize = 'sm' | 'md' | 'lg' | 'icon';
@@ -14,38 +14,34 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', isLoading = false, children, onClick, ...props }, ref) => {
     
-    // FIX: Removed useLogStore() hook to prevent re-renders on log updates.
-    // We access the store directly inside the handler.
+    const { logClick } = useLogStore();
 
     const handleInternalClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-        // Dynamic logging logic
-        let buttonLabel = 'unnamed_button';
+        // Automatic logging of button click with context
+        let label = props.title || props['aria-label'] || 'Button';
         if (typeof children === 'string') {
-            buttonLabel = children;
-        } else if (props.title) {
-            buttonLabel = props.title;
-        } else if (props['aria-label']) {
-            buttonLabel = props['aria-label'];
+            label = children;
+        } else if (React.isValidElement(children)) {
+            // Try to extract text from simple children
+            label = (children as any).props?.children || 'Icon Button';
         }
 
-        // Direct Access: Highly performant, no re-render trigger
-        useLogStore.getState().logAction('info', 'user_action', `کلیک دکمه: [${buttonLabel}]`, { 
+        logClick(label, { 
             variant, 
-            size, 
-            class: className 
+            size,
+            component: 'CommonButton',
+            timestamp: Date.now()
         });
 
-        if (onClick) {
-            onClick(e);
-        }
+        if (onClick) onClick(e);
     };
 
-    const baseClasses = 'inline-flex items-center justify-center font-bold transition-all focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98]';
+    const baseClasses = 'inline-flex items-center justify-center font-bold transition-all focus:outline-none disabled:opacity-50 disabled:pointer-events-none active:scale-[0.97]';
 
     const variantClasses = {
-      primary: 'bg-metro-blue text-white hover:bg-metro-cobalt border-2 border-transparent',
-      secondary: 'bg-transparent border-2 border-gray-400 text-gray-700 dark:text-gray-200 hover:border-gray-600 dark:hover:border-white',
-      danger: 'bg-metro-red text-white hover:bg-red-700 border-2 border-transparent',
+      primary: 'bg-metro-blue text-white hover:bg-metro-cobalt shadow-sm',
+      secondary: 'bg-white border-2 border-gray-300 text-gray-700 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 hover:border-metro-blue',
+      danger: 'bg-metro-red text-white hover:bg-red-700 shadow-sm',
       ghost: 'hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-200',
     };
 

@@ -1,249 +1,155 @@
 
 import { create } from 'zustand';
-import { supabase } from '../lib/supabase';
-import { LogEntry, LogLevel, LogCategory, LogFilter } from '../types';
-import { getDeviceInfo, formatError } from '../utils/logUtils';
 import { v4 as uuidv4 } from 'uuid';
+import { LogEntry, LogLevel, LogCategory } from '../types.ts';
+
+interface LogFilterState {
+  levels: LogLevel[];
+  categories: LogCategory[];
+  searchTerm: string;
+}
 
 interface LogState {
   logs: LogEntry[];
+  maxLogs: number;
+  filter: LogFilterState;
   isLoading: boolean;
-  queue: LogEntry[]; // Offline queue
   
-  // --- Core Actions ---
-  log: (level: LogLevel, category: LogCategory, message: string, details?: any, userId?: string | null) => Promise<void>;
-  fetchLogs: (filter?: LogFilter) => Promise<void>;
+  // Core Actions
+  addEntry: (level: LogLevel, category: LogCategory, message: string, details?: any) => void;
   clearLogs: () => void;
-  syncQueue: () => Promise<void>;
-  deleteLogsByUserId: (userId: string) => Promise<void>;
-  subscribeToLogs: () => () => void;
-  flushPendingLogs: () => Promise<void>;
-
-  // --- Compatibility / Legacy Wrappers ---
-  // These ensure the rest of the app (Header, Sidebar, AuthStore) keeps working
-  logAction: (level: LogLevel, category: LogCategory, message: string, details?: any, userId?: string | null) => Promise<void>;
-  addLog: (level: LogLevel, category: LogCategory, message: string, arg1?: any, arg2?: any, arg3?: any) => Promise<void>;
-  logError: (error: any, category: LogCategory, context: string, explanation: string) => Promise<void>;
-  logUserAction: (action: string, explanation: string, context?: any) => Promise<void>;
+  setFilter: (filter: Partial<LogFilterState>) => void;
   
-  // --- Short Helpers ---
+  // Interface Compatibility for UI
+  fetchLogs: () => Promise<void>;
+  subscribeToLogs: () => () => void;
+  
+  // Specialized Admin/Tech Helpers
+  logTest: (feature: string, success: boolean, data: any) => void;
+  logClick: (element: string, context?: any) => void;
+  logError: (message: string, error?: any) => void;
+  
+  // Legacy Compatibility Layer
+  log: (level: LogLevel, category: LogCategory, message: string, details?: any) => void;
   info: (category: LogCategory, message: string, details?: any) => void;
   success: (category: LogCategory, message: string, details?: any) => void;
   warn: (category: LogCategory, message: string, details?: any) => void;
-  error: (category: LogCategory, message: string, error?: unknown) => void;
+  error: (category: LogCategory, message: string, error?: any) => void;
+  logAction: (level: any, category: any, message: string, details?: any) => void;
+  addLog: (level: any, category: any, message: string, ...args: any[]) => void;
+  flushPendingLogs: () => Promise<void>;
+  syncQueue: () => Promise<void>;
 }
 
-const STORAGE_KEY = 'nexus_log_queue';
+const STORAGE_KEY = 'morvarid_nexus_logs';
 
 export const useLogStore = create<LogState>((set, get) => ({
-  logs: [],
-  isLoading: false,
-  queue: JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'),
-
-  // 1. Core Logging Function
-  log: async (level, category, message, details = {}, manualUserId) => {
-    // Prepare User ID
-    let userId = manualUserId;
-    if (!userId) {
-        const session = await supabase.auth.getSession();
-        userId = session.data.session?.user?.id || null;
-    }
-
-    const entry: LogEntry = {
-      id: uuidv4(),
-      timestamp: new Date().toISOString(),
-      level: level.toUpperCase() as LogLevel,
-      category: category.toUpperCase() as LogCategory,
-      message,
-      details: {
-        ...details,
-        device: getDeviceInfo(),
-        url: window.location.href,
-      },
-      userId,
-      synced: false
-    };
-
-    // Console Mirror
-    const style = level === 'ERROR' ? 'background: #fee; color: #c00' : 'background: #eef; color: #333';
-    console.log(`%c[${level}] ${category}: ${message}`, style, details);
-
-    // Optimistic UI Update
-    set(state => ({ logs: [entry, ...state.logs] }));
-
-    // Persistence Strategy
+  logs: (() => {
     try {
-      const { error } = await supabase.from('system_logs').insert({
-        level: entry.level.toLowerCase(),
-        category: entry.category.toLowerCase(),
-        message: entry.message,
-        metadata: entry.details,
-        user_id: entry.userId,
-        timestamp: entry.timestamp
-      });
-
-      if (error) throw error;
-
-      set(state => ({
-        logs: state.logs.map(l => l.id === entry.id ? { ...l, synced: true } : l)
-      }));
-
-    } catch (err) {
-      console.warn('Log sync failed, queuing to localStorage:', err);
-      const newQueue = [...get().queue, entry];
-      set({ queue: newQueue });
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newQueue));
-    }
+      const data = localStorage.getItem(STORAGE_KEY);
+      return data ? JSON.parse(data) : [];
+    } catch { return []; }
+  })(),
+  maxLogs: 300,
+  isLoading: false,
+  filter: {
+    levels: [],
+    categories: [],
+    searchTerm: '',
   },
 
-  // 2. Compatibility Layer (Fixes "logAction is not a function" errors)
-  logAction: async (level, category, message, details, userId) => {
-      await get().log(level, category, message, details, userId);
-  },
-
-  addLog: async (level, category, message, arg1, arg2, arg3) => {
-      // Overload handling to support old farmStore/authStore calls
-      // Usage 1: addLog(lvl, cat, msg, userId)
-      // Usage 2: addLog(lvl, cat, msg, persianMsg, details, userId)
-      
-      let finalMsg = message;
-      let details = {};
-      let userId = null;
-
-      // Heuristic: If arg1 is a string containing Persian or if arg2 is present, it's Usage 2
-      if (arg2 !== undefined || (typeof arg1 === 'string' && /[\u0600-\u06FF]/.test(arg1))) {
-          if (typeof arg1 === 'string') finalMsg = `${arg1} (${message})`;
-          if (arg2) details = arg2;
-          if (arg3) userId = arg3;
-      } else {
-          // Usage 1: arg1 is userId
-          userId = arg1;
-      }
-
-      await get().log(level, category, finalMsg, details, userId);
-  },
-
-  logError: async (err, category, context, explanation) => {
-      const formatted = formatError(err);
-      await get().log('ERROR', category, `${explanation} in ${context}`, formatted);
-  },
-
-  logUserAction: async (action, explanation, context) => {
-      await get().log('INFO', 'USER_ACTION', `${explanation} - ${action}`, context);
-  },
-
-  // 3. Short Helpers
-  info: (cat, msg, det) => get().log('INFO', cat, msg, det),
-  success: (cat, msg, det) => get().log('SUCCESS', cat, msg, det),
-  warn: (cat, msg, det) => get().log('WARNING', cat, msg, det),
-  error: (cat, msg, err) => get().log('ERROR', cat, msg, formatError(err)),
-
-  // 4. Data Management
-  fetchLogs: async (filter) => {
+  fetchLogs: async () => {
+    // In local-first, fetching means ensuring the state matches localStorage
     set({ isLoading: true });
     try {
-      let query = supabase
-        .from('system_logs')
-        .select('*')
-        .order('timestamp', { ascending: false })
-        .limit(100);
-
-      if (filter?.level && filter.level !== 'ALL') {
-        query = query.eq('level', filter.level.toLowerCase());
-      }
-      if (filter?.category && filter.category !== 'ALL') {
-        query = query.eq('category', filter.category.toLowerCase());
-      }
-      if (filter?.userId && filter.userId !== 'ALL') {
-        query = query.eq('user_id', filter.userId);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-
+      const data = localStorage.getItem(STORAGE_KEY);
       if (data) {
-        // Enforce types and fetch user names
-        const userIds = Array.from(new Set(data.map((l: any) => l.user_id).filter(Boolean)));
-        let userMap: Record<string, string> = {};
-        
-        if (userIds.length > 0) {
-            const { data: profiles } = await supabase.from('profiles').select('id, full_name, username').in('id', userIds);
-            if (profiles) {
-                profiles.forEach((p: any) => {
-                    userMap[p.id] = p.full_name || p.username || 'Unknown';
-                });
-            }
-        }
-
-        const mappedLogs: LogEntry[] = data.map((row: any) => ({
-          id: row.id,
-          timestamp: row.timestamp,
-          level: (row.level?.toUpperCase() || 'INFO') as LogLevel,
-          category: (row.category?.toUpperCase() || 'SYSTEM') as LogCategory,
-          message: row.message || '',
-          details: row.metadata || row.details || {},
-          userId: row.user_id,
-          user_full_name: userMap[row.user_id] || (row.user_id ? 'Unknown User' : 'System'),
-          synced: true
-        }));
-
-        set({ logs: mappedLogs, isLoading: false });
+        set({ logs: JSON.parse(data) });
       }
-    } catch (e: any) {
-      console.error('Fetch Logs Error:', e);
-      // Quietly fail UI loading to prevent crash
+    } catch (e) {
+      console.error("Local log fetch error", e);
+    } finally {
       set({ isLoading: false });
     }
   },
 
-  syncQueue: async () => {
-    const queue = get().queue;
-    if (queue.length === 0) return;
-
-    const remainingQueue: LogEntry[] = [];
-
-    for (const entry of queue) {
-      try {
-        const { error } = await supabase.from('system_logs').insert({
-            level: entry.level.toLowerCase(),
-            category: entry.category.toLowerCase(),
-            message: entry.message,
-            metadata: entry.details,
-            user_id: entry.userId,
-            timestamp: entry.timestamp
-        });
-        if (error) throw error;
-      } catch (e) {
-        remainingQueue.push(entry);
-      }
-    }
-
-    set({ queue: remainingQueue });
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(remainingQueue));
-    
-    if (remainingQueue.length < queue.length) {
-        get().fetchLogs();
-    }
-  },
-
-  flushPendingLogs: async () => {
-      await get().syncQueue();
-  },
-
-  deleteLogsByUserId: async (userId) => {
-      await supabase.from('system_logs').delete().eq('user_id', userId);
-      set(state => ({ logs: state.logs.filter(l => l.userId !== userId) }));
-  },
-
   subscribeToLogs: () => {
-      const channel = supabase
-          .channel('realtime_logs')
-          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'system_logs' }, () => {
-              get().fetchLogs();
-          })
-          .subscribe();
-      return () => { supabase.removeChannel(channel); };
+    // Local logs don't need a real-time DB subscription, 
+    // but we provide a dummy unsubscribe function for UI compatibility.
+    return () => { /* No-op cleanup */ };
   },
 
-  clearLogs: () => set({ logs: [] })
+  setFilter: (newFilter) => {
+    set(state => ({ filter: { ...state.filter, ...newFilter } }));
+  },
+
+  addEntry: (level, category, message, details = {}) => {
+    const entry: LogEntry = {
+      id: uuidv4(),
+      timestamp: new Date().toISOString(),
+      level,
+      category,
+      message,
+      details: {
+        ...details,
+        path: window.location.hash,
+        userAgent: navigator.userAgent
+      },
+      synced: true 
+    };
+
+    // Console mirror
+    const colors = { INFO: '#2D89EF', SUCCESS: '#00A300', WARNING: '#F09609', ERROR: '#EE1111' };
+    console.log(`%c[${level}] %c${category}: ${message}`, `color: ${colors[level]}; font-weight: bold;`, 'color: gray;', details);
+
+    set(state => {
+      const newLogs = [entry, ...state.logs].slice(0, state.maxLogs);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newLogs));
+      return { logs: newLogs };
+    });
+  },
+
+  logTest: (feature, success, data) => {
+    get().addEntry(
+      success ? 'SUCCESS' : 'ERROR',
+      'SYSTEM',
+      `تست فنی [${feature}]: ${success ? 'موفق' : 'ناموفق'}`,
+      { technical_data: data }
+    );
+  },
+
+  logClick: (element, context) => {
+    get().addEntry('INFO', 'UI', `تعامل: کلیک بر روی [${element}]`, context);
+  },
+
+  logError: (message, error) => {
+    get().addEntry('ERROR', 'SYSTEM', message, { 
+      errorMessage: error?.message || error,
+      stack: error?.stack 
+    });
+  },
+
+  // Compatibility Wrappers
+  log: (lvl, cat, msg, det) => get().addEntry(lvl, cat, msg, det),
+  info: (cat, msg, det) => get().addEntry('INFO', cat, msg, det),
+  success: (cat, msg, det) => get().addEntry('SUCCESS', cat, msg, det),
+  warn: (cat, msg, det) => get().addEntry('WARNING', cat, msg, det),
+  error: (cat, msg, err) => get().logError(msg, err),
+  
+  logAction: async (level, category, message, details) => {
+      get().addEntry(level.toUpperCase(), category.toUpperCase(), message, details);
+  },
+  
+  addLog: async (level, category, message, ...args) => {
+    const details = args.length > 0 ? (typeof args[0] === 'object' ? args[0] : { data: args }) : {};
+    get().addEntry(level.toUpperCase() as LogLevel, category.toUpperCase() as LogCategory, message, details);
+  },
+  
+  flushPendingLogs: async () => {}, 
+  syncQueue: async () => {}, 
+
+  clearLogs: () => {
+    localStorage.removeItem(STORAGE_KEY);
+    set({ logs: [] });
+  }
 }));

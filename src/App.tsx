@@ -32,6 +32,8 @@ interface ErrorBoundaryState {
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   // Use class property for state initialization to ensure type safety without constructor
   public state: ErrorBoundaryState = { hasError: false };
+  // Fix: Explicitly declare props to resolve TS2339 error where inheritance is not correctly mapped in the compiler context
+  public props!: ErrorBoundaryProps;
 
   static getDerivedStateFromError(_: Error): ErrorBoundaryState {
     return { hasError: true };
@@ -59,6 +61,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
         </div>
       );
     }
+    // Fix: Access props property after explicit declaration
     return this.props.children;
   }
 }
