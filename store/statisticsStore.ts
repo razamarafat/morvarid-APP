@@ -2,6 +2,8 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { normalizeDate } from '../utils/dateUtils';
+import { useLogStore } from './logStore';
+import { LOG_CATEGORIES, LOG_LEVELS } from '../constants';
 
 export interface DailyStatistic {
     id: string;
@@ -29,17 +31,13 @@ const mapLegacyProductId = (id: string | number): string => {
     return strId;
 };
 
-// Helper to translate DB errors
 const translateError = (error: any): string => {
     if (!error) return 'خطای ناشناخته';
     const msg = error.message || '';
     const code = error.code || '';
-
-    if (code === '23505') return 'این رکورد قبلاً ثبت شده است (تکراری).';
-    if (code === '23503') return 'فارم یا محصول انتخاب شده نامعتبر است.';
-    if (msg.includes('network') || msg.includes('fetch')) return 'خطا در برقراری ارتباط با سرور. اینترنت خود را چک کنید.';
-    if (msg.includes('JWT')) return 'نشست کاربری منقضی شده است. لطفاً دوباره وارد شوید.';
-    
+    if (code === '23505') return 'این رکورد قبلاً ثبت شده است.';
+    if (code === '23503') return 'فارم یا محصول نامعتبر است.';
+    if (msg.includes('network')) return 'خطا در اتصال به سرور.';
     return `خطای سیستم: ${msg} (${code})`;
 };
 
@@ -62,7 +60,6 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
 
   fetchStatistics: async () => {
       set({ isLoading: true });
-
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
           set({ statistics: [], isLoading: false });
@@ -75,8 +72,8 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           .order('date', { ascending: false });
       
       if (statsError) {
+          useLogStore.getState().logError(statsError, LOG_CATEGORIES.DATABASE, 'fetchStatistics', 'خطا در دریافت آمار');
           set({ isLoading: false });
-          console.error("Fetch Stats Error:", statsError);
           return;
       }
 
@@ -85,16 +82,9 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           let profileMap: Record<string, string> = {};
 
           if (creatorIds.length > 0) {
-              const { data: profilesData } = await supabase
-                  .from('profiles')
-                  .select('id, full_name')
-                  .in('id', creatorIds);
-              
+              const { data: profilesData } = await supabase.from('profiles').select('id, full_name').in('id', creatorIds);
               if (profilesData) {
-                  profileMap = profilesData.reduce((acc: any, p: any) => {
-                      acc[p.id] = p.full_name;
-                      return acc;
-                  }, {});
+                  profileMap = profilesData.reduce((acc: any, p: any) => ({ ...acc, [p.id]: p.full_name }), {});
               }
           }
 
@@ -125,14 +115,11 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
   subscribeToStatistics: () => {
       const channel = supabase
           .channel('public:daily_statistics')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_statistics' }, (payload) => {
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_statistics' }, () => {
               get().fetchStatistics();
           })
           .subscribe();
-
-      return () => {
-          supabase.removeChannel(channel);
-      };
+      return () => { supabase.removeChannel(channel); };
   },
 
   addStatistic: async (stat) => {
@@ -140,9 +127,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
   },
 
   updateStatistic: async (id, updates) => {
-      const dbUpdates: any = {
-          updated_at: new Date().toISOString()
-      };
+      const dbUpdates: any = { updated_at: new Date().toISOString() };
       if (updates.production !== undefined) dbUpdates.production = Number(updates.production) || 0;
       if (updates.sales !== undefined) dbUpdates.sales = Number(updates.sales) || 0;
       if (updates.previousBalance !== undefined) dbUpdates.previous_balance = Number(updates.previousBalance) || 0;
@@ -152,9 +137,11 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
       const { error } = await supabase.from('daily_statistics').update(dbUpdates).eq('id', id);
       
       if (!error) {
+          useLogStore.getState().logUserAction('Update Statistic', `ویرایش آمار با شناسه ${id}`, { updates });
           get().fetchStatistics();
           return { success: true };
       }
+      useLogStore.getState().logError(error, LOG_CATEGORIES.DATABASE, 'updateStatistic', 'خطا در ویرایش آمار');
       return { success: false, error: translateError(error), debug: error };
   },
 
@@ -162,13 +149,11 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
       try {
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) return { success: false, error: "کاربر احراز هویت نشده است." };
-          
           if (stats.length === 0) return { success: true };
 
           const farmId = stats[0].farmId;
           const date = normalizeDate(stats[0].date);
 
-          // 1. Fetch existing record IDs to decide Insert vs Update
           const { data: existingRecords, error: fetchError } = await supabase
               .from('daily_statistics')
               .select('id, product_id, sales')
@@ -176,12 +161,12 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
               .eq('date', date);
           
           if (fetchError) {
+              useLogStore.getState().logError(fetchError, LOG_CATEGORIES.DATABASE, 'bulkUpsert.fetchExisting', 'خطا در بررسی رکوردهای موجود');
               return { success: false, error: translateError(fetchError), debug: fetchError };
           }
           
           const idMap = new Map();
           const salesMap = new Map(); 
-
           if (existingRecords) {
               existingRecords.forEach((r: any) => {
                   idMap.set(String(r.product_id), r.id);
@@ -189,81 +174,84 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
               });
           }
 
-          // 2. Prepare Payloads
           const dbPayloads = stats.map(stat => {
               const existingSales = salesMap.get(String(stat.productId));
               const finalSales = existingSales ? existingSales.unit : (Number(stat.sales) || 0);
               
-              const prod = Number(stat.production) || 0;
-              const prev = Number(stat.previousBalance) || 0;
-              const currentInv = prev + prod - finalSales;
-
               const payload: any = {
                   farm_id: stat.farmId,
                   date: normalizeDate(stat.date),
                   product_id: stat.productId,
-                  previous_balance: prev,
-                  production: prod,
+                  previous_balance: Number(stat.previousBalance) || 0,
+                  production: Number(stat.production) || 0,
                   sales: finalSales, 
-                  current_inventory: currentInv,
+                  current_inventory: Number(stat.currentInventory) || 0,
                   created_by: user.id,
               };
 
               const existingId = idMap.get(String(stat.productId));
-              if (existingId) {
-                  payload.id = existingId;
-              }
+              if (existingId) payload.id = existingId;
               
               return payload;
           });
 
-          // 3. Separate Inserts and Updates
-          const inserts = [];
-          const updates = [];
-
-          for (const p of dbPayloads) {
-              if (p.id) updates.push(p);
-              else inserts.push(p);
-          }
+          const inserts = dbPayloads.filter(p => !p.id);
+          const updates = dbPayloads.filter(p => p.id);
 
           if (inserts.length > 0) {
               const { error } = await supabase.from('daily_statistics').insert(inserts);
-              if (error) return { success: false, error: translateError(error), debug: error };
+              if (error) {
+                  useLogStore.getState().logError(error, LOG_CATEGORIES.DATABASE, 'bulkUpsert.insert', 'خطا در ثبت آمار جدید');
+                  return { success: false, error: translateError(error), debug: error };
+              }
           }
 
           if (updates.length > 0) {
               for (const u of updates) {
                   const { id, ...rest } = u;
                   const { error } = await supabase.from('daily_statistics').update(rest).eq('id', id);
-                  if (error) return { success: false, error: translateError(error), debug: error };
+                  if (error) {
+                      useLogStore.getState().logError(error, LOG_CATEGORIES.DATABASE, 'bulkUpsert.update', 'خطا در بروزرسانی آمار موجود');
+                      return { success: false, error: translateError(error), debug: error };
+                  }
               }
           }
+
+          useLogStore.getState().addLog(
+              LOG_LEVELS.INFO, 
+              LOG_CATEGORIES.USER_ACTION, 
+              `Batch statistics registered for farm ${farmId}`, 
+              `ثبت آمار دسته‌ای (${stats.length} محصول) برای تاریخ ${date}`,
+              { count: stats.length }
+          );
 
           get().fetchStatistics();
           return { success: true };
 
       } catch (err: any) {
+          useLogStore.getState().logError(err, LOG_CATEGORIES.SYSTEM, 'bulkUpsert', 'خطای پیش‌بینی نشده در ثبت آمار');
           return { success: false, error: `خطای غیرمنتظره: ${err.message}`, debug: err };
       }
   },
 
   deleteStatistic: async (id) => {
       const { error } = await supabase.from('daily_statistics').delete().eq('id', id);
-      if (error) console.error("Delete Stat Error:", error);
+      if (error) {
+          useLogStore.getState().logError(error, LOG_CATEGORIES.DATABASE, 'deleteStatistic', 'خطا در حذف آمار');
+      } else {
+          useLogStore.getState().logUserAction('Delete Statistic', `حذف رکورد آمار ${id}`);
+          get().fetchStatistics();
+      }
   },
 
   getLatestInventory: (farmId, productId) => {
     const stats = get().statistics.filter(s => s.farmId === farmId && s.productId === productId);
     if (stats.length === 0) return { units: 0, kg: 0 };
-    return { 
-        units: stats[0].currentInventory || 0, 
-        kg: stats[0].currentInventoryKg || 0 
-    };
+    return { units: stats[0].currentInventory || 0, kg: stats[0].currentInventoryKg || 0 };
   },
 
   syncSalesFromInvoices: async (farmId, date, productId) => {
       const normalizedDate = normalizeDate(date);
-      
       const { data: invoices, error: invError } = await supabase
           .from('invoices')
           .select('total_cartons, total_weight')
@@ -272,33 +260,29 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           .eq('product_id', productId);
 
       if (invError) {
-          console.error("Sync Error: Failed to fetch invoices", invError);
+          useLogStore.getState().logError(invError, LOG_CATEGORIES.DATABASE, 'syncSales', 'خطا در همگام‌سازی فروش');
           return;
       }
 
       const totalSales = invoices?.reduce((sum, inv) => sum + (inv.total_cartons || 0), 0) || 0;
       
-      const { data: statRecord, error: statError } = await supabase
+      const { data: statRecord } = await supabase
           .from('daily_statistics')
-          .select('id, production, previous_balance, current_inventory')
+          .select('id, production, previous_balance')
           .eq('farm_id', farmId)
           .eq('date', normalizedDate)
           .eq('product_id', productId)
           .single();
 
-      if (statError && statError.code !== 'PGRST116') {
-          console.error("Sync Error: Failed to fetch statistics", statError);
-          return;
-      }
-
       if (statRecord) {
           const newInventory = (statRecord.previous_balance || 0) + (statRecord.production || 0) - totalSales;
-          
           await supabase.from('daily_statistics').update({
               sales: totalSales,
               current_inventory: newInventory,
               updated_at: new Date().toISOString()
           }).eq('id', statRecord.id);
+          
+          useLogStore.getState().addLog(LOG_LEVELS.INFO, LOG_CATEGORIES.SYSTEM, 'Synced Sales', 'بروزرسانی خودکار فروش در آمار', { farmId, date, productId, totalSales });
       }
   }
 }));

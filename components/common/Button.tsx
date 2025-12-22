@@ -14,8 +14,11 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', isLoading = false, children, onClick, ...props }, ref) => {
     
-    // Direct store access to avoid re-renders
+    // FIX: Removed useLogStore() hook to prevent re-renders on log updates.
+    // We access the store directly inside the handler.
+
     const handleInternalClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+        // Dynamic logging logic
         let buttonLabel = 'unnamed_button';
         if (typeof children === 'string') {
             buttonLabel = children;
@@ -25,7 +28,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             buttonLabel = props['aria-label'];
         }
 
-        // Fire and forget log
+        // Direct Access: Highly performant, no re-render trigger
         useLogStore.getState().logAction('info', 'user_action', `کلیک دکمه: [${buttonLabel}]`, { 
             variant, 
             size, 

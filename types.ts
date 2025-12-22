@@ -48,15 +48,12 @@ export interface Farm {
   productIds: string[];
 }
 
-export interface SystemLog {
-  id: string;
-  level: 'info' | 'warn' | 'error' | 'debug';
-  category: 'network' | 'auth' | 'database' | 'security' | 'frontend' | 'alert' | 'user_action';
-  message: string; // Persian Summary
-  details?: any;   // Technical JSON
-  timestamp: string;
-  userId?: string;
-  user_full_name?: string; // Virtual field for display
+export interface DeviceInfo {
+  userAgent: string;
+  screenResolution: string;
+  language: string;
+  platform: string;
+  connection?: string;
 }
 
 export interface Invoice {
@@ -84,4 +81,29 @@ export interface Backup {
   size: string;
   createdAt: string;
   createdBy: string;
+}
+
+// --- NEW LOGGING SYSTEM TYPES ---
+
+export type LogLevel = 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR';
+export type LogCategory = 'SYSTEM' | 'USER' | 'DATABASE' | 'NETWORK' | 'UI' | 'AUTH' | 'SECURITY';
+
+export interface LogEntry {
+  id: string;
+  timestamp: string; // ISO String
+  level: LogLevel;
+  category: LogCategory;
+  message: string; // Brief Persian message
+  details: Record<string, any>; // Technical details (payload, stack trace, etc.)
+  userId?: string | null;
+  user_full_name?: string; // Enriched on fetch
+  synced: boolean; // True if saved to Supabase
+}
+
+export interface LogFilter {
+  level?: LogLevel | 'ALL';
+  category?: LogCategory | 'ALL';
+  userId?: string | 'ALL';
+  startDate?: string;
+  endDate?: string;
 }

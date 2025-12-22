@@ -74,4 +74,23 @@ export const THEMES = {
   }
 };
 
-export const APP_VERSION = '1.1.8';
+export const APP_VERSION = '1.2.0';
+
+export const LOG_LEVELS = {
+  INFO: 'info',
+  WARN: 'warn',
+  ERROR: 'error',
+  DEBUG: 'debug'
+} as const;
+
+export const LOG_CATEGORIES = {
+  AUTH: 'auth',
+  DATABASE: 'database',
+  NETWORK: 'network',
+  SYSTEM: 'system',
+  SECURITY: 'security',
+  FRONTEND: 'frontend',
+  ALERT: 'alert',
+  USER_ACTION: 'user_action',
+  FEATURE_TEST: 'feature_test'
+} as const;
