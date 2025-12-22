@@ -24,8 +24,13 @@ const translateError = (error: any): string => {
     return `خطای ثبت حواله: ${msg} (${code})`;
 };
 
+// Extend Invoice interface internally for the store to include creatorName
+interface InvoiceWithCreator extends Invoice {
+    creatorName?: string;
+}
+
 interface InvoiceState {
-    invoices: Invoice[];
+    invoices: InvoiceWithCreator[];
     isLoading: boolean;
     fetchInvoices: () => Promise<void>;
     addInvoice: (invoice: Omit<Invoice, 'id' | 'createdAt'>) => Promise<{ success: boolean; error?: string; debug?: any }>;
@@ -52,6 +57,17 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           .order('date', { ascending: false });
       
       if (!error && data) {
+          // Fetch Creator Profiles
+          const creatorIds = Array.from(new Set(data.map((i: any) => i.created_by).filter(Boolean)));
+          let profileMap: Record<string, string> = {};
+
+          if (creatorIds.length > 0) {
+              const { data: profilesData } = await supabase.from('profiles').select('id, full_name').in('id', creatorIds);
+              if (profilesData) {
+                  profileMap = profilesData.reduce((acc: any, p: any) => ({ ...acc, [p.id]: p.full_name }), {});
+              }
+          }
+
           const mappedInvoices = data.map((i: any) => ({
               id: i.id,
               farmId: i.farm_id,
@@ -66,7 +82,8 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
               description: i.description,
               isYesterday: i.is_yesterday,
               createdAt: i.created_at ? new Date(i.created_at).getTime() : Date.now(),
-              createdBy: i.created_by, // Mapped for Admin view
+              createdBy: i.created_by,
+              creatorName: profileMap[i.created_by] || 'ناشناس', // Map name
               updatedAt: i.updated_at ? new Date(i.updated_at).getTime() : undefined
           }));
           set({ invoices: mappedInvoices, isLoading: false });

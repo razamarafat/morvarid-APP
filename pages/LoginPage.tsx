@@ -21,7 +21,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const { login, blockUntil, savedUsername, loadSavedUsername } = useAuthStore();
+  const { login, blockUntil, loadSavedUsername, savedUsername } = useAuthStore();
   
   const [currentTime, setCurrentTime] = useState(getCurrentTime());
   const [currentDate, setCurrentDate] = useState(getTodayJalaliPersian());
@@ -42,14 +42,18 @@ const LoginPage: React.FC = () => {
     }
   });
 
+  // Load username on mount
   useEffect(() => {
       loadSavedUsername();
-      const saved = localStorage.getItem('morvarid_saved_username');
-      if (saved) {
-          setValue('username', saved);
+  }, [loadSavedUsername]);
+
+  // Update form when savedUsername changes
+  useEffect(() => {
+      if (savedUsername) {
+          setValue('username', savedUsername);
           setValue('rememberMe', true);
       }
-  }, [setValue, loadSavedUsername]);
+  }, [savedUsername, setValue]);
 
   const isBlocked = blockUntil ? Date.now() < blockUntil : false;
 

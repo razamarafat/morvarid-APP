@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Icons } from './Icons';
-import { getTodayJalali, toEnglishDigits } from '../../utils/dateUtils';
+import { getTodayJalali, toEnglishDigits, toPersianDigits } from '../../utils/dateUtils';
 
 interface JalaliDatePickerProps {
   value: string;
@@ -115,12 +115,12 @@ const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({ value, onChange, la
 
   return (
     <div className="relative group" ref={containerRef}>
-      {label && <label className="block text-xs font-bold mb-1.5 text-gray-700 dark:text-gray-300 px-1">{label}</label>}
+      {label && <label className="block text-sm lg:text-lg font-bold mb-2 text-gray-700 dark:text-gray-300 px-1">{label}</label>}
       <div 
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center justify-between w-full p-3 lg:p-4 border-2 border-gray-200 rounded-xl bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-white cursor-pointer hover:border-violet-500 transition-all shadow-sm"
       >
-        <span dir="ltr" className="font-mono text-lg font-bold">{displayValue}</span>
+        <span dir="ltr" className="font-mono text-lg font-bold tracking-widest">{toPersianDigits(displayValue)}</span>
         <Icons.Calendar className="w-5 h-5 text-gray-500 dark:text-gray-400 group-hover:text-violet-500 transition-colors" />
       </div>
 
@@ -130,7 +130,7 @@ const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({ value, onChange, la
             <button onClick={handlePrevMonth} type="button" className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors">
               <Icons.ChevronRight className="w-5 h-5 dark:text-gray-200" />
             </button>
-            <span className="font-black text-gray-800 dark:text-gray-100 text-lg">{months[currentMonth - 1]} {currentYear}</span>
+            <span className="font-black text-gray-800 dark:text-gray-100 text-lg">{months[currentMonth - 1]} {toPersianDigits(currentYear)}</span>
             <button onClick={handleNextMonth} type="button" className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors">
               <Icons.ChevronLeft className="w-5 h-5 dark:text-gray-200" />
             </button>
@@ -155,7 +155,7 @@ const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({ value, onChange, la
                     : 'hover:bg-violet-100 dark:hover:bg-violet-900/50 text-gray-700 dark:text-gray-300'
                  }`}
                >
-                 {d || ''}
+                 {d ? toPersianDigits(d) : ''}
                </button>
              ))}
           </div>
@@ -166,3 +166,4 @@ const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({ value, onChange, la
 };
 
 export default JalaliDatePicker;
+    

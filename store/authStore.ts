@@ -12,6 +12,9 @@ const mapLegacyProductId = (id: string): string => {
 const DEFAULT_PROD_1 = '11111111-1111-1111-1111-111111111111';
 const DEFAULT_PROD_2 = '22222222-2222-2222-2222-222222222222';
 
+// 2 Hours in milliseconds
+const SESSION_DURATION = 2 * 60 * 60 * 1000; 
+
 interface AuthState {
   user: User | null;
   isLoading: boolean;
@@ -41,6 +44,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   checkSession: async () => {
     try {
+      // 1. Check Custom 2-Hour Expiration Logic
+      const lastLoginStr = localStorage.getItem('morvarid_last_login_time');
+      if (lastLoginStr) {
+          const lastLoginTime = parseInt(lastLoginStr);
+          const now = Date.now();
+          
+          if (now - lastLoginTime > SESSION_DURATION) {
+              // Session Expired
+              console.log('Session expired (2 hours limit). Logging out...');
+              await get().logout(); 
+              return; // Stop execution
+          }
+      }
+
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError) {
@@ -152,6 +169,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
 
         get().resetAttempts();
+        
+        // --- Remember Me Logic ---
         if (rememberMe) {
             localStorage.setItem('morvarid_saved_username', username);
             set({ savedUsername: username });
@@ -159,6 +178,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             localStorage.removeItem('morvarid_saved_username');
             set({ savedUsername: '' });
         }
+
+        // --- 2 Hour Session Timer Start ---
+        localStorage.setItem('morvarid_last_login_time', Date.now().toString());
 
         await get().checkSession();
         const currentUser = get().user;
@@ -173,6 +195,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: async () => {
     await supabase.auth.signOut();
+    // Do NOT remove 'morvarid_saved_username' here so it persists for the login page
+    localStorage.removeItem('morvarid_last_login_time');
     set({ user: null });
   },
 

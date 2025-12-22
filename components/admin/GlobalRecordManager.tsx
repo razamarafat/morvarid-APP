@@ -164,7 +164,7 @@ const GlobalRecordManager: React.FC = () => {
                     <select 
                         value={selectedFarmId} 
                         onChange={(e) => setSelectedFarmId(e.target.value)} 
-                        className="w-full p-4 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white lg:text-base font-bold outline-none focus:border-metro-purple transition-colors"
+                        className="w-full p-4 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white text-base lg:text-lg font-bold outline-none focus:border-metro-purple transition-colors"
                     >
                         <option value="all">همه فارم‌ها</option>
                         {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
@@ -176,13 +176,13 @@ const GlobalRecordManager: React.FC = () => {
                 <div className="flex bg-gray-100 dark:bg-gray-700 p-1.5 rounded-xl h-[60px]">
                     <button 
                         onClick={() => setActiveTab('stats')}
-                        className={`flex-1 rounded-lg text-sm lg:text-base font-bold transition-all flex items-center justify-center ${activeTab === 'stats' ? 'bg-metro-purple text-white shadow-sm' : 'text-gray-500 dark:text-gray-300'}`}
+                        className={`flex-1 rounded-lg text-sm lg:text-lg font-bold transition-all flex items-center justify-center ${activeTab === 'stats' ? 'bg-metro-purple text-white shadow-sm' : 'text-gray-500 dark:text-gray-300'}`}
                     >
                         آمار تولید
                     </button>
                     <button 
                         onClick={() => setActiveTab('invoices')}
-                        className={`flex-1 rounded-lg text-sm lg:text-base font-bold transition-all flex items-center justify-center ${activeTab === 'invoices' ? 'bg-metro-orange text-white shadow-sm' : 'text-gray-500 dark:text-gray-300'}`}
+                        className={`flex-1 rounded-lg text-sm lg:text-lg font-bold transition-all flex items-center justify-center ${activeTab === 'invoices' ? 'bg-metro-orange text-white shadow-sm' : 'text-gray-500 dark:text-gray-300'}`}
                     >
                         حواله‌ها
                     </button>
@@ -192,8 +192,8 @@ const GlobalRecordManager: React.FC = () => {
             {/* Content Table */}
             <div className="bg-white dark:bg-gray-800 rounded-[24px] shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700 min-h-[400px]">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm lg:text-base text-right">
-                        <thead className="bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 uppercase text-xs lg:text-sm font-black">
+                    <table className="w-full text-base lg:text-lg text-right min-w-[900px]">
+                        <thead className="bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 uppercase text-sm lg:text-base font-black">
                             <tr>
                                 {activeTab === 'stats' ? (
                                     <>
@@ -222,20 +222,20 @@ const GlobalRecordManager: React.FC = () => {
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                             {activeTab === 'stats' ? (
-                                filteredStats.length === 0 ? <tr><td colSpan={8} className="text-center py-12 lg:py-24 text-gray-400 font-bold lg:text-lg">رکوردی یافت نشد</td></tr> :
+                                filteredStats.length === 0 ? <tr><td colSpan={8} className="text-center py-12 lg:py-24 text-gray-400 font-bold lg:text-xl">رکوردی یافت نشد</td></tr> :
                                 filteredStats.map(stat => (
                                     <tr key={stat.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                        <td className="px-6 py-5 font-mono lg:text-lg font-bold">{toPersianDigits(stat.date)}</td>
-                                        <td className="px-6 py-5 text-xs lg:text-sm text-gray-400">{new Date(stat.createdAt).toLocaleTimeString('fa-IR')}</td>
+                                        <td className="px-6 py-5 font-mono lg:text-xl font-bold">{toPersianDigits(stat.date)}</td>
+                                        <td className="px-6 py-5 text-sm lg:text-base font-bold text-gray-500">{new Date(stat.createdAt).toLocaleTimeString('fa-IR')}</td>
                                         <td className="px-6 py-5">
-                                            <div className="font-black dark:text-white lg:text-lg">{getFarmName(stat.farmId)}</div>
-                                            <div className="text-xs lg:text-sm text-gray-500 font-medium">{getProductName(stat.productId)}</div>
+                                            <div className="font-black dark:text-white lg:text-xl">{getFarmName(stat.farmId)}</div>
+                                            <div className="text-sm lg:text-base text-gray-500 font-medium">{getProductName(stat.productId)}</div>
                                         </td>
-                                        <td className="px-6 py-5 text-center font-black text-green-600 lg:text-xl">+{toPersianDigits(stat.production)}</td>
-                                        <td className="px-6 py-5 text-center font-black text-red-500 lg:text-xl">{toPersianDigits(stat.sales || 0)}</td>
-                                        <td className="px-6 py-5 text-center font-black text-blue-600 lg:text-xl">{toPersianDigits(stat.currentInventory)}</td>
-                                        <td className="px-6 py-5 text-xs lg:text-sm">
-                                            <span className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full font-bold text-gray-600 dark:text-gray-300">{stat.creatorName}</span>
+                                        <td className="px-6 py-5 text-center font-black text-green-600 lg:text-2xl">+{toPersianDigits(stat.production)}</td>
+                                        <td className="px-6 py-5 text-center font-black text-red-500 lg:text-2xl">{toPersianDigits(stat.sales || 0)}</td>
+                                        <td className="px-6 py-5 text-center font-black text-blue-600 lg:text-2xl">{toPersianDigits(stat.currentInventory)}</td>
+                                        <td className="px-6 py-5 text-sm lg:text-lg">
+                                            <span className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full font-bold text-gray-700 dark:text-gray-300">{stat.creatorName}</span>
                                         </td>
                                         <td className="px-6 py-5 flex justify-center gap-2">
                                             <button onClick={() => openStatEdit(stat)} className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"><Icons.Edit className="w-5 h-5"/></button>
@@ -244,26 +244,26 @@ const GlobalRecordManager: React.FC = () => {
                                     </tr>
                                 ))
                             ) : (
-                                filteredInvoices.length === 0 ? <tr><td colSpan={8} className="text-center py-12 lg:py-24 text-gray-400 font-bold lg:text-lg">حواله‌ای یافت نشد</td></tr> :
+                                filteredInvoices.length === 0 ? <tr><td colSpan={8} className="text-center py-12 lg:py-24 text-gray-400 font-bold lg:text-xl">حواله‌ای یافت نشد</td></tr> :
                                 filteredInvoices.map(inv => (
                                     <tr key={inv.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                        <td className="px-6 py-5 text-center font-black text-metro-orange lg:text-xl tracking-widest">{toPersianDigits(inv.invoiceNumber)}</td>
+                                        <td className="px-6 py-5 text-center font-black text-metro-orange lg:text-2xl tracking-widest">{toPersianDigits(inv.invoiceNumber)}</td>
                                         <td className="px-6 py-5">
-                                            <div className="font-mono text-sm lg:text-lg font-bold">{toPersianDigits(inv.date)}</div>
-                                            <div className="text-[10px] lg:text-sm text-gray-400">{new Date(inv.createdAt).toLocaleTimeString('fa-IR')}</div>
+                                            <div className="font-mono text-base lg:text-xl font-bold">{toPersianDigits(inv.date)}</div>
+                                            <div className="text-sm lg:text-base font-bold text-gray-500">{new Date(inv.createdAt).toLocaleTimeString('fa-IR')}</div>
                                         </td>
                                         <td className="px-6 py-5">
-                                            <div className="font-black dark:text-white lg:text-lg">{getFarmName(inv.farmId)}</div>
-                                            <div className="text-xs lg:text-sm text-gray-500 font-medium">{getProductName(inv.productId)}</div>
+                                            <div className="font-black dark:text-white lg:text-xl">{getFarmName(inv.farmId)}</div>
+                                            <div className="text-sm lg:text-base text-gray-500 font-medium">{getProductName(inv.productId)}</div>
                                         </td>
-                                        <td className="px-6 py-5 text-center font-bold lg:text-xl">{toPersianDigits(inv.totalCartons)}</td>
-                                        <td className="px-6 py-5 text-center font-bold text-blue-600 lg:text-xl">{toPersianDigits(inv.totalWeight)}</td>
-                                        <td className="px-6 py-5 text-xs lg:text-sm">
+                                        <td className="px-6 py-5 text-center font-bold lg:text-2xl">{toPersianDigits(inv.totalCartons)}</td>
+                                        <td className="px-6 py-5 text-center font-bold text-blue-600 lg:text-2xl">{toPersianDigits(inv.totalWeight)}</td>
+                                        <td className="px-6 py-5 text-sm lg:text-base">
                                             <div className="font-bold">{inv.driverName || '-'}</div>
-                                            <div className="font-mono text-gray-500 lg:text-base">{toPersianDigits(inv.plateNumber || '')}</div>
+                                            <div className="font-mono text-gray-500 lg:text-lg">{toPersianDigits(inv.plateNumber || '')}</div>
                                         </td>
-                                        <td className="px-6 py-5 text-xs lg:text-sm">
-                                             <span className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full font-bold text-gray-600 dark:text-gray-300">{getUserName(inv.createdBy)}</span>
+                                        <td className="px-6 py-5 text-sm lg:text-lg">
+                                             <span className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full font-bold text-gray-700 dark:text-gray-300">{getUserName(inv.createdBy)}</span>
                                         </td>
                                         <td className="px-6 py-5 flex justify-center gap-2">
                                             <button onClick={() => openInvoiceEdit(inv)} className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"><Icons.Edit className="w-5 h-5"/></button>
@@ -287,17 +287,17 @@ const GlobalRecordManager: React.FC = () => {
                      </div>
                      <div className="grid grid-cols-2 gap-4 lg:gap-6">
                          <div>
-                             <label className="text-xs lg:text-base font-bold block mb-2 px-1">تولید</label>
-                             <input type="number" value={statForm.prod} onChange={e => setStatForm({...statForm, prod: Number(e.target.value)})} className="w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center font-black lg:text-xl outline-none focus:border-green-500" />
+                             <label className="text-sm lg:text-lg font-bold block mb-2 px-1">تولید</label>
+                             <input type="number" value={statForm.prod} onChange={e => setStatForm({...statForm, prod: Number(e.target.value)})} className="w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center font-black lg:text-2xl outline-none focus:border-green-500" />
                          </div>
                          <div>
-                             <label className="text-xs lg:text-base font-bold block mb-2 px-1">فروش</label>
-                             <input type="number" value={statForm.sales} onChange={e => setStatForm({...statForm, sales: Number(e.target.value)})} className="w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center font-black lg:text-xl outline-none focus:border-red-500" />
+                             <label className="text-sm lg:text-lg font-bold block mb-2 px-1">فروش</label>
+                             <input type="number" value={statForm.sales} onChange={e => setStatForm({...statForm, sales: Number(e.target.value)})} className="w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center font-black lg:text-2xl outline-none focus:border-red-500" />
                          </div>
                      </div>
                      <div>
-                         <label className="text-xs lg:text-base font-bold block mb-2 px-1">مانده قبل (اصلاح دستی)</label>
-                         <input type="number" value={statForm.prev} onChange={e => setStatForm({...statForm, prev: Number(e.target.value)})} className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 text-center font-bold lg:text-xl" />
+                         <label className="text-sm lg:text-lg font-bold block mb-2 px-1">مانده قبل (اصلاح دستی)</label>
+                         <input type="number" value={statForm.prev} onChange={e => setStatForm({...statForm, prev: Number(e.target.value)})} className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 text-center font-bold lg:text-2xl" />
                      </div>
                      <div className="flex justify-end gap-2 mt-8">
                          <Button variant="secondary" onClick={() => setEditingStat(null)} className="lg:h-12 lg:px-6">لغو</Button>
@@ -314,12 +314,12 @@ const GlobalRecordManager: React.FC = () => {
                      </div>
                      
                      <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-xl border border-orange-200 dark:border-orange-800">
-                        <label className="block text-xs lg:text-base font-bold mb-2 text-orange-800 dark:text-orange-300">شماره حواله (اصلاحیه)</label>
+                        <label className="block text-sm lg:text-lg font-bold mb-2 text-orange-800 dark:text-orange-300">شماره حواله (اصلاحیه)</label>
                         <input 
                             type="text" 
                             dir="ltr"
                             maxLength={10}
-                            className="w-full p-4 border-2 border-orange-300 rounded-xl text-center font-black text-2xl lg:text-3xl tracking-[0.2em] bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:border-metro-orange outline-none"
+                            className="w-full p-4 border-2 border-orange-300 rounded-xl text-center font-black text-2xl lg:text-4xl tracking-[0.2em] bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:border-metro-orange outline-none"
                             value={invoiceForm.invoiceNumber}
                             onChange={(e) => setInvoiceForm({ ...invoiceForm, invoiceNumber: e.target.value })}
                             placeholder=""
@@ -328,31 +328,31 @@ const GlobalRecordManager: React.FC = () => {
 
                      <div className="grid grid-cols-2 gap-4 lg:gap-6">
                          <div>
-                             <label className="text-xs lg:text-base font-bold block mb-2 px-1">تعداد کارتن</label>
-                             <input type="number" value={invoiceForm.cartons} onChange={e => setInvoiceForm({...invoiceForm, cartons: Number(e.target.value)})} className="w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center font-black lg:text-xl outline-none focus:border-metro-orange" />
+                             <label className="text-sm lg:text-lg font-bold block mb-2 px-1">تعداد کارتن</label>
+                             <input type="number" value={invoiceForm.cartons} onChange={e => setInvoiceForm({...invoiceForm, cartons: Number(e.target.value)})} className="w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center font-black lg:text-2xl outline-none focus:border-metro-orange" />
                          </div>
                          <div>
-                             <label className="text-xs lg:text-base font-bold block mb-2 px-1">وزن (Kg)</label>
-                             <input type="number" value={invoiceForm.weight} onChange={e => setInvoiceForm({...invoiceForm, weight: Number(e.target.value)})} className="w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center font-black lg:text-xl outline-none focus:border-metro-orange" />
+                             <label className="text-sm lg:text-lg font-bold block mb-2 px-1">وزن (Kg)</label>
+                             <input type="number" value={invoiceForm.weight} onChange={e => setInvoiceForm({...invoiceForm, weight: Number(e.target.value)})} className="w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center font-black lg:text-2xl outline-none focus:border-metro-orange" />
                          </div>
                      </div>
                      <div>
-                         <label className="text-xs lg:text-base font-bold block mb-2 px-1">نام راننده</label>
-                         <input type="text" value={invoiceForm.driver} onChange={e => setInvoiceForm({...invoiceForm, driver: e.target.value})} className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 lg:text-lg outline-none focus:border-metro-purple" />
+                         <label className="text-sm lg:text-lg font-bold block mb-2 px-1">نام راننده</label>
+                         <input type="text" value={invoiceForm.driver} onChange={e => setInvoiceForm({...invoiceForm, driver: e.target.value})} className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-lg lg:text-xl outline-none focus:border-metro-purple" />
                      </div>
                      <div className="grid grid-cols-2 gap-4 lg:gap-6">
                          <div>
-                             <label className="text-xs lg:text-base font-bold block mb-2 px-1">پلاک</label>
-                             <input type="text" value={invoiceForm.plate} onChange={e => setInvoiceForm({...invoiceForm, plate: e.target.value})} className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center lg:text-lg outline-none focus:border-metro-purple" />
+                             <label className="text-sm lg:text-lg font-bold block mb-2 px-1">پلاک</label>
+                             <input type="text" value={invoiceForm.plate} onChange={e => setInvoiceForm({...invoiceForm, plate: e.target.value})} className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center text-lg lg:text-xl outline-none focus:border-metro-purple" />
                          </div>
                          <div>
-                             <label className="text-xs lg:text-base font-bold block mb-2 px-1">موبایل</label>
-                             <input type="text" value={invoiceForm.phone} onChange={e => setInvoiceForm({...invoiceForm, phone: e.target.value})} className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center lg:text-lg outline-none focus:border-metro-purple" />
+                             <label className="text-sm lg:text-lg font-bold block mb-2 px-1">موبایل</label>
+                             <input type="text" value={invoiceForm.phone} onChange={e => setInvoiceForm({...invoiceForm, phone: e.target.value})} className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center text-lg lg:text-xl outline-none focus:border-metro-purple" />
                          </div>
                      </div>
                      <div>
-                         <label className="text-xs lg:text-base font-bold block mb-2 px-1">توضیحات</label>
-                         <textarea value={invoiceForm.desc} onChange={e => setInvoiceForm({...invoiceForm, desc: e.target.value})} className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 h-24 lg:h-32 lg:text-lg outline-none focus:border-metro-purple" />
+                         <label className="text-sm lg:text-lg font-bold block mb-2 px-1">توضیحات</label>
+                         <textarea value={invoiceForm.desc} onChange={e => setInvoiceForm({...invoiceForm, desc: e.target.value})} className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 h-24 lg:h-32 text-lg lg:text-xl outline-none focus:border-metro-purple" />
                      </div>
                      <div className="flex justify-end gap-2 mt-6">
                          <Button variant="secondary" onClick={() => setEditingInvoice(null)} className="lg:h-12 lg:px-6">لغو</Button>

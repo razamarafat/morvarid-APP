@@ -1,11 +1,6 @@
-
-import React, { useEffect, ErrorInfo, ReactNode } from 'react';
+import React, { useEffect, ErrorInfo, ReactNode, lazy, Suspense } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import SplashPage from './pages/SplashPage';
-import LoginPage from './pages/LoginPage';
-import AdminDashboard from './pages/AdminDashboard';
-import RegistrationDashboard from './pages/RegistrationDashboard';
-import SalesDashboard from './components/sales/SalesDashboard';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import { useThemeStore } from './store/themeStore';
 import { UserRole } from './types';
@@ -19,6 +14,13 @@ import { usePwaStore } from './store/pwaStore';
 import ConfirmDialog from './components/common/ConfirmDialog';
 import ToastContainer from './components/common/Toast';
 
+// Lazy Load Pages to reduce initial bundle size
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const RegistrationDashboard = lazy(() => import('./pages/RegistrationDashboard'));
+// Note: Keeping existing import path structure
+const SalesDashboard = lazy(() => import('./components/sales/SalesDashboard'));
+
 // --- Error Boundary ---
 interface ErrorBoundaryProps {
   children?: ReactNode;
@@ -28,11 +30,9 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
+// Fixed: Use React.Component explicitly to resolve props type definition issue
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false };
-  }
+  public state: ErrorBoundaryState = { hasError: false };
 
   static getDerivedStateFromError(_: Error): ErrorBoundaryState {
     return { hasError: true };
@@ -58,6 +58,14 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 }
 
+// Simple Loading Component for Suspense
+const PageLoader = () => (
+  <div className="flex flex-col items-center justify-center h-screen bg-[#F3F3F3] dark:bg-[#1D1D1D]">
+    <div className="w-16 h-16 border-4 border-metro-blue border-t-transparent rounded-full animate-spin"></div>
+    <p className="mt-4 text-gray-500 font-bold text-sm">در حال بارگذاری...</p>
+  </div>
+);
+
 function App() {
   const { theme } = useThemeStore();
   const { checkSession, user } = useAuthStore();
@@ -73,13 +81,11 @@ function App() {
     document.documentElement.classList.add(theme);
   }, [theme]);
 
+  // Initial System Setup
   useEffect(() => {
       const init = async () => {
           await checkSession();
-          fetchFarms();
-          fetchProducts();
-          
-          // Initialize Alerts and Check Permissions on Startup
+          // Alert system can initialize early
           initListener();
           checkAndRequestPermission(); 
       };
@@ -97,11 +103,19 @@ function App() {
       return () => window.removeEventListener('appinstalled', handleAppInstalled);
   }, []);
 
+  // Unified Data Fetching Trigger
   useEffect(() => {
       if (user) {
-          fetchStatistics();
-          fetchInvoices();
-          if (user.role === UserRole.ADMIN) fetchUsers();
+          // Fire all fetches in parallel when user is authenticated
+          const loadData = async () => {
+              // Non-blocking parallel execution
+              fetchFarms();
+              fetchProducts();
+              fetchStatistics();
+              fetchInvoices();
+              if (user.role === UserRole.ADMIN) fetchUsers();
+          };
+          loadData();
       }
   }, [user]);
   
@@ -118,14 +132,16 @@ function App() {
   return (
     <ErrorBoundary>
       <HashRouter>
-        <Routes>
-          <Route path="/" element={<SplashPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/admin" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN]}><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/registration" element={<ProtectedRoute allowedRoles={[UserRole.REGISTRATION]}><RegistrationDashboard /></ProtectedRoute>} />
-          <Route path="/sales" element={<ProtectedRoute allowedRoles={[UserRole.SALES]}><SalesDashboard /></ProtectedRoute>} />
-          <Route path="/home" element={<HomeRedirect />} />
-        </Routes>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/" element={<SplashPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/admin" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN]}><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/registration" element={<ProtectedRoute allowedRoles={[UserRole.REGISTRATION]}><RegistrationDashboard /></ProtectedRoute>} />
+            <Route path="/sales" element={<ProtectedRoute allowedRoles={[UserRole.SALES]}><SalesDashboard /></ProtectedRoute>} />
+            <Route path="/home" element={<HomeRedirect />} />
+          </Routes>
+        </Suspense>
       </HashRouter>
       <ConfirmDialog />
       <ToastContainer />

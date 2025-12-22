@@ -25,7 +25,7 @@ const plateRegex = /^\d{2}[\s-]?\d{3}[\s-]?[\u0600-\u06FF][\s-]?\d{2}$/;
 const invoiceGlobalSchema = z.object({
     invoiceNumber: z.string()
         .min(1, 'شماره حواله الزامی است')
-        .regex(invoiceNumberRegex, 'شماره حواله باید ۱۰ رقم باشد و با ۱۷ یا ۱۸ شروع شود (مثال: ۱۷۶۱۲۳۴۵۶۷)'),
+        .regex(invoiceNumberRegex, 'شماره حواله باید ۱۰ رقم باشد و با ۱۷ یا ۱۸ شروع شود'),
     contactPhone: z.string()
         .min(1, 'شماره تماس الزامی است')
         .regex(mobileRegex, 'شماره همراه باید ۱۱ رقم و با ۰۹ شروع شود (مثال: ۰۹۱۲۳۴۵۶۷۸۹)'),
@@ -33,8 +33,6 @@ const invoiceGlobalSchema = z.object({
         .refine(val => !val || noLatinRegex.test(val), 'استفاده از حروف انگلیسی در نام راننده مجاز نیست'),
     plateNumber: z.string().optional()
         .refine(val => !val || plateRegex.test(val), 'فرمت پلاک صحیح نیست. مثال: ۱۵-۳۶۵ج۱۱'),
-    driverMobile: z.string().optional()
-        .refine(val => !val || mobileRegex.test(val), 'شماره موبایل راننده معتبر نیست (فرمت: ۰۹xxxxxxxxx)'),
     description: z.string().optional()
         .refine(val => !val || noLatinRegex.test(val), 'استفاده از حروف انگلیسی در توضیحات مجاز نیست'),
 });
@@ -134,8 +132,10 @@ export const InvoiceForm: React.FC = () => {
             
             const cartons = Number(item.cartons);
             const weight = Number(item.weight);
+            const isLiquid = name.includes('مایع'); // TASK 3: Check for Liquid product
 
-            if (!item.cartons || cartons <= 0) {
+            // TASK 3: If liquid, cartons can be 0/empty. For others, it's required.
+            if (!isLiquid && (!item.cartons || cartons <= 0)) {
                 addToast(`تعداد برای "${name}" وارد نشده است.`, 'error');
                 return;
             }
@@ -160,13 +160,17 @@ export const InvoiceForm: React.FC = () => {
             }
 
             // 2. Check if Inventory is Sufficient
-            const totalAvailable = (statRecord.previousBalance || 0) + (statRecord.production || 0);
-            const currentSales = statRecord.sales || 0;
-            const remaining = totalAvailable - currentSales;
+            // Note: For liquid (sold by KG), the carton check might be irrelevant or we need to check weight inventory.
+            // But logic for stats is typically carton based. If user enters 0 cartons for liquid, check is skipped.
+            if (cartons > 0) {
+                const totalAvailable = (statRecord.previousBalance || 0) + (statRecord.production || 0);
+                const currentSales = statRecord.sales || 0;
+                const remaining = totalAvailable - currentSales;
 
-            if (cartons > remaining) {
-                addToast(`موجودی ناکافی برای "${name}". (موجود: ${toPersianDigits(remaining)} - درخواستی: ${toPersianDigits(cartons)})`, 'error');
-                return;
+                if (cartons > remaining) {
+                    addToast(`موجودی ناکافی برای "${name}". (موجود: ${toPersianDigits(remaining)} - درخواستی: ${toPersianDigits(cartons)})`, 'error');
+                    return;
+                }
             }
         }
 
@@ -183,8 +187,7 @@ export const InvoiceForm: React.FC = () => {
         const isDateChanged = referenceDate !== normalizedDate;
         
         const dateSuffix = isDateChanged ? ` (مربوط به تاریخ ${referenceDate})` : '';
-        const mobileSuffix = globalData.driverMobile ? ` | موبایل راننده: ${globalData.driverMobile}` : '';
-        const finalDescription = `${(globalData.description || '').trim()}${dateSuffix}${mobileSuffix}`;
+        const finalDescription = `${(globalData.description || '').trim()}${dateSuffix}`;
 
         let successCount = 0;
         let failCount = 0;
@@ -196,7 +199,7 @@ export const InvoiceForm: React.FC = () => {
                 farmId: selectedFarmId,
                 date: referenceDate, // Use reference date strictly
                 invoiceNumber: globalData.invoiceNumber,
-                totalCartons: Number(item.cartons),
+                totalCartons: Number(item.cartons || 0), // Handle empty string as 0
                 totalWeight: Number(item.weight),
                 productId: pid,
                 driverName: globalData.driverName || '',
@@ -223,7 +226,6 @@ export const InvoiceForm: React.FC = () => {
             setValue('contactPhone', '');
             setValue('driverName', '');
             setValue('plateNumber', '');
-            setValue('driverMobile', '');
             setValue('description', '');
         } else {
             addToast(`خطا در ثبت: ${lastError}`, 'error');
@@ -231,7 +233,7 @@ export const InvoiceForm: React.FC = () => {
     };
 
     const inputClass = "w-full p-3 lg:p-4 lg:text-2xl lg:h-16 border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-black text-center focus:border-metro-blue outline-none transition-all text-lg shadow-sm";
-    const labelClass = "block text-[10px] lg:text-sm font-black text-gray-400 dark:text-gray-500 mb-1 uppercase text-right px-1";
+    const labelClass = "block text-sm lg:text-base font-black text-gray-500 dark:text-gray-400 mb-1.5 uppercase text-right px-1";
 
     if (!selectedFarm) return <div className="p-20 text-center font-bold text-gray-400">فارمی یافت نشد.</div>;
 
@@ -255,20 +257,14 @@ export const InvoiceForm: React.FC = () => {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-8 mt-2">
                     <div className="group">
-                        <label className={labelClass}>رمز حواله (شروع با ۱۷ یا ۱۸ - ۱۰ رقم)</label>
-                        <input dir="ltr" type="tel" inputMode="numeric" {...register('invoiceNumber')} className={`${inputClass} !text-2xl lg:!text-3xl tracking-[0.2em] border-metro-blue/30`} placeholder="" maxLength={10} />
+                        <label className={labelClass}>رمز حواله</label>
+                        <input dir="ltr" type="tel" inputMode="numeric" {...register('invoiceNumber')} className={`${inputClass} !text-3xl lg:!text-4xl tracking-[0.2em] border-metro-blue/30 h-20`} placeholder="" maxLength={10} />
                         {errors.invoiceNumber && <p className="text-red-500 text-xs mt-1 font-bold">{errors.invoiceNumber.message}</p>}
                     </div>
 
                     <div className="bg-blue-50 dark:bg-black/20 p-2 border-2 border-dashed border-blue-200 dark:border-gray-700 rounded-lg">
                         <JalaliDatePicker label="تاریخ حواله" value={referenceDate} onChange={setReferenceDate} />
                     </div>
-                </div>
-
-                <div>
-                    <label className={labelClass}>شماره تماس (اصلی)</label>
-                    <input dir="ltr" type="tel" inputMode="numeric" {...register('contactPhone')} className={`${inputClass} !text-xl lg:!text-3xl font-mono border-metro-blue/30`} placeholder="" maxLength={11} />
-                    {errors.contactPhone && <p className="text-red-500 text-xs mt-1 font-bold">{errors.contactPhone.message}</p>}
                 </div>
             </div>
 
@@ -326,7 +322,14 @@ export const InvoiceForm: React.FC = () => {
                 </AnimatePresence>
             </div>
 
-            {/* TASK 2: Dynamic Input Tables for Selected Products */}
+            {/* TASK 3: Phone Number Row (Moved Below Product Selection) */}
+            <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 shadow-md border-l-[12px] border-metro-blue rounded-xl">
+                <label className={labelClass}>شماره تماس</label>
+                <input dir="ltr" type="tel" inputMode="numeric" {...register('contactPhone')} className={`${inputClass} !text-2xl lg:!text-4xl font-mono border-metro-blue/30 h-20`} placeholder="" maxLength={11} />
+                {errors.contactPhone && <p className="text-red-500 text-xs mt-1 font-bold">{errors.contactPhone.message}</p>}
+            </div>
+
+            {/* TASK 4: Dynamic Input Tables for Selected Products */}
             <AnimatePresence>
                 {selectedProductIds.length > 0 && (
                     <div className="space-y-4 lg:space-y-6">
@@ -342,6 +345,7 @@ export const InvoiceForm: React.FC = () => {
                             const statRecord = statistics.find(s => s.farmId === selectedFarmId && s.date === referenceDate && s.productId === pid);
                             const currentInv = statRecord ? (statRecord.production || 0) + (statRecord.previousBalance || 0) - (statRecord.sales || 0) : 0;
                             const hasStats = !!statRecord;
+                            const isLiquid = p?.name.includes('مایع');
 
                             return (
                                 <motion.div 
@@ -370,14 +374,14 @@ export const InvoiceForm: React.FC = () => {
                                     
                                     <div className="grid grid-cols-2 gap-4 lg:gap-8 flex-1 w-full">
                                         <div>
-                                            <label className={labelClass}>تعداد</label>
+                                            <label className={labelClass}>تعداد {isLiquid && <span className="text-[10px] text-gray-400 font-normal">(اختیاری)</span>}</label>
                                             <input 
                                                 type="tel"
                                                 inputMode="numeric" 
                                                 value={state.cartons} 
                                                 onChange={e => handleItemChange(pid, 'cartons', e.target.value)} 
                                                 className={inputClass} 
-                                                placeholder="" 
+                                                placeholder={isLiquid ? "اختیاری" : ""} 
                                             />
                                         </div>
                                         <div>
@@ -413,7 +417,7 @@ export const InvoiceForm: React.FC = () => {
                     <Icons.Plus className="w-4 h-4 lg:w-6 lg:h-6" />
                     اطلاعات تکمیلی (اختیاری)
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
                     <div>
                         <label className={labelClass}>نام راننده</label>
                         <input {...register('driverName')} className={`${inputClass} !text-sm lg:!text-lg`} placeholder="فقط حروف فارسی" />
@@ -423,11 +427,6 @@ export const InvoiceForm: React.FC = () => {
                         <label className={labelClass}>شماره پلاک</label>
                         <input {...register('plateNumber')} className={`${inputClass} !text-sm lg:!text-lg`} placeholder="مثال: ۱۵-۳۶۵ج۱۱" />
                         {errors.plateNumber && <p className="text-red-500 text-xs mt-1">{errors.plateNumber.message}</p>}
-                    </div>
-                    <div>
-                        <label className={labelClass}>موبایل راننده</label>
-                        <input dir="ltr" inputMode="numeric" {...register('driverMobile')} className={`${inputClass} !text-sm lg:!text-lg font-mono`} placeholder="" maxLength={11} />
-                        {errors.driverMobile && <p className="text-red-500 text-xs mt-1">{errors.driverMobile.message}</p>}
                     </div>
                 </div>
                 <div>

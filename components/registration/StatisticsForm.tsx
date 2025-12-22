@@ -159,6 +159,27 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
 
     const inputClasses = "w-full p-3 bg-white dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 text-center font-black text-2xl rounded-xl focus:border-metro-orange outline-none h-16 transition-colors focus:bg-orange-50 dark:focus:bg-orange-900/10";
 
+    // TASK 5: Sort Logic for Statistics Form
+    const sortedProductIds = [...selectedFarm.productIds].sort((aId, bId) => {
+        const pA = getProductById(aId);
+        const pB = getProductById(bId);
+        if (!pA || !pB) return 0;
+
+        const isLowA = /کودی|نوکی|دوزرده|مایع/.test(pA.name);
+        const isLowB = /کودی|نوکی|دوزرده|مایع/.test(pB.name);
+
+        if (isLowA && !isLowB) return 1;
+        if (!isLowA && isLowB) return -1;
+
+        const isPrintiA = pA.name.includes('پرینتی');
+        const isPrintiB = pB.name.includes('پرینتی');
+
+        if (isPrintiA && !isPrintiB) return -1;
+        if (!isPrintiA && isPrintiB) return 1;
+
+        return 0;
+    });
+
     return (
         <div className="max-w-4xl mx-auto space-y-6 pb-12"> 
             <div className="bg-metro-orange p-8 text-white shadow-xl relative overflow-hidden flex flex-col items-center justify-center gap-4 border-b-8 border-orange-700/20 rounded-[28px]">
@@ -177,7 +198,7 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
             </div>
 
             <div className="bg-white dark:bg-gray-800 p-4 md:p-8 shadow-xl border-l-[12px] border-metro-orange rounded-[28px] space-y-4">
-                {selectedFarm.productIds.map((pid) => {
+                {sortedProductIds.map((pid) => {
                     const product = getProductById(pid);
                     const vals = formsState[pid] || { production: '', sales: '', previousBalance: '', productionKg: '', salesKg: '', previousBalanceKg: '' };
                     const isExpanded = expandedProductId === pid;

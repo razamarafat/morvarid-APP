@@ -77,6 +77,8 @@ export const useFarmStore = create<FarmState>((set, get) => ({
       if (data) {
           mappedProducts = data
             .filter((p: any) => String(p.id) !== '1' && String(p.id) !== '2')
+            // Filter out English '6' duplicates in Shrink Packs
+            .filter((p: any) => !p.name.includes('6')) 
             .map((p: any) => ({
               id: p.id,
               name: p.name,
