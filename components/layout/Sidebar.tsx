@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { useAuthStore } from '../../store/authStore';
-import { useLogStore } from '../../store/logStore';
 import { Icons } from '../common/Icons';
 import { APP_VERSION } from '../../constants';
 import { UserRole } from '../../types';
@@ -49,7 +48,6 @@ const NavLink: React.FC<{ icon: React.ElementType, label: string, view: string, 
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
   const { user, logout } = useAuthStore();
-  const { logAction } = useLogStore();
   const navigate = useNavigate();
   const { confirm } = useConfirm();
   const { deferredPrompt, setDeferredPrompt, isInstalled } = usePwaStore();
@@ -63,7 +61,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
   const [active, setActive] = React.useState('dashboard');
 
   const handleInstallClick = async () => {
-    logAction('info', 'user_action', 'کاربر درخواست نصب PWA را از منوی سایدبار ارسال کرد.');
     if (isInstalled) {
         addToast('اپلیکیشن قبلاً نصب شده است.', 'success');
         return;
@@ -74,7 +71,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
     }
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-    logAction('info', 'frontend', `نتیجه درخواست نصب PWA: ${outcome}`);
     if (outcome === 'accepted') {
       setDeferredPrompt(null);
     }
@@ -91,7 +87,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
             type: 'danger'
         });
         if (confirmed) {
-            logAction('info', 'auth', `خروج کاربر از طریق سایدبار انجام شد.`, { userId: user?.id });
             logout();
             navigate('/login');
         }
@@ -99,13 +94,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
   };
   
   const handleNavigation = (view: string, label: string) => {
-    logAction('info', 'user_action', `تغییر نمای سایدبار به: [${label}]`, { view });
     onNavigate(view);
     onClose();
   }
 
   const handleHome = () => {
-      logAction('info', 'user_action', 'کلیک بر روی لوگو/عنوان در سایدبار برای بازگشت به داشبورد.');
       setActive('dashboard');
       handleNavigation('dashboard', 'داشبورد اصلی');
   };
@@ -115,7 +108,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
     { icon: Icons.Home, label: 'مدیریت فارم‌ها', view: 'farms' },
     { icon: Icons.Users, label: 'مدیریت کاربران', view: 'users' },
     { icon: Icons.FileText, label: 'گزارشات', view: 'reports' },
-    { icon: Icons.AlertCircle, label: 'لاگ‌های سیستم', view: 'logs' },
     { icon: Icons.TestTube, label: 'سنجش ویژگی‌ها', view: 'testing' },
   ];
 
@@ -169,10 +161,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
         className={`fixed inset-0 bg-black/80 z-[100] transition-opacity duration-300 ${
           isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
-        onClick={() => {
-            logAction('info', 'user_action', 'بستن منوی سایدبار با کلیک روی فضای بیرونی.');
-            onClose();
-        }}
+        onClick={onClose}
       />
       
       <aside className={sidebarClasses}>
@@ -186,7 +175,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
             </div>
             <button onClick={(e) => {
                 e.stopPropagation();
-                logAction('info', 'user_action', 'بستن منوی سایدبار با دکمه ضربدر.');
                 onClose();
             }} className="absolute top-4 left-4 text-white/70 hover:text-white">
                 <Icons.X className="w-6 h-6" />

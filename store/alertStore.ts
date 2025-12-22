@@ -4,7 +4,6 @@ import { supabase } from '../lib/supabase';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { useToastStore } from './toastStore';
 import { useAuthStore } from './authStore';
-import { useLogStore } from './logStore';
 import { UserRole } from '../types';
 
 interface AlertPayload {
@@ -60,16 +59,12 @@ export const useAlertStore = create<AlertState>((set, get) => ({
         
         try {
             const permission = await Notification.requestPermission();
-            const logStore = useLogStore.getState();
             const toastStore = useToastStore.getState();
 
             if (permission === "granted") {
-                logStore.logAction('info', 'alert', 'مجوز اعلان‌های سیستمی توسط کاربر تایید شد.');
                 return true;
             } else if (permission === "denied") {
-                // نمایش هشدار اما برگرداندن false برای جلوگیری از کرش
                 toastStore.addToast('اعلان‌ها مسدود هستند. لطفا برای دریافت هشدارها از تنظیمات مرورگر (آیکون قفل) دسترسی را باز کنید.', 'warning');
-                logStore.logAction('warn', 'alert', 'کاربر درخواست اعلان را رد کرد (Denied).');
                 return false;
             }
         } catch (error) {
@@ -81,9 +76,6 @@ export const useAlertStore = create<AlertState>((set, get) => ({
     initListener: () => {
         if (get().isListening) return;
 
-        const logStore = useLogStore.getState();
-        
-        // درخواست مجوز بدون await تا بلاک نکند
         get().requestPermission();
 
         const channel = supabase.channel('app_alerts', {
@@ -132,7 +124,6 @@ export const useAlertStore = create<AlertState>((set, get) => ({
             .subscribe((status) => {
                 if (status === 'SUBSCRIBED') {
                     set({ isListening: true });
-                    logStore.logAction('info', 'alert', 'اتصال آنی برای دریافت هشدارها برقرار شد.');
                 }
             });
             
@@ -149,8 +140,6 @@ export const useAlertStore = create<AlertState>((set, get) => ({
 
         const payload = { targetFarmId: farmId, farmName, message, senderId: user.id, sentAt: Date.now(), action: 'missing_stats' };
         const result = await channel.send({ type: 'broadcast', event: 'farm_alert', payload });
-        
-        useLogStore.getState().logAction('info', 'alert', `هشدار برای فارم ${farmName} ارسال شد.`, { farmId });
         
         return { success: result === 'ok', detail: result as string, bytes: JSON.stringify(payload).length };
     }

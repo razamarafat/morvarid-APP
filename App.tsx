@@ -16,7 +16,6 @@ import { useInvoiceStore } from './store/invoiceStore';
 import { useUserStore } from './store/userStore';
 import { useAlertStore } from './store/alertStore';
 import { usePwaStore } from './store/pwaStore'; 
-import { useLogStore } from './store/logStore';
 import ConfirmDialog from './components/common/ConfirmDialog';
 import ToastContainer from './components/common/Toast';
 
@@ -29,7 +28,7 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   public state: ErrorBoundaryState = { hasError: false };
 
   static getDerivedStateFromError(_: Error): ErrorBoundaryState {
@@ -37,7 +36,6 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    useLogStore.getState().error('UI', 'خطای رندرینگ توسط ErrorBoundary شکار شد', { error, errorInfo });
     console.error("Uncaught error:", error, errorInfo);
   }
 
@@ -65,7 +63,6 @@ function App() {
   const { fetchInvoices } = useInvoiceStore();
   const { fetchUsers } = useUserStore();
   const { initListener } = useAlertStore();
-  const { syncQueue } = useLogStore();
   const { setIsInstalled } = usePwaStore();
 
   useEffect(() => {
@@ -79,7 +76,6 @@ function App() {
           fetchFarms();
           fetchProducts();
           initListener();
-          setTimeout(() => syncQueue(), 5000);
       };
       init();
 

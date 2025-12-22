@@ -5,13 +5,11 @@ import Button from '../common/Button';
 import { useConfirm } from '../../hooks/useConfirm';
 import { useToastStore } from '../../store/toastStore';
 import { getTodayJalali } from '../../utils/dateUtils';
-import { useLogStore } from '../../store/logStore';
 import { supabase } from '../../lib/supabase';
 
 const BackupManagement: React.FC = () => {
   const { confirm } = useConfirm();
   const { addToast } = useToastStore();
-  const { addLog } = useLogStore();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleCreateBackup = async () => {
@@ -32,16 +30,14 @@ const BackupManagement: React.FC = () => {
             { data: profiles },
             { data: userFarms },
             { data: stats },
-            { data: invoices },
-            { data: logs }
+            { data: invoices }
         ] = await Promise.all([
             supabase.from('farms').select('*'),
             supabase.from('products').select('*'),
             supabase.from('profiles').select('*'),
             supabase.from('user_farms').select('*'),
             supabase.from('daily_statistics').select('*'),
-            supabase.from('invoices').select('*'),
-            supabase.from('system_logs').select('*')
+            supabase.from('invoices').select('*')
         ]);
 
         const backupData = {
@@ -53,8 +49,7 @@ const BackupManagement: React.FC = () => {
               profiles,
               userFarms,
               stats,
-              invoices,
-              logs
+              invoices
           }
         };
 
@@ -69,19 +64,15 @@ const BackupManagement: React.FC = () => {
         URL.revokeObjectURL(url);
         
         addToast('نسخه پشتیبان دیتابیس با موفقیت دانلود شد', 'success');
-        addLog('info', 'database', 'نسخه پشتیبان کامل ابری ایجاد شد');
       } catch (error: any) {
           addToast('خطا در دریافت اطلاعات از سرور', 'error');
-          addLog('error', 'database', `Backup failed: ${error.message}`);
+          console.error('Backup Failed:', error);
       } finally {
           setIsLoading(false);
       }
     }
   };
 
-  // Restore logic is complex for SQL due to Foreign Key constraints.
-  // For V1, we will only allow downloading backups. 
-  // Restore should be done via Supabase Dashboard or a dedicated Admin script to ensure integrity.
   const handleRestoreWarning = () => {
       alert('بازگردانی نسخه پشتیبان در نسخه وب غیرفعال است. جهت بازگردانی اطلاعات لطفا فایل جیسون را به تیم فنی تحویل دهید تا از طریق پنل دیتابیس اعمال شود.');
   };

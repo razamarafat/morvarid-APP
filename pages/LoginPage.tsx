@@ -5,7 +5,6 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuthStore } from '../store/authStore';
-import { useLogStore } from '../store/logStore';
 import ThemeToggle from '../components/common/ThemeToggle';
 import { Icons } from '../components/common/Icons';
 import { UserRole } from '../types';
@@ -23,7 +22,6 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { login, blockUntil, savedUsername, loadSavedUsername } = useAuthStore();
-  const { addLog } = useLogStore();
   
   const [currentTime, setCurrentTime] = useState(getCurrentTime());
   const [currentDate, setCurrentDate] = useState(getTodayJalaliPersian());
@@ -66,7 +64,6 @@ const LoginPage: React.FC = () => {
 
     if (result.success) {
         const currentUser = useAuthStore.getState().user;
-        addLog('info', 'auth', `کاربر ${data.username} وارد شد`, currentUser?.id);
         
         switch (currentUser?.role) {
             case UserRole.ADMIN: navigate('/admin', { replace: true }); break;
@@ -76,7 +73,6 @@ const LoginPage: React.FC = () => {
         }
     } else {
         setError(result.error || 'خطا در ورود');
-        addLog('warn', 'security', `تلاش ناموفق: ${data.username}`);
     }
   };
 

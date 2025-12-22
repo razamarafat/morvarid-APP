@@ -5,7 +5,6 @@ import { useFarmStore } from '../../store/farmStore';
 import { useStatisticsStore } from '../../store/statisticsStore';
 import { useToastStore } from '../../store/toastStore';
 import { useThemeStore } from '../../store/themeStore';
-import { useLogStore } from '../../store/logStore';
 import { FarmType, UserRole } from '../../types';
 import { THEMES } from '../../constants';
 import { getTodayJalali, getTodayDayName, getCurrentTime, normalizeDate, toPersianDigits } from '../../utils/dateUtils';
@@ -32,7 +31,6 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
     const { getProductById } = useFarmStore();
     const { statistics, bulkUpsertStatistics, fetchStatistics } = useStatisticsStore();
     const { addToast } = useToastStore();
-    const { addLog } = useLogStore();
     const theme = useThemeStore(state => state.theme);
     const { confirm } = useConfirm();
     
@@ -50,8 +48,6 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
     const selectedFarm = userFarms.find(f => f.id === selectedFarmId);
 
     const role = user?.role || UserRole.REGISTRATION;
-    const themeColors = THEMES[theme][role];
-    
     const isMotefereghe = selectedFarm?.type === FarmType.MOTEFEREGHE;
 
     useEffect(() => {
@@ -156,8 +152,6 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
             addToast('آمار با موفقیت ثبت شد.', 'success');
         } else {
             addToast(`خطا: ${result.error}`, 'error');
-            addLog('error', 'database', `Stats Batch Fail: ${result.error}`, user?.id);
-            if(result.debug) console.error("Technical Stats Error:", result.debug);
         }
     };
 

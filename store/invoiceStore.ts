@@ -3,7 +3,6 @@ import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { Invoice } from '../types';
 import { useStatisticsStore } from './statisticsStore';
-import { useLogStore } from './logStore';
 
 const mapLegacyProductId = (id: string | number): string => {
     const strId = String(id);
@@ -111,19 +110,10 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
               if (inv.productId) {
                   useStatisticsStore.getState().syncSalesFromInvoices(inv.farmId, inv.date, inv.productId);
               }
-              
-              // NEW LOGGING
-              useLogStore.getState().logAction(
-                  'info', 
-                  'user_action', 
-                  `ثبت حواله جدید شماره ${inv.invoiceNumber}`,
-                  { invoice: dbInv }
-              );
-
               return { success: true };
           }
           
-          useLogStore.getState().logAction('error', 'database', `خطا در ثبت حواله ${inv.invoiceNumber}`, { error });
+          console.error('Invoice Add Error:', error);
           return { success: false, error: translateError(error), debug: error };
       } catch (e: any) {
           return { success: false, error: `خطای غیرمنتظره: ${e.message}`, debug: e };
@@ -157,7 +147,6 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           if (original && original.productId) {
               useStatisticsStore.getState().syncSalesFromInvoices(original.farmId, original.date, original.productId);
           }
-          useLogStore.getState().logAction('info', 'user_action', `ویرایش حواله ${original?.invoiceNumber}`, { updates: dbUpdates });
           return { success: true };
       }
       return { success: false, error: translateError(error), debug: error };
@@ -172,11 +161,9 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           if (original && original.productId) {
               useStatisticsStore.getState().syncSalesFromInvoices(original.farmId, original.date, original.productId);
           }
-          useLogStore.getState().logAction('warn', 'user_action', `حذف حواله ${original?.invoiceNumber}`, { original });
       }
       else {
           console.error('Error deleting invoice:', error?.message || error);
-          useLogStore.getState().logAction('error', 'database', `خطا در حذف حواله`, { error });
       }
   }
 }));

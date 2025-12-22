@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { useLogStore } from '../../store/logStore.ts';
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
 type ButtonSize = 'sm' | 'md' | 'lg' | 'icon';
@@ -14,28 +13,6 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', isLoading = false, children, onClick, ...props }, ref) => {
     
-    const { logClick } = useLogStore();
-
-    const handleInternalClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-        // Automatic logging of button click with context
-        let label = props.title || props['aria-label'] || 'Button';
-        if (typeof children === 'string') {
-            label = children;
-        } else if (React.isValidElement(children)) {
-            // Try to extract text from simple children
-            label = (children as any).props?.children || 'Icon Button';
-        }
-
-        logClick(label, { 
-            variant, 
-            size,
-            component: 'CommonButton',
-            timestamp: Date.now()
-        });
-
-        if (onClick) onClick(e);
-    };
-
     const baseClasses = 'inline-flex items-center justify-center font-bold transition-all focus:outline-none disabled:opacity-50 disabled:pointer-events-none active:scale-[0.97]';
 
     const variantClasses = {
@@ -57,7 +34,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
         ref={ref}
         disabled={isLoading || props.disabled}
-        onClick={handleInternalClick}
+        onClick={onClick}
         {...props}
       >
         {isLoading && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current ml-2"></div>}

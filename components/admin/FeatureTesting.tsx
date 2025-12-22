@@ -2,15 +2,12 @@
 import React, { useState } from 'react';
 import Button from '../common/Button.tsx';
 import { useToastStore } from '../../store/toastStore.ts';
-import { useLogStore } from '../../store/logStore.ts'; 
 import { useAlertStore } from '../../store/alertStore.ts'; 
 import { useFarmStore } from '../../store/farmStore.ts';
 import { supabase } from '../../lib/supabase.ts';
-import { Icons } from '../common/Icons.tsx';
 
 const FeatureTesting: React.FC = () => {
   const { addToast } = useToastStore();
-  const { logTest } = useLogStore(); 
   const { sendAlert } = useAlertStore();
   const { farms } = useFarmStore();
   const [isRunning, setIsRunning] = useState<string | null>(null);
@@ -19,16 +16,14 @@ const FeatureTesting: React.FC = () => {
     setIsRunning(feature);
     let success = false;
     let detail = '';
-    let payload: any = {};
 
     try {
         switch(feature) {
             case 'database_ping':
                 const start = Date.now();
-                const { data, error, status } = await supabase.from('farms').select('count', { count: 'exact', head: true });
+                const { error, status } = await supabase.from('farms').select('count', { count: 'exact', head: true });
                 success = !error && status === 200;
                 detail = success ? `اتصال برقرار است (${Date.now() - start}ms)` : 'خطا در دسترسی به دیتابیس';
-                payload = { status, error, count: data };
                 break;
 
             case 'realtime_broadcast':
@@ -36,25 +31,19 @@ const FeatureTesting: React.FC = () => {
                 const resp = await sendAlert(target.id, target.name, 'سیگنال تست مدیریت');
                 success = resp.success;
                 detail = success ? 'ارسال موفق سیگنال Realtime' : 'عدم پاسخگویی سرویس Broadcast';
-                payload = resp;
                 break;
 
             case 'pwa_environment':
                 const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
                 success = true;
                 detail = isStandalone ? 'برنامه در حالت نصب شده (PWA) است' : 'برنامه در مرورگر باز شده است';
-                payload = { standalone: isStandalone, navigator: navigator.userAgent };
                 break;
         }
     } catch(e: any) {
         success = false;
         detail = 'خطای بحرانی در اجرای تست فنی';
-        payload = { exception: e.message, stack: e.stack };
     }
     
-    // Technical Deep Log
-    logTest(feature, success, payload);
-
     setIsRunning(null);
     addToast(detail, success ? 'success' : 'error');
   };
@@ -63,7 +52,6 @@ const FeatureTesting: React.FC = () => {
     <div className="space-y-6">
       <div className="bg-white dark:bg-gray-800 p-6 border-r-8 border-metro-teal shadow-md">
           <h2 className="text-xl font-black dark:text-white">کنسول عیب‌یابی و سنجش ویژگی‌ها</h2>
-          <p className="text-sm text-gray-500 mt-1">نتایج این تست‌ها به صورت JSON در بخش لاگ‌ها برای تحلیل فنی ثبت می‌شوند.</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">

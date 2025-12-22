@@ -4,11 +4,9 @@ import DashboardLayout from '../components/layout/DashboardLayout';
 import { Icons } from '../components/common/Icons';
 import FarmManagement from '../components/admin/FarmManagement';
 import UserManagement from '../components/admin/UserManagement';
-import SystemLogs from '../components/admin/SystemLogs';
 import FeatureTesting from '../components/admin/FeatureTesting';
 import Reports from '../components/admin/Reports';
 import MetroTile from '../components/common/MetroTile';
-import { useLogStore } from '../store/logStore';
 import { usePwaStore } from '../store/pwaStore';
 import { useToastStore } from '../store/toastStore';
 import { APP_VERSION } from '../constants';
@@ -16,14 +14,10 @@ import { supabase } from '../lib/supabase'; // Import for backup logic
 
 const AdminDashboard: React.FC = () => {
     const [currentView, setCurrentView] = useState('dashboard');
-    const { fetchLogs, subscribeToLogs, logAction } = useLogStore();
     const { addToast } = useToastStore();
 
-    // Enable Live Logs & Auto Backup System
+    // Enable Auto Backup System
     useEffect(() => {
-        fetchLogs();
-        const unsubscribe = subscribeToLogs();
-
         // --- AUTO BACKUP LOGIC (Every 8 Hours) ---
         const performAutoBackup = async () => {
             const LAST_BACKUP_KEY = 'morvarid_last_auto_backup';
@@ -36,35 +30,19 @@ const AdminDashboard: React.FC = () => {
             if (!lastBackupStr || (now - parseInt(lastBackupStr)) > BACKUP_INTERVAL) {
                 try {
                     // 1. Simulate Backup: Fetch counts to verify connectivity and data state
-                    const { count: farmCount } = await supabase.from('farms').select('*', { count: 'exact', head: true });
-                    const { count: statsCount } = await supabase.from('daily_statistics').select('*', { count: 'exact', head: true });
-                    const { count: invoiceCount } = await supabase.from('invoices').select('*', { count: 'exact', head: true });
+                    await supabase.from('farms').select('*', { count: 'exact', head: true });
+                    await supabase.from('daily_statistics').select('*', { count: 'exact', head: true });
+                    await supabase.from('invoices').select('*', { count: 'exact', head: true });
 
-                    // 2. "Save" Backup Metadata to Database (System Logs acts as the secure registry)
-                    // This satisfies the requirement to "save in database" by creating a persistent record of the state.
-                    await logAction(
-                        'info',
-                        'database',
-                        `✅ پشتیبان‌گیری خودکار سیستم انجام شد (دوره ۸ ساعته).`,
-                        {
-                            type: 'AUTO_BACKUP_CHECKPOINT',
-                            stats_count: statsCount,
-                            invoice_count: invoiceCount,
-                            farm_count: farmCount,
-                            timestamp: new Date().toISOString()
-                        }
-                    );
-
-                    // 3. Update Local Timestamp
+                    // 2. Update Local Timestamp
                     localStorage.setItem(LAST_BACKUP_KEY, now.toString());
 
-                    // 4. Notify Admin
-                    addToast('نسخه پشتیبان خودکار از تمام اطلاعات سیستم تهیه و ذخیره شد.', 'success');
-                    console.log('Auto-Backup completed successfully.');
+                    // 3. Notify Admin
+                    addToast('بررسی خودکار سلامت دیتابیس با موفقیت انجام شد.', 'success');
+                    console.log('Auto-Health Check completed successfully.');
 
                 } catch (error: any) {
-                    console.error('Auto-Backup Failed:', error);
-                    logAction('error', 'database', `خطا در پشتیبان‌گیری خودکار: ${error.message}`);
+                    console.error('Auto-Health Check Failed:', error);
                 }
             }
         };
@@ -74,7 +52,6 @@ const AdminDashboard: React.FC = () => {
         const backupInterval = setInterval(performAutoBackup, 60000); 
 
         return () => {
-             if (typeof unsubscribe === 'function') unsubscribe();
              clearInterval(backupInterval);
         }
     }, []);
@@ -84,7 +61,6 @@ const AdminDashboard: React.FC = () => {
             case 'farms': return <FarmManagement />;
             case 'users': return <UserManagement />;
             case 'reports': return <Reports />;
-            case 'logs': return <SystemLogs />;
             case 'testing': return <FeatureTesting />;
             default: return <DashboardHome onNavigate={setCurrentView} />;
         }
@@ -95,7 +71,6 @@ const AdminDashboard: React.FC = () => {
             case 'farms': return 'مدیریت فارم‌ها';
             case 'users': return 'مدیریت کاربران';
             case 'reports': return 'گزارشات';
-            case 'logs': return 'لاگ‌های سیستم';
             case 'testing': return 'سنجش ویژگی‌ها';
             default: return 'داشبورد مدیریت';
         }
@@ -111,7 +86,6 @@ const AdminDashboard: React.FC = () => {
 const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNavigate }) => {
     const { deferredPrompt, setDeferredPrompt, isInstalled } = usePwaStore();
     const { addToast } = useToastStore();
-    const { addLog } = useLogStore();
 
     const handleInstallClick = async () => {
         if (isInstalled) {
@@ -127,16 +101,12 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
             if (!isHttps && !isLocal) errorMsg = 'نصب برنامه نیازمند اتصال امن (HTTPS) است.';
 
             addToast(errorMsg, 'warning');
-            addLog('warn', 'frontend', `PWA Install Action Failed: Prompt is null. HTTPS: ${isHttps}`, 'USER');
             return;
         }
         
-        addLog('info', 'frontend', 'PWA: User clicked install button. Prompting...', 'USER');
         deferredPrompt.prompt();
         
         const { outcome } = await deferredPrompt.userChoice;
-        addLog('info', 'frontend', `PWA: Install prompt outcome: ${outcome}`, 'USER');
-        
         if (outcome === 'accepted') {
             setDeferredPrompt(null);
         }
@@ -195,13 +165,6 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
                 color="bg-metro-blue" 
                 size="medium"
                 onClick={() => onNavigate('reports')} 
-            />
-            <MetroTile 
-                title="لاگ‌های سیستم" 
-                icon={Icons.AlertCircle} 
-                color="bg-metro-red" 
-                size="medium"
-                onClick={() => onNavigate('logs')} 
             />
             <MetroTile 
                 title="سنجش فنی" 

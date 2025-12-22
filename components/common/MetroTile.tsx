@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { useLogStore } from '../../store/logStore';
 
 interface MetroTileProps {
   title: string;
@@ -22,8 +21,6 @@ const MetroTile: React.FC<MetroTileProps> = ({
   onClick,
   className = '' 
 }) => {
-  const { logAction } = useLogStore();
-  
   const sizeClasses = {
     small:  'col-span-1 h-28 md:h-32 lg:h-40',
     medium: 'col-span-1 h-28 md:h-40 lg:h-48',
@@ -31,16 +28,11 @@ const MetroTile: React.FC<MetroTileProps> = ({
     large:  'col-span-2 h-32 md:col-span-2 md:row-span-2 md:h-80 lg:h-96', 
   };
 
-  const handleTileClick = () => {
-    logAction('info', 'user_action', `کاربر روی کاشی مترو کلیک کرد: [${title}]`, { title, count });
-    if (onClick) onClick();
-  };
-
   return (
     <motion.div
       whileHover={{ scale: 0.98 }}
       whileTap={{ scale: 0.95 }}
-      onClick={handleTileClick}
+      onClick={onClick}
       className={`${sizeClasses[size]} ${color} relative p-4 lg:p-6 flex flex-col justify-between cursor-pointer select-none overflow-hidden group ${className}`}
     >
         <div className="metro-flow-overlay" />

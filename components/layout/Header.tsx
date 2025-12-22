@@ -2,7 +2,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { useLogStore } from '../../store/logStore';
 import { Icons } from '../common/Icons';
 import ThemeToggle from '../common/ThemeToggle';
 import { UserRole } from '../../types';
@@ -17,7 +16,6 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
   const { user, logout } = useAuthStore();
-  const { logAction } = useLogStore();
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useThemeStore(state => state.theme);
@@ -31,8 +29,6 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
         navigate('/login');
         return;
     }
-
-    logAction('INFO', 'UI', `Dashboard requested from ${location.pathname}`);
 
     switch (user.role) {
         case UserRole.ADMIN: navigate('/admin'); break;
@@ -52,7 +48,6 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
       });
       
       if (confirmed) {
-          logAction('INFO', 'AUTH', `Header logout`);
           await logout();
           navigate('/login');
       }
@@ -68,10 +63,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
         
         <div className="flex items-center gap-1.5 md:gap-3">
           <button 
-            onClick={() => {
-                logAction('INFO', 'UI', 'Hamburger clicked');
-                onMenuClick();
-            }} 
+            onClick={onMenuClick} 
             className="p-2.5 hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
             aria-label="Menu"
           >

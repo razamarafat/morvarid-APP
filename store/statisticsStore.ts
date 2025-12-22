@@ -2,8 +2,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { normalizeDate } from '../utils/dateUtils';
-import { useLogStore } from './logStore';
-import { LOG_CATEGORIES, LOG_LEVELS } from '../constants';
 
 export interface DailyStatistic {
     id: string;
@@ -72,7 +70,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           .order('date', { ascending: false });
       
       if (statsError) {
-          useLogStore.getState().logError('خطا در دریافت آمار', statsError);
+          console.error('Stats Fetch Error:', statsError);
           set({ isLoading: false });
           return;
       }
@@ -137,11 +135,10 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
       const { error } = await supabase.from('daily_statistics').update(dbUpdates).eq('id', id);
       
       if (!error) {
-          useLogStore.getState().logUserAction('Update Statistic', `ویرایش آمار با شناسه ${id}`, { updates });
           get().fetchStatistics();
           return { success: true };
       }
-      useLogStore.getState().logError('خطا در ویرایش آمار', error);
+      console.error('Stats Update Error:', error);
       return { success: false, error: translateError(error), debug: error };
   },
 
@@ -161,7 +158,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
               .eq('date', date);
           
           if (fetchError) {
-              useLogStore.getState().logError('خطا در بررسی رکوردهای موجود', fetchError);
+              console.error('Stats Exists Check Error:', fetchError);
               return { success: false, error: translateError(fetchError), debug: fetchError };
           }
           
@@ -201,7 +198,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           if (inserts.length > 0) {
               const { error } = await supabase.from('daily_statistics').insert(inserts);
               if (error) {
-                  useLogStore.getState().logError('خطا در ثبت آمار جدید', error);
+                  console.error('Stats Insert Error:', error);
                   return { success: false, error: translateError(error), debug: error };
               }
           }
@@ -211,25 +208,17 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                   const { id, ...rest } = u;
                   const { error } = await supabase.from('daily_statistics').update(rest).eq('id', id);
                   if (error) {
-                      useLogStore.getState().logError('خطا در بروزرسانی آمار موجود', error);
+                      console.error('Stats Update Error:', error);
                       return { success: false, error: translateError(error), debug: error };
                   }
               }
           }
 
-          useLogStore.getState().addLog(
-              LOG_LEVELS.INFO, 
-              LOG_CATEGORIES.USER_ACTION, 
-              `Batch statistics registered for farm ${farmId}`, 
-              `ثبت آمار دسته‌ای (${stats.length} محصول) برای تاریخ ${date}`,
-              { count: stats.length }
-          );
-
           get().fetchStatistics();
           return { success: true };
 
       } catch (err: any) {
-          useLogStore.getState().logError('خطای پیش‌بینی نشده در ثبت آمار', err);
+          console.error('Unexpected Stats Error:', err);
           return { success: false, error: `خطای غیرمنتظره: ${err.message}`, debug: err };
       }
   },
@@ -237,9 +226,8 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
   deleteStatistic: async (id) => {
       const { error } = await supabase.from('daily_statistics').delete().eq('id', id);
       if (error) {
-          useLogStore.getState().logError('خطا در حذف آمار', error);
+          console.error('Stats Delete Error:', error);
       } else {
-          useLogStore.getState().logUserAction('Delete Statistic', `حذف رکورد آمار ${id}`);
           get().fetchStatistics();
       }
   },
@@ -260,7 +248,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           .eq('product_id', productId);
 
       if (invError) {
-          useLogStore.getState().logError('خطا در همگام‌سازی فروش', invError);
+          console.error('Sync Sales Error:', invError);
           return;
       }
 
@@ -281,8 +269,6 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
               current_inventory: newInventory,
               updated_at: new Date().toISOString()
           }).eq('id', statRecord.id);
-          
-          useLogStore.getState().addLog(LOG_LEVELS.INFO, LOG_CATEGORIES.SYSTEM, 'Synced Sales', 'بروزرسانی خودکار فروش در آمار', { farmId, date, productId, totalSales });
       }
   }
 }));

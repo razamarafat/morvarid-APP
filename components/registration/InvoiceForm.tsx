@@ -8,12 +8,10 @@ import { useFarmStore } from '../../store/farmStore';
 import { useInvoiceStore } from '../../store/invoiceStore';
 import { useStatisticsStore } from '../../store/statisticsStore';
 import { useToastStore } from '../../store/toastStore';
-import { useLogStore } from '../../store/logStore';
 import { getTodayJalali, getTodayDayName, getCurrentTime, normalizeDate, toPersianDigits } from '../../utils/dateUtils';
 import Button from '../common/Button';
 import { Icons } from '../common/Icons';
 import { useConfirm } from '../../hooks/useConfirm';
-import { FarmType } from '../../types';
 import JalaliDatePicker from '../common/JalaliDatePicker';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -49,7 +47,6 @@ export const InvoiceForm: React.FC = () => {
     const { addInvoice } = useInvoiceStore();
     const { statistics } = useStatisticsStore(); // Access stats for validation
     const { addToast } = useToastStore();
-    const { addLog } = useLogStore();
     const { confirm } = useConfirm();
     
     const todayJalali = getTodayJalali();
@@ -214,8 +211,6 @@ export const InvoiceForm: React.FC = () => {
             } else {
                 failCount++;
                 lastError = result.error || 'خطای نامشخص';
-                addLog('error', 'database', `Invoice Fail [${pid}]: ${result.error}`, user?.id);
-                if (result.debug) console.error("Technical Invoice Error:", result.debug);
             }
         }
 

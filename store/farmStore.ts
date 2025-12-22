@@ -2,7 +2,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { Farm, Product, ProductUnit } from '../types';
-import { useLogStore } from './logStore';
 
 interface FarmState {
   farms: Farm[];
@@ -39,7 +38,7 @@ export const useFarmStore = create<FarmState>((set, get) => ({
     const { data, error } = await supabase.from('farms').select('*');
     
     if (error) {
-        useLogStore.getState().addLog('error', 'database', `Fetch Farms Failed: ${error.message} (${error.code})`, 'SYSTEM');
+        console.error('Fetch Farms Failed:', error);
         set({ isLoading: false });
         return;
     }
@@ -69,7 +68,7 @@ export const useFarmStore = create<FarmState>((set, get) => ({
       const { data, error } = await supabase.from('products').select('*');
       
       if (error) {
-          useLogStore.getState().addLog('error', 'database', `Fetch Products Failed: ${error.message}`, 'SYSTEM');
+          console.error('Fetch Products Failed:', error);
           return;
       }
 
@@ -117,7 +116,7 @@ export const useFarmStore = create<FarmState>((set, get) => ({
           mappedProducts = [...mappedProducts, ...missingDefaults];
           for (const p of missingDefaults) {
               try {
-                  const { error: upsertError } = await supabase.from('products').upsert({
+                  await supabase.from('products').upsert({
                       id: p.id,
                       name: p.name,
                       description: p.description,
@@ -126,11 +125,8 @@ export const useFarmStore = create<FarmState>((set, get) => ({
                       is_default: p.isDefault,
                       is_custom: p.isCustom
                   });
-                  if (upsertError) {
-                       useLogStore.getState().addLog('warn', 'database', `Failed to restore default product ${p.name}: ${upsertError.message}`, 'SYSTEM');
-                  }
               } catch (e: any) {
-                  useLogStore.getState().addLog('error', 'database', `Exception restoring product ${p.name}: ${e.message}`, 'SYSTEM');
+                  console.error(`Exception restoring product ${p.name}:`, e);
               }
           }
       }
@@ -139,11 +135,6 @@ export const useFarmStore = create<FarmState>((set, get) => ({
   },
 
   addFarm: async (farm) => {
-    const user = (await supabase.auth.getUser()).data.user;
-    const userId = user?.id || 'UNKNOWN';
-
-    useLogStore.getState().addLog('info', 'database', `Attempting to add farm: ${farm.name}`, userId);
-
     const dbFarm = {
         name: farm.name,
         type: farm.type,
@@ -151,24 +142,18 @@ export const useFarmStore = create<FarmState>((set, get) => ({
         product_ids: farm.productIds
     };
     
-    const { data, error } = await supabase.from('farms').insert(dbFarm).select();
+    const { error } = await supabase.from('farms').insert(dbFarm).select();
     
     if (error) {
-        useLogStore.getState().addLog('error', 'database', `Add Farm Error: ${error.message} - Details: ${JSON.stringify(error)}`, userId);
+        console.error('Add Farm Error:', error);
         return { success: false, error: error.message };
     }
 
-    useLogStore.getState().addLog('info', 'database', `Farm created successfully: ${farm.name}`, userId);
     get().fetchFarms();
     return { success: true };
   },
 
   updateFarm: async (farm) => {
-    const user = (await supabase.auth.getUser()).data.user;
-    const userId = user?.id || 'UNKNOWN';
-
-    useLogStore.getState().addLog('info', 'database', `Attempting to update farm: ${farm.id}`, userId);
-
     const dbFarm = {
         name: farm.name,
         type: farm.type,
@@ -178,34 +163,27 @@ export const useFarmStore = create<FarmState>((set, get) => ({
     const { error } = await supabase.from('farms').update(dbFarm).eq('id', farm.id);
     
     if (error) {
-        useLogStore.getState().addLog('error', 'database', `Update Farm Error: ${error.message}`, userId);
+        console.error('Update Farm Error:', error);
         return { success: false, error: error.message };
     }
 
-    useLogStore.getState().addLog('info', 'database', `Farm updated: ${farm.name}`, userId);
     get().fetchFarms();
     return { success: true };
   },
 
   deleteFarm: async (farmId) => {
-    const user = (await supabase.auth.getUser()).data.user;
-    const userId = user?.id || 'UNKNOWN';
-    
     const { error } = await supabase.from('farms').delete().eq('id', farmId);
     
     if (error) {
-        useLogStore.getState().addLog('error', 'database', `Delete Farm Error: ${error.message}`, userId);
+        console.error('Delete Farm Error:', error);
         return { success: false, error: error.message };
     }
 
-    useLogStore.getState().addLog('info', 'database', `Farm deleted: ${farmId}`, userId);
     get().fetchFarms();
     return { success: true };
   },
 
   addProduct: async (productData) => {
-      const user = (await supabase.auth.getUser()).data.user;
-      
       const dbProduct = {
           name: productData.name,
           description: productData.description,
@@ -218,12 +196,11 @@ export const useFarmStore = create<FarmState>((set, get) => ({
       const { data, error } = await supabase.from('products').insert(dbProduct).select().single();
       
       if (error) {
-          useLogStore.getState().addLog('error', 'database', `Add Product Error: ${error.message}`, user?.id);
+          console.error('Add Product Error:', error);
           return null;
       }
       
       if (data) {
-          useLogStore.getState().addLog('info', 'database', `Product created: ${data.name}`, user?.id);
           get().fetchProducts();
           return {
               id: data.id,

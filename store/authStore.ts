@@ -2,8 +2,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { User, UserRole } from '../types';
-import { useLogStore } from './logStore';
-import { LOG_CATEGORIES, LOG_LEVELS } from '../constants';
 
 const mapLegacyProductId = (id: string): string => {
     if (id === '1') return '11111111-1111-1111-1111-111111111111';
@@ -46,7 +44,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError) {
-          useLogStore.getState().logError('خطا در بررسی نشست کاربری', sessionError);
+          console.error('Session Check Error:', sessionError);
           if (sessionError.message.includes('Refresh Token Not Found')) {
               await supabase.auth.signOut().catch(() => {});
               localStorage.removeItem('sb-bcdyieczslyynvvsfmmm-auth-token');
@@ -67,14 +65,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           .single();
 
       if (profileError) {
-           useLogStore.getState().logError('خطا در دریافت پروفایل کاربر', profileError);
+           console.error('Profile Fetch Error:', profileError);
            set({ user: null, isLoading: false });
            return;
       }
 
       if (profile) {
           if (!profile.is_active) {
-              useLogStore.getState().addLog('warn', 'auth', `Inactive user attempted session resume: ${profile.username}`, 'تلاش کاربر غیرفعال برای ادامه نشست');
               await supabase.auth.signOut();
               set({ user: null, isLoading: false });
               return;
@@ -106,12 +103,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               },
               isLoading: false
           });
-
-          // FLUSH PENDING LOGS ON SUCCESSFUL RESTORE
-          useLogStore.getState().flushPendingLogs();
       }
     } catch (error: any) {
-      useLogStore.getState().logError('خطای غیرمنتظره در بررسی نشست', error);
+      console.error('Unexpected Auth Error:', error);
       set({ user: null, isLoading: false });
     }
   },
@@ -120,7 +114,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { loginAttempts, blockUntil } = get();
     
     if (blockUntil && Date.now() < blockUntil) {
-      useLogStore.getState().addLog('warn', 'security', `Blocked login attempt: ${username}`, 'تلاش ورود به حساب مسدود شده', { attempt: loginAttempts });
       return { success: false, error: 'حساب موقتا مسدود است. لطفا صبر کنید.' };
     }
 
@@ -147,7 +140,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     if (loginError || !loginData) {
         get().recordFailedAttempt();
-        useLogStore.getState().addLog('warn', 'auth', `Failed login attempt for ${cleanUsername}`, 'نام کاربری یا رمز عبور اشتباه', { error: loginError?.message });
         return { success: false, error: 'نام کاربری یا رمز عبور اشتباه است' };
     }
 
@@ -156,7 +148,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         
         if (profile && !profile.is_active) {
             await supabase.auth.signOut();
-            useLogStore.getState().addLog('warn', 'auth', `Inactive user login blocked: ${username}`, 'ورود حساب غیرفعال مسدود شد', {}, loginData.user.id);
             return { success: false, error: 'حساب کاربری شما غیرفعال شده است.' };
         }
 
@@ -172,12 +163,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         await get().checkSession();
         const currentUser = get().user;
         if (currentUser) {
-            // Log successful login first
-            await useLogStore.getState().addLog('info', 'auth', `User logged in: ${currentUser.username}`, 'ورود موفق کاربر به سیستم', { role: currentUser.role }, currentUser.id);
-            
-            // FLUSH PENDING LOGS
-            useLogStore.getState().flushPendingLogs();
-            
             return { success: true };
         } else {
              return { success: false, error: 'خطا در دریافت پروفایل' };
@@ -187,16 +172,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
-    const user = get().user;
-    if (user) {
-        await useLogStore.getState().addLog('info', 'auth', `User logged out: ${user.username}`, 'خروج کاربر از سیستم', {}, user.id);
-    }
     await supabase.auth.signOut();
     set({ user: null });
   },
 
   registerBiometric: () => {
-      useLogStore.getState().logUserAction('Biometric Register Request', 'درخواست ثبت بیومتریک');
+      // Placeholder for biometric implementation
   },
 
   recordFailedAttempt: () => set((state) => {

@@ -1,9 +1,8 @@
 
-import { create, StoreApi, UseBoundStore } from 'zustand';
+import { create } from 'zustand';
 import { createClient } from '@supabase/supabase-js';
 import { supabase, supabaseUrl, supabaseAnonKey } from '../lib/supabase';
 import { User, UserRole } from '../types';
-import { useLogStore } from './logStore';
 import { useToastStore } from './toastStore';
 
 // Helper duplicated here to avoid circular dependencies if we imported from farmStore
@@ -69,14 +68,12 @@ export const useUserStore = create<UserState>((set, get) => ({
               set({ isLoading: false });
           }
       } catch (error: any) {
-           useLogStore.getState().addLog('error', 'database', `Fetch Users Failed: ${error.message}`);
+           console.error('Fetch Users Failed:', error);
            set({ isLoading: false });
       }
   },
 
   addUser: async (userData) => {
-      const currentAdmin = (await supabase.auth.getUser()).data.user;
-      
       const rawUsername = userData.username || '';
       const sanitizedUsername = rawUsername.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
       
@@ -87,8 +84,6 @@ export const useUserStore = create<UserState>((set, get) => ({
 
       const email = `${sanitizedUsername}@morvarid.com`; 
       const password = userData.password || 'Morvarid1234';
-
-      useLogStore.getState().addLog('info', 'auth', `Creating user: '${sanitizedUsername}'`, currentAdmin?.id);
 
       set({ isLoading: true });
 
@@ -120,15 +115,12 @@ export const useUserStore = create<UserState>((set, get) => ({
           });
 
           if (error) {
-              const errorDetails = JSON.stringify({ message: error.message, status: error.status });
-              useLogStore.getState().addLog('error', 'auth', `SIGNUP_FAIL: ${errorDetails}`, currentAdmin?.id);
               useToastStore.getState().addToast(`خطا در ساخت کاربر: ${error.message}`, 'error');
               return;
           }
 
           if (data.user) {
               if (!data.session) {
-                  useLogStore.getState().addLog('warn', 'auth', `User created but waiting for verification. 'Confirm Email' is enabled on Supabase.`, currentAdmin?.id);
                   useToastStore.getState().addToast('کاربر ساخته شد اما "تایید ایمیل" در پنل Supabase فعال است.', 'warning');
               }
 
@@ -142,7 +134,7 @@ export const useUserStore = create<UserState>((set, get) => ({
               });
 
               if (profileError) {
-                  useLogStore.getState().addLog('error', 'database', `PROFILE_FAIL: ${profileError.message}`, currentAdmin?.id);
+                  console.error('Profile Creation Failed:', profileError);
                   useToastStore.getState().addToast('کاربر ساخته شد اما پروفایل ثبت نشد', 'warning');
               } else {
                   if (userData.assignedFarms && userData.assignedFarms.length > 0) {
@@ -150,13 +142,9 @@ export const useUserStore = create<UserState>((set, get) => ({
                           user_id: data.user!.id,
                           farm_id: f.id
                       }));
-                      const { error: assignError } = await supabase.from('user_farms').insert(inserts);
-                      if (assignError) {
-                          useLogStore.getState().addLog('warn', 'database', `ASSIGN_FAIL: ${assignError.message}`, currentAdmin?.id);
-                      }
+                      await supabase.from('user_farms').insert(inserts);
                   }
                   
-                  useLogStore.getState().addLog('info', 'database', `User created successfully: ${sanitizedUsername}`, currentAdmin?.id);
                   if (data.session) {
                       useToastStore.getState().addToast(`کاربر ${userData.fullName} با موفقیت ایجاد شد`, 'success');
                   }
@@ -165,7 +153,7 @@ export const useUserStore = create<UserState>((set, get) => ({
           }
 
       } catch (err: any) {
-          useLogStore.getState().addLog('error', 'auth', `EXCEPTION: ${err.message}`, currentAdmin?.id);
+          console.error('User Add Exception:', err);
           useToastStore.getState().addToast(`خطای غیرمنتظره: ${err.message}`, 'error');
       } finally {
           set({ isLoading: false });
@@ -173,8 +161,6 @@ export const useUserStore = create<UserState>((set, get) => ({
   },
 
   updateUser: async (user) => {
-      const currentAdmin = (await supabase.auth.getUser()).data.user;
-      useLogStore.getState().addLog('info', 'database', `Updating user profile: ${user.username}`, currentAdmin?.id);
       set({ isLoading: true });
 
       try {
@@ -213,7 +199,7 @@ export const useUserStore = create<UserState>((set, get) => ({
               }
           } catch (farmError: any) {
               farmUpdateStatus = 'failed';
-              useLogStore.getState().addLog('error', 'database', `Farm Update RLS Error: ${farmError.message}`, currentAdmin?.id);
+              console.error('Farm Update Failed:', farmError);
           }
 
           if (farmUpdateStatus === 'success') {
@@ -223,7 +209,7 @@ export const useUserStore = create<UserState>((set, get) => ({
           }
 
       } catch (error: any) {
-          useLogStore.getState().addLog('error', 'database', `Update Error: ${error.message}`, currentAdmin?.id);
+          console.error('User Update Failed:', error);
           useToastStore.getState().addToast(`خطا در ویرایش کاربر: ${error.message}`, 'error');
       } finally {
           await get().fetchUsers();
@@ -232,17 +218,11 @@ export const useUserStore = create<UserState>((set, get) => ({
   },
 
   deleteUser: async (userId) => {
-      const currentAdmin = (await supabase.auth.getUser()).data.user;
-      useLogStore.getState().addLog('warn', 'database', `Starting comprehensive delete for user: ${userId}`, currentAdmin?.id);
       set({ isLoading: true });
 
       try {
           await supabase.from('invoices').update({ created_by: null }).eq('created_by', userId);
           await supabase.from('daily_statistics').update({ created_by: null }).eq('created_by', userId);
-
-          try {
-             await useLogStore.getState().deleteLogsByUserId(userId);
-          } catch(e) { console.warn("Log delete failed", e); }
 
           const { error: farmError } = await supabase.from('user_farms').delete().eq('user_id', userId);
           if (farmError) console.warn("Farm delete error:", farmError);
@@ -253,11 +233,10 @@ export const useUserStore = create<UserState>((set, get) => ({
               throw new Error(`User deletion failed: ${profileError.message}`);
           }
           
-          useLogStore.getState().addLog('info', 'database', `User profile and dependencies cleaned up.`, currentAdmin?.id);
           useToastStore.getState().addToast('کاربر از سیستم حذف شد.', 'success');
 
       } catch (error: any) {
-          useLogStore.getState().addLog('error', 'database', `Delete Error: ${error.message}`, currentAdmin?.id);
+          console.error('User Delete Failed:', error);
           useToastStore.getState().addToast(`خطا در حذف کاربر: ${error.message}`, 'error');
       } finally {
           await get().fetchUsers();
