@@ -46,44 +46,46 @@ const FarmManagement: React.FC = () => {
         </Button>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-x-auto border border-gray-200 dark:border-gray-700">
-        <table className="w-full text-sm text-right text-gray-500 dark:text-gray-400">
-          <thead className="text-xs lg:text-base text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400 font-bold">
-            <tr>
-              <th scope="col" className="px-6 py-3 lg:py-5 whitespace-nowrap">نام فارم</th>
-              <th scope="col" className="px-6 py-3 lg:py-5 whitespace-nowrap">نوع</th>
-              <th scope="col" className="px-6 py-3 lg:py-5 whitespace-nowrap">وضعیت</th>
-              <th scope="col" className="px-6 py-3 lg:py-5 whitespace-nowrap text-center">عملیات</th>
-            </tr>
-          </thead>
-          <tbody>
-            {farms.map((farm) => (
-              <tr key={farm.id} className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
-                <th scope="row" className="px-6 py-4 lg:py-6 font-bold text-gray-900 whitespace-nowrap dark:text-white lg:text-lg">
-                  {farm.name}
-                </th>
-                <td className="px-6 py-4 lg:py-6 whitespace-nowrap">
-                    <span className={`px-3 py-1.5 lg:px-4 lg:py-2 rounded-full text-xs lg:text-sm font-bold ${farm.type === FarmType.MORVARIDI ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'}`}>
-                        {farm.type === FarmType.MORVARIDI ? 'مرواریدی' : 'متفرقه'}
+      <div className="bg-white dark:bg-gray-800 shadow-md rounded-[24px] overflow-hidden border border-gray-200 dark:border-gray-700">
+        <div className="overflow-x-auto">
+            <table className="w-full text-sm text-right text-gray-500 dark:text-gray-400">
+            <thead className="text-xs lg:text-base text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400 font-bold">
+                <tr>
+                <th scope="col" className="px-6 py-4 lg:py-6 whitespace-nowrap">نام فارم</th>
+                <th scope="col" className="px-6 py-4 lg:py-6 whitespace-nowrap">نوع</th>
+                <th scope="col" className="px-6 py-4 lg:py-6 whitespace-nowrap">وضعیت</th>
+                <th scope="col" className="px-6 py-4 lg:py-6 whitespace-nowrap text-center">عملیات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {farms.map((farm) => (
+                <tr key={farm.id} className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                    <th scope="row" className="px-6 py-5 lg:py-7 font-black text-gray-900 whitespace-nowrap dark:text-white lg:text-lg">
+                    {farm.name}
+                    </th>
+                    <td className="px-6 py-5 lg:py-7 whitespace-nowrap">
+                        <span className={`px-3 py-1.5 lg:px-4 lg:py-2 rounded-full text-xs lg:text-sm font-bold ${farm.type === FarmType.MORVARIDI ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'}`}>
+                            {farm.type === FarmType.MORVARIDI ? 'مرواریدی' : 'متفرقه'}
+                        </span>
+                    </td>
+                    <td className="px-6 py-5 lg:py-7 whitespace-nowrap">
+                    <span className={`px-3 py-1.5 lg:px-4 lg:py-2 rounded-full text-xs lg:text-sm font-bold ${farm.isActive ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'}`}>
+                        {farm.isActive ? 'فعال' : 'غیرفعال'}
                     </span>
-                </td>
-                <td className="px-6 py-4 lg:py-6 whitespace-nowrap">
-                  <span className={`px-3 py-1.5 lg:px-4 lg:py-2 rounded-full text-xs lg:text-sm font-bold ${farm.isActive ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'}`}>
-                    {farm.isActive ? 'فعال' : 'غیرفعال'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 lg:py-6 flex items-center justify-center gap-2">
-                  <Button size="icon" variant="ghost" onClick={() => handleEdit(farm)} className="lg:w-12 lg:h-12">
-                    <Icons.Edit className="w-4 h-4 lg:w-6 lg:h-6" />
-                  </Button>
-                  <Button size="icon" variant="ghost" className="text-red-500 hover:text-red-600 lg:w-12 lg:h-12" onClick={() => handleDelete(farm)}>
-                    <Icons.Trash className="w-4 h-4 lg:w-6 lg:h-6" />
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                    </td>
+                    <td className="px-6 py-5 lg:py-7 flex items-center justify-center gap-2">
+                    <Button size="icon" variant="ghost" onClick={() => handleEdit(farm)} className="lg:w-12 lg:h-12 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600">
+                        <Icons.Edit className="w-4 h-4 lg:w-6 lg:h-6" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="text-red-500 hover:text-red-600 lg:w-12 lg:h-12 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => handleDelete(farm)}>
+                        <Icons.Trash className="w-4 h-4 lg:w-6 lg:h-6" />
+                    </Button>
+                    </td>
+                </tr>
+                ))}
+            </tbody>
+            </table>
+        </div>
       </div>
 
       <FarmFormModal

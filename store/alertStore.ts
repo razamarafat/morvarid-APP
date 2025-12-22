@@ -19,34 +19,53 @@ interface AlertState {
     isListening: boolean;
     channel: RealtimeChannel | null;
     initListener: () => void;
-    requestPermission: () => Promise<boolean>;
+    checkAndRequestPermission: () => Promise<void>;
     sendAlert: (farmId: string, farmName: string, message: string) => Promise<{ success: boolean; detail: string; bytes: number }>;
+    triggerTestNotification: () => Promise<void>;
 }
 
-const playProfessionalSmsSound = () => {
-    try {
-        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const playNote = (freq: number, start: number, duration: number, volume: number = 0.15) => {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(freq, start);
-            gain.gain.setValueAtTime(0, start);
-            gain.gain.linearRampToValueAtTime(volume, start + 0.02);
-            gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start(start);
-            osc.stop(start + duration);
-        };
-        const now = audioCtx.currentTime;
-        playNote(523.25, now, 0.5);          
-        playNote(659.25, now + 0.12, 0.5);    
-        playNote(783.99, now + 0.24, 0.5);    
-        playNote(987.77, now + 0.36, 0.5);    
-        playNote(1046.50, now + 0.48, 0.8, 0.2); 
-    } catch (e) {
-        console.warn("Audio Context blocked", e);
+// Helper to show system notification via Service Worker
+const showSystemNotification = async (title: string, body: string) => {
+    console.log('[Notif System] Attempting to show system notification:', { title, body });
+    
+    if (!("serviceWorker" in navigator) || !("Notification" in window)) {
+        console.warn('[Notif System] Browser does not support Notifications or Service Workers.');
+        return;
+    }
+
+    if (Notification.permission === "granted") {
+        try {
+            // Check if SW is ready
+            const registration = await navigator.serviceWorker.ready;
+            
+            if (!registration) {
+                 console.error('[Notif System] Service Worker registration not found.');
+                 // Fallback to basic notification (might not work on Android Chrome without SW)
+                 new Notification(title, { body, icon: "/vite.svg" });
+                 return;
+            }
+
+            await registration.showNotification(title, {
+                body: body,
+                icon: "/vite.svg",
+                badge: "/vite.svg", // Small icon for Android status bar
+                tag: "morvarid-alert", // Overwrites older notifications with same tag
+                renotify: true, // Vibrate/Sound again even if tag exists
+                vibrate: [200, 100, 200], // Basic vibration
+                dir: "rtl",
+                lang: "fa-IR",
+                requireInteraction: false, // Disappear automatically like standard notifications
+                data: {
+                    url: window.location.href // Used in sw.js to focus window
+                }
+            } as any);
+            console.log('[Notif System] Notification sent to Service Worker successfully.');
+
+        } catch (e) {
+            console.error("[Notif System] Failed to show notification:", e);
+        }
+    } else {
+        console.log('[Notif System] Cannot show notification. Permission status:', Notification.permission);
     }
 };
 
@@ -54,29 +73,51 @@ export const useAlertStore = create<AlertState>((set, get) => ({
     isListening: false,
     channel: null,
 
-    requestPermission: async () => {
-        if (!("Notification" in window)) return false;
-        
-        try {
-            const permission = await Notification.requestPermission();
-            const toastStore = useToastStore.getState();
-
-            if (permission === "granted") {
-                return true;
-            } else if (permission === "denied") {
-                toastStore.addToast('اعلان‌ها مسدود هستند. لطفا برای دریافت هشدارها از تنظیمات مرورگر (آیکون قفل) دسترسی را باز کنید.', 'warning');
-                return false;
-            }
-        } catch (error) {
-            console.error("Permission request error", error);
+    // Called on App Mount
+    checkAndRequestPermission: async () => {
+        if (!("Notification" in window)) {
+            console.log('[Notif System] Notifications not supported in this browser.');
+            return;
         }
-        return false;
+
+        const currentPermission = Notification.permission;
+        console.log(`[Notif System] Startup Permission Check: ${currentPermission}`);
+
+        if (currentPermission === 'default') {
+            console.log('[Notif System] Permission is default. Requesting user...');
+            try {
+                const result = await Notification.requestPermission();
+                console.log(`[Notif System] User Response: ${result}`);
+                if (result === 'granted') {
+                    useToastStore.getState().addToast('دریافت اعلان‌ها فعال شد.', 'success');
+                }
+            } catch (error) {
+                console.error('[Notif System] Request Permission Error:', error);
+            }
+        } else if (currentPermission === 'denied') {
+             console.log('[Notif System] Permission previously denied. Logs recorded.');
+        } else {
+             console.log('[Notif System] Permission already granted.');
+        }
+    },
+
+    triggerTestNotification: async () => {
+        console.log('[Notif System] Triggering TEST notification...');
+        await get().checkAndRequestPermission();
+        
+        if (Notification.permission === 'granted') {
+             // Force show system notification even if app is visible (for testing)
+             await showSystemNotification("تست سامانه مروارید", "این یک اعلان آزمایشی جهت بررسی صحت عملکرد است.");
+        } else {
+             useToastStore.getState().addToast('مجوز نوتیفیکیشن داده نشده است.', 'error');
+        }
     },
 
     initListener: () => {
         if (get().isListening) return;
 
-        get().requestPermission();
+        // Ensure permissions are checked when listener starts
+        get().checkAndRequestPermission();
 
         const channel = supabase.channel('app_alerts', {
             config: { broadcast: { self: true } }
@@ -89,40 +130,35 @@ export const useAlertStore = create<AlertState>((set, get) => ({
                 async (event) => {
                     const payload = event.payload as AlertPayload;
                     const currentUser = useAuthStore.getState().user;
+                    
+                    console.log('[Notif System] Signal Received:', payload);
+
+                    // Don't alert the sender
                     if (!currentUser || payload.senderId === currentUser.id) return;
 
                     const assignedIds = currentUser.assignedFarms?.map(f => f.id) || [];
                     const isRelevant = currentUser.role === UserRole.ADMIN || assignedIds.includes(payload.targetFarmId);
 
                     if (isRelevant) {
-                        playProfessionalSmsSound();
-                        if ("vibrate" in navigator) {
-                            navigator.vibrate([100, 50, 100, 50, 300]); 
+                        // Logic:
+                        // If Tab is Visible -> Toast
+                        // If Tab is Hidden/Background -> System Notification
+                        
+                        if (document.visibilityState === 'visible') {
+                            console.log('[Notif System] App is visible. Showing Toast.');
+                            useToastStore.getState().addToast(`هشدار فوری: ${payload.message}`, 'error');
+                        } else {
+                            console.log('[Notif System] App is hidden. Showing System Notification.');
+                            await showSystemNotification("سامانه مروارید: وضعیت بحرانی", payload.message);
                         }
-                        useToastStore.getState().addToast(`هشدار: ${payload.message}`, 'error');
-
-                        if ("serviceWorker" in navigator && Notification.permission === "granted") {
-                            try {
-                                const registration = await navigator.serviceWorker.ready;
-                                registration.showNotification("سامانه مروارید: وضعیت بحرانی", {
-                                    body: payload.message,
-                                    icon: "/vite.svg",
-                                    badge: "/vite.svg",
-                                    tag: "farm-alert-" + payload.targetFarmId,
-                                    renotify: true,
-                                    vibrate: [100, 50, 100, 50, 300],
-                                    dir: "rtl",
-                                    silent: false 
-                                } as any);
-                            } catch(e) {
-                                console.warn("SW notification failed", e);
-                            }
-                        }
+                    } else {
+                        console.log('[Notif System] Signal ignored (Not relevant to user).');
                     }
                 }
             )
             .subscribe((status) => {
                 if (status === 'SUBSCRIBED') {
+                    console.log('[Notif System] Subscribed to alert channel.');
                     set({ isListening: true });
                 }
             });
@@ -139,6 +175,8 @@ export const useAlertStore = create<AlertState>((set, get) => ({
         if (!channel) return { success: false, detail: 'Channel Error', bytes: 0 };
 
         const payload = { targetFarmId: farmId, farmName, message, senderId: user.id, sentAt: Date.now(), action: 'missing_stats' };
+        console.log('[Notif System] Sending Alert:', payload);
+        
         const result = await channel.send({ type: 'broadcast', event: 'farm_alert', payload });
         
         return { success: result === 'ok', detail: result as string, bytes: JSON.stringify(payload).length };

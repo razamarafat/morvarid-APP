@@ -65,30 +65,19 @@ const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({ value, onChange, la
     if (m <= 6) return 31;
     if (m <= 11) return 30;
     // Simple leap year check for Jalali
-    // This is a basic approximation suitable for UI within typical ranges
     const isLeap = (y % 33 % 4 - 1) === ((y % 33 * 0.225) >> 0);
     return isLeap ? 30 : 29;
   };
 
-  // Convert Jalali (Year, Month, 1) to Gregorian to find weekday
   const getStartDayOfMonth = (jy: number, jm: number) => {
-      // Approximate Gregorian start for Jalali Month
-      // Farvardin starts around March 21
       const gYear = jy + 621;
-      let gMonth = 2; // March
-      let gDay = 20; 
-      
-      // Adjust rough month
+      let gMonth = 2; 
       if(jm <= 9) { gMonth = 2 + jm; } 
-      else { gMonth = jm - 10; } // Late Gregorian year or Next
+      else { gMonth = jm - 10; } 
       
-      // Create a date object and search for the exact match
-      // This brute-force search (scanning +/- 35 days) is very fast and reliable compared to implementing full calendar math
       const guess = new Date(gYear, gMonth, 15); 
-      // Go back 40 days to be safe and scan forward
       guess.setDate(guess.getDate() - 45);
 
-      // Using options instead of locale extension to prevent invalid language tag error
       // @ts-ignore
       const formatter = new Intl.DateTimeFormat('fa-IR', { 
           calendar: 'persian', 
@@ -106,21 +95,16 @@ const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({ value, onChange, la
           const pDay = parseInt(parts.find(p => p.type === 'day')?.value || '0');
           
           if(pYear === jy && pMonth === jm && pDay === 1) {
-              // Found it!
-              // JS getDay(): 0=Sun, 1=Mon, ..., 6=Sat
-              // We want 0=Sat, 1=Sun, ..., 6=Fri
               const dayOfWeek = guess.getDay();
-              // Map: Sun(0)->1, Mon(1)->2 ... Sat(6)->0
               return (dayOfWeek + 1) % 7;
           }
       }
-      return 0; // Fallback
+      return 0; 
   };
 
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
-  const startDay = getStartDayOfMonth(currentYear, currentMonth); // 0 = Sat, 6 = Fri
+  const startDay = getStartDayOfMonth(currentYear, currentMonth); 
   
-  // Generate days array with empty slots
   const slots = [];
   for(let i=0; i<startDay; i++) {
       slots.push(null);
@@ -130,31 +114,31 @@ const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({ value, onChange, la
   }
 
   return (
-    <div className="relative" ref={containerRef}>
-      {label && <label className="block text-sm font-medium mb-1 dark:text-gray-300">{label}</label>}
+    <div className="relative group" ref={containerRef}>
+      {label && <label className="block text-xs font-bold mb-1.5 text-gray-700 dark:text-gray-300 px-1">{label}</label>}
       <div 
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white cursor-pointer hover:border-violet-500 transition-colors"
+        className="flex items-center justify-between w-full p-3 lg:p-4 border-2 border-gray-200 rounded-xl bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-white cursor-pointer hover:border-violet-500 transition-all shadow-sm"
       >
-        <span dir="ltr" className="font-mono">{displayValue}</span>
-        <Icons.Calendar className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+        <span dir="ltr" className="font-mono text-lg font-bold">{displayValue}</span>
+        <Icons.Calendar className="w-5 h-5 text-gray-500 dark:text-gray-400 group-hover:text-violet-500 transition-colors" />
       </div>
 
       {isOpen && (
-        <div className="absolute top-full mt-2 w-64 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg shadow-xl z-50 p-4">
-          <div className="flex justify-between items-center mb-4">
-            <button onClick={handlePrevMonth} type="button" className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
-              <Icons.ChevronRight className="w-5 h-5 dark:text-gray-300" />
+        <div className="absolute top-full mt-2 w-72 bg-[#FDFBFF] dark:bg-[#2B2930] rounded-[24px] shadow-2xl z-50 p-4 border border-gray-100 dark:border-gray-700 animate-in fade-in zoom-in-95 duration-200">
+          <div className="flex justify-between items-center mb-4 px-1">
+            <button onClick={handlePrevMonth} type="button" className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors">
+              <Icons.ChevronRight className="w-5 h-5 dark:text-gray-200" />
             </button>
-            <span className="font-bold text-gray-800 dark:text-gray-200">{months[currentMonth - 1]} {currentYear}</span>
-            <button onClick={handleNextMonth} type="button" className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
-              <Icons.ChevronLeft className="w-5 h-5 dark:text-gray-300" />
+            <span className="font-black text-gray-800 dark:text-gray-100 text-lg">{months[currentMonth - 1]} {currentYear}</span>
+            <button onClick={handleNextMonth} type="button" className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors">
+              <Icons.ChevronLeft className="w-5 h-5 dark:text-gray-200" />
             </button>
           </div>
           
           <div className="grid grid-cols-7 gap-1 text-center text-sm mb-2">
              {['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'].map(dayName => (
-                 <div key={dayName} className="text-gray-400 font-bold">{dayName}</div>
+                 <div key={dayName} className="text-gray-400 font-bold text-xs">{dayName}</div>
              ))}
           </div>
           <div className="grid grid-cols-7 gap-1 text-center text-sm">
@@ -164,11 +148,11 @@ const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({ value, onChange, la
                  onClick={() => d ? handleDayClick(d) : null}
                  type="button"
                  disabled={!d}
-                 className={`p-1 rounded-md transition-colors ${
+                 className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-bold transition-all mx-auto ${
                     !d ? 'invisible' :
                     d === day && currentMonth === month && currentYear === year
-                    ? 'bg-violet-600 text-white'
-                    : 'hover:bg-violet-100 dark:hover:bg-violet-900 text-gray-700 dark:text-gray-300'
+                    ? 'bg-violet-600 text-white shadow-md'
+                    : 'hover:bg-violet-100 dark:hover:bg-violet-900/50 text-gray-700 dark:text-gray-300'
                  }`}
                >
                  {d || ''}

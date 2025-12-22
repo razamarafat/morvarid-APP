@@ -30,7 +30,7 @@ const Logo: React.FC<LogoProps> = ({ className = "w-full h-16" }) => {
       <text 
         x="375" 
         y="95" 
-        fontFamily="Vazirmatn, sans-serif" 
+        fontFamily="Vazir, sans-serif" 
         fontSize="14" 
         fill="#999" 
         textAnchor="end"

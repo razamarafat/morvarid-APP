@@ -144,28 +144,28 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div>
-          <label htmlFor="farmName" className="block text-sm font-medium mb-1 dark:text-gray-300">نام فارم (فقط فارسی)</label>
+          <label htmlFor="farmName" className="block text-sm font-bold mb-1.5 dark:text-gray-300 px-1">نام فارم (فقط فارسی)</label>
           <input 
             id="farmName" 
             {...register('name')} 
             placeholder="مثال: فارم یک"
-            className="w-full p-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 dark:text-white focus:ring-violet-500" 
+            className="w-full p-3 border-2 rounded-xl bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 dark:text-white focus:border-violet-500 outline-none transition-colors" 
           />
           {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>}
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-2 dark:text-gray-300">نوع فارم</label>
+          <label className="block text-sm font-bold mb-2 dark:text-gray-300 px-1">نوع فارم</label>
           <Controller
             name="type"
             control={control}
             render={({ field }) => (
               <div className="flex gap-4">
-                <label className="flex-1 flex items-center justify-center gap-2 p-3 border rounded-md cursor-pointer hover:bg-violet-50 dark:hover:bg-gray-700 transition-colors has-[:checked]:bg-violet-50 has-[:checked]:border-violet-500 has-[:checked]:ring-1 has-[:checked]:ring-violet-500">
+                <label className="flex-1 flex items-center justify-center gap-2 p-3 border-2 rounded-xl cursor-pointer hover:bg-violet-50 dark:hover:bg-gray-700 transition-colors has-[:checked]:bg-violet-50 has-[:checked]:border-violet-500 has-[:checked]:text-violet-700">
                   <input type="radio" {...field} value={FarmType.MORVARIDI} className="hidden"/>
                   <span className="font-bold">مرواریدی</span>
                 </label>
-                <label className="flex-1 flex items-center justify-center gap-2 p-3 border rounded-md cursor-pointer hover:bg-violet-50 dark:hover:bg-gray-700 transition-colors has-[:checked]:bg-violet-50 has-[:checked]:border-violet-500 has-[:checked]:ring-1 has-[:checked]:ring-violet-500">
+                <label className="flex-1 flex items-center justify-center gap-2 p-3 border-2 rounded-xl cursor-pointer hover:bg-violet-50 dark:hover:bg-gray-700 transition-colors has-[:checked]:bg-violet-50 has-[:checked]:border-violet-500 has-[:checked]:text-violet-700">
                   <input type="radio" {...field} value={FarmType.MOTEFEREGHE} className="hidden"/>
                   <span className="font-bold">متفرقه</span>
                 </label>
@@ -176,10 +176,10 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
         </div>
         
         <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-             <div className="flex justify-between items-center mb-2">
-                 <h3 className="text-md font-semibold dark:text-gray-200">محصولات</h3>
+             <div className="flex justify-between items-center mb-2 px-1">
+                 <h3 className="text-sm font-bold dark:text-gray-200">محصولات</h3>
                  {selectedType === FarmType.MORVARIDI && (
-                     <button type="button" onClick={() => setIsAddingProduct(true)} className="text-xs text-violet-600 dark:text-violet-400 flex items-center gap-1 hover:underline">
+                     <button type="button" onClick={() => setIsAddingProduct(true)} className="text-xs font-bold text-violet-600 dark:text-violet-400 flex items-center gap-1 hover:bg-violet-50 dark:hover:bg-violet-900/30 px-2 py-1 rounded-full transition-colors">
                          <Icons.Plus className="w-3 h-3" />
                          محصول جدید
                      </button>
@@ -187,15 +187,15 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
              </div>
 
              {isAddingProduct && (
-                 <div className="mb-3 p-2 bg-gray-100 dark:bg-gray-700 rounded-md flex gap-2">
+                 <div className="mb-3 p-2 bg-gray-50 dark:bg-gray-700 rounded-xl flex gap-2 border border-gray-200 dark:border-gray-600">
                      <input 
                         value={newProductName}
                         onChange={(e) => setNewProductName(e.target.value)}
                         placeholder="نام محصول..."
-                        className="flex-1 p-1 text-sm border rounded bg-white dark:bg-gray-600 dark:border-gray-500"
+                        className="flex-1 p-2 text-sm border-none bg-transparent outline-none dark:text-white"
                      />
-                     <Button size="sm" type="button" onClick={handleSaveProduct}>افزودن</Button>
-                     <Button size="sm" type="button" variant="secondary" onClick={() => setIsAddingProduct(false)}>لغو</Button>
+                     <Button size="sm" type="button" onClick={handleSaveProduct} className="rounded-lg">افزودن</Button>
+                     <Button size="sm" type="button" variant="secondary" onClick={() => setIsAddingProduct(false)} className="rounded-lg">لغو</Button>
                  </div>
              )}
 
@@ -205,7 +205,7 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
                 name="productIds"
                 control={control}
                 render={({ field }) => (
-                    <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar border rounded-lg p-2 bg-white dark:bg-gray-800">
+                    <div className="space-y-1 max-h-48 overflow-y-auto pr-1 custom-scrollbar border-2 border-gray-100 dark:border-gray-700 rounded-xl p-2 bg-gray-50 dark:bg-gray-800">
                         {allProducts.map(p => {
                             // Rule 1: If Motefereghe, ONLY show defaults
                             if (selectedType === FarmType.MOTEFEREGHE && !MOTEFEREGHE_DEFAULT_IDS.includes(p.id)) return null;
@@ -214,14 +214,15 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
                             if (selectedType === FarmType.MORVARIDI && MOTEFEREGHE_DEFAULT_IDS.includes(p.id)) return null;
 
                             const isReadOnly = selectedType === FarmType.MOTEFEREGHE;
+                            const isChecked = field.value.includes(p.id);
                             
                             return (
-                                <label key={p.id} className={`flex items-center gap-3 p-2 rounded-md ${isReadOnly ? 'opacity-80' : 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
+                                <label key={p.id} className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${isReadOnly ? 'opacity-80' : 'cursor-pointer hover:bg-white dark:hover:bg-gray-700'} ${isChecked ? 'bg-white shadow-sm dark:bg-gray-700' : ''}`}>
                                     <input 
                                         type="checkbox" 
                                         id={`prod-${p.id}`}
-                                        className="w-4 h-4 rounded text-violet-600 focus:ring-violet-500 border-gray-300"
-                                        checked={field.value.includes(p.id)}
+                                        className="w-5 h-5 rounded text-violet-600 focus:ring-violet-500 border-gray-300"
+                                        checked={isChecked}
                                         disabled={isReadOnly}
                                         onChange={(e) => {
                                             if(isReadOnly) return;
@@ -231,22 +232,22 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
                                             field.onChange(newValues);
                                         }}
                                     />
-                                    <span className="dark:text-gray-300 font-medium">{p.name}</span>
+                                    <span className={`text-sm font-medium dark:text-gray-200 ${isChecked ? 'text-gray-900 font-bold' : 'text-gray-600'}`}>{p.name}</span>
                                 </label>
                             );
                         })}
-                        {!selectedType && <p className="text-sm text-gray-500 italic text-center py-4">لطفا ابتدا نوع فارم را انتخاب کنید.</p>}
+                        {!selectedType && <p className="text-sm text-gray-400 italic text-center py-4">لطفا ابتدا نوع فارم را انتخاب کنید.</p>}
                         {selectedType === FarmType.MORVARIDI && allProducts.every(p => MOTEFEREGHE_DEFAULT_IDS.includes(p.id)) && (
-                            <p className="text-sm text-gray-500 text-center">هیچ محصول اختصاصی تعریف نشده است.</p>
+                            <p className="text-sm text-gray-500 text-center py-4">هیچ محصول اختصاصی تعریف نشده است.</p>
                         )}
                     </div>
                 )}
              />
         </div>
 
-        <div className="flex items-center gap-2">
-            <input id="isActive" type="checkbox" {...register('isActive')} className="w-5 h-5 rounded text-violet-600 focus:ring-violet-500 border-gray-300"/>
-            <label htmlFor="isActive" className="dark:text-gray-300 font-medium select-none cursor-pointer">فعال</label>
+        <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
+            <input id="isActive" type="checkbox" {...register('isActive')} className="w-5 h-5 rounded text-violet-600 focus:ring-violet-500 border-gray-300 cursor-pointer"/>
+            <label htmlFor="isActive" className="dark:text-gray-300 font-bold select-none cursor-pointer">فارم فعال است</label>
         </div>
 
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">

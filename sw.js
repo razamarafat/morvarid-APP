@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'morvarid-pwa-v3.3'; // Increment version to force update
+const CACHE_NAME = 'morvarid-pwa-v3.5'; // Updated version
 const ASSETS = [
   './',
   './index.html',
@@ -7,9 +7,9 @@ const ASSETS = [
   './manifest.json'
 ];
 
-// 1. Install Event: Cache assets and force activation
+// 1. Install Event
 self.addEventListener('install', (event) => {
-  self.skipWaiting(); // IMPORTANT: Forces the waiting SW to become the active SW
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(ASSETS);
@@ -17,7 +17,7 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// 2. Activate Event: Clean old caches and claim clients immediately
+// 2. Activate Event
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
@@ -26,15 +26,13 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
-  return self.clients.claim(); // IMPORTANT: Takes control of the page immediately
+  return self.clients.claim();
 });
 
-// 3. Fetch Event: Network First strategy (safest for dynamic apps)
+// 3. Fetch Event
 self.addEventListener('fetch', (event) => {
-  // Skip cross-origin requests (like Supabase)
   if (!event.request.url.startsWith(self.location.origin)) return;
 
-  // Handle navigation requests (SPA support)
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() => {
@@ -44,12 +42,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // General Resource Strategy: Cache First, fall back to Network
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       return cachedResponse || fetch(event.request).then((response) => {
           return caches.open(CACHE_NAME).then((cache) => {
-              // Only cache valid responses
               if(response.status === 200) {
                   cache.put(event.request, response.clone());
               }
@@ -60,21 +56,55 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// 4. Notification Click Handler
+// 4. Push Event (Infrastructure for Server-Side Pushes)
+self.addEventListener('push', (event) => {
+  let data = { title: 'سامانه مروارید', body: 'پیام جدید دریافت شد', icon: './vite.svg' };
+  
+  if (event.data) {
+    try {
+        data = event.data.json();
+    } catch(e) {
+        data.body = event.data.text();
+    }
+  }
+
+  const options = {
+    body: data.body,
+    icon: './vite.svg',
+    badge: './vite.svg',
+    dir: 'rtl',
+    lang: 'fa-IR',
+    vibrate: [200, 100, 200], // Simple Vibration
+    data: {
+      dateOfArrival: Date.now(),
+      primaryKey: 1,
+      url: self.location.origin
+    }
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+// 5. Notification Click Handler - Focuses the App
 self.addEventListener('notificationclick', (event) => {
+  console.log('[SW] Notification clicked');
   event.notification.close();
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      if (clientList.length > 0) {
-        let client = clientList[0];
-        for (let i = 0; i < clientList.length; i++) {
-          if (clientList[i].focused) {
-            client = clientList[i];
-          }
+      // 1. Try to focus an existing window
+      for (let i = 0; i < clientList.length; i++) {
+        const client = clientList[i];
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          return client.focus();
         }
-        return client.focus();
       }
-      return clients.openWindow('./');
+      // 2. If no window is open, open a new one
+      if (clients.openWindow) {
+        return clients.openWindow('./');
+      }
     })
   );
 });

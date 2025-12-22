@@ -157,13 +157,15 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
 
     if (!selectedFarm) return <div className="p-20 text-center font-bold text-gray-400">فارمی یافت نشد.</div>;
 
+    const inputClasses = "w-full p-3 bg-white dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 text-center font-black text-2xl rounded-xl focus:border-metro-orange outline-none h-16 transition-colors focus:bg-orange-50 dark:focus:bg-orange-900/10";
+
     return (
-        <div className="max-w-4xl mx-auto space-y-4 pb-12"> 
-            <div className="bg-metro-orange p-8 text-white shadow-xl relative overflow-hidden flex flex-col items-center justify-center gap-4 border-b-8 border-orange-700/20">
+        <div className="max-w-4xl mx-auto space-y-6 pb-12"> 
+            <div className="bg-metro-orange p-8 text-white shadow-xl relative overflow-hidden flex flex-col items-center justify-center gap-4 border-b-8 border-orange-700/20 rounded-[28px]">
                 <div className="absolute inset-0 z-0 bg-gradient-to-r from-metro-orange via-amber-500 to-metro-orange bg-[length:200%_200%] animate-[gradient-xy_3s_ease_infinite]"></div>
                 <Icons.BarChart className="absolute -right-12 -bottom-8 w-64 h-64 opacity-10 pointer-events-none rotate-12 animate-pulse" />
                 
-                <div className="relative z-10 flex justify-center items-center gap-4 text-xl font-bold bg-white/10 backdrop-blur-md px-8 py-3 w-full max-w-sm border-r-4 border-white shadow-lg transition-transform hover:scale-[1.02]">
+                <div className="relative z-10 flex justify-center items-center gap-4 text-xl font-bold bg-white/10 backdrop-blur-md px-8 py-3 w-full max-w-sm border-r-4 border-white shadow-lg transition-transform hover:scale-[1.02] rounded-full">
                     <span className="opacity-90">{todayDayName}</span>
                     <div className="w-[2px] h-6 bg-white/30 rounded-full"></div>
                     <span className="font-sans tracking-tight text-3xl font-black drop-shadow-sm">{toPersianDigits(normalizedDate)}</span>
@@ -174,7 +176,7 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 p-4 md:p-6 shadow-xl border-l-[12px] border-metro-orange rounded-xl space-y-4">
+            <div className="bg-white dark:bg-gray-800 p-4 md:p-8 shadow-xl border-l-[12px] border-metro-orange rounded-[28px] space-y-4">
                 {selectedFarm.productIds.map((pid) => {
                     const product = getProductById(pid);
                     const vals = formsState[pid] || { production: '', sales: '', previousBalance: '', productionKg: '', salesKg: '', previousBalanceKg: '' };
@@ -187,13 +189,13 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                     const isNegative = currentInventory < 0;
 
                     return (
-                        <div key={pid} className={`bg-gray-50 dark:bg-gray-900/50 shadow-sm transition-all overflow-hidden border-r-[8px] rounded-lg ${isRegistered ? 'border-green-500 opacity-95' : 'border-metro-orange'}`}>
-                            <div onClick={() => setExpandedProductId(isExpanded ? null : pid)} className={`p-4 flex items-center justify-between cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 ${isExpanded ? 'bg-orange-50 dark:bg-orange-900/10' : ''}`}>
+                        <div key={pid} className={`bg-gray-50 dark:bg-gray-900/50 shadow-sm transition-all overflow-hidden border-r-[8px] rounded-[20px] ${isRegistered ? 'border-green-500 opacity-95' : 'border-metro-orange'}`}>
+                            <div onClick={() => setExpandedProductId(isExpanded ? null : pid)} className={`p-5 flex items-center justify-between cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 ${isExpanded ? 'bg-orange-50 dark:bg-orange-900/10' : ''}`}>
                                 <div className="flex items-center gap-4 flex-1 overflow-hidden">
                                     <div className={`w-3 h-3 min-w-[12px] rounded-full shadow-sm ${isRegistered ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]'}`}></div>
                                     <div className="flex flex-col">
-                                        <h3 className="text-base font-black text-gray-800 dark:text-white truncate">{product?.name}</h3>
-                                        {isRegistered && <span className="text-[10px] text-green-600 font-bold">ثبت شده</span>}
+                                        <h3 className="text-lg font-black text-gray-800 dark:text-white truncate">{product?.name}</h3>
+                                        {isRegistered && <span className="text-[10px] text-green-600 font-bold bg-green-100 dark:bg-green-900/20 px-2 py-0.5 rounded-full w-fit mt-1">ثبت شده</span>}
                                     </div>
                                 </div>
                                 <Icons.ChevronDown className={`w-6 h-6 transition-transform text-gray-400 shrink-0 ${isExpanded ? 'rotate-180 text-metro-orange' : ''}`} />
@@ -201,40 +203,40 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
 
                             <AnimatePresence>
                                 {isExpanded && (
-                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="border-t border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-900/20">
+                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="border-t border-gray-200 dark:border-gray-700 p-6 bg-white dark:bg-gray-900/20">
                                         <div className={`space-y-6 ${isRegistered ? 'pointer-events-none grayscale-[0.5] opacity-70' : ''}`}>
                                             {isRegistered && (
-                                                <div className="bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded border border-yellow-200 dark:border-yellow-800 text-center mb-4 flex flex-col gap-1">
-                                                    <p className="text-xs text-yellow-800 dark:text-yellow-200 font-bold">این محصول قبلا ثبت شده است.</p>
-                                                    <p className="text-[10px] text-yellow-700 dark:text-yellow-300 font-bold">(برای ویرایش به قسمت سوابق اخیر مراجعه کنید)</p>
+                                                <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-xl border border-yellow-200 dark:border-yellow-800 text-center mb-4 flex flex-col gap-1">
+                                                    <p className="text-sm text-yellow-800 dark:text-yellow-200 font-bold">این محصول قبلا ثبت شده است.</p>
+                                                    <p className="text-xs text-yellow-700 dark:text-yellow-300 font-bold">(برای ویرایش به قسمت سوابق اخیر مراجعه کنید)</p>
                                                 </div>
                                             )}
-                                            {!isRegistered && isNegative && !isMotefereghe && <div className="bg-red-50 dark:bg-red-900/20 p-2 rounded border border-red-200 dark:border-red-800 text-center animate-pulse"><p className="text-xs text-red-600 dark:text-red-300 font-bold">هشدار: موجودی منفی است</p></div>}
+                                            {!isRegistered && isNegative && !isMotefereghe && <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-xl border border-red-200 dark:border-red-800 text-center animate-pulse"><p className="text-sm text-red-600 dark:text-red-300 font-bold">هشدار: موجودی منفی است</p></div>}
                                             
                                             <div className="space-y-4">
-                                                <h4 className="text-sm font-black text-metro-orange flex items-center gap-2"><Icons.BarChart className="w-4 h-4" />کارتن</h4>
-                                                <div className="flex items-end gap-3">
+                                                <h4 className="text-sm font-black text-metro-orange flex items-center gap-2"><Icons.BarChart className="w-5 h-5" />کارتن</h4>
+                                                <div className="flex items-end gap-3 md:gap-6">
                                                      {!isMotefereghe && (
                                                          <div className="flex-1">
-                                                            <label className="block text-xs font-bold text-gray-500 mb-1">موجودی قبل</label>
-                                                            <input type="number" disabled={isRegistered} value={vals.previousBalance} onChange={e => handleInputChange(pid, 'previousBalance', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-center font-bold text-2xl rounded focus:border-metro-orange outline-none h-14" placeholder="" />
+                                                            <label className="block text-xs font-bold text-gray-500 mb-2 mr-1">موجودی قبل</label>
+                                                            <input type="number" disabled={isRegistered} value={vals.previousBalance} onChange={e => handleInputChange(pid, 'previousBalance', e.target.value)} className={inputClasses} placeholder="" />
                                                          </div>
                                                      )}
                                                      
                                                      <div className="flex-1">
-                                                        <label className="block text-xs font-bold text-green-600 mb-1">{isMotefereghe ? 'موجودی اعلامی' : 'تولید روز'}</label>
-                                                        <input type="number" disabled={isRegistered} value={vals.production} onChange={e => handleInputChange(pid, 'production', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-center font-bold text-2xl rounded focus:border-metro-orange outline-none h-14" placeholder="" />
+                                                        <label className="block text-xs font-bold text-green-600 mb-2 mr-1">{isMotefereghe ? 'موجودی اعلامی' : 'تولید روز'}</label>
+                                                        <input type="number" disabled={isRegistered} value={vals.production} onChange={e => handleInputChange(pid, 'production', e.target.value)} className={inputClasses} placeholder="" />
                                                      </div>
                                                      
                                                      {!isMotefereghe && (
                                                          <div className="flex-1 relative">
-                                                            <label className="block text-xs font-bold text-red-600 mb-1">فروش (خودکار)</label>
+                                                            <label className="block text-xs font-bold text-red-600 mb-2 mr-1">فروش (خودکار)</label>
                                                             <div className="relative">
                                                                 <input 
                                                                     type="number" 
                                                                     disabled={true} 
                                                                     value={vals.sales} 
-                                                                    className="w-full p-2 bg-gray-100 dark:bg-gray-800 border-2 border-dashed border-red-200 dark:border-red-900 text-center font-bold text-2xl rounded text-gray-500 cursor-not-allowed h-14" 
+                                                                    className={`${inputClasses} bg-gray-100 dark:bg-gray-800 border-dashed border-red-200 dark:border-red-900 text-gray-500 cursor-not-allowed`} 
                                                                     placeholder=""
                                                                 />
                                                                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10">
@@ -248,30 +250,30 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                                             </div>
                                             
                                             {product?.hasKilogramUnit && (
-                                                <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                                                    <h4 className="text-sm font-black text-metro-blue flex items-center gap-2"><Icons.HardDrive className="w-4 h-4" />کیلوگرم</h4>
-                                                    <div className="flex items-end gap-3">
+                                                <div className="space-y-4 pt-6 border-t border-gray-200 dark:border-gray-700">
+                                                    <h4 className="text-sm font-black text-metro-blue flex items-center gap-2"><Icons.HardDrive className="w-5 h-5" />کیلوگرم</h4>
+                                                    <div className="flex items-end gap-3 md:gap-6">
                                                          {!isMotefereghe && (
                                                              <div className="flex-1">
-                                                                <label className="block text-xs font-bold text-gray-500 mb-1">قبل (Kg)</label>
-                                                                <input type="number" step="0.1" disabled={isRegistered} value={vals.previousBalanceKg} onChange={e => handleInputChange(pid, 'previousBalanceKg', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-center font-bold text-2xl rounded focus:border-metro-blue outline-none h-14" placeholder="" />
+                                                                <label className="block text-xs font-bold text-gray-500 mb-2 mr-1">قبل (Kg)</label>
+                                                                <input type="number" step="0.1" disabled={isRegistered} value={vals.previousBalanceKg} onChange={e => handleInputChange(pid, 'previousBalanceKg', e.target.value)} className={inputClasses.replace('focus:border-metro-orange', 'focus:border-metro-blue')} placeholder="" />
                                                              </div>
                                                          )}
                                                          <div className="flex-1">
-                                                            <label className="block text-xs font-bold text-green-600 mb-1">{isMotefereghe ? 'موجودی (Kg)' : 'تولید (Kg)'}</label>
-                                                            <input type="number" step="0.1" disabled={isRegistered} value={vals.productionKg} onChange={e => handleInputChange(pid, 'productionKg', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-center font-bold text-2xl rounded focus:border-metro-blue outline-none h-14" placeholder="" />
+                                                            <label className="block text-xs font-bold text-green-600 mb-2 mr-1">{isMotefereghe ? 'موجودی (Kg)' : 'تولید (Kg)'}</label>
+                                                            <input type="number" step="0.1" disabled={isRegistered} value={vals.productionKg} onChange={e => handleInputChange(pid, 'productionKg', e.target.value)} className={inputClasses.replace('focus:border-metro-orange', 'focus:border-metro-blue')} placeholder="" />
                                                          </div>
                                                          
                                                          {!isMotefereghe && (
                                                              <div className="flex-1 relative">
-                                                                <label className="block text-xs font-bold text-red-600 mb-1">فروش (Kg)</label>
+                                                                <label className="block text-xs font-bold text-red-600 mb-2 mr-1">فروش (Kg)</label>
                                                                 <div className="relative">
                                                                     <input 
                                                                         type="number" 
                                                                         step="0.1" 
                                                                         disabled={true} 
                                                                         value={vals.salesKg} 
-                                                                        className="w-full p-2 bg-gray-100 dark:bg-gray-800 border-2 border-dashed border-red-200 dark:border-red-900 text-center font-bold text-2xl rounded text-gray-500 cursor-not-allowed h-14" 
+                                                                        className={`${inputClasses} bg-gray-100 dark:bg-gray-800 border-dashed border-red-200 dark:border-red-900 text-gray-500 cursor-not-allowed`} 
                                                                         placeholder=""
                                                                     />
                                                                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10">
@@ -293,7 +295,7 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
             </div>
 
             <div className="flex justify-center pt-8 pb-4">
-                <Button onClick={handleFinalSubmit} isLoading={isSubmitting} className="w-full max-w-md h-16 text-2xl font-black bg-metro-green hover:bg-green-600 shadow-xl">
+                <Button onClick={handleFinalSubmit} isLoading={isSubmitting} className="w-full max-w-md h-16 text-2xl font-black bg-metro-green hover:bg-green-600 shadow-xl !rounded-[24px]">
                     ثبت نهایی آمار
                     <Icons.Check className="mr-2 w-8 h-8" />
                 </Button>

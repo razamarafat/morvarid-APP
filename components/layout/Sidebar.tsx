@@ -19,30 +19,34 @@ const NavLink: React.FC<{ icon: React.ElementType, label: string, view: string, 
     let activeClass = '';
     let hoverClass = '';
     
+    // M3: Active states use Tonal colors (Secondary Container)
+    // We map existing roles to M3-like tonal states
     switch(role) {
         case UserRole.REGISTRATION:
-            activeClass = 'bg-metro-orange text-white border-white';
-            hoverClass = 'hover:bg-metro-orange hover:text-white';
+            activeClass = 'bg-orange-100 text-orange-900 dark:bg-orange-900/40 dark:text-orange-100';
+            hoverClass = 'hover:bg-orange-50 dark:hover:bg-orange-900/20';
             break;
         case UserRole.SALES:
-            activeClass = 'bg-metro-blue text-white border-white';
-            hoverClass = 'hover:bg-metro-blue hover:text-white';
+            activeClass = 'bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-100';
+            hoverClass = 'hover:bg-blue-50 dark:hover:bg-blue-900/20';
             break;
         default: // ADMIN
-            activeClass = 'bg-metro-purple text-white border-white';
-            hoverClass = 'hover:bg-metro-purple hover:text-white';
+            activeClass = 'bg-purple-100 text-purple-900 dark:bg-purple-900/40 dark:text-purple-100';
+            hoverClass = 'hover:bg-purple-50 dark:hover:bg-purple-900/20';
     }
 
     const isActive = !isAction && currentView === view;
 
     return (
-      <button 
-        onClick={onClick} 
-        className={`w-full text-right flex items-center p-4 lg:p-5 transition-all duration-200 group mb-1 lg:mb-2 border-r-4 ${isActive ? activeClass : `border-transparent text-gray-700 dark:text-gray-300 ${hoverClass}`}`}
-      >
-        <Icon className={`w-5 h-5 lg:w-7 lg:h-7 ml-3 transition-transform ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
-        <span className="font-bold text-sm lg:text-lg tracking-wide">{label}</span>
-      </button>
+      <div className="px-3 mb-1">
+          <button 
+            onClick={onClick} 
+            className={`w-full text-right flex items-center p-3 lg:p-4 transition-all duration-200 group rounded-full ${isActive ? activeClass : `text-gray-700 dark:text-gray-300 ${hoverClass}`}`}
+          >
+            <Icon className={`w-5 h-5 lg:w-6 lg:h-6 ml-3 transition-transform ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
+            <span className={`font-bold text-sm lg:text-base tracking-wide ${isActive ? 'font-black' : ''}`}>{label}</span>
+          </button>
+      </div>
     );
 };
 
@@ -140,6 +144,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
                     onClick={() => { setActive(link.view); handleNavigation(link.view, link.label); }} 
                 />
             ))}
+            <div className="my-2 border-t border-gray-200 dark:border-gray-700 mx-4"></div>
             <NavLink 
                 icon={isInstalled ? Icons.Check : Icons.Download}
                 label={isInstalled ? 'اپلیکیشن فعال است' : 'نصب نسخه PWA'}
@@ -153,12 +158,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
     );
   };
 
-  const sidebarClasses = `fixed top-0 right-0 h-full w-80 lg:w-[340px] bg-[#F3F3F3] dark:bg-[#2D2D2D] shadow-2xl z-[101] flex flex-col border-l dark:border-gray-700 transition-transform duration-300 ease-out transform ${isOpen ? 'translate-x-0' : 'translate-x-full'}`;
+  // M3 Drawer: Rounded top-right/bottom-right corners for the sheet
+  const sidebarClasses = `fixed top-0 right-0 h-full w-80 lg:w-[340px] bg-[#FDFBFF] dark:bg-[#1E1E1E] shadow-xl z-[101] flex flex-col rounded-l-[28px] lg:rounded-l-[28px] border-l dark:border-gray-800 transition-transform duration-300 ease-out transform ${isOpen ? 'translate-x-0' : 'translate-x-full'}`;
 
   return (
     <>
       <div
-        className={`fixed inset-0 bg-black/80 z-[100] transition-opacity duration-300 ${
+        className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] transition-opacity duration-300 ${
           isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
         onClick={onClose}
@@ -166,36 +172,37 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
       
       <aside className={sidebarClasses}>
         <div 
-            className={`h-24 lg:h-28 ${headerColor} flex items-center px-6 cursor-pointer hover:opacity-90 transition-opacity relative`}
+            className={`h-32 ${headerColor} flex flex-col justify-end px-6 pb-6 cursor-pointer hover:opacity-95 transition-opacity relative`}
             onClick={handleHome}
         >
             <div className="text-white">
-                <h2 className="text-2xl lg:text-4xl font-black leading-tight tracking-tight">M.I.S</h2>
-                <p className="text-sm lg:text-base opacity-90 font-normal mt-1">سیستم مدیریت مروارید</p>
+                <h2 className="text-2xl lg:text-3xl font-black leading-tight tracking-tight">M.I.S</h2>
+                <p className="text-sm lg:text-base opacity-90 font-medium mt-1">سیستم مدیریت مروارید</p>
             </div>
             <button onClick={(e) => {
                 e.stopPropagation();
                 onClose();
-            }} className="absolute top-4 left-4 text-white/70 hover:text-white">
-                <Icons.X className="w-6 h-6" />
+            }} className="absolute top-6 left-6 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
+                <Icons.X className="w-5 h-5" />
             </button>
         </div>
         
         <nav className="flex-1 py-4 lg:py-6 overflow-y-auto custom-scrollbar space-y-1">
+            <div className="px-4 mb-2">
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 px-3">منوی اصلی</p>
+            </div>
             {getNavLinks()}
         </nav>
         
-        <div className="p-4 lg:p-6 bg-gray-200 dark:bg-black/20 space-y-3">
+        <div className="p-4 lg:p-6 mb-safe">
             <button 
                 onClick={handleLogout} 
-                className="w-full flex items-center justify-between p-4 lg:p-5 bg-metro-red text-white hover:bg-red-700 transition-colors font-bold rounded-none shadow-md hover:shadow-lg"
+                className="w-full flex items-center justify-center p-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-bold rounded-full"
             >
-                <div className="flex items-center">
-                    <Icons.LogOut className="w-5 h-5 lg:w-6 lg:h-6 ml-2" />
-                    <span className="text-sm lg:text-base">خروج از حساب</span>
-                </div>
+                <Icons.LogOut className="w-5 h-5 ml-2" />
+                <span className="text-sm lg:text-base">خروج از حساب</span>
             </button>
-            <div className="text-center text-[10px] lg:text-xs text-gray-500 mt-2 font-mono">
+            <div className="text-center text-[10px] text-gray-400 mt-2 font-mono">
                 {APP_VERSION}
             </div>
         </div>

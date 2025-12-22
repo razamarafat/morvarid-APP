@@ -88,12 +88,16 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
     const { addToast } = useToastStore();
 
     const handleInstallClick = async () => {
+        console.log('[PWA] Install button clicked');
+        
         if (isInstalled) {
+            console.log('[PWA] App is already installed');
             addToast('اپلیکیشن قبلاً نصب شده و فعال است.', 'info');
             return;
         }
 
         if (!deferredPrompt) {
+            console.warn('[PWA] No deferred prompt available. Check requirements (HTTPS, Manifest, SW).');
             const isHttps = window.location.protocol === 'https:';
             const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
             
@@ -104,9 +108,12 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
             return;
         }
         
+        console.log('[PWA] Triggering install prompt...');
         deferredPrompt.prompt();
         
         const { outcome } = await deferredPrompt.userChoice;
+        console.log(`[PWA] Install prompt outcome: ${outcome}`);
+        
         if (outcome === 'accepted') {
             setDeferredPrompt(null);
         }

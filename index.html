@@ -17,9 +17,7 @@
     <link rel="manifest" href="/manifest.json">
 
     <!-- Fonts and Styles -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/font-face.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -27,7 +25,7 @@
         theme: {
           extend: {
             fontFamily: {
-              sans: ['Vazirmatn', 'Segoe UI', 'Tahoma', 'sans-serif'],
+              sans: ['Vazir', 'Segoe UI', 'Tahoma', 'sans-serif'],
             },
             colors: {
               metro: {
@@ -43,6 +41,15 @@
                 cobalt: '#0050EF',
                 dark: '#1D1D1D',
                 gray: '#555555'
+              },
+              // M3 Tonal Palettes (Approximated for Tailwind)
+              m3: {
+                surface: '#FDFBFF',
+                surfaceVariant: '#E7E0EC',
+                primary: '#2D89EF',
+                onPrimary: '#FFFFFF',
+                primaryContainer: '#D1E4FF',
+                onPrimaryContainer: '#001D36',
               }
             },
             spacing: {
@@ -56,15 +63,21 @@
                 '0%, 100%': { transform: 'rotate(-3deg)' },
                 '50%': { transform: 'rotate(3deg)' },
               }
+            },
+            borderRadius: {
+              'm3-sm': '8px',
+              'm3-md': '12px',
+              'm3-lg': '16px',
+              'm3-xl': '28px',
+              'm3-full': '9999px',
             }
           }
         }
       }
     </script>
     <style>
-      /* FORCE METRO UI STYLE: NO ROUNDED CORNERS ANYWHERE */
+      /* M3 Base Styles */
       * {
-        border-radius: 0 !important;
         -webkit-tap-highlight-color: transparent; /* Remove blue highlight on mobile tap */
       }
       
@@ -86,6 +99,7 @@
         -webkit-user-select: none; /* Disable text selection */
         user-select: none;
         -webkit-touch-callout: none;
+        font-family: 'Vazir', sans-serif; /* Explicitly set font */
       }
 
       /* Allow selection in inputs */
@@ -101,6 +115,7 @@
       input:-webkit-autofill:active{
           -webkit-box-shadow: 0 0 0 30px #2d2d2d inset !important;
           -webkit-text-fill-color: white !important;
+          border-radius: 12px;
       }
       
       /* Light mode autofill fix */
@@ -110,6 +125,7 @@
       html.light input:-webkit-autofill:active{
           -webkit-box-shadow: 0 0 0 30px #ffffff inset !important;
           -webkit-text-fill-color: black !important;
+          border-radius: 12px;
       }
 
       /* Hide Number Input Spinners (Arrows) */
@@ -122,7 +138,7 @@
         -moz-appearance: textfield;
       }
 
-      /* --- METRO TILE ANIMATIONS (New Modern Style) --- */
+      /* --- ANIMATIONS --- */
       @keyframes metro-shine {
           0% { left: -100%; opacity: 0; }
           20% { opacity: 0.3; }
@@ -148,7 +164,7 @@
           z-index: 5;
       }
 
-      /* New: Modern animated background flow instead of dots */
+      /* New: Modern animated background flow */
       .metro-flow-overlay {
           position: absolute;
           inset: 0;
@@ -159,27 +175,26 @@
           z-index: 1;
       }
     </style>
-
   <script type="importmap">
 {
   "imports": {
-    "@/": "./",
-    "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
     "react-router-dom": "https://esm.sh/react-router-dom@^7.11.0",
-    "zustand": "https://esm.sh/zustand@^5.0.9",
-    "zustand/": "https://esm.sh/zustand@^5.0.9/",
     "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
     "framer-motion": "https://esm.sh/framer-motion@^12.23.26",
-    "react-hook-form": "https://esm.sh/react-hook-form@^7.68.0",
-    "zod": "https://esm.sh/zod@^4.2.1",
-    "@hookform/resolvers/": "https://esm.sh/@hookform/resolvers@^5.2.2/",
-    "uuid": "https://esm.sh/uuid@^13.0.0",
-    "xlsx": "https://esm.sh/xlsx@^0.18.5",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.89.0",
     "vite": "https://esm.sh/vite@^7.3.0",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "uuid": "https://esm.sh/uuid@^13.0.0",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.89.0",
+    "@hookform/resolvers/": "https://esm.sh/@hookform/resolvers@^5.2.2/",
+    "zustand/": "https://esm.sh/zustand@^5.0.9/",
+    "zustand": "https://esm.sh/zustand@^5.0.9",
+    "zod": "https://esm.sh/zod@^4.2.1",
+    "xlsx": "https://esm.sh/xlsx@^0.18.5",
+    "react-hook-form": "https://esm.sh/react-hook-form@^7.69.0",
+    "path": "https://esm.sh/path@^0.12.7"
   }
 }
 </script>

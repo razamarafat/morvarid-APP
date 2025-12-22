@@ -1,4 +1,5 @@
-import React, { Component, useEffect, ErrorInfo, ReactNode } from 'react';
+
+import React, { useEffect, ErrorInfo, ReactNode } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import SplashPage from './pages/SplashPage';
 import LoginPage from './pages/LoginPage';
@@ -27,7 +28,7 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false };
@@ -64,8 +65,8 @@ function App() {
   const { fetchStatistics } = useStatisticsStore();
   const { fetchInvoices } = useInvoiceStore();
   const { fetchUsers } = useUserStore();
-  const { initListener } = useAlertStore();
-  const { setIsInstalled } = usePwaStore();
+  const { initListener, checkAndRequestPermission } = useAlertStore();
+  const { setIsInstalled, logEvent } = usePwaStore();
 
   useEffect(() => {
     document.documentElement.classList.remove('light', 'dark');
@@ -77,14 +78,21 @@ function App() {
           await checkSession();
           fetchFarms();
           fetchProducts();
+          
+          // Initialize Alerts and Check Permissions on Startup
           initListener();
+          checkAndRequestPermission(); 
       };
       init();
 
       const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-      if (isStandalone) setIsInstalled(true);
+      logEvent('Checking standalone mode', { isStandalone });
+      setIsInstalled(isStandalone);
 
-      const handleAppInstalled = () => setIsInstalled(true);
+      const handleAppInstalled = () => {
+          logEvent('App installed event fired');
+          setIsInstalled(true);
+      };
       window.addEventListener('appinstalled', handleAppInstalled);
       return () => window.removeEventListener('appinstalled', handleAppInstalled);
   }, []);
