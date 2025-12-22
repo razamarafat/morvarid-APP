@@ -1,7 +1,7 @@
 
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { LogEntry, LogLevel, LogCategory } from '../types.ts';
+import { LogEntry, LogLevel, LogCategory } from '../types';
 
 interface LogFilterState {
   levels: LogLevel[];
@@ -15,30 +15,27 @@ interface LogState {
   filter: LogFilterState;
   isLoading: boolean;
   
-  // Core Actions
   addEntry: (level: LogLevel, category: LogCategory, message: string, details?: any) => void;
   clearLogs: () => void;
   setFilter: (filter: Partial<LogFilterState>) => void;
-  
-  // Interface Compatibility for UI
   fetchLogs: () => Promise<void>;
   subscribeToLogs: () => () => void;
-  
-  // Specialized Admin/Tech Helpers
   logTest: (feature: string, success: boolean, data: any) => void;
   logClick: (element: string, context?: any) => void;
   logError: (message: string, error?: any) => void;
   
-  // Legacy Compatibility Layer
+  // Compatibility Layer
   log: (level: LogLevel, category: LogCategory, message: string, details?: any) => void;
   info: (category: LogCategory, message: string, details?: any) => void;
   success: (category: LogCategory, message: string, details?: any) => void;
   warn: (category: LogCategory, message: string, details?: any) => void;
   error: (category: LogCategory, message: string, error?: any) => void;
-  logAction: (level: any, category: any, message: string, details?: any) => void;
-  addLog: (level: any, category: any, message: string, ...args: any[]) => void;
+  logAction: (level: any, category: any, message: string, details?: any) => Promise<void>;
+  addLog: (level: any, category: any, message: string, ...args: any[]) => Promise<void>;
+  logUserAction: (action: string, explanation: string, context?: any) => Promise<void>;
   flushPendingLogs: () => Promise<void>;
   syncQueue: () => Promise<void>;
+  deleteLogsByUserId: (userId: string) => Promise<void>;
 }
 
 const STORAGE_KEY = 'morvarid_nexus_logs';
@@ -59,48 +56,29 @@ export const useLogStore = create<LogState>((set, get) => ({
   },
 
   fetchLogs: async () => {
-    // In local-first, fetching means ensuring the state matches localStorage
     set({ isLoading: true });
     try {
       const data = localStorage.getItem(STORAGE_KEY);
-      if (data) {
-        set({ logs: JSON.parse(data) });
-      }
-    } catch (e) {
-      console.error("Local log fetch error", e);
+      if (data) set({ logs: JSON.parse(data) });
     } finally {
       set({ isLoading: false });
     }
   },
 
-  subscribeToLogs: () => {
-    // Local logs don't need a real-time DB subscription, 
-    // but we provide a dummy unsubscribe function for UI compatibility.
-    return () => { /* No-op cleanup */ };
-  },
+  subscribeToLogs: () => () => {},
 
-  setFilter: (newFilter) => {
-    set(state => ({ filter: { ...state.filter, ...newFilter } }));
-  },
+  setFilter: (newFilter) => set(state => ({ filter: { ...state.filter, ...newFilter } })),
 
   addEntry: (level, category, message, details = {}) => {
     const entry: LogEntry = {
       id: uuidv4(),
       timestamp: new Date().toISOString(),
-      level,
-      category,
+      level: level.toUpperCase() as LogLevel,
+      category: category.toUpperCase() as LogCategory,
       message,
-      details: {
-        ...details,
-        path: window.location.hash,
-        userAgent: navigator.userAgent
-      },
+      details: { ...details, path: window.location.hash },
       synced: true 
     };
-
-    // Console mirror
-    const colors = { INFO: '#2D89EF', SUCCESS: '#00A300', WARNING: '#F09609', ERROR: '#EE1111' };
-    console.log(`%c[${level}] %c${category}: ${message}`, `color: ${colors[level]}; font-weight: bold;`, 'color: gray;', details);
 
     set(state => {
       const newLogs = [entry, ...state.logs].slice(0, state.maxLogs);
@@ -109,44 +87,23 @@ export const useLogStore = create<LogState>((set, get) => ({
     });
   },
 
-  logTest: (feature, success, data) => {
-    get().addEntry(
-      success ? 'SUCCESS' : 'ERROR',
-      'SYSTEM',
-      `تست فنی [${feature}]: ${success ? 'موفق' : 'ناموفق'}`,
-      { technical_data: data }
-    );
-  },
+  logTest: (feature, success, data) => get().addEntry(success ? 'SUCCESS' : 'ERROR', 'SYSTEM', `تست فنی [${feature}]`, data),
+  logClick: (element, context) => get().addEntry('INFO', 'UI', `کلیک: ${element}`, context),
+  logError: (message, error) => get().addEntry('ERROR', 'SYSTEM', message, { error }),
 
-  logClick: (element, context) => {
-    get().addEntry('INFO', 'UI', `تعامل: کلیک بر روی [${element}]`, context);
-  },
-
-  logError: (message, error) => {
-    get().addEntry('ERROR', 'SYSTEM', message, { 
-      errorMessage: error?.message || error,
-      stack: error?.stack 
-    });
-  },
-
-  // Compatibility Wrappers
   log: (lvl, cat, msg, det) => get().addEntry(lvl, cat, msg, det),
   info: (cat, msg, det) => get().addEntry('INFO', cat, msg, det),
   success: (cat, msg, det) => get().addEntry('SUCCESS', cat, msg, det),
   warn: (cat, msg, det) => get().addEntry('WARNING', cat, msg, det),
   error: (cat, msg, err) => get().logError(msg, err),
   
-  logAction: async (level, category, message, details) => {
-      get().addEntry(level.toUpperCase(), category.toUpperCase(), message, details);
-  },
-  
-  addLog: async (level, category, message, ...args) => {
-    const details = args.length > 0 ? (typeof args[0] === 'object' ? args[0] : { data: args }) : {};
-    get().addEntry(level.toUpperCase() as LogLevel, category.toUpperCase() as LogCategory, message, details);
-  },
+  logAction: async (level, category, message, details) => get().addEntry(level, category, message, details),
+  addLog: async (level, category, message, ...args) => get().addEntry(level, category, message, args[0]),
+  logUserAction: async (action, explanation) => get().addEntry('INFO', 'USER_ACTION', explanation, { action }),
   
   flushPendingLogs: async () => {}, 
   syncQueue: async () => {}, 
+  deleteLogsByUserId: async () => {},
 
   clearLogs: () => {
     localStorage.removeItem(STORAGE_KEY);

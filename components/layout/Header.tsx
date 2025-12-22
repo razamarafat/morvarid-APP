@@ -26,14 +26,13 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
   const role = user?.role || UserRole.ADMIN;
   const themeColors = THEMES[theme][role];
 
-  // Logic to navigate back to the role-specific main dashboard
   const handleGoToDashboard = () => {
     if (!user) {
         navigate('/login');
         return;
     }
 
-    logAction('INFO', 'UI', `User requested dashboard navigation from ${location.pathname}`);
+    logAction('INFO', 'UI', `Dashboard requested from ${location.pathname}`);
 
     switch (user.role) {
         case UserRole.ADMIN: navigate('/admin'); break;
@@ -46,23 +45,21 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
   const handleLogout = async () => {
       const confirmed = await confirm({
           title: 'خروج از حساب',
-          message: 'آیا می‌خواهید از حساب کاربری خود خارج شوید؟',
+          message: 'آیا می‌خواهید خارج شوید؟',
           confirmText: 'خروج',
           cancelText: 'انصراف',
           type: 'danger' 
       });
       
       if (confirmed) {
-          logAction('INFO', 'AUTH', `Manual logout via header`);
+          logAction('INFO', 'AUTH', `Header logout`);
           await logout();
           navigate('/login');
       }
   };
 
-  // Check if current path is already a primary dashboard
   const dashboardPaths = ['/admin', '/registration', '/sales'];
   const isAtDashboard = dashboardPaths.includes(location.pathname);
-  // Show button only if we are in sub-pages and NOT on login/splash
   const shouldShowHome = !['/', '/login'].includes(location.pathname) && !isAtDashboard;
 
   return (
@@ -70,19 +67,17 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
       <div className="container mx-auto px-4 py-3 flex justify-between items-center max-w-full">
         
         <div className="flex items-center gap-1.5 md:gap-3">
-          {/* Hamburger Menu Toggle */}
           <button 
             onClick={() => {
-                logAction('INFO', 'UI', 'Hamburger menu clicked');
+                logAction('INFO', 'UI', 'Hamburger clicked');
                 onMenuClick();
             }} 
-            className="p-2.5 hover:bg-black/5 dark:hover:bg-white/10 transition-colors active:scale-95"
+            className="p-2.5 hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
             aria-label="Menu"
           >
             <Icons.Menu className="w-8 h-8" />
           </button>
 
-          {/* Unified Home Button - Next to Hamburger, visible on all devices */}
           {shouldShowHome && (
               <button 
                 onClick={handleGoToDashboard} 
@@ -99,20 +94,14 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
         </div>
         
         <div className="flex items-center gap-3">
-          {/* Profile Name (Desktop Only) */}
-          <div className="hidden sm:flex items-center gap-2 bg-gray-100 dark:bg-gray-700/50 px-3 py-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+          <div className="hidden sm:flex items-center gap-2 bg-gray-100 dark:bg-gray-700/50 px-3 py-1.5 rounded-none">
             <div className={`p-1 ${themeColors.primary} text-white`}>
                 <Icons.User className="w-4 h-4" />
             </div>
             <span className="font-black text-sm">{user?.fullName}</span>
           </div>
 
-          {/* Quick Logout (Mobile Only) */}
-          <button 
-            onClick={handleLogout}
-            className="sm:hidden p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors active:scale-95"
-            title="خروج سریع"
-          >
+          <button onClick={handleLogout} className="sm:hidden p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
              <Icons.LogOut className="w-6 h-6" />
           </button>
 

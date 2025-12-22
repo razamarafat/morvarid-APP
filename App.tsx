@@ -30,44 +30,37 @@ interface ErrorBoundaryState {
 }
 
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  // Fix: Explicitly declare state and props to resolve TS errors where inheritance is not correctly mapped in some environments
-  public state: ErrorBoundaryState = { hasError: false };
-  public props!: ErrorBoundaryProps;
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
 
   static getDerivedStateFromError(_: Error): ErrorBoundaryState {
     return { hasError: true };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // NEW LOGGER INTEGRATION
-    useLogStore.getState().error(
-        'UI', 
-        'React Error Boundary Caught Error', 
-        { error, errorInfo }
-    );
+    useLogStore.getState().error('UI', 'خطای رندرینگ توسط ErrorBoundary شکار شد', { error, errorInfo });
     console.error("Uncaught error:", error, errorInfo);
   }
 
   render() {
-    // Fix: Access state property after explicit declaration
     if (this.state.hasError) {
       return (
         <div className="flex flex-col items-center justify-center h-screen bg-gray-100 dark:bg-gray-900 text-center p-4">
           <h1 className="text-2xl font-bold text-red-600 mb-2">خطای سیستمی رخ داده است</h1>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">لطفا صفحه را رفرش کنید. اگر مشکل ادامه داشت با پشتیبانی تماس بگیرید.</p>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">لطفا صفحه را رفرش کنید.</p>
           <button onClick={() => window.location.reload()} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
             بارگذاری مجدد
           </button>
         </div>
       );
     }
-    // Fix: Access props property after explicit declaration
     return this.props.children;
   }
 }
 
 function App() {
-  // Restore Point: System State Checkpoint
   const { theme } = useThemeStore();
   const { checkSession, user } = useAuthStore();
   const { fetchFarms, fetchProducts } = useFarmStore();
@@ -75,56 +68,37 @@ function App() {
   const { fetchInvoices } = useInvoiceStore();
   const { fetchUsers } = useUserStore();
   const { initListener } = useAlertStore();
-  const { setDeferredPrompt, setIsInstalled } = usePwaStore(); 
   const { info, syncQueue } = useLogStore();
+  const { setIsInstalled, setDeferredPrompt } = usePwaStore();
 
   useEffect(() => {
     document.documentElement.classList.remove('light', 'dark');
     document.documentElement.classList.add(theme);
   }, [theme]);
 
-  // Initial Data Load & PWA Checks
   useEffect(() => {
       const init = async () => {
           await checkSession();
           fetchFarms();
           fetchProducts();
           initListener();
-          
-          // Try to sync offline logs on boot
           setTimeout(() => syncQueue(), 5000);
       };
       init();
 
-      // --- PWA Logic ---
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches 
-                        || (window.navigator as any).standalone 
-                        || document.referrer.includes('android-app://');
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+      if (isStandalone) setIsInstalled(true);
 
-      if (isStandalone) {
-          setIsInstalled(true);
-          info('SYSTEM', 'App running in Standalone Mode', { isStandalone: true });
-      }
-
-      const handleAppInstalled = () => {
-        info('SYSTEM', 'PWA Installed Successfully');
-        setIsInstalled(true);
-        setDeferredPrompt(null);
-      };
-
+      const handleAppInstalled = () => setIsInstalled(true);
       window.addEventListener('appinstalled', handleAppInstalled);
-      return () => {
-        window.removeEventListener('appinstalled', handleAppInstalled);
-      };
+      return () => window.removeEventListener('appinstalled', handleAppInstalled);
   }, []);
 
   useEffect(() => {
       if (user) {
           fetchStatistics();
           fetchInvoices();
-          if (user.role === UserRole.ADMIN) {
-              fetchUsers();
-          }
+          if (user.role === UserRole.ADMIN) fetchUsers();
       }
   }, [user]);
   
@@ -144,30 +118,9 @@ function App() {
         <Routes>
           <Route path="/" element={<SplashPage />} />
           <Route path="/login" element={<LoginPage />} />
-          <Route 
-            path="/admin" 
-            element={
-              <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
-                <AdminDashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/registration" 
-            element={
-              <ProtectedRoute allowedRoles={[UserRole.REGISTRATION]}>
-                <RegistrationDashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/sales" 
-            element={
-              <ProtectedRoute allowedRoles={[UserRole.SALES]}>
-                <SalesDashboard />
-              </ProtectedRoute>
-            } 
-          />
+          <Route path="/admin" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN]}><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/registration" element={<ProtectedRoute allowedRoles={[UserRole.REGISTRATION]}><RegistrationDashboard /></ProtectedRoute>} />
+          <Route path="/sales" element={<ProtectedRoute allowedRoles={[UserRole.SALES]}><SalesDashboard /></ProtectedRoute>} />
           <Route path="/home" element={<HomeRedirect />} />
         </Routes>
       </HashRouter>

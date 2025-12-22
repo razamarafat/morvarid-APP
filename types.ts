@@ -83,21 +83,21 @@ export interface Backup {
   createdBy: string;
 }
 
-// --- NEW LOGGING SYSTEM TYPES ---
+// --- LOGGING SYSTEM TYPES (Case-Insensitive for Build Compatibility) ---
 
-export type LogLevel = 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR';
-export type LogCategory = 'SYSTEM' | 'USER' | 'DATABASE' | 'NETWORK' | 'UI' | 'AUTH' | 'SECURITY';
+export type LogLevel = 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR' | 'info' | 'success' | 'warning' | 'error' | 'warn' | 'DEBUG';
+export type LogCategory = 'SYSTEM' | 'USER' | 'DATABASE' | 'NETWORK' | 'UI' | 'AUTH' | 'SECURITY' | 'USER_ACTION' | 'FEATURE_TEST' | 'auth' | 'database' | 'system' | 'network' | 'ui' | 'user_action' | 'feature_test';
 
 export interface LogEntry {
   id: string;
-  timestamp: string; // ISO String
+  timestamp: string;
   level: LogLevel;
   category: LogCategory;
-  message: string; // Brief Persian message
-  details: Record<string, any>; // Technical details (payload, stack trace, etc.)
+  message: string;
+  details: Record<string, any>;
   userId?: string | null;
-  user_full_name?: string; // Enriched on fetch
-  synced: boolean; // True if saved to Supabase
+  user_full_name?: string;
+  synced: boolean;
 }
 
 export interface LogFilter {
