@@ -8,7 +8,8 @@ import { useLogStore } from '../store/logStore';
 import { LogCategory } from '../types/log.types';
 
 export function useLogger() {
-  const addLogEntry = useLogStore(state => state.addLogEntry);
+  // Explicitly type state as any to bypass TS2339 error (Property 'addLogEntry' does not exist on type 'unknown')
+  const addLogEntry = useLogStore((state: any) => state.addLogEntry);
 
   return {
     info: (category: LogCategory, messageFa: string, meta?: any) => 

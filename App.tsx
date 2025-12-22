@@ -1,4 +1,5 @@
-import React, { useEffect, ErrorInfo, ReactNode } from 'react';
+
+import React, { Component, useEffect, ErrorInfo, ReactNode } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import SplashPage from './pages/SplashPage';
 import LoginPage from './pages/LoginPage';
@@ -28,7 +29,7 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   public state: ErrorBoundaryState = { hasError: false };
 
   static getDerivedStateFromError(_: Error): ErrorBoundaryState {
@@ -64,8 +65,8 @@ function App() {
   const { fetchInvoices } = useInvoiceStore();
   const { fetchUsers } = useUserStore();
   const { initListener } = useAlertStore();
-  const { info, syncQueue } = useLogStore();
-  const { setIsInstalled, setDeferredPrompt } = usePwaStore();
+  const { syncQueue } = useLogStore();
+  const { setIsInstalled } = usePwaStore();
 
   useEffect(() => {
     document.documentElement.classList.remove('light', 'dark');
