@@ -1,4 +1,3 @@
-
 import React, { Component, useEffect, ErrorInfo, ReactNode } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import SplashPage from './pages/SplashPage';
@@ -29,12 +28,8 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-// Fixed: Inheriting from Component directly to ensure state and props are recognized by the compiler
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false };
-  }
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  public state: ErrorBoundaryState = { hasError: false };
 
   static getDerivedStateFromError(_: Error): ErrorBoundaryState {
     return { hasError: true };
@@ -46,7 +41,6 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   render() {
-    // Correctly using this.state as it is now recognized by extending Component
     if (this.state.hasError) {
       return (
         <div className="flex flex-col items-center justify-center h-screen bg-gray-100 dark:bg-gray-900 text-center p-4">
@@ -58,7 +52,6 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
         </div>
       );
     }
-    // Correctly using this.props as it is now recognized by extending Component
     return this.props.children;
   }
 }
