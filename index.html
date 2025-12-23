@@ -302,27 +302,8 @@
     <script type="module" src="/index.tsx"></script>
     <script>
       (function() {
-        // Prevent pull-to-refresh ONLY at document level
-        if (!window.matchMedia('(display-mode: standalone)').matches && 
-            !window.matchMedia('(display-mode: fullscreen)').matches) return;
+  // No pull-to-refresh script - removed to fix scroll freeze
         
-        let lastY = 0;
-        
-        document.addEventListener('touchstart', function(e) {
-          lastY = e.touches[0].clientY;
-        }, { passive: true });
-        
-        document.addEventListener('touchmove', function(e) {
-          const currentY = e.touches[0].clientY;
-          
-          // فقط در صورتی که کاربر در بالای صفحه است و به سمت پایین می‌کشد
-          if (window.scrollY === 0 && currentY > lastY) {
-            e.preventDefault();
-          }
-          
-          lastY = currentY;
-        }, { passive: false });
-      })();
     </script>
 </body>
 </html>
