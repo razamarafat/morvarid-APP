@@ -1,4 +1,3 @@
-
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -9,7 +8,8 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+      injectRegister: 'auto',
+      includeAssets: ['favicon.ico', 'vite.svg', 'icons/*.png'],
       manifest: {
         name: 'سامانه مدیریت آمار مروارید',
         short_name: 'مروارید',
@@ -21,7 +21,7 @@ export default defineConfig({
         scope: '/',
         start_url: '/',
         dir: 'rtl',
-        lang: 'fa',
+        lang: 'fa-IR',
         icons: [
           {
             src: '/icons/icon-192x192.png',
@@ -36,31 +36,17 @@ export default defineConfig({
             purpose: 'any'
           },
           {
-            src: '/icons/maskable-icon.png',
+            src: '/icons/icon-512x512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable'
           }
         ],
-        categories: ["business", "productivity"]
+        categories: ["productivity", "business", "utilities"]
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          },
           {
             urlPattern: /^https:\/\/cdn\.jsdelivr\.net\/.*/i,
             handler: 'CacheFirst',
@@ -81,7 +67,7 @@ export default defineConfig({
       '@': path.resolve('./'),
     },
   },
-  base: './',
+  base: '/',
   build: {
     outDir: 'dist',
     sourcemap: false,
