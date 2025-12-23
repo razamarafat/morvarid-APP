@@ -115,7 +115,7 @@ const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({ value, onChange, la
 
   return (
     <div className="relative group" ref={containerRef}>
-      {label && <label className="block text-sm lg:text-lg font-bold mb-2 text-gray-700 dark:text-gray-300 px-1">{label}</label>}
+      {label && <label className="block text-base lg:text-xl font-bold mb-2 text-gray-700 dark:text-gray-300 px-1">{label}</label>}
       <div 
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center justify-between w-full p-3 lg:p-4 border-2 border-gray-200 rounded-xl bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-white cursor-pointer hover:border-violet-500 transition-all shadow-sm"
@@ -166,4 +166,3 @@ const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({ value, onChange, la
 };
 
 export default JalaliDatePicker;
-    

@@ -14,6 +14,7 @@ import Button from '../common/Button';
 import MetroTile from '../common/MetroTile';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FarmType } from '../../types';
+import JalaliDatePicker from '../common/JalaliDatePicker';
 
 // Helper for product sorting
 const sortProducts = (products: any[], aId: string, bId: string) => {
@@ -330,7 +331,7 @@ const InvoiceList = () => {
                         مشاهده حواله‌های ثبت شده فارم‌ها - امروز 
                         <span className="shiny-text text-xl lg:text-3xl mr-4">{toPersianDigits(today)}</span>
                     </h3>
-                    <label className="block text-sm lg:text-lg font-bold mb-2 text-gray-700 dark:text-gray-300 px-1">فیلتر بر اساس فارم</label>
+                    <label className="block text-base lg:text-xl font-bold mb-2 text-gray-700 dark:text-gray-300 px-1">فیلتر بر اساس فارم</label>
                     <select 
                         className="w-full p-3 lg:p-4 border-2 border-gray-200 dark:border-gray-700 bg-white text-gray-900 dark:bg-gray-800 dark:text-white font-bold outline-none focus:border-metro-orange rounded-xl text-base lg:text-xl transition-colors"
                         value={selectedFarmId}

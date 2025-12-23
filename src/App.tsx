@@ -1,4 +1,4 @@
-import React, { useEffect, ErrorInfo, ReactNode, lazy, Suspense } from 'react';
+import React, { useEffect, Component, ErrorInfo, ReactNode, lazy, Suspense } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import SplashPage from './pages/SplashPage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
@@ -30,9 +30,12 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-// Fixed: Use React.Component explicitly to resolve props type definition issue
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  public state: ErrorBoundaryState = { hasError: false };
+// Fixed: Use Component explicit inheritance and property initialization
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
 
   static getDerivedStateFromError(_: Error): ErrorBoundaryState {
     return { hasError: true };

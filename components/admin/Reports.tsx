@@ -40,8 +40,10 @@ const sortProducts = (products: any[], aId: string, bId: string) => {
 
 const Reports: React.FC = () => {
     const { farms, products } = useFarmStore();
-    const { statistics, deleteStatistic, updateStatistic } = useStatisticsStore();
-    const { invoices, deleteInvoice, updateInvoice } = useInvoiceStore();
+    // Destructuring hooks causes state to be captured at render time.
+    // We still need them for actions, but will access state directly for search.
+    const { deleteStatistic, updateStatistic } = useStatisticsStore();
+    const { deleteInvoice, updateInvoice } = useInvoiceStore();
     const { addToast } = useToastStore();
     const { confirm } = useConfirm();
     const { user } = useAuthStore();
@@ -91,12 +93,16 @@ const Reports: React.FC = () => {
         const normalizedStart = normalizeDate(startDate);
         const normalizedEnd = normalizeDate(endDate);
 
+        // Fetch FRESH state directly from store to avoid stale closure issues in async actions (like delete)
+        const currentStats = useStatisticsStore.getState().statistics;
+        const currentInvoices = useInvoiceStore.getState().invoices;
+
         // Allow UI to update before blocking calculation
         setTimeout(() => {
             let data: any[] = [];
 
             if (reportTab === 'stats') {
-                data = statistics.filter(s => {
+                data = currentStats.filter(s => {
                     const farmMatch = selectedFarmId === 'all' || s.farmId === selectedFarmId;
                     const productMatch = selectedProductId === 'all' || s.productId === selectedProductId;
                     const dateMatch = isDateInRange(s.date, normalizedStart, normalizedEnd);
@@ -109,7 +115,7 @@ const Reports: React.FC = () => {
                     return sortProducts(products, a.productId, b.productId);
                 });
             } else if (reportTab === 'invoices') {
-                data = invoices.filter(i => {
+                data = currentInvoices.filter(i => {
                     const farmMatch = selectedFarmId === 'all' || i.farmId === selectedFarmId;
                     const productMatch = selectedProductId === 'all' || i.productId === selectedProductId;
                     const dateMatch = isDateInRange(i.date, normalizedStart, normalizedEnd);
@@ -138,18 +144,26 @@ const Reports: React.FC = () => {
     const handleDeleteStat = async (id: string) => {
         const yes = await confirm({ title: 'حذف آمار', message: 'مدیر گرامی، آیا از حذف این رکورد اطمینان دارید؟', type: 'danger' });
         if (yes) {
-            await deleteStatistic(id);
-            addToast('رکورد با موفقیت حذف شد', 'success');
-            handleSearch(); // Refresh list
+            const result = await deleteStatistic(id);
+            if (result.success) {
+                addToast('رکورد با موفقیت حذف شد', 'success');
+                handleSearch(); // Refresh list using fresh store data
+            } else {
+                addToast(result.error || 'خطا در حذف رکورد', 'error');
+            }
         }
     };
 
     const handleDeleteInvoice = async (id: string) => {
         const yes = await confirm({ title: 'حذف حواله', message: 'مدیر گرامی، آیا از حذف این حواله اطمینان دارید؟', type: 'danger' });
         if (yes) {
-            await deleteInvoice(id);
-            addToast('حواله با موفقیت حذف شد', 'success');
-            handleSearch(); // Refresh list
+            const result = await deleteInvoice(id);
+            if (result.success) {
+                addToast('حواله با موفقیت حذف شد', 'success');
+                handleSearch(); // Refresh list using fresh store data
+            } else {
+                addToast(result.error || 'خطا در حذف حواله', 'error');
+            }
         }
     };
 
@@ -163,15 +177,20 @@ const Reports: React.FC = () => {
         const yes = await confirm({ title: 'ویرایش آمار', message: 'آیا تغییرات ذخیره شود؟ موجودی انبار بازنشانی خواهد شد.', type: 'info' });
         if (yes) {
             const newInv = Number(statForm.prev) + Number(statForm.prod) - Number(statForm.sales);
-            await updateStatistic(editingStat.id, {
+            const result = await updateStatistic(editingStat.id, {
                 production: Number(statForm.prod),
                 sales: Number(statForm.sales),
                 previousBalance: Number(statForm.prev),
                 currentInventory: newInv
             });
-            setEditingStat(null);
-            addToast('آمار با موفقیت ویرایش شد', 'success');
-            handleSearch(); // Refresh list
+            
+            if (result.success) {
+                setEditingStat(null);
+                addToast('آمار با موفقیت ویرایش شد', 'success');
+                handleSearch(); // Refresh list
+            } else {
+                addToast(result.error || 'خطا در ویرایش آمار', 'error');
+            }
         }
     };
 
@@ -192,7 +211,7 @@ const Reports: React.FC = () => {
         if (!editingInvoice) return;
         const yes = await confirm({ title: 'ویرایش حواله', message: 'آیا تغییرات ذخیره شود؟', type: 'info' });
         if (yes) {
-            await updateInvoice(editingInvoice.id, {
+            const result = await updateInvoice(editingInvoice.id, {
                 invoiceNumber: invoiceForm.invoiceNumber,
                 totalCartons: Number(invoiceForm.cartons),
                 totalWeight: Number(invoiceForm.weight),
@@ -201,9 +220,14 @@ const Reports: React.FC = () => {
                 driverPhone: invoiceForm.phone,
                 description: invoiceForm.desc
             });
-            setEditingInvoice(null);
-            addToast('حواله با موفقیت ویرایش شد', 'success');
-            handleSearch(); // Refresh list
+            
+            if (result.success) {
+                setEditingInvoice(null);
+                addToast('حواله با موفقیت ویرایش شد', 'success');
+                handleSearch(); // Refresh list
+            } else {
+                addToast(result.error || 'خطا در ویرایش حواله', 'error');
+            }
         }
     };
 
@@ -266,7 +290,7 @@ const Reports: React.FC = () => {
         }
     };
 
-    const selectClass = "w-full p-4 border-2 border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white font-bold outline-none focus:border-metro-blue rounded-xl text-base lg:text-lg transition-colors";
+    const selectClass = "w-full p-4 border-2 border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white font-bold outline-none focus:border-metro-blue rounded-xl text-base lg:text-xl transition-colors";
 
     return (
         <div className="space-y-6">
@@ -292,14 +316,14 @@ const Reports: React.FC = () => {
             <div className={`bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-[24px] shadow-sm border-l-[12px] ${reportTab === 'invoices' ? 'border-metro-orange' : 'border-metro-blue'}`}>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-end">
                     <div>
-                        <label className="text-sm lg:text-lg font-bold text-gray-500 mb-2 block px-1">فارم</label>
+                        <label className="text-base lg:text-xl font-bold text-gray-500 mb-2 block px-1">فارم</label>
                         <select value={selectedFarmId} onChange={(e) => setSelectedFarmId(e.target.value)} className={selectClass}>
                             <option value="all">همه</option>
                             {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                         </select>
                     </div>
                     <div>
-                        <label className="text-sm lg:text-lg font-bold text-gray-500 mb-2 block px-1">محصول</label>
+                        <label className="text-base lg:text-xl font-bold text-gray-500 mb-2 block px-1">محصول</label>
                         <select value={selectedProductId} onChange={(e) => setSelectedProductId(e.target.value)} className={selectClass}>
                             <option value="all">همه</option>
                             {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -457,4 +481,3 @@ const Reports: React.FC = () => {
 };
 
 export default Reports;
-    

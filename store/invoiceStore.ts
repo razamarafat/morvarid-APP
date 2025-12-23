@@ -35,7 +35,7 @@ interface InvoiceState {
     fetchInvoices: () => Promise<void>;
     addInvoice: (invoice: Omit<Invoice, 'id' | 'createdAt'>) => Promise<{ success: boolean; error?: string; debug?: any }>;
     updateInvoice: (id: string, updates: Partial<Invoice>) => Promise<{ success: boolean; error?: string; debug?: any }>;
-    deleteInvoice: (id: string) => Promise<void>;
+    deleteInvoice: (id: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 export const useInvoiceStore = create<InvoiceState>((set, get) => ({
@@ -151,36 +151,59 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
       if (updates.description !== undefined) dbUpdates.description = updates.description;
       if (updates.invoiceNumber !== undefined) dbUpdates.invoice_number = updates.invoiceNumber;
       
-      let { error } = await supabase.from('invoices').update(dbUpdates).eq('id', id);
+      let { error, count } = await supabase.from('invoices')
+          .update(dbUpdates)
+          .eq('id', id)
+          .select('id', { count: 'exact' });
 
       if (error && error.code === 'PGRST204' && error.message.includes('description')) {
           delete dbUpdates.description;
-          const retry = await supabase.from('invoices').update(dbUpdates).eq('id', id);
+          const retry = await supabase.from('invoices').update(dbUpdates).eq('id', id).select('id', { count: 'exact' });
           error = retry.error;
+          count = retry.count;
       }
       
-      if (!error) {
+      if (!error && count !== null && count > 0) {
           await get().fetchInvoices();
           if (original && original.productId) {
               useStatisticsStore.getState().syncSalesFromInvoices(original.farmId, original.date, original.productId);
           }
           return { success: true };
       }
-      return { success: false, error: translateError(error), debug: error };
+      
+      const errMsg = error ? translateError(error) : 'رکورد یافت نشد یا مجوز ویرایش ندارید.';
+      return { success: false, error: errMsg, debug: error };
   },
 
   deleteInvoice: async (id) => {
       const original = get().invoices.find(i => i.id === id);
-      const { error } = await supabase.from('invoices').delete().eq('id', id);
       
-      if (!error) {
+      // 1. Try delete by ID
+      let { error, count } = await supabase.from('invoices')
+          .delete({ count: 'exact' })
+          .eq('id', id);
+      
+      // 2. Fallback: Delete by Invoice Number if ID fails
+      if ((!count || count === 0) && !error && original) {
+          const retry = await supabase.from('invoices')
+              .delete({ count: 'exact' })
+              .eq('invoice_number', original.invoiceNumber);
+          
+          if (retry.error) error = retry.error;
+          if (retry.count) count = retry.count;
+      }
+
+      if (!error && count !== null && count > 0) {
           await get().fetchInvoices();
           if (original && original.productId) {
               useStatisticsStore.getState().syncSalesFromInvoices(original.farmId, original.date, original.productId);
           }
-      }
-      else {
+          return { success: true };
+      } else {
           console.error('Error deleting invoice:', error?.message || error);
+          // Refresh list to remove stale items if any
+          if (!count || count === 0) await get().fetchInvoices();
+          return { success: false, error: error ? translateError(error) : 'رکورد یافت نشد یا مجوز حذف ندارید' };
       }
   }
 }));

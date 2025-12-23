@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { useStatisticsStore, DailyStatistic } from '../../store/statisticsStore';
 import { useInvoiceStore } from '../../store/invoiceStore';
@@ -133,7 +134,6 @@ const InvoiceCard: React.FC<InvoiceCardProps> = ({ inv, getProductName, isEditab
 );
 
 const RecentRecords: React.FC = () => {
-    // ... (logic remains same as original file, just updating styles in JSX)
     const { statistics, deleteStatistic, updateStatistic } = useStatisticsStore();
     const { invoices, deleteInvoice, updateInvoice } = useInvoiceStore();
     const { user } = useAuthStore();
@@ -219,12 +219,18 @@ const RecentRecords: React.FC = () => {
 
     const handleDeleteStat = async (id: string) => {
         const yes = await confirm({ title: 'حذف آمار', message: 'آیا از حذف این رکورد اطمینان دارید؟', type: 'danger' });
-        if(yes) deleteStatistic(id);
+        if(yes) {
+            console.log('🗑️ UI: User triggered deleteStatistic for ID:', id);
+            await deleteStatistic(id);
+        }
     };
 
     const handleDeleteInv = async (id: string) => {
         const yes = await confirm({ title: 'حذف حواله', message: 'آیا از حذف این حواله اطمینان دارید؟', type: 'danger' });
-        if(yes) deleteInvoice(id);
+        if(yes) {
+            console.log('🗑️ UI: User triggered deleteInvoice for ID:', id);
+            await deleteInvoice(id);
+        }
     };
 
     const handleEditStatOpen = (stat: DailyStatistic) => {
@@ -244,10 +250,13 @@ const RecentRecords: React.FC = () => {
         const yes = await confirm({ title: 'ویرایش آمار', message: 'آیا از ذخیره تغییرات اطمینان دارید؟', type: 'info' });
         if (!yes) return;
 
+        console.log('💾 UI: User triggered updateStatistic for ID:', editStat.id);
+        console.log('💾 UI Payload:', statValues);
+
         const newInventory = statValues.prev + statValues.prod - statValues.sales;
         const newInventoryKg = statValues.prevKg + statValues.prodKg - statValues.salesKg;
 
-        updateStatistic(editStat.id, {
+        const result = await updateStatistic(editStat.id, {
             production: statValues.prod,
             sales: statValues.sales,
             previousBalance: statValues.prev,
@@ -257,8 +266,13 @@ const RecentRecords: React.FC = () => {
             previousBalanceKg: statValues.prevKg,
             currentInventoryKg: newInventoryKg
         });
-        setEditStat(null);
-        addToast('آمار با موفقیت ویرایش شد', 'success');
+
+        if (result.success) {
+            setEditStat(null);
+            addToast('آمار با موفقیت ویرایش شد', 'success');
+        } else {
+            addToast('خطا در ویرایش: ' + result.error, 'error');
+        }
     };
 
     const handleEditInvoiceOpen = (inv: Invoice) => {
@@ -289,7 +303,9 @@ const RecentRecords: React.FC = () => {
         const yes = await confirm({ title: 'ویرایش حواله', message: 'آیا از ذخیره تغییرات اطمینان دارید؟', type: 'info' });
         if (!yes) return;
 
-        updateInvoice(editInvoice.id, {
+        console.log('💾 UI: User triggered updateInvoice for ID:', editInvoice.id);
+
+        const result = await updateInvoice(editInvoice.id, {
             invoiceNumber: invoiceValues.invoiceNumber,
             totalCartons: invoiceValues.cartons,
             totalWeight: invoiceValues.weight,
@@ -297,8 +313,13 @@ const RecentRecords: React.FC = () => {
             plateNumber: invoiceValues.plateNumber,
             driverPhone: invoiceValues.driverPhone
         });
-        setEditInvoice(null);
-        addToast('حواله با موفقیت ویرایش شد', 'success');
+
+        if (result.success) {
+            setEditInvoice(null);
+            addToast('حواله با موفقیت ویرایش شد', 'success');
+        } else {
+            addToast('خطا در ویرایش: ' + result.error, 'error');
+        }
     };
 
     const productHasKg = editStat ? getProductById(editStat.productId)?.hasKilogramUnit : false;
