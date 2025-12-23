@@ -18,14 +18,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 // Regex Definitions
 const noLatinRegex = /^[^a-zA-Z]*$/;
 const mobileRegex = /^09\d{9}$/;
-const invoiceNumberRegex = /^(17|18)\d{8}$/; // Starts with 17 or 18, followed by 8 digits (Total 10)
-// Plate format: 2 digits - 3 digits + Persian Char - 2 digits (flexible on dashes)
+const invoiceNumberRegex = /^(17|18)\d{8}$/; 
 const plateRegex = /^\d{2}[\s-]?\d{3}[\s-]?[\u0600-\u06FF][\s-]?\d{2}$/;
 
 const invoiceGlobalSchema = z.object({
     invoiceNumber: z.string()
-        .min(1, 'شماره حواله الزامی است')
-        .regex(invoiceNumberRegex, 'شماره حواله باید ۱۰ رقم باشد و با ۱۷ یا ۱۸ شروع شود'),
+        .min(1, 'رمز حواله الزامی است')
+        .regex(invoiceNumberRegex, 'رمز حواله باید ۱۰ رقم باشد و با ۱۷ یا ۱۸ شروع شود'),
     contactPhone: z.string()
         .min(1, 'شماره تماس الزامی است')
         .regex(mobileRegex, 'شماره همراه باید ۱۱ رقم و با ۰۹ شروع شود (مثال: ۰۹۱۲۳۴۵۶۷۸۹)'),
@@ -43,7 +42,7 @@ export const InvoiceForm: React.FC = () => {
     const { user } = useAuthStore();
     const { getProductById } = useFarmStore();
     const { addInvoice } = useInvoiceStore();
-    const { statistics } = useStatisticsStore(); // Access stats for validation
+    const { statistics } = useStatisticsStore(); 
     const { addToast } = useToastStore();
     const { confirm } = useConfirm();
     
@@ -93,22 +92,15 @@ export const InvoiceForm: React.FC = () => {
         });
     };
 
-    // Strict Input Sanitization
     const handleItemChange = (pid: string, field: 'cartons' | 'weight', val: string) => {
-        // Remove any non-digit/decimal characters immediately
         let cleanVal = val;
         
         if (field === 'cartons') {
-            // Integers only
             cleanVal = val.replace(/[^0-9]/g, '');
-            // Limit length
             if (cleanVal.length > 6) return;
         } else {
-            // Decimals allowed
             cleanVal = val.replace(/[^0-9.]/g, '');
-            // Prevent multiple dots
             if ((cleanVal.match(/\./g) || []).length > 1) return;
-            // Limit length
             if (cleanVal.length > 8) return;
         }
 
@@ -124,7 +116,6 @@ export const InvoiceForm: React.FC = () => {
             return;
         }
 
-        // Logic & Validation Check
         for (const pid of selectedProductIds) {
             const item = itemsState[pid];
             const product = getProductById(pid);
@@ -132,9 +123,8 @@ export const InvoiceForm: React.FC = () => {
             
             const cartons = Number(item.cartons);
             const weight = Number(item.weight);
-            const isLiquid = name.includes('مایع'); // TASK 3: Check for Liquid product
+            const isLiquid = name.includes('مایع'); 
 
-            // TASK 3: If liquid, cartons can be 0/empty. For others, it's required.
             if (!isLiquid && (!item.cartons || cartons <= 0)) {
                 addToast(`تعداد برای "${name}" وارد نشده است.`, 'error');
                 return;
@@ -145,23 +135,17 @@ export const InvoiceForm: React.FC = () => {
                 return;
             }
 
-            // --- LOGICAL INVENTORY CHECK ---
-            // Find statistics for this specific farm/date/product
             const statRecord = statistics.find(s => 
                 s.farmId === selectedFarmId && 
                 s.date === referenceDate && 
                 s.productId === pid
             );
 
-            // 1. Check if Statistics Exist
             if (!statRecord) {
                 addToast(`خطا: آمار تولید برای "${name}" در تاریخ ${referenceDate} ثبت نشده است. ابتدا آمار را ثبت کنید تا موجودی ایجاد شود.`, 'error');
                 return;
             }
 
-            // 2. Check if Inventory is Sufficient
-            // Note: For liquid (sold by KG), the carton check might be irrelevant or we need to check weight inventory.
-            // But logic for stats is typically carton based. If user enters 0 cartons for liquid, check is skipped.
             if (cartons > 0) {
                 const totalAvailable = (statRecord.previousBalance || 0) + (statRecord.production || 0);
                 const currentSales = statRecord.sales || 0;
@@ -197,9 +181,9 @@ export const InvoiceForm: React.FC = () => {
             const item = itemsState[pid];
             const result = await addInvoice({
                 farmId: selectedFarmId,
-                date: referenceDate, // Use reference date strictly
+                date: referenceDate, 
                 invoiceNumber: globalData.invoiceNumber,
-                totalCartons: Number(item.cartons || 0), // Handle empty string as 0
+                totalCartons: Number(item.cartons || 0), 
                 totalWeight: Number(item.weight),
                 productId: pid,
                 driverName: globalData.driverName || '',
@@ -239,7 +223,6 @@ export const InvoiceForm: React.FC = () => {
 
     return (
         <div className="max-w-4xl mx-auto space-y-6 lg:space-y-10 pb-20">
-            {/* Animated Header */}
             <div className="bg-metro-blue p-8 text-white shadow-xl relative overflow-hidden flex flex-col items-center justify-center gap-4 border-b-8 border-blue-900/30">
                 <div className="absolute inset-0 z-0 bg-gradient-to-r from-metro-blue via-metro-cobalt to-metro-blue bg-[length:200%_200%] animate-[gradient-xy_3s_ease_infinite]"></div>
                 <Icons.FileText className="absolute -right-12 -bottom-8 w-64 h-64 opacity-10 pointer-events-none rotate-12" />
@@ -251,7 +234,6 @@ export const InvoiceForm: React.FC = () => {
                 <div className="relative z-10 text-7xl lg:text-8xl font-black font-sans tabular-nums tracking-widest mt-2 drop-shadow-2xl flex items-center gap-2">{currentTime}</div>
             </div>
 
-            {/* TASK 1: Main Specifications Section */}
             <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 shadow-md border-l-[12px] border-metro-blue rounded-xl space-y-6 relative">
                 <div className="absolute top-0 right-0 bg-metro-blue text-white px-3 py-1 text-xs lg:text-sm font-bold rounded-bl-lg">مشخصات اصلی حواله</div>
                 
@@ -268,7 +250,6 @@ export const InvoiceForm: React.FC = () => {
                 </div>
             </div>
 
-            {/* TASK 2: Product Dropdown Selection */}
             <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 shadow-md border-l-[12px] border-metro-orange rounded-xl space-y-2">
                 <button 
                     onClick={() => setIsProductSelectorOpen(!isProductSelectorOpen)}
@@ -322,14 +303,12 @@ export const InvoiceForm: React.FC = () => {
                 </AnimatePresence>
             </div>
 
-            {/* TASK 3: Phone Number Row (Moved Below Product Selection) */}
             <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 shadow-md border-l-[12px] border-metro-blue rounded-xl">
                 <label className={labelClass}>شماره تماس</label>
                 <input dir="ltr" type="tel" inputMode="numeric" {...register('contactPhone')} className={`${inputClass} !text-2xl lg:!text-4xl font-mono border-metro-blue/30 h-20`} placeholder="" maxLength={11} />
                 {errors.contactPhone && <p className="text-red-500 text-xs mt-1 font-bold">{errors.contactPhone.message}</p>}
             </div>
 
-            {/* TASK 4: Dynamic Input Tables for Selected Products */}
             <AnimatePresence>
                 {selectedProductIds.length > 0 && (
                     <div className="space-y-4 lg:space-y-6">
@@ -341,7 +320,6 @@ export const InvoiceForm: React.FC = () => {
                             const p = getProductById(pid);
                             const state = itemsState[pid] || { cartons: '', weight: '' };
                             
-                            // Visual Feedback for Inventory
                             const statRecord = statistics.find(s => s.farmId === selectedFarmId && s.date === referenceDate && s.productId === pid);
                             const currentInv = statRecord ? (statRecord.production || 0) + (statRecord.previousBalance || 0) - (statRecord.sales || 0) : 0;
                             const hasStats = !!statRecord;
@@ -365,8 +343,6 @@ export const InvoiceForm: React.FC = () => {
                                                 <span className="text-[10px] lg:text-sm text-gray-400">{p?.unit === 'CARTON' ? 'واحد: کارتن' : 'واحد: عدد'}</span>
                                             </div>
                                         </div>
-                                        
-                                        {/* Available Inventory Badge */}
                                         <div className={`text-xs lg:text-sm px-2 lg:px-4 py-1 lg:py-2 rounded font-bold text-center ${hasStats ? 'bg-blue-50 text-blue-700' : 'bg-red-50 text-red-700 animate-pulse'}`}>
                                             {hasStats ? `موجودی قابل فروش: ${toPersianDigits(currentInv)}` : 'هشدار: آمار ثبت نشده است'}
                                         </div>
@@ -411,7 +387,6 @@ export const InvoiceForm: React.FC = () => {
                 )}
             </AnimatePresence>
 
-            {/* TASK 1: Optional Specifications (Bottom Section) */}
             <div className="bg-gray-100 dark:bg-gray-900/50 p-6 lg:p-8 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700 space-y-4 lg:space-y-6 mt-8">
                 <h4 className="text-xs lg:text-base font-black text-gray-500 uppercase flex items-center gap-2">
                     <Icons.Plus className="w-4 h-4 lg:w-6 lg:h-6" />

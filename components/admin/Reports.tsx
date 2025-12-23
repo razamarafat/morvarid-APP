@@ -91,7 +91,6 @@ const Reports: React.FC = () => {
     };
 
     const openStatEdit = (stat: any) => {
-        // Fix: Replace zeros with empty string for cleaner editing
         const f = (v: any) => (v === 0 || v === undefined || v === null) ? '' : String(v);
         setEditingStat(stat);
         setStatForm({
@@ -121,7 +120,6 @@ const Reports: React.FC = () => {
     };
 
     const openInvoiceEdit = (inv: any) => {
-        // Fix: Replace zeros with empty string
         const f = (v: any) => (v === 0 || v === undefined || v === null) ? '' : String(v);
         setEditingInvoice(inv);
         setInvoiceForm({
@@ -153,28 +151,59 @@ const Reports: React.FC = () => {
     const handleExportExcel = () => {
         if (previewData.length === 0) return;
         const wb = XLSX.utils.book_new();
-        const data = previewData.map(item => reportTab === 'stats' ? ({
-            'تاریخ': item.date,
-            'فارم': farms.find(f => f.id === item.farmId)?.name,
-            'محصول': products.find(p => p.id === item.productId)?.name,
-            'تولید': item.production,
-            'فروش': item.sales,
-            'موجودی': item.currentInventory,
-            'مسئول ثبت': item.creatorName,
-            'زمان ثبت': new Date(item.createdAt).toLocaleTimeString('fa-IR')
-        }) : ({
-            'کد حواله': item.invoiceNumber,
-            'تاریخ': item.date,
-            'فارم': farms.find(f => f.id === item.farmId)?.name,
-            'تعداد': item.totalCartons,
-            'وزن': item.totalWeight,
-            'راننده': item.driverName,
-            'مسئول ثبت': item.creatorName,
-            'زمان ثبت': new Date(item.createdAt).toLocaleTimeString('fa-IR')
-        }));
-        const ws = XLSX.utils.json_to_sheet(data);
-        XLSX.utils.book_append_sheet(wb, ws, "Data");
-        XLSX.writeFile(wb, `Morvarid_Report_${reportTab}.xlsx`);
+        
+        let wsData: any[] = [];
+        let colOrder: string[] = [];
+
+        if (reportTab === 'stats') {
+            colOrder = ['تاریخ', 'فارم', 'محصول', 'تولید', 'فروش', 'موجودی', 'مسئول ثبت', 'ساعت ثبت'];
+            wsData = previewData.map(item => ({
+                'تاریخ': item.date,
+                'فارم': farms.find(f => f.id === item.farmId)?.name || '-',
+                'محصول': products.find(p => p.id === item.productId)?.name || '-',
+                'تولید': item.production || 0,
+                'فروش': item.sales || 0,
+                'موجودی': item.currentInventory || 0,
+                'مسئول ثبت': item.creatorName || '-',
+                'ساعت ثبت': new Date(item.createdAt).toLocaleTimeString('fa-IR')
+            }));
+        } else {
+            // Task: Ordered from Right to Left for Persian readability
+            colOrder = ['تاریخ', 'رمز حواله', 'فارم', 'نوع محصول', 'تعداد', 'وزن', 'شماره تماس', 'راننده', 'پلاک', 'مسئول ثبت', 'ساعت ثبت'];
+            wsData = previewData.map(item => ({
+                'تاریخ': item.date,
+                'رمز حواله': item.invoiceNumber || '-',
+                'فارم': farms.find(f => f.id === item.farmId)?.name || '-',
+                'نوع محصول': products.find(p => p.id === item.productId)?.name || '-',
+                'تعداد': item.totalCartons || 0,
+                'وزن': item.totalWeight || 0,
+                'شماره تماس': item.driverPhone || '-',
+                'راننده': item.driverName || '-',
+                'پلاک': item.plateNumber || '-',
+                'مسئول ثبت': item.creatorName || '-',
+                'ساعت ثبت': new Date(item.createdAt).toLocaleTimeString('fa-IR')
+            }));
+        }
+
+        const ws = XLSX.utils.json_to_sheet(wsData, { header: colOrder });
+        
+        // Task: Force RTL direction (Ensures Column A starts on the Right side)
+        ws['!dir'] = 'rtl';
+        // Secondary safeguard for various Excel versions/readers
+        ws['!views'] = [{ RTL: true }];
+
+        // Task: Auto-adjust column widths based on maximum content length
+        const colWidths = colOrder.map(key => {
+            const maxLen = Math.max(
+                key.length,
+                ...wsData.map(row => String(row[key] || '').length)
+            );
+            return { wch: maxLen + 6 }; // Added padding for better readability
+        });
+        ws['!cols'] = colWidths;
+
+        XLSX.utils.book_append_sheet(wb, ws, "گزارش");
+        XLSX.writeFile(wb, `Morvarid_Report_${reportTab}_${getTodayJalali().replace(/\//g, '-')}.xlsx`);
     };
 
     const selectClass = "w-full p-4 border-2 border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white font-bold rounded-xl outline-none focus:border-metro-blue";
@@ -205,7 +234,7 @@ const Reports: React.FC = () => {
                 <div><JalaliDatePicker value={endDate} onChange={setEndDate} label="تا تاریخ" /></div>
                 <div className="lg:col-span-4 flex justify-end gap-3 mt-4">
                     <Button onClick={handleSearch} isLoading={isSearching} className="h-14 px-10 text-lg font-black bg-gray-900 text-white hover:bg-black rounded-full shadow-lg">جستجو</Button>
-                    {hasSearched && previewData.length > 0 && <Button onClick={handleExportExcel} variant="secondary" className="h-14 px-8 font-bold rounded-full text-lg">دانلود اکسل</Button>}
+                    {hasSearched && previewData.length > 0 && <Button onClick={handleExportExcel} className="h-14 px-8 font-bold rounded-full text-lg bg-metro-green hover:bg-green-600 text-white shadow-lg">دانلود اکسل</Button>}
                 </div>
             </div>
 
@@ -215,9 +244,9 @@ const Reports: React.FC = () => {
                         <thead className="bg-gray-50 dark:bg-gray-900 text-gray-500 font-black text-xs lg:text-sm uppercase tracking-wider">
                             <tr>
                                 {reportTab === 'stats' ? <>
-                                    <th className="p-5">تاریخ</th><th className="p-5">فارم / محصول</th><th className="p-5 text-center">تولید</th><th className="p-5 text-center">فروش</th><th className="p-5 text-center">موجودی</th><th className="p-5">ثبت کننده</th><th className="p-5">زمان ثبت</th><th className="p-5 text-center">عملیات</th>
+                                    <th className="p-5">تاریخ</th><th className="p-5">فارم</th><th className="p-5">محصول</th><th className="p-5 text-center">تولید</th><th className="p-5 text-center">فروش</th><th className="p-5 text-center">موجودی</th><th className="p-5">ثبت کننده</th><th className="p-5">زمان ثبت</th><th className="p-5 text-center">عملیات</th>
                                 </> : <>
-                                    <th className="p-5 text-center">رمز حواله</th><th className="p-5">تاریخ</th><th className="p-5">فارم / محصول</th><th className="p-5 text-center">تعداد</th><th className="p-5 text-center">وزن</th><th className="p-5">راننده</th><th className="p-5">ثبت کننده</th><th className="p-5 text-center">عملیات</th>
+                                    <th className="p-5">تاریخ</th><th className="p-5 text-center">رمز حواله</th><th className="p-5">فارم</th><th className="p-5">محصول</th><th className="p-5 text-center">تعداد</th><th className="p-5 text-center">وزن</th><th className="p-5">شماره تماس</th><th className="p-5">ثبت کننده</th><th className="p-5 text-center">عملیات</th>
                                 </>}
                             </tr>
                         </thead>
@@ -226,25 +255,21 @@ const Reports: React.FC = () => {
                                 <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                                     {reportTab === 'stats' ? <>
                                         <td className="p-5 font-mono font-bold text-lg">{toPersianDigits(row.date)}</td>
-                                        <td className="p-5">
-                                            <div className="font-bold text-gray-800 dark:text-white">{farms.find(f => f.id === row.farmId)?.name}</div>
-                                            <div className="text-xs text-gray-500">{products.find(p => p.id === row.productId)?.name}</div>
-                                        </td>
+                                        <td className="p-5 font-bold text-gray-800 dark:text-white">{farms.find(f => f.id === row.farmId)?.name}</td>
+                                        <td className="p-5 text-sm text-gray-500 font-bold">{products.find(p => p.id === row.productId)?.name}</td>
                                         <td className="p-5 text-center text-green-600 font-black text-xl lg:text-2xl">+{toPersianDigits(row.production)}</td>
                                         <td className="p-5 text-center text-red-500 font-black text-xl lg:text-2xl">-{toPersianDigits(row.sales)}</td>
                                         <td className="p-5 text-center font-black text-xl lg:text-2xl text-metro-blue">{toPersianDigits(row.currentInventory)}</td>
                                         <td className="p-5"><span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded-lg font-bold text-sm">{row.creatorName || 'ناشناس'}</span></td>
                                         <td className="p-5 font-mono text-sm opacity-60">{new Date(row.createdAt).toLocaleTimeString('fa-IR')}</td>
                                     </> : <>
-                                        <td className="p-5 text-center font-black text-xl lg:text-2xl tracking-widest text-metro-orange">{toPersianDigits(row.invoiceNumber)}</td>
                                         <td className="p-5 font-mono font-bold text-lg">{toPersianDigits(row.date)}</td>
-                                        <td className="p-5">
-                                            <div className="font-bold text-gray-800 dark:text-white">{farms.find(f => f.id === row.farmId)?.name}</div>
-                                            <div className="text-xs text-gray-500">{products.find(p => p.id === row.productId)?.name}</div>
-                                        </td>
+                                        <td className="p-5 text-center font-black text-xl lg:text-2xl tracking-widest text-metro-orange">{toPersianDigits(row.invoiceNumber)}</td>
+                                        <td className="p-5 font-bold text-gray-800 dark:text-white">{farms.find(f => f.id === row.farmId)?.name}</td>
+                                        <td className="p-5 text-sm text-gray-500 font-bold">{products.find(p => p.id === row.productId)?.name}</td>
                                         <td className="p-5 text-center font-black text-xl lg:text-2xl">{toPersianDigits(row.totalCartons)}</td>
                                         <td className="p-5 text-center text-blue-600 font-black text-xl lg:text-2xl">{toPersianDigits(row.totalWeight)}</td>
-                                        <td className="p-5 font-bold text-sm">{row.driverName || '-'}</td>
+                                        <td className="p-5 font-mono font-bold text-sm">{toPersianDigits(row.driverPhone || '-')}</td>
                                         <td className="p-5"><span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded-lg font-bold text-sm">{row.creatorName || 'ناشناس'}</span></td>
                                     </>}
                                     <td className="p-5 flex justify-center gap-2">
@@ -259,7 +284,6 @@ const Reports: React.FC = () => {
                 </div>
             </div>
 
-            {/* Admin Modals with empty fallback for zeros */}
             <Modal isOpen={!!editingStat} onClose={() => setEditingStat(null)} title="اصلاح مدیریتی آمار">
                 <div className="space-y-6">
                     <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl text-sm font-bold text-blue-800 dark:text-blue-300 border border-blue-100 dark:border-blue-800">
@@ -279,7 +303,7 @@ const Reports: React.FC = () => {
                     <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-xl border border-orange-200 dark:border-orange-800 text-sm font-bold text-orange-800 dark:text-orange-300">
                         دسترسی مدیر: اصلاح حواله باعث تغییر در آمار فروش فارم می‌شود.
                     </div>
-                    <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-xl"><label className="block text-sm font-bold mb-2 text-gray-500">کد حواله</label><input type="text" value={invoiceForm.invoiceNumber} onChange={e => setInvoiceForm({...invoiceForm, invoiceNumber: e.target.value})} className="w-full p-3 bg-white dark:bg-gray-800 border-2 border-orange-300 rounded-lg text-center font-black text-3xl tracking-widest outline-none"/></div>
+                    <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-xl"><label className="block text-sm font-bold mb-2 text-gray-500">رمز حواله</label><input type="text" value={invoiceForm.invoiceNumber} onChange={e => setInvoiceForm({...invoiceForm, invoiceNumber: e.target.value})} className="w-full p-3 bg-white dark:bg-gray-800 border-2 border-orange-300 rounded-lg text-center font-black text-3xl tracking-widest outline-none"/></div>
                     <div className="grid grid-cols-2 gap-4">
                         <div><label className="text-xs font-bold mb-2 block mr-1">تعداد (کارتن)</label><input type="number" value={invoiceForm.cartons} onChange={e => setInvoiceForm({...invoiceForm, cartons: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-700 rounded-xl text-center font-black text-2xl outline-none border-none focus:ring-2 focus:ring-metro-orange"/></div>
                         <div><label className="text-xs font-bold mb-2 block mr-1">وزن (Kg)</label><input type="number" value={invoiceForm.weight} onChange={e => setInvoiceForm({...invoiceForm, weight: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-700 rounded-xl text-center font-black text-2xl outline-none border-none focus:ring-2 focus:ring-metro-orange"/></div>

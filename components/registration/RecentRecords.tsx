@@ -89,7 +89,7 @@ const InvoiceCard: React.FC<InvoiceCardProps> = ({ inv, getProductName, isEditab
                     <Icons.FileText className="w-6 h-6" />
                 </div>
                 <div>
-                    <span className="block text-xs font-bold text-gray-400">شماره حواله</span>
+                    <span className="block text-xs font-bold text-gray-400">رمز حواله</span>
                     <span className="font-mono text-2xl font-black tracking-widest text-gray-800 dark:text-gray-100">{toPersianDigits(inv.invoiceNumber)}</span>
                 </div>
             </div>
@@ -148,7 +148,6 @@ const RecentRecords: React.FC = () => {
     const [editStat, setEditStat] = useState<DailyStatistic | null>(null);
     const [editInvoice, setEditInvoice] = useState<Invoice | null>(null);
     
-    // Values as strings to allow empty fields instead of pre-filled zeros
     const [statValues, setStatValues] = useState({ prod: '', sales: '', prev: '', prodKg: '', salesKg: '', prevKg: '' });
     const [invoiceValues, setInvoiceValues] = useState({ 
         invoiceNumber: '',
@@ -166,12 +165,10 @@ const RecentRecords: React.FC = () => {
     const getProductUnit = (id: string) => products.find(p => p.id === id)?.unit === 'CARTON' ? 'کارتن' : 'واحد';
 
     const isEditable = (createdAt?: number) => {
-        // Fix: Manager (Admin) has full unrestricted access
         if (user?.role === UserRole.ADMIN) return true; 
         if (!createdAt) return false;
         const now = Date.now();
         const diff = now - createdAt;
-        // Normal users have 5 hours to edit
         return diff < 5 * 60 * 60 * 1000; 
     };
 
@@ -234,7 +231,6 @@ const RecentRecords: React.FC = () => {
     };
 
     const handleEditStatOpen = (stat: DailyStatistic) => {
-        // Fix: Format values so zeros are empty strings
         const fmt = (v: any) => (v === 0 || v === undefined || v === null) ? '' : String(v);
         setEditStat(stat);
         setStatValues({ 
@@ -282,7 +278,6 @@ const RecentRecords: React.FC = () => {
     };
 
     const handleEditInvoiceOpen = (inv: Invoice) => {
-        // Fix: Format values so zeros are empty strings
         const fmt = (v: any) => (v === 0 || v === undefined || v === null) ? '' : String(v);
         setEditInvoice(inv);
         setInvoiceValues({ 
@@ -299,7 +294,7 @@ const RecentRecords: React.FC = () => {
         if (!editInvoice) return;
         
         if (!/^(17|18)\d{8}$/.test(invoiceValues.invoiceNumber)) {
-            addToast('فرمت شماره حواله صحیح نیست (باید ۱۰ رقم و شروع با ۱۷ یا ۱۸ باشد)', 'error');
+            addToast('فرمت رمز حواله صحیح نیست (باید ۱۰ رقم و شروع با ۱۷ یا ۱۸ باشد)', 'error');
             return;
         }
 
@@ -479,7 +474,7 @@ const RecentRecords: React.FC = () => {
             <Modal isOpen={!!editInvoice} onClose={() => setEditInvoice(null)} title="ویرایش کامل حواله">
                  <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1 custom-scrollbar">
                     <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-2xl border border-orange-200 dark:border-orange-800">
-                        <label className="block text-xs font-bold mb-2 text-orange-800 dark:text-orange-300">شماره حواله (اصلاحیه)</label>
+                        <label className="block text-xs font-bold mb-2 text-orange-800 dark:text-orange-300">رمز حواله (اصلاحیه)</label>
                         <input 
                             type="text" 
                             dir="ltr"
