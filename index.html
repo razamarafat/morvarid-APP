@@ -87,6 +87,25 @@
         font-family: 'Vazir', sans-serif !important;
       }
       
+      /* ✅ FIX: غیرفعال کردن Pull-to-Refresh در PWA */
+      html {
+        overflow: hidden;
+        height: 100%;
+        overscroll-behavior: none;
+        overscroll-behavior-y: none;
+        -webkit-overflow-scrolling: touch;
+      }
+      
+      body {
+        overflow: auto;
+        height: 100%;
+        overscroll-behavior: none;
+        overscroll-behavior-y: none;
+        position: fixed;
+        width: 100%;
+        -webkit-overflow-scrolling: touch;
+      }
+
       html, body {
         scrollbar-width: none;
         -ms-overflow-style: none;
@@ -107,13 +126,22 @@
       
       body {
         transition: background-color 0.2s ease;
-        overscroll-behavior-y: none;
         -webkit-user-select: none;
         user-select: none;
         -webkit-touch-callout: none;
         text-rendering: optimizeSpeed;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+      }
+      
+      /* ✅ FIX: Container اصلی برای scroll داخلی */
+      #root {
+        height: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+        overscroll-behavior: contain;
+        overscroll-behavior-y: contain;
+        -webkit-overflow-scrolling: touch;
       }
 
       input, textarea {
