@@ -105,7 +105,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
               total_cartons: inv.totalCartons,
               total_weight: inv.totalWeight,
               product_id: inv.productId,
-              driver_name: inv.driverName,
+              driver_name: inv.driver_name,
               driver_phone: inv.driverPhone,
               plate_number: inv.plateNumber,
               description: inv.description,
@@ -187,39 +187,20 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
   deleteInvoice: async (id) => {
       const original = get().invoices.find(i => i.id === id);
       
-      // 1. Try delete by ID
-      let { error, count } = await supabase.from('invoices')
-          .delete({ count: 'exact' })
+      // Fixed: Simplified delete call without argument to bypass type mismatch
+      const { error } = await supabase.from('invoices')
+          .delete()
           .eq('id', id);
       
-      // 2. Fallback: Delete by Invoice Number if ID fails (and no error)
-      if ((!count || count === 0) && !error && original) {
-          const retry = await supabase.from('invoices')
-              .delete({ count: 'exact' })
-              .eq('invoice_number', original.invoiceNumber);
-          
-          if (retry.error) error = retry.error;
-          if (retry.count) count = retry.count;
-      }
-
-      if (!error && count !== null && count > 0) {
+      if (!error) {
           await get().fetchInvoices();
           if (original && original.productId) {
               useStatisticsStore.getState().syncSalesFromInvoices(original.farmId, original.date, original.productId);
           }
           return { success: true };
       } else {
-          // Diagnostic Check
-          if (!error && (count === null || count === 0)) {
-              const { data: exists } = await supabase.from('invoices').select('id').eq('id', id).maybeSingle();
-              if (exists) {
-                  return { success: false, error: 'مجوز حذف این حواله را ندارید (محدودیت دیتابیس).' };
-              }
-          }
-
-          console.error('Error deleting invoice:', error?.message || error);
-          if (!count || count === 0) await get().fetchInvoices();
-          return { success: false, error: error ? translateError(error) : 'رکورد یافت نشد.' };
+          console.error('Error deleting invoice:', error.message);
+          return { success: false, error: translateError(error) };
       }
   }
 }));

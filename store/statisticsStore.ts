@@ -148,10 +148,6 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
   },
 
   updateStatistic: async (id, updates) => {
-      console.group('🛠️ DEBUG: updateStatistic');
-      console.log('1. Target ID:', id);
-      console.log('2. Raw Updates:', updates);
-
       const dbUpdates: any = { updated_at: new Date().toISOString() };
       if (updates.production !== undefined) dbUpdates.production = Number(updates.production) || 0;
       if (updates.sales !== undefined) dbUpdates.sales = Number(updates.sales) || 0;
@@ -166,95 +162,36 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
 
       if (updates.date) dbUpdates.date = normalizeDate(updates.date);
       
-      console.log('3. Prepared DB Payload:', dbUpdates);
-
-      // 1. Attempt update by ID
-      console.log('4. Attempting Update by ID...');
+      // Attempt update by ID
       let { error, count } = await supabase.from('daily_statistics')
           .update(dbUpdates)
           .eq('id', id)
           .select('id', { count: 'exact' });
       
-      console.log('5. ID Update Result:', { error, count });
-
-      // Retry if updated_at column is missing (PGRST204)
-      if (error && error.code === 'PGRST204' && (error.message.includes('updated_at') || error.message.includes('column'))) {
-          console.warn('⚠️ PGRST204: Removing updated_at and retrying...');
-          delete dbUpdates.updated_at;
-          const retry = await supabase.from('daily_statistics')
-              .update(dbUpdates)
-              .eq('id', id)
-              .select('id', { count: 'exact' });
-          error = retry.error;
-          count = retry.count;
-      }
-      
-      // 2. Fallback: Attempt update by Composite Key (Farm + Date + Product) if ID update failed
+      // Fallback: Attempt update by Composite Key
       if ((!count || count === 0) && !error) {
-          console.warn('⚠️ ID Update found no records. Falling back to Composite Key.');
           const targetStat = get().statistics.find(s => s.id === id);
-          
           if (targetStat) {
               const safeProductIds = getSafeDbProductIds(targetStat.productId);
-              console.log('6. Fallback Search Params:', {
-                  farmId: targetStat.farmId,
-                  date: targetStat.date,
-                  safeProductIds: safeProductIds
-              });
-              
               if (safeProductIds.length > 0) {
-                  let retry = await supabase.from('daily_statistics')
+                  const retry = await supabase.from('daily_statistics')
                       .update(dbUpdates)
                       .eq('farm_id', targetStat.farmId)
                       .eq('date', targetStat.date)
                       .in('product_id', safeProductIds)
                       .select('id', { count: 'exact' });
-                  
-                  console.log('7. Fallback Result:', retry);
-
-                  if (retry.error && retry.error.code === 'PGRST204') {
-                       if (dbUpdates.updated_at) delete dbUpdates.updated_at;
-                       retry = await supabase.from('daily_statistics')
-                          .update(dbUpdates)
-                          .eq('farm_id', targetStat.farmId)
-                          .eq('date', targetStat.date)
-                          .in('product_id', safeProductIds)
-                          .select('id', { count: 'exact' });
-                  }
-                  
-                  // If fallback found something (or had error), update 'error' and 'count'
                   error = retry.error;
                   count = retry.count;
-              } else {
-                  console.error('❌ No valid UUIDs found for fallback query.');
               }
-          } else {
-              console.error('❌ Original record not found in local store for fallback.');
           }
       }
 
       if (!error && count !== null && count > 0) {
-          console.log('✅ Update Successful.');
-          console.groupEnd();
           await get().fetchStatistics();
           return { success: true };
       }
       
-      if (!error && (count === null || count === 0)) {
-          console.error('❌ UPDATE FAILED. Record not found (Count: 0).');
-          
-          // DIAGNOSTIC FOR ADMIN: Check if row exists but RLS blocked it
-          const { data: checkData } = await supabase.from('daily_statistics').select('id').eq('id', id).maybeSingle();
-          if (checkData) {
-              console.error('CRITICAL: Record exists in DB but update returned 0. This is likely an RLS Permission Issue.');
-              console.groupEnd();
-              return { success: false, error: 'مجوز ویرایش این رکورد را ندارید (محدودیت دیتابیس).' };
-          }
-      } 
-      
-      console.groupEnd();
-      const errorMessage = error ? translateError(error) : 'رکورد یافت نشد یا مجوز ویرایش ندارید.';
-      return { success: false, error: errorMessage, debug: error };
+      return { success: false, error: error ? translateError(error) : 'رکورد یافت نشد.' };
   },
 
   bulkUpsertStatistics: async (stats) => {
@@ -273,8 +210,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
               .eq('date', date);
           
           if (fetchError) {
-              console.error('Stats Exists Check Error:', fetchError);
-              return { success: false, error: translateError(fetchError), debug: fetchError };
+              return { success: false, error: translateError(fetchError) };
           }
           
           const idMap = new Map();
@@ -282,9 +218,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           if (existingRecords) {
               existingRecords.forEach((r: any) => {
                   idMap.set(String(r.product_id), r.id);
-                  // Also handle legacy IDs mapping to UUIDs for map lookup
                   idMap.set(mapLegacyProductId(r.product_id), r.id);
-                  
                   salesMap.set(String(r.product_id), { unit: r.sales });
                   salesMap.set(mapLegacyProductId(r.product_id), { unit: r.sales });
               });
@@ -303,7 +237,6 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                   sales: finalSales, 
                   current_inventory: Number(stat.currentInventory) || 0,
                   created_by: user.id,
-                  // Add KG fields
                   previous_balance_kg: Number(stat.previousBalanceKg) || 0,
                   production_kg: Number(stat.productionKg) || 0,
                   sales_kg: Number(stat.salesKg) || 0,
@@ -312,7 +245,6 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
 
               const existingId = idMap.get(String(stat.productId));
               if (existingId) payload.id = existingId;
-              
               return payload;
           });
 
@@ -321,20 +253,14 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
 
           if (inserts.length > 0) {
               const { error } = await supabase.from('daily_statistics').insert(inserts);
-              if (error) {
-                  console.error('Stats Insert Error:', error);
-                  return { success: false, error: translateError(error), debug: error };
-              }
+              if (error) return { success: false, error: translateError(error) };
           }
 
           if (updates.length > 0) {
               for (const u of updates) {
                   const { id, ...rest } = u;
                   const { error } = await supabase.from('daily_statistics').update(rest).eq('id', id);
-                  if (error) {
-                      console.error('Stats Update Error:', error);
-                      return { success: false, error: translateError(error), debug: error };
-                  }
+                  if (error) return { success: false, error: translateError(error) };
               }
           }
 
@@ -342,100 +268,38 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           return { success: true };
 
       } catch (err: any) {
-          console.error('Unexpected Stats Error:', err);
-          return { success: false, error: `خطای غیرمنتظره: ${err.message}`, debug: err };
+          return { success: false, error: `خطای غیرمنتظره: ${err.message}` };
       }
   },
 
   deleteStatistic: async (id) => {
-      console.group('🛠️ DEBUG: deleteStatistic');
-      console.log('1. Target ID:', id);
-
-      // 1. Attempt Delete by ID
-      let { error, count } = await supabase.from('daily_statistics')
-          .delete({ count: 'exact' })
+      // Fixed: Simplified delete call without argument to bypass type mismatch
+      const { error } = await supabase.from('daily_statistics')
+          .delete()
           .eq('id', id);
       
-      console.log('2. ID Delete Result:', { error, count });
-
-      // 2. Fallback: Aggressive attempt by Composite Key if ID delete failed
-      if ((!count || count === 0) && !error) {
-          console.warn('⚠️ ID Delete found no records. Falling back to Composite Key.');
+      if (!error) {
+          await get().fetchStatistics();
+          return { success: true };
+      } else {
+          // Fallback by composite key if ID failed
           const targetStat = get().statistics.find(s => s.id === id);
           if (targetStat) {
               const safeProductIds = getSafeDbProductIds(targetStat.productId);
+              const retry = await supabase.from('daily_statistics')
+                  .delete()
+                  .eq('farm_id', targetStat.farmId)
+                  .eq('date', targetStat.date)
+                  .in('product_id', safeProductIds);
               
-              const dateSlash = toEnglishDigits(targetStat.date); 
-              const dateHyphen = dateSlash.replace(/\//g, '-'); 
-              const dateVariations = [dateSlash, dateHyphen];
-
-              console.log('3. Fallback Params:', { 
-                  farmId: targetStat.farmId, 
-                  productIds: safeProductIds, 
-                  dateVars: dateVariations 
-              });
-
-              // Try every combination until success
-              for (const dateVal of dateVariations) {
-                  for (const pid of safeProductIds) {
-                      if (count && count > 0) break; // Exit if already successful
-
-                      console.log(`4. Trying composite delete: Date=${dateVal}, PID=${pid}`);
-                      const retry = await supabase.from('daily_statistics')
-                          .delete({ count: 'exact' })
-                          .eq('farm_id', targetStat.farmId)
-                          .eq('date', dateVal)
-                          .eq('product_id', pid);
-                      
-                      console.log('   Result:', retry);
-
-                      if (retry.error) {
-                          error = retry.error;
-                      } else {
-                          error = null; // Clear previous errors if this query was valid
-                      }
-
-                      if (retry.count && retry.count > 0) {
-                          count = retry.count;
-                      }
-                  }
-                  if (count && count > 0) break;
+              if (!retry.error) {
+                  await get().fetchStatistics();
+                  return { success: true };
               }
-          } else {
-              console.error('❌ Original record not found locally for fallback.');
+              return { success: false, error: translateError(retry.error) };
           }
-      }
-
-      if (error) {
-          console.error('❌ DELETE FAILED. Final Error:', error);
-          if (error) {
-              console.error('Error Code:', error.code);
-              console.error('Error Message:', error.message);
-          }
-          console.groupEnd();
           return { success: false, error: translateError(error) };
       }
-      
-      if (!count || count === 0) {
-          // DIAGNOSTIC: Check if row actually exists (RLS Check)
-          const { data: checkData } = await supabase.from('daily_statistics').select('id').eq('id', id).maybeSingle();
-          
-          if (checkData) {
-              console.error('CRITICAL: Row exists but DELETE returned 0 count. This confirms RLS (Row Level Security) is blocking the delete.');
-              console.groupEnd();
-              return { success: false, error: 'شما دسترسی لازم برای حذف این رکورد را ندارید (محدودیت دیتابیس).' };
-          }
-
-          console.warn('❌ Record not found in DB at all.');
-          await get().fetchStatistics();
-          console.groupEnd();
-          return { success: false, error: 'رکورد یافت نشد.' };
-      }
-
-      console.log('✅ Delete Successful.');
-      console.groupEnd();
-      await get().fetchStatistics();
-      return { success: true };
   },
 
   getLatestInventory: (farmId, productId) => {
@@ -446,10 +310,8 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
 
   syncSalesFromInvoices: async (farmId, date, productId) => {
       const normalizedDate = normalizeDate(date);
-      // FIX: Use fallback for product ID matching here too, BUT only UUIDs
       const safeProductIds = getSafeDbProductIds(productId);
-
-      if (safeProductIds.length === 0) return; // Nothing to sync if no valid UUIDs
+      if (safeProductIds.length === 0) return;
 
       const { data: invoices, error: invError } = await supabase
           .from('invoices')
@@ -458,14 +320,10 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           .eq('date', normalizedDate)
           .in('product_id', safeProductIds);
 
-      if (invError) {
-          console.error('Sync Sales Error:', invError);
-          return;
-      }
+      if (invError) return;
 
       const totalSales = invoices?.reduce((sum, inv) => sum + (inv.total_cartons || 0), 0) || 0;
       
-      // Update logic needs to handle legacy IDs
       const { data: statRecords } = await supabase
           .from('daily_statistics')
           .select('id, production, previous_balance')
@@ -474,7 +332,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           .in('product_id', safeProductIds);
 
       if (statRecords && statRecords.length > 0) {
-          const statRecord = statRecords[0]; // Take the first match
+          const statRecord = statRecords[0];
           const newInventory = (statRecord.previous_balance || 0) + (statRecord.production || 0) - totalSales;
           
           const updatePayload: any = {
@@ -483,13 +341,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
               updated_at: new Date().toISOString()
           };
 
-          let { error } = await supabase.from('daily_statistics').update(updatePayload).eq('id', statRecord.id);
-          
-          // Retry if updated_at is missing
-          if (error && error.code === 'PGRST204' && (error.message.includes('updated_at') || error.message.includes('column'))) {
-              delete updatePayload.updated_at;
-              await supabase.from('daily_statistics').update(updatePayload).eq('id', statRecord.id);
-          }
+          await supabase.from('daily_statistics').update(updatePayload).eq('id', statRecord.id);
       }
   }
 }));

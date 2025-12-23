@@ -29,9 +29,12 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-// Fixed: Using class fields for state to avoid constructor-related type inference issues in ErrorBoundary
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  state: ErrorBoundaryState = { hasError: false };
+// Fixed: Using explicit constructor and named Component import to resolve prop type inference issues
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
 
   static getDerivedStateFromError(_: Error): ErrorBoundaryState {
     return { hasError: true };
@@ -53,6 +56,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
         </div>
       );
     }
+    // Accessing children from props safely through inheritance fix
     return this.props.children;
   }
 }

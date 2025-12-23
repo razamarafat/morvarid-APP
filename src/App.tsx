@@ -1,26 +1,26 @@
 
 import React, { useEffect, Component, ErrorInfo, ReactNode, lazy, Suspense } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
-import SplashPage from './pages/SplashPage';
-import ProtectedRoute from './components/auth/ProtectedRoute';
-import { useThemeStore } from './store/themeStore';
-import { UserRole } from './types';
-import { useAuthStore } from './store/authStore';
-import { useFarmStore } from './store/farmStore';
-import { useStatisticsStore } from './store/statisticsStore';
-import { useInvoiceStore } from './store/invoiceStore';
-import { useUserStore } from './store/userStore';
-import { useAlertStore } from './store/alertStore';
-import { usePwaStore } from './store/pwaStore'; 
-import ConfirmDialog from './components/common/ConfirmDialog';
-import ToastContainer from './components/common/Toast';
+import SplashPage from '../pages/SplashPage';
+import ProtectedRoute from '../components/auth/ProtectedRoute';
+import { useThemeStore } from '../store/themeStore';
+import { UserRole } from '../types';
+import { useAuthStore } from '../store/authStore';
+import { useFarmStore } from '../store/farmStore';
+import { useStatisticsStore } from '../store/statisticsStore';
+import { useInvoiceStore } from '../store/invoiceStore';
+import { useUserStore } from '../store/userStore';
+import { useAlertStore } from '../store/alertStore';
+import { usePwaStore } from '../store/pwaStore'; 
+import ConfirmDialog from '../components/common/ConfirmDialog';
+import ToastContainer from '../components/common/Toast';
 
 // Lazy Load Pages to reduce initial bundle size
-const LoginPage = lazy(() => import('./pages/LoginPage'));
-const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
-const RegistrationDashboard = lazy(() => import('./pages/RegistrationDashboard'));
-// Note: Keeping existing import path structure
-const SalesDashboard = lazy(() => import('./components/sales/SalesDashboard'));
+const LoginPage = lazy(() => import('../pages/LoginPage'));
+const AdminDashboard = lazy(() => import('../pages/AdminDashboard'));
+const RegistrationDashboard = lazy(() => import('../pages/RegistrationDashboard'));
+// Corrected path for SalesDashboard
+const SalesDashboard = lazy(() => import('../components/sales/SalesDashboard'));
 
 // --- Error Boundary ---
 interface ErrorBoundaryProps {
@@ -31,9 +31,12 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-// Fixed: Using class fields for state and explicitly extending React.Component to resolve TypeScript errors for 'state' and 'props'
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  state: ErrorBoundaryState = { hasError: false };
+// Fixed: Using explicit constructor and named Component import to resolve prop type inference issues
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
 
   static getDerivedStateFromError(_: Error): ErrorBoundaryState {
     return { hasError: true };
@@ -55,7 +58,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
         </div>
       );
     }
-    // Correctly accessing props.children inherited from Component
+    // Accessing children from props safely through inheritance fix
     return this.props.children;
   }
 }
@@ -87,7 +90,6 @@ function App() {
   useEffect(() => {
       const init = async () => {
           await checkSession();
-          // Alert system can initialize early
           initListener();
           checkAndRequestPermission(); 
       };
@@ -108,16 +110,11 @@ function App() {
   // Unified Data Fetching Trigger
   useEffect(() => {
       if (user) {
-          // Fire all fetches in parallel when user is authenticated
-          const loadData = async () => {
-              // Non-blocking parallel execution
-              fetchFarms();
-              fetchProducts();
-              fetchStatistics();
-              fetchInvoices();
-              if (user.role === UserRole.ADMIN) fetchUsers();
-          };
-          loadData();
+          fetchFarms();
+          fetchProducts();
+          fetchStatistics();
+          fetchInvoices();
+          if (user.role === UserRole.ADMIN) fetchUsers();
       }
   }, [user]);
   
@@ -142,6 +139,7 @@ function App() {
             <Route path="/registration" element={<ProtectedRoute allowedRoles={[UserRole.REGISTRATION]}><RegistrationDashboard /></ProtectedRoute>} />
             <Route path="/sales" element={<ProtectedRoute allowedRoles={[UserRole.SALES]}><SalesDashboard /></ProtectedRoute>} />
             <Route path="/home" element={<HomeRedirect />} />
+            <Route path="*" element={<Navigate to="/home" />} />
           </Routes>
         </Suspense>
       </HashRouter>
