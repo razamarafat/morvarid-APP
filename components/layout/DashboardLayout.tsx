@@ -46,20 +46,24 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, onNa
           onNavigate={onNavigate}
       />
 
-      {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-h-0 w-full relative">
         
-        {/* Header */}
         <Header onMenuClick={handleToggleSidebar} title={title} />
         
-        {/* Scrollable Main Content */}
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-[#F3F3F3] dark:bg-[#1D1D1D]">
+        <main 
+          className="flex-1 overflow-x-hidden overflow-y-auto bg-[#F3F3F3] dark:bg-[#1D1D1D]"
+          data-scrollable="true"
+          style={{
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehavior: 'contain',
+            touchAction: 'pan-y'
+          }}
+        >
           <div className="container-fluid mx-auto px-4 py-6 md:px-10 md:py-10 pb-24 lg:pb-8 animate-in fade-in duration-500 max-w-full">
              {children}
           </div>
         </main>
 
-        {/* Mobile Bottom Navigation */}
         <MobileNav onNavigate={onNavigate} currentView={currentView} />
       </div>
     </div>
