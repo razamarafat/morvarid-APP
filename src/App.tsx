@@ -1,4 +1,3 @@
-
 import React, { useEffect, ErrorInfo, ReactNode, lazy, Suspense } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import SplashPage from '../pages/SplashPage';
@@ -14,17 +13,12 @@ import { useAlertStore } from '../store/alertStore';
 import { usePwaStore } from '../store/pwaStore'; 
 import ConfirmDialog from '../components/common/ConfirmDialog';
 import ToastContainer from '../components/common/Toast';
-// بعد از سایر import ها اضافه کنید:
-import UpdateNotification from '../components/common/UpdateNotification';
 
-// Lazy Load Pages to reduce initial bundle size
 const LoginPage = lazy(() => import('../pages/LoginPage'));
 const AdminDashboard = lazy(() => import('../pages/AdminDashboard'));
 const RegistrationDashboard = lazy(() => import('../pages/RegistrationDashboard'));
-// Corrected path for SalesDashboard
 const SalesDashboard = lazy(() => import('../components/sales/SalesDashboard'));
 
-// --- Error Boundary ---
 interface ErrorBoundaryProps {
   children?: ReactNode;
 }
@@ -33,9 +27,7 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-// Fix: Explicitly using React.Component and a constructor ensures TypeScript correctly identifies 'props' and 'state' as inherited members.
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  // Explicitly declaring state and props members to satisfy the TypeScript compiler when inheritance inference fails.
   public state: ErrorBoundaryState;
   public props: ErrorBoundaryProps;
 
@@ -54,7 +46,6 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 
   render(): ReactNode {
-    // Accessing props and state from the instance with destructuring via 'this'
     const { hasError } = this.state;
     const { children } = this.props;
 
@@ -74,7 +65,6 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 }
 
-// Simple Loading Component for Suspense
 const PageLoader = () => (
   <div className="flex flex-col items-center justify-center h-screen bg-[#F3F3F3] dark:bg-[#1D1D1D]">
     <div className="w-16 h-16 border-4 border-metro-blue border-t-transparent rounded-full animate-spin"></div>
@@ -97,18 +87,112 @@ function App() {
     document.documentElement.classList.add(theme);
   }, [theme]);
 
-  // Initial System Setup
   useEffect(() => {
-      const init = async () => {
-          await checkSession();
-          initListener();
-          checkAndRequestPermission(); 
-      };
-      init();
+    const init = async () => {
+      await checkSession();
+      initListener();
+      checkAndRequestPermission(); 
+    };
+    init();
 
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-      logEvent('Checking standalone mode', { isStandalone });
-      setIsInstalled(isStandalone);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    logEvent('Checking standalone mode', { isStandalone });
+    setIsInstalled(isStandalone);
+
+    const handleAppInstalled = () => {
+      logEvent('App installed event fired');
+      setIsInstalled(true);
+    };
+    window.addEventListener('appinstalled', handleAppInstalled);
+    return () => window.removeEventListener('appinstalled', handleAppInstalled);
+  }, []);
+
+  // جلوگیری از Pull-to-Refresh در حالت PWA
+  useEffect(() => {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches 
+      || window.matchMedia('(display-mode: fullscreen)').matches
+      || (window.navigator as any).standalone === true;
+    
+    if (!isStandalone) {
+      console.log('[PWA] Not in standalone mode, skip PTR prevention');
+      return;
+    }
+    
+    console.log('[PWA] Setting up pull-to-refresh prevention');
+    
+    let startY = 0;
+    
+    const handleTouchStart = (e: TouchEvent) => {
+      startY = e.touches[0].pageY;
+    };
+    
+    const handleTouchMove = (e: TouchEvent) => {
+      const root = document.getElementById('root');
+      if (!root) return;
+      
+      const scrollTop = root.scrollTop;
+      const y = e.touches[0].pageY;
+      const deltaY = y - startY;
+      
+      if (scrollTop <= 0 && deltaY > 5) {
+        e.preventDefault();
+        console.log('[PWA] Pull-to-refresh blocked');
+      }
+    };
+    
+    document.addEventListener('touchstart', handleTouchStart, { passive: true });
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    
+    console.log('[PWA] PTR prevention active');
+    
+    return () => {
+      document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchFarms();
+      fetchProducts();
+      fetchStatistics();
+      fetchInvoices();
+      if (user.role === UserRole.ADMIN) fetchUsers();
+    }
+  }, [user]);
+  
+  const HomeRedirect = () => {
+    if (!user) return <Navigate to="/login" />;
+    switch (user.role) {
+      case UserRole.ADMIN: return <Navigate to="/admin" />;
+      case UserRole.REGISTRATION: return <Navigate to="/registration" />;
+      case UserRole.SALES: return <Navigate to="/sales" />;
+      default: return <Navigate to="/login" />;
+    }
+  };
+
+  return (
+    <ErrorBoundary>
+      <HashRouter>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/" element={<SplashPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/admin" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN]}><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/registration" element={<ProtectedRoute allowedRoles={[UserRole.REGISTRATION]}><RegistrationDashboard /></ProtectedRoute>} />
+            <Route path="/sales" element={<ProtectedRoute allowedRoles={[UserRole.SALES]}><SalesDashboard /></ProtectedRoute>} />
+            <Route path="/home" element={<HomeRedirect />} />
+            <Route path="*" element={<Navigate to="/home" />} />
+          </Routes>
+        </Suspense>
+      </HashRouter>
+      <ConfirmDialog />
+      <ToastContainer />
+    </ErrorBoundary>
+  );
+}
+
+export default App;      setIsInstalled(isStandalone);
 
       const handleAppInstalled = () => {
           logEvent('App installed event fired');
