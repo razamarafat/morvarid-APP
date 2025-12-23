@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>سامانه مدیریت یکپارچه آمار مروارید</title>
    
-    <!-- PWA iOS Settings - تغییر یافته -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="مروارید">
@@ -98,6 +97,7 @@
         height: 100dvh;
         overscroll-behavior: none;
         -webkit-overflow-scrolling: auto;
+        touch-action: pan-y;
       }
      
       body {
@@ -111,7 +111,7 @@
         left: 0;
         margin: 0;
         padding: 0;
-        /* حذف شد: padding-top و padding-bottom */
+        touch-action: pan-y;
       }
 
       html, body {
@@ -131,9 +131,6 @@
      
       body {
         transition: background-color 0.2s ease;
-        -webkit-user-select: none;
-        user-select: none;
-        -webkit-touch-callout: none;
         text-rendering: optimizeSpeed;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
@@ -146,11 +143,27 @@
         overflow: hidden;
         display: flex;
         flex-direction: column;
+        touch-action: pan-y;
       }
 
-      input, textarea {
-        -webkit-user-select: text;
-        user-select: text;
+      /* اسکرول روان برای همه عناصر */
+      .overflow-y-auto, 
+      .overflow-auto,
+      main,
+      [data-scrollable] {
+        -webkit-overflow-scrolling: touch !important;
+        overscroll-behavior: contain;
+        touch-action: pan-y;
+      }
+
+      input, textarea, [contenteditable] {
+        -webkit-user-select: text !important;
+        user-select: text !important;
+        touch-action: manipulation;
+      }
+
+      button, a, [role="button"] {
+        touch-action: manipulation;
       }
 
       input::-webkit-outer-spin-button,
@@ -161,13 +174,6 @@
      
       input[type=number] {
         -moz-appearance: textfield;
-      }
-
-      .gpu-accelerated {
-        transform: translateZ(0);
-        backface-visibility: hidden;
-        perspective: 1000px;
-        will-change: transform, opacity;
       }
 
       .shimmer-bg {
@@ -187,7 +193,6 @@
         background: linear-gradient(105deg, transparent 20%, rgba(255,255,255,0.1) 40%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.1) 60%, transparent 80%);
         transform: translateX(-100%);
         animation: shimmer-transform 8s infinite linear;
-        will-change: transform;
       }
 
       @keyframes shimmer-transform {
@@ -202,7 +207,6 @@
         border-radius: inherit;
         pointer-events: none;
         z-index: 5;
-        transform: translateZ(0);
       }
      
       .strong-shine-overlay::before {
@@ -215,7 +219,6 @@
         background: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.3) 50%, transparent 60%);
         transform: translateX(-150%) skewX(-20deg);
         animation: shine-slide 4s infinite linear;
-        will-change: transform;
       }
      
       @keyframes shine-slide {
@@ -243,7 +246,6 @@
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
       }
 
-      /* Safe Area Classes for Fullscreen PWA */
       .pt-safe {
         padding-top: env(safe-area-inset-top);
       }
@@ -257,7 +259,6 @@
         margin-bottom: env(safe-area-inset-bottom);
       }
 
-      /* App Container - handles fullscreen properly */
       .app-container {
         display: flex;
         flex-direction: column;
@@ -301,20 +302,25 @@
     <script type="module" src="/index.tsx"></script>
     <script>
       (function() {
-        // Fullscreen PWA - prevent pull to refresh
+        // Prevent pull-to-refresh ONLY at document level
         if (!window.matchMedia('(display-mode: standalone)').matches && 
             !window.matchMedia('(display-mode: fullscreen)').matches) return;
         
-        let startY = 0;
-        document.addEventListener('touchstart', function(e) { 
-          startY = e.touches[0].pageY; 
+        let lastY = 0;
+        
+        document.addEventListener('touchstart', function(e) {
+          lastY = e.touches[0].clientY;
         }, { passive: true });
         
         document.addEventListener('touchmove', function(e) {
-          var root = document.getElementById('root');
-          if (root && root.scrollTop <= 0 && e.touches[0].pageY - startY > 5) {
+          const currentY = e.touches[0].clientY;
+          
+          // فقط در صورتی که کاربر در بالای صفحه است و به سمت پایین می‌کشد
+          if (window.scrollY === 0 && currentY > lastY) {
             e.preventDefault();
           }
+          
+          lastY = currentY;
         }, { passive: false });
       })();
     </script>
