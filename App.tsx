@@ -1,3 +1,4 @@
+
 import React, { useEffect, Component, ErrorInfo, ReactNode, lazy, Suspense } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import SplashPage from './pages/SplashPage';
@@ -30,9 +31,12 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-// Fixed: Use React.Component explicit inheritance and property initialization
+// Fixed: Explicitly use React.Component and provide a constructor to correctly type 'this.props' in TypeScript
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  state: ErrorBoundaryState = { hasError: false };
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
 
   static getDerivedStateFromError(_: Error): ErrorBoundaryState {
     return { hasError: true };
@@ -54,6 +58,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
         </div>
       );
     }
+    // Correctly accessing props.children inherited from Component
     return this.props.children;
   }
 }

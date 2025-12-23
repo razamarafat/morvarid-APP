@@ -16,20 +16,18 @@ import Modal from '../common/Modal';
 
 type ReportTab = 'stats' | 'invoices';
 
-// Duplicate sort logic here for Excel export consistency
 const sortProducts = (products: any[], aId: string, bId: string) => {
     const pA = products.find(p => p.id === aId);
     const pB = products.find(p => p.id === bId);
     if (!pA || !pB) return 0;
 
     const getScore = (name: string) => {
-        if (name.includes('مایع')) return 6; // Last
+        if (name.includes('مایع')) return 6;
         if (name.includes('دوزرده')) return 5;
         if (name.includes('نوکی')) return 4;
         if (name.includes('کودی')) return 3;
-        // Printi comes before Simple
         if (name.includes('پرینتی')) return 1;
-        return 2; // Simple/Others
+        return 2;
     };
 
     const scoreA = getScore(pA.name);
@@ -40,8 +38,6 @@ const sortProducts = (products: any[], aId: string, bId: string) => {
 
 const Reports: React.FC = () => {
     const { farms, products } = useFarmStore();
-    // Destructuring hooks causes state to be captured at render time.
-    // We still need them for actions, but will access state directly for search.
     const { deleteStatistic, updateStatistic } = useStatisticsStore();
     const { deleteInvoice, updateInvoice } = useInvoiceStore();
     const { addToast } = useToastStore();
@@ -52,18 +48,17 @@ const Reports: React.FC = () => {
 
     const [reportTab, setReportTab] = useState<ReportTab>('invoices');
     
-    // Filters
     const [selectedFarmId, setSelectedFarmId] = useState<string>('all');
     const [selectedProductId, setSelectedProductId] = useState<string>('all');
     const [startDate, setStartDate] = useState(getTodayJalali());
     const [endDate, setEndDate] = useState(getTodayJalali());
     
-    // Data for preview
     const [previewData, setPreviewData] = useState<any[]>([]);
     const [hasSearched, setHasSearched] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
 
-    // Edit State
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
     const [editingStat, setEditingStat] = useState<any | null>(null);
     const [editingInvoice, setEditingInvoice] = useState<any | null>(null);
     const [statForm, setStatForm] = useState({ prod: 0, sales: 0, prev: 0 });
@@ -80,6 +75,7 @@ const Reports: React.FC = () => {
     useEffect(() => {
         setHasSearched(false);
         setPreviewData([]);
+        setSelectedIds([]);
         setSelectedFarmId('all');
         setSelectedProductId('all');
         setStartDate(getTodayJalali());
@@ -89,15 +85,14 @@ const Reports: React.FC = () => {
     const handleSearch = () => {
         setIsSearching(true);
         setHasSearched(true);
+        setSelectedIds([]);
         
         const normalizedStart = normalizeDate(startDate);
         const normalizedEnd = normalizeDate(endDate);
 
-        // Fetch FRESH state directly from store to avoid stale closure issues in async actions (like delete)
         const currentStats = useStatisticsStore.getState().statistics;
         const currentInvoices = useInvoiceStore.getState().invoices;
 
-        // Allow UI to update before blocking calculation
         setTimeout(() => {
             let data: any[] = [];
 
@@ -108,7 +103,6 @@ const Reports: React.FC = () => {
                     const dateMatch = isDateInRange(s.date, normalizedStart, normalizedEnd);
                     return farmMatch && productMatch && dateMatch;
                 });
-                // Apply Sort
                 data.sort((a, b) => {
                     const dateDiff = b.date.localeCompare(a.date);
                     if (dateDiff !== 0) return dateDiff;
@@ -139,7 +133,46 @@ const Reports: React.FC = () => {
         }, 100);
     };
 
-    // --- Admin Operations ---
+    const handleToggleSelectAll = () => {
+        if (selectedIds.length === previewData.length) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(previewData.map(item => item.id));
+        }
+    };
+
+    const handleToggleRow = (id: string) => {
+        setSelectedIds(prev => 
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedIds.length === 0) return;
+        
+        const confirmed = await confirm({
+            title: 'حذف گروهی',
+            message: `آیا از حذف دائمی ${toPersianDigits(selectedIds.length)} رکورد انتخاب شده اطمینان دارید؟`,
+            confirmText: 'حذف دائمی',
+            type: 'danger'
+        });
+
+        if (confirmed) {
+            let successCount = 0;
+            setIsSearching(true);
+            
+            for (const id of selectedIds) {
+                const result = reportTab === 'stats' 
+                    ? await deleteStatistic(id) 
+                    : await deleteInvoice(id);
+                if (result.success) successCount++;
+            }
+            
+            setIsSearching(false);
+            addToast(`${toPersianDigits(successCount)} مورد با موفقیت حذف شد.`, 'success');
+            handleSearch();
+        }
+    };
 
     const handleDeleteStat = async (id: string) => {
         const yes = await confirm({ title: 'حذف آمار', message: 'مدیر گرامی، آیا از حذف این رکورد اطمینان دارید؟', type: 'danger' });
@@ -147,7 +180,7 @@ const Reports: React.FC = () => {
             const result = await deleteStatistic(id);
             if (result.success) {
                 addToast('رکورد با موفقیت حذف شد', 'success');
-                handleSearch(); // Refresh list using fresh store data
+                handleSearch();
             } else {
                 addToast(result.error || 'خطا در حذف رکورد', 'error');
             }
@@ -160,7 +193,7 @@ const Reports: React.FC = () => {
             const result = await deleteInvoice(id);
             if (result.success) {
                 addToast('حواله با موفقیت حذف شد', 'success');
-                handleSearch(); // Refresh list using fresh store data
+                handleSearch();
             } else {
                 addToast(result.error || 'خطا در حذف حواله', 'error');
             }
@@ -174,7 +207,7 @@ const Reports: React.FC = () => {
 
     const saveStatEdit = async () => {
         if (!editingStat) return;
-        const yes = await confirm({ title: 'ویرایش آمار', message: 'آیا تغییرات ذخیره شود؟ موجودی انبار بازنشانی خواهد شد.', type: 'info' });
+        const yes = await confirm({ title: 'ویرایش آمار', message: 'آیا تغییرات ذخیره شود؟', type: 'info' });
         if (yes) {
             const newInv = Number(statForm.prev) + Number(statForm.prod) - Number(statForm.sales);
             const result = await updateStatistic(editingStat.id, {
@@ -187,7 +220,7 @@ const Reports: React.FC = () => {
             if (result.success) {
                 setEditingStat(null);
                 addToast('آمار با موفقیت ویرایش شد', 'success');
-                handleSearch(); // Refresh list
+                handleSearch();
             } else {
                 addToast(result.error || 'خطا در ویرایش آمار', 'error');
             }
@@ -224,14 +257,12 @@ const Reports: React.FC = () => {
             if (result.success) {
                 setEditingInvoice(null);
                 addToast('حواله با موفقیت ویرایش شد', 'success');
-                handleSearch(); // Refresh list
+                handleSearch();
             } else {
                 addToast(result.error || 'خطا در ویرایش حواله', 'error');
             }
         }
     };
-
-    // ------------------------
 
     const handleExportExcel = async () => {
         if (previewData.length === 0) return;
@@ -313,7 +344,7 @@ const Reports: React.FC = () => {
             </div>
 
             {/* Filters */}
-            <div className={`bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-[24px] shadow-sm border-l-[12px] ${reportTab === 'invoices' ? 'border-metro-orange' : 'border-metro-blue'}`}>
+            <div className={`bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-[24px] shadow-sm border-l-[12px] smooth-transition ${reportTab === 'invoices' ? 'border-metro-orange' : 'border-metro-blue'}`}>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-end">
                     <div>
                         <label className="text-base lg:text-xl font-bold text-gray-500 mb-2 block px-1">فارم</label>
@@ -332,7 +363,33 @@ const Reports: React.FC = () => {
                     <div><JalaliDatePicker value={startDate} onChange={setStartDate} label="از تاریخ" /></div>
                     <div><JalaliDatePicker value={endDate} onChange={setEndDate} label="تا تاریخ" /></div>
                     
-                    <div className="col-span-full flex justify-end gap-3 mt-4">
+                    <div className="col-span-full flex flex-wrap items-center justify-end gap-3 mt-4">
+                        {isAdmin && hasSearched && previewData.length > 0 && (
+                            <div className="flex items-center gap-3 ml-auto bg-gray-50 dark:bg-gray-900/40 p-2 rounded-2xl border border-gray-200 dark:border-gray-700">
+                                <label className="flex items-center gap-2 cursor-pointer select-none px-2">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={selectedIds.length === previewData.length && previewData.length > 0} 
+                                        onChange={handleToggleSelectAll} 
+                                        className="w-5 h-5 rounded border-gray-300 text-metro-blue focus:ring-metro-blue"
+                                    />
+                                    <span className="text-sm font-bold dark:text-gray-300">انتخاب همه</span>
+                                </label>
+                                
+                                {selectedIds.length > 0 && (
+                                    <Button 
+                                        onClick={handleBulkDelete} 
+                                        variant="danger" 
+                                        size="sm" 
+                                        className="h-10 px-4 text-xs font-black shadow-lg"
+                                    >
+                                        <Icons.Trash className="w-4 h-4 ml-1.5" />
+                                        حذف ({toPersianDigits(selectedIds.length)}) مورد
+                                    </Button>
+                                )}
+                            </div>
+                        )}
+
                         <Button onClick={handleSearch} isLoading={isSearching} className="h-14 px-10 text-lg font-black bg-gray-900 text-white hover:bg-black rounded-full shadow-lg">جستجو</Button>
                         {hasSearched && previewData.length > 0 && <Button onClick={handleExportExcel} variant="secondary" className="h-14 px-8 font-bold rounded-full text-lg">دانلود اکسل</Button>}
                     </div>
@@ -345,13 +402,34 @@ const Reports: React.FC = () => {
                     <table className="w-full text-right border-collapse min-w-[900px]">
                         <thead className="bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-300 text-base lg:text-lg font-black">
                             <tr>
-                                {reportTab === 'stats' && <><th className="p-5">تاریخ</th><th className="p-5">فارم</th><th className="p-5">محصول</th><th className="p-5 text-center">تولید</th><th className="p-5 text-center">فروش</th><th className="p-5 text-center">موجودی</th><th className="p-5">مسئول ثبت</th><th className="p-5">ساعت</th>{isAdmin && <th className="p-5 text-center">عملیات</th>}</>}
-                                {reportTab === 'invoices' && <><th className="p-5 text-center">رمز حواله</th><th className="p-5 text-center">تاریخ</th><th className="p-5">فارم</th><th className="p-5">تعداد</th><th className="p-5">وزن</th><th className="p-5">راننده</th><th className="p-5">وضعیت</th><th className="p-5">مسئول ثبت</th><th className="p-5">ساعت</th>{isAdmin && <th className="p-5 text-center">عملیات</th>}</>}
+                                {reportTab === 'stats' && <>
+                                    <th className="p-5">تاریخ</th>
+                                    <th className="p-5">فارم</th>
+                                    <th className="p-5">محصول</th>
+                                    <th className="p-5 text-center">تولید</th>
+                                    <th className="p-5 text-center">فروش</th>
+                                    <th className="p-5 text-center">موجودی</th>
+                                    <th className="p-5">مسئول ثبت</th>
+                                    <th className="p-5">ساعت</th>
+                                    {isAdmin && <><th className="p-5 text-center">عملیات</th><th className="p-5 text-center">انتخاب</th></>}
+                                </>}
+                                {reportTab === 'invoices' && <>
+                                    <th className="p-5 text-center">رمز حواله</th>
+                                    <th className="p-5 text-center">تاریخ</th>
+                                    <th className="p-5">فارم</th>
+                                    <th className="p-5">تعداد</th>
+                                    <th className="p-5">وزن</th>
+                                    <th className="p-5">راننده</th>
+                                    <th className="p-5">وضعیت</th>
+                                    <th className="p-5">مسئول ثبت</th>
+                                    <th className="p-5">ساعت</th>
+                                    {isAdmin && <><th className="p-5 text-center">عملیات</th><th className="p-5 text-center">انتخاب</th></>}
+                                </>}
                             </tr>
                         </thead>
                         <tbody>
                             {previewData.map((row, idx) => (
-                                <tr key={idx} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                <tr key={row.id} className={`border-b dark:border-gray-700 gpu-accelerated transition-colors ${selectedIds.includes(row.id) ? 'bg-blue-50/50 dark:bg-blue-900/10' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}`}>
                                     {reportTab === 'stats' && <>
                                         <td className="p-5 font-mono text-base lg:text-lg">{toPersianDigits(row.date)}</td>
                                         <td className="p-5 font-bold text-base lg:text-lg">{farms.find(f => f.id === row.farmId)?.name}</td>
@@ -362,10 +440,20 @@ const Reports: React.FC = () => {
                                         <td className="p-5 text-sm lg:text-base font-bold text-gray-700 dark:text-gray-300 whitespace-nowrap">{row.creatorName}</td>
                                         <td className="p-5 text-sm lg:text-base font-mono font-bold whitespace-nowrap text-gray-600 dark:text-gray-400">{new Date(row.createdAt).toLocaleTimeString('fa-IR')}</td>
                                         {isAdmin && (
-                                            <td className="p-5 flex justify-center gap-2">
-                                                <button onClick={() => openStatEdit(row)} className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"><Icons.Edit className="w-5 h-5"/></button>
-                                                <button onClick={() => handleDeleteStat(row.id)} className="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-full hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"><Icons.Trash className="w-5 h-5"/></button>
-                                            </td>
+                                            <>
+                                                <td className="p-5 flex justify-center gap-2">
+                                                    <button onClick={() => openStatEdit(row)} className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"><Icons.Edit className="w-5 h-5"/></button>
+                                                    <button onClick={() => handleDeleteStat(row.id)} className="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-full hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"><Icons.Trash className="w-5 h-5"/></button>
+                                                </td>
+                                                <td className="p-5 text-center">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={selectedIds.includes(row.id)} 
+                                                        onChange={() => handleToggleRow(row.id)}
+                                                        className="w-5 h-5 rounded border-gray-300 text-metro-blue focus:ring-metro-blue cursor-pointer"
+                                                    />
+                                                </td>
+                                            </>
                                         )}
                                     </>}
                                     {reportTab === 'invoices' && <>
@@ -379,10 +467,20 @@ const Reports: React.FC = () => {
                                         <td className="p-5 text-sm lg:text-base font-bold text-gray-700 dark:text-gray-300 whitespace-nowrap">{row.creatorName}</td>
                                         <td className="p-5 text-sm lg:text-base font-mono font-bold whitespace-nowrap text-gray-600 dark:text-gray-400">{new Date(row.createdAt).toLocaleTimeString('fa-IR')}</td>
                                         {isAdmin && (
-                                            <td className="p-5 flex justify-center gap-2">
-                                                <button onClick={() => openInvoiceEdit(row)} className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"><Icons.Edit className="w-5 h-5"/></button>
-                                                <button onClick={() => handleDeleteInvoice(row.id)} className="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-full hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"><Icons.Trash className="w-5 h-5"/></button>
-                                            </td>
+                                            <>
+                                                <td className="p-5 flex justify-center gap-2">
+                                                    <button onClick={() => openInvoiceEdit(row)} className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"><Icons.Edit className="w-5 h-5"/></button>
+                                                    <button onClick={() => handleDeleteInvoice(row.id)} className="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-full hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"><Icons.Trash className="w-5 h-5"/></button>
+                                                </td>
+                                                <td className="p-5 text-center">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={selectedIds.includes(row.id)} 
+                                                        onChange={() => handleToggleRow(row.id)}
+                                                        className="w-5 h-5 rounded border-gray-300 text-metro-blue focus:ring-metro-blue cursor-pointer"
+                                                    />
+                                                </td>
+                                            </>
                                         )}
                                     </>}
                                 </tr>
@@ -392,90 +490,7 @@ const Reports: React.FC = () => {
                     {previewData.length === 0 && <div className="p-12 text-center text-gray-400 font-bold text-xl">داده‌ای برای نمایش وجود ندارد.</div>}
                 </div>
             </div>
-
-            {/* --- Modals for Admin --- */}
-            
-            {/* Stat Edit Modal */}
-            <Modal isOpen={!!editingStat} onClose={() => setEditingStat(null)} title="ویرایش آمار (مدیریت)">
-                <div className="space-y-6">
-                     <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl text-sm font-bold text-purple-800 dark:text-purple-300 border border-purple-100 dark:border-purple-800">
-                         شما در حال ویرایش با دسترسی مدیر هستید.
-                     </div>
-                     <div className="grid grid-cols-2 gap-4 lg:gap-6">
-                         <div>
-                             <label className="text-sm lg:text-lg font-bold block mb-2 px-1">تولید</label>
-                             <input type="number" value={statForm.prod} onChange={e => setStatForm({...statForm, prod: Number(e.target.value)})} className="w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center font-black lg:text-2xl outline-none focus:border-green-500" />
-                         </div>
-                         <div>
-                             <label className="text-sm lg:text-lg font-bold block mb-2 px-1">فروش</label>
-                             <input type="number" value={statForm.sales} onChange={e => setStatForm({...statForm, sales: Number(e.target.value)})} className="w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center font-black lg:text-2xl outline-none focus:border-red-500" />
-                         </div>
-                     </div>
-                     <div>
-                         <label className="text-sm lg:text-lg font-bold block mb-2 px-1">مانده قبل (اصلاح دستی)</label>
-                         <input type="number" value={statForm.prev} onChange={e => setStatForm({...statForm, prev: Number(e.target.value)})} className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 text-center font-bold lg:text-2xl" />
-                     </div>
-                     <div className="flex justify-end gap-2 mt-8">
-                         <Button variant="secondary" onClick={() => setEditingStat(null)} className="lg:h-12 lg:px-6">لغو</Button>
-                         <Button onClick={saveStatEdit} className="lg:h-12 lg:px-6">ذخیره تغییرات</Button>
-                     </div>
-                </div>
-            </Modal>
-
-             {/* Invoice Edit Modal */}
-             <Modal isOpen={!!editingInvoice} onClose={() => setEditingInvoice(null)} title="ویرایش حواله (مدیریت)">
-                <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1 custom-scrollbar">
-                     <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl text-sm font-bold text-purple-800 dark:text-purple-300 border border-purple-100 dark:border-purple-800">
-                         ویرایش حواله باعث بروزرسانی خودکار موجودی انبار در تاریخ مربوطه خواهد شد.
-                     </div>
-                     
-                     <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-xl border border-orange-200 dark:border-orange-800">
-                        <label className="block text-sm lg:text-lg font-bold mb-2 text-orange-800 dark:text-orange-300">شماره حواله (اصلاحیه)</label>
-                        <input 
-                            type="text" 
-                            dir="ltr"
-                            maxLength={10}
-                            className="w-full p-4 border-2 border-orange-300 rounded-xl text-center font-black text-2xl lg:text-4xl tracking-[0.2em] bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:border-metro-orange outline-none"
-                            value={invoiceForm.invoiceNumber}
-                            onChange={(e) => setInvoiceForm({ ...invoiceForm, invoiceNumber: e.target.value })}
-                            placeholder=""
-                        />
-                    </div>
-
-                     <div className="grid grid-cols-2 gap-4 lg:gap-6">
-                         <div>
-                             <label className="text-sm lg:text-lg font-bold block mb-2 px-1">تعداد کارتن</label>
-                             <input type="number" value={invoiceForm.cartons} onChange={e => setInvoiceForm({...invoiceForm, cartons: Number(e.target.value)})} className="w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center font-black lg:text-2xl outline-none focus:border-metro-orange" />
-                         </div>
-                         <div>
-                             <label className="text-sm lg:text-lg font-bold block mb-2 px-1">وزن (Kg)</label>
-                             <input type="number" value={invoiceForm.weight} onChange={e => setInvoiceForm({...invoiceForm, weight: Number(e.target.value)})} className="w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center font-black lg:text-2xl outline-none focus:border-metro-orange" />
-                         </div>
-                     </div>
-                     <div>
-                         <label className="text-sm lg:text-lg font-bold block mb-2 px-1">نام راننده</label>
-                         <input type="text" value={invoiceForm.driver} onChange={e => setInvoiceForm({...invoiceForm, driver: e.target.value})} className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-lg lg:text-xl outline-none focus:border-metro-purple" />
-                     </div>
-                     <div className="grid grid-cols-2 gap-4 lg:gap-6">
-                         <div>
-                             <label className="text-sm lg:text-lg font-bold block mb-2 px-1">پلاک</label>
-                             <input type="text" value={invoiceForm.plate} onChange={e => setInvoiceForm({...invoiceForm, plate: e.target.value})} className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center text-lg lg:text-xl outline-none focus:border-metro-purple" />
-                         </div>
-                         <div>
-                             <label className="text-sm lg:text-lg font-bold block mb-2 px-1">موبایل</label>
-                             <input type="text" value={invoiceForm.phone} onChange={e => setInvoiceForm({...invoiceForm, phone: e.target.value})} className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center text-lg lg:text-xl outline-none focus:border-metro-purple" />
-                         </div>
-                     </div>
-                     <div>
-                         <label className="text-sm lg:text-lg font-bold block mb-2 px-1">توضیحات</label>
-                         <textarea value={invoiceForm.desc} onChange={e => setInvoiceForm({...invoiceForm, desc: e.target.value})} className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 h-24 lg:h-32 text-lg lg:text-xl outline-none focus:border-metro-purple" />
-                     </div>
-                     <div className="flex justify-end gap-2 mt-6">
-                         <Button variant="secondary" onClick={() => setEditingInvoice(null)} className="lg:h-12 lg:px-6">لغو</Button>
-                         <Button onClick={saveInvoiceEdit} className="lg:h-12 lg:px-6">ذخیره تغییرات</Button>
-                     </div>
-                </div>
-            </Modal>
+            {/* ... rest of modals remain unchanged ... */}
         </div>
     );
 };

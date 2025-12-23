@@ -42,7 +42,6 @@
                 dark: '#1D1D1D',
                 gray: '#555555'
               },
-              // M3 Tonal Palettes (Approximated for Tailwind)
               m3: {
                 surface: '#FDFBFF',
                 surfaceVariant: '#E7E0EC',
@@ -60,8 +59,8 @@
             },
             keyframes: {
               wiggle: {
-                '0%, 100%': { transform: 'rotate(-3deg)' },
-                '50%': { transform: 'rotate(3deg)' },
+                '0%, 100%': { transform: 'rotate(-3deg) translateZ(0)' },
+                '50%': { transform: 'rotate(3deg) translateZ(0)' },
               }
             },
             borderRadius: {
@@ -78,42 +77,40 @@
     <style>
       /* M3 Base Styles */
       * {
-        -webkit-tap-highlight-color: transparent; /* Remove blue highlight on mobile tap */
+        -webkit-tap-highlight-color: transparent;
       }
       
-      /* GLOBAL FONT OVERRIDE - FORCE VAZIR EVERYWHERE */
       body, input, textarea, select, button, table, .font-sans, .font-mono, [class*="text-"] {
         font-family: 'Vazir', sans-serif !important;
       }
       
-      /* HIDE SCROLLBAR GLOBALLY BUT KEEP FUNCTIONALITY */
       html, body, div, main, section, table, ul, ol {
-        scrollbar-width: none; /* Firefox */
-        -ms-overflow-style: none; /* IE/Edge */
+        scrollbar-width: none;
+        -ms-overflow-style: none;
       }
       ::-webkit-scrollbar {
-        display: none; /* Chrome/Safari/Opera */
+        display: none;
         width: 0px;
         height: 0px;
         background: transparent;
       }
       
-      /* App-like behavior: Prevent pull-to-refresh and selection */
       body {
         transition: background-color 0.3s ease, color 0.3s ease;
-        overscroll-behavior-y: none; /* Disables pull-to-refresh */
-        -webkit-user-select: none; /* Disable text selection */
+        overscroll-behavior-y: none;
+        -webkit-user-select: none;
         user-select: none;
         -webkit-touch-callout: none;
+        /* Performance boost */
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
       }
 
-      /* Allow selection in inputs */
       input, textarea {
         -webkit-user-select: text;
         user-select: text;
       }
       
-      /* Input autofill fix for dark mode */
       input:-webkit-autofill,
       input:-webkit-autofill:hover, 
       input:-webkit-autofill:focus, 
@@ -123,7 +120,6 @@
           border-radius: 12px;
       }
       
-      /* Light mode autofill fix */
       html.light input:-webkit-autofill,
       html.light input:-webkit-autofill:hover, 
       html.light input:-webkit-autofill:focus, 
@@ -133,7 +129,6 @@
           border-radius: 12px;
       }
 
-      /* Hide Number Input Spinners (Arrows) */
       input[type=number]::-webkit-inner-spin-button, 
       input[type=number]::-webkit-outer-spin-button { 
         -webkit-appearance: none; 
@@ -143,44 +138,42 @@
         -moz-appearance: textfield;
       }
 
-      /* --- ANIMATIONS --- */
+      /* --- OPTIMIZED ANIMATIONS (GPU ACCELERATED) --- */
       @keyframes metro-shine {
-          0% { left: -100%; opacity: 0; }
+          0% { transform: translateX(-150%) skewX(-25deg); opacity: 0; }
           20% { opacity: 0.3; }
-          100% { left: 200%; opacity: 0; }
+          100% { transform: translateX(250%) skewX(-25deg); opacity: 0; }
       }
       
       @keyframes metro-flow {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
+          0% { opacity: 0.05; transform: scale(1) translateZ(0); }
+          50% { opacity: 0.15; transform: scale(1.05) translateZ(0); }
+          100% { opacity: 0.05; transform: scale(1) translateZ(0); }
       }
 
       .metro-shine-overlay {
           position: absolute;
           top: 0;
-          left: -100%;
+          left: 0;
           width: 60%;
           height: 100%;
           background: linear-gradient(to right, transparent, rgba(255,255,255,0.25), transparent);
-          transform: skewX(-25deg);
           animation: metro-shine 5s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
           pointer-events: none;
           z-index: 5;
+          will-change: transform;
       }
 
-      /* New: Modern animated background flow */
       .metro-flow-overlay {
           position: absolute;
           inset: 0;
-          background: linear-gradient(45deg, rgba(255,255,255,0.05), rgba(255,255,255,0.1), rgba(255,255,255,0.05));
-          background-size: 200% 200%;
-          animation: metro-flow 8s ease infinite;
+          background: radial-gradient(circle at center, rgba(255,255,255,0.1), transparent 70%);
+          animation: metro-flow 8s ease-in-out infinite;
           pointer-events: none;
           z-index: 1;
+          will-change: opacity, transform;
       }
 
-      /* --- SEAMLESS SHINY TEXT EFFECT --- */
       @keyframes text-shine-loop {
         0% { background-position: 0% center; }
         100% { background-position: 200% center; }
@@ -191,38 +184,33 @@
         -webkit-background-clip: text;
         background-clip: text;
         -webkit-text-fill-color: transparent;
-        animation: text-shine-loop 4s linear infinite; /* Slower, linear, infinite loop */
+        animation: text-shine-loop 4s linear infinite;
         display: inline-block;
         font-weight: 900;
         vertical-align: middle;
-        /* Ensure background covers enough space for loop */
         background-size: 200% auto;
+        will-change: background-position;
       }
 
-      /* Dark Mode Text Shine: Seamless Loop */
       html.dark .shiny-text {
-        /* Gradient pattern: Base -> Shine -> Base. Matched ends for looping */
-        background-image: linear-gradient(to right, 
-          #ffffff 0%, 
-          #2D89EF 25%, 
-          #ffffff 50%, 
-          #2D89EF 75%, 
-          #ffffff 100%
-        );
-        text-shadow: 0 0 15px rgba(45, 137, 239, 0.4);
+        background-image: linear-gradient(to right, #ffffff 0%, #2D89EF 25%, #ffffff 50%, #2D89EF 75%, #ffffff 100%);
+        text-shadow: 0 0 15px rgba(45, 137, 239, 0.2);
       }
 
-      /* Light Mode Text Shine: Seamless Loop */
       html.light .shiny-text {
-        background-image: linear-gradient(to right, 
-          #1a1a1a 0%, 
-          #2D89EF 25%, 
-          #1a1a1a 50%, 
-          #2D89EF 75%, 
-          #1a1a1a 100%
-        );
+        background-image: linear-gradient(to right, #1a1a1a 0%, #2D89EF 25%, #1a1a1a 50%, #2D89EF 75%, #1a1a1a 100%);
       }
 
+      /* Transitions Smoothing */
+      .smooth-transition {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      
+      .gpu-accelerated {
+        transform: translateZ(0);
+        backface-visibility: hidden;
+        perspective: 1000px;
+      }
     </style>
   <script type="importmap">
 {

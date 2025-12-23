@@ -20,16 +20,16 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm"
             onClick={onClose}
           />
           <motion.div
-            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            initial={{ opacity: 0, y: 30, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-            // M3 Dialog: rounded-[28px], bg-surface, elevation-3
-            className="relative bg-[#FDFBFF] dark:bg-[#2B2930] rounded-[28px] shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] overflow-hidden"
+            exit={{ opacity: 0, y: 20, scale: 0.98 }}
+            transition={{ type: 'tween', duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+            className="relative bg-[#FDFBFF] dark:bg-[#2B2930] rounded-[28px] shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] overflow-hidden gpu-accelerated"
           >
             <header className="flex items-center justify-between px-6 pt-6 pb-4">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{title}</h2>
@@ -50,10 +50,6 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer 
                 {footer}
               </footer>
             )}
-            {/* If no footer prop is passed, sometimes children include buttons. 
-                But for pure M3 structure, actions are usually separate. 
-                We keep existing structure where children often contain form actions 
-                but ensure padding is consistent. */}
           </motion.div>
         </div>
       )}

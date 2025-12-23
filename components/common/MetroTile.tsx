@@ -31,10 +31,10 @@ const MetroTile: React.FC<MetroTileProps> = ({
   return (
     <motion.div
       whileHover={{ scale: 0.98, y: -2 }}
-      whileTap={{ scale: 0.95 }}
+      whileTap={{ scale: 0.96 }}
+      transition={{ type: 'tween', duration: 0.2, ease: 'easeOut' }}
       onClick={onClick}
-      // M3 Update: rounded-[28px] (Extra Large Shape) for containers
-      className={`${sizeClasses[size]} ${color} relative p-5 lg:p-7 flex flex-col justify-between cursor-pointer select-none overflow-hidden group rounded-[28px] shadow-sm hover:shadow-xl transition-shadow ${className}`}
+      className={`${sizeClasses[size]} ${color} relative p-5 lg:p-7 flex flex-col justify-between cursor-pointer select-none overflow-hidden group rounded-[28px] shadow-sm hover:shadow-xl transition-shadow gpu-accelerated ${className}`}
     >
         <div className="metro-flow-overlay" />
         <div className="metro-shine-overlay" />
