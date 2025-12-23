@@ -12,9 +12,9 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="مروارید">
     <meta name="mobile-web-app-capable" content="yes">
-    <link rel="apple-touch-icon" href="/vite.svg">
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
     <meta name="theme-color" content="#2D89EF">
-    <link rel="manifest" href="/manifest.json">
+    <link rel="manifest" href="/manifest.webmanifest">
 
     <!-- Fonts and Styles -->
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/font-face.css" rel="stylesheet" type="text/css" />
@@ -119,7 +119,6 @@
         user-select: text;
       }
 
-      /* TASK: Remove input number spinners (up/down arrows) */
       input::-webkit-outer-spin-button,
       input::-webkit-inner-spin-button {
         -webkit-appearance: none;
@@ -129,7 +128,6 @@
         -moz-appearance: textfield;
       }
 
-      /* Performance classes */
       .gpu-accelerated {
         transform: translateZ(0);
         backface-visibility: hidden;
@@ -137,7 +135,6 @@
         will-change: transform, opacity;
       }
 
-      /* Optimized keyframes */
       @keyframes metro-shine {
           0% { transform: translateX(-150%) skewX(-25deg); }
           100% { transform: translateX(250%) skewX(-25deg); }
@@ -169,7 +166,6 @@
           will-change: opacity, transform;
       }
 
-      /* Shiny Text: Uses transform instead of background-position for 60FPS */
       .shiny-text {
         position: relative;
         display: inline-block;
@@ -221,7 +217,8 @@
     "zod": "https://esm.sh/zod@^4.2.1",
     "xlsx": "https://esm.sh/xlsx@^0.18.5",
     "react-hook-form": "https://esm.sh/react-hook-form@^7.69.0",
-    "path": "https://esm.sh/path@^0.12.7"
+    "path": "https://esm.sh/path@^0.12.7",
+    "vite-plugin-pwa": "https://esm.sh/vite-plugin-pwa@^1.2.0"
   }
 }
 </script>

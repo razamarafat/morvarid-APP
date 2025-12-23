@@ -18,7 +18,7 @@ interface StatCardProps {
     stat: DailyStatistic;
     getProductName: (id: string) => string;
     getProductUnit: (id: string) => string;
-    isEditable: (createdAt?: number) => boolean;
+    isEditable: boolean; // ✅ Changed to a simple boolean
     onEdit: (stat: DailyStatistic) => void;
     onDelete: (id: string) => void;
 }
@@ -32,7 +32,8 @@ const StatCard: React.FC<StatCardProps> = ({ stat, getProductName, getProductUni
             </div>
             
             <div className="flex gap-2">
-                {isEditable(stat.createdAt) ? (
+                {/* ✅ PERMISSION CHECK */}
+                {isEditable ? (
                     <>
                         <button onClick={() => onEdit(stat)} className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors">
                             <Icons.Edit className="w-5 h-5" />
@@ -42,7 +43,7 @@ const StatCard: React.FC<StatCardProps> = ({ stat, getProductName, getProductUni
                         </button>
                     </>
                 ) : (
-                    <div className="p-2 bg-gray-50 dark:bg-gray-700 rounded-full" title="زمان ویرایش تمام شده">
+                    <div className="p-2 bg-gray-50 dark:bg-gray-700 rounded-full" title="فقط مدیر میتواند ویرایش کند">
                          <Icons.Lock className="w-5 h-5 text-gray-300" />
                     </div>
                 )}
@@ -76,7 +77,7 @@ const StatCard: React.FC<StatCardProps> = ({ stat, getProductName, getProductUni
 interface InvoiceCardProps {
     inv: Invoice;
     getProductName: (id: string) => string;
-    isEditable: (createdAt?: number) => boolean;
+    isEditable: boolean; // ✅ Changed to a simple boolean
     onEdit: (inv: Invoice) => void;
     onDelete: (id: string) => void;
 }
@@ -95,7 +96,8 @@ const InvoiceCard: React.FC<InvoiceCardProps> = ({ inv, getProductName, isEditab
             </div>
             
             <div className="flex gap-2">
-                {isEditable(inv.createdAt) ? (
+                {/* ✅ PERMISSION CHECK */}
+                {isEditable ? (
                     <>
                         <button onClick={() => onEdit(inv)} className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors">
                             <Icons.Edit className="w-5 h-5" />
@@ -105,7 +107,7 @@ const InvoiceCard: React.FC<InvoiceCardProps> = ({ inv, getProductName, isEditab
                         </button>
                     </>
                 ) : (
-                    <div className="p-2 bg-gray-50 dark:bg-gray-700 rounded-full" title="زمان ویرایش تمام شده">
+                    <div className="p-2 bg-gray-50 dark:bg-gray-700 rounded-full" title="فقط مدیر میتواند ویرایش کند">
                         <Icons.Lock className="w-5 h-5 text-gray-300" />
                     </div>
                 )}
@@ -161,16 +163,11 @@ const RecentRecords: React.FC = () => {
     const farmId = user?.assignedFarms?.[0]?.id;
     const today = normalizeDate(getTodayJalali());
 
+    // ✅ PERMISSION CHECK: Centralized check for admin role
+    const isAdmin = user?.role === UserRole.ADMIN;
+
     const getProductName = (id: string) => products.find(p => p.id === id)?.name || 'محصول حذف شده';
     const getProductUnit = (id: string) => products.find(p => p.id === id)?.unit === 'CARTON' ? 'کارتن' : 'واحد';
-
-    const isEditable = (createdAt?: number) => {
-        if (user?.role === UserRole.ADMIN) return true; 
-        if (!createdAt) return false;
-        const now = Date.now();
-        const diff = now - createdAt;
-        return diff < 5 * 60 * 60 * 1000; 
-    };
 
     const { todayStats, historyStatsGrouped } = useMemo(() => {
         const farmStats = statistics.filter(s => s.farmId === farmId);
@@ -357,11 +354,11 @@ const RecentRecords: React.FC = () => {
                     <div className="grid gap-6 md:grid-cols-2">
                         {activeTab === 'stats' ? (
                             todayStats.length > 0 ? todayStats.map(stat => (
-                                <StatCard key={stat.id} stat={stat} getProductName={getProductName} getProductUnit={getProductUnit} isEditable={isEditable} onEdit={handleEditStatOpen} onDelete={handleDeleteStat} />
+                                <StatCard key={stat.id} stat={stat} getProductName={getProductName} getProductUnit={getProductUnit} isEditable={isAdmin} onEdit={handleEditStatOpen} onDelete={handleDeleteStat} />
                             )) : <div className="col-span-full p-10 text-center text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-[24px] border-2 border-dashed border-gray-200 dark:border-gray-700">هنوز آماری برای امروز ثبت نشده است.</div>
                         ) : (
                             todayInvoices.length > 0 ? todayInvoices.map(inv => (
-                                <InvoiceCard key={inv.id} inv={inv} getProductName={getProductName} isEditable={isEditable} onEdit={handleEditInvoiceOpen} onDelete={handleDeleteInv} />
+                                <InvoiceCard key={inv.id} inv={inv} getProductName={getProductName} isEditable={isAdmin} onEdit={handleEditInvoiceOpen} onDelete={handleDeleteInv} />
                             )) : <div className="col-span-full p-10 text-center text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-[24px] border-2 border-dashed border-gray-200 dark:border-gray-700">هنوز حواله‌ای برای امروز ثبت نشده است.</div>
                         )}
                     </div>
@@ -388,7 +385,7 @@ const RecentRecords: React.FC = () => {
                                     <AnimatePresence>{expandedHistoryDates.includes(date) && (
                                         <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
                                             <div className="p-5 bg-gray-50 dark:bg-gray-900/30 grid gap-4 md:grid-cols-2 border-t border-gray-100 dark:border-gray-700">
-                                                {typedItems.map(stat => <StatCard key={stat.id} stat={stat} getProductName={getProductName} getProductUnit={getProductUnit} isEditable={isEditable} onEdit={handleEditStatOpen} onDelete={handleDeleteStat} />)}
+                                                {typedItems.map(stat => <StatCard key={stat.id} stat={stat} getProductName={getProductName} getProductUnit={getProductUnit} isEditable={isAdmin} onEdit={handleEditStatOpen} onDelete={handleDeleteStat} />)}
                                             </div>
                                         </motion.div>
                                     )}</AnimatePresence>
@@ -409,7 +406,7 @@ const RecentRecords: React.FC = () => {
                                     <AnimatePresence>{expandedHistoryDates.includes(date) && (
                                         <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
                                             <div className="p-5 bg-gray-50 dark:bg-gray-900/30 grid gap-4 md:grid-cols-2 border-t border-gray-100 dark:border-gray-700">
-                                                {typedItems.map(inv => <InvoiceCard key={inv.id} inv={inv} getProductName={getProductName} isEditable={isEditable} onEdit={handleEditInvoiceOpen} onDelete={handleDeleteInv} />)}
+                                                {typedItems.map(inv => <InvoiceCard key={inv.id} inv={inv} getProductName={getProductName} isEditable={isAdmin} onEdit={handleEditInvoiceOpen} onDelete={handleDeleteInv} />)}
                                             </div>
                                         </motion.div>
                                     )}</AnimatePresence>

@@ -27,6 +27,7 @@ interface InvoiceState {
     addInvoice: (invoice: Omit<Invoice, 'id' | 'createdAt'>) => Promise<{ success: boolean; error?: string }>;
     updateInvoice: (id: string, updates: Partial<Invoice>) => Promise<{ success: boolean; error?: string }>;
     deleteInvoice: (id: string) => Promise<{ success: boolean; error?: string }>;
+    bulkDeleteInvoices: (ids: string[]) => Promise<{ success: boolean; error?: string }>; // ✅ NEW
 }
 
 export const useInvoiceStore = create<InvoiceState>((set, get) => ({
@@ -151,5 +152,25 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           return { success: true };
       }
       return { success: false, error: translateError(error) };
+  },
+
+  // ✅ NEW BULK DELETE FUNCTION
+  bulkDeleteInvoices: async (ids) => {
+    if (ids.length === 0) return { success: true };
+    const originals = get().invoices.filter(i => ids.includes(i.id));
+
+    const { error } = await supabase.from('invoices').delete().in('id', ids);
+
+    if (!error) {
+        await get().fetchInvoices();
+        // Sync stats for each deleted invoice's context
+        for (const inv of originals) {
+            if (inv.productId) {
+                useStatisticsStore.getState().syncSalesFromInvoices(inv.farmId, inv.date, inv.productId);
+            }
+        }
+        return { success: true };
+    }
+    return { success: false, error: translateError(error) };
   }
 }));

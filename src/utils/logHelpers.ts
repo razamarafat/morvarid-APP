@@ -1,5 +1,1 @@
-
-// LOGGING SYSTEM DELETED
-export const getLevelStyles = () => ({});
-export const formatErrorObject = () => ({});
-export const getCategoryColor = () => '';
+// This file is obsolete and has been cleaned up to resolve build errors.

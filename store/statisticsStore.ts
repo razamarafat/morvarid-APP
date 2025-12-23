@@ -46,6 +46,7 @@ interface StatisticsState {
     addStatistic: (stat: Omit<DailyStatistic, 'id' | 'createdAt'>) => Promise<{ success: boolean; error?: string }>;
     updateStatistic: (id: string, updates: Partial<DailyStatistic>) => Promise<{ success: boolean; error?: string }>;
     deleteStatistic: (id: string) => Promise<{ success: boolean; error?: string }>;
+    bulkDeleteStatistics: (ids: string[]) => Promise<{ success: boolean; error?: string }>; // ✅ NEW
     bulkUpsertStatistics: (stats: Omit<DailyStatistic, 'id' | 'createdAt'>[]) => Promise<{ success: boolean; error?: string }>;
     getLatestInventory: (farmId: string, productId: string) => { units: number; kg: number };
     syncSalesFromInvoices: (farmId: string, date: string, productId: string) => Promise<void>;
@@ -189,6 +190,17 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           return { success: true };
       }
       return { success: false, error: translateError(error) };
+  },
+
+  // ✅ NEW BULK DELETE FUNCTION
+  bulkDeleteStatistics: async (ids) => {
+    if (ids.length === 0) return { success: true };
+    const { error } = await supabase.from('daily_statistics').delete().in('id', ids);
+    if (!error) {
+        await get().fetchStatistics();
+        return { success: true };
+    }
+    return { success: false, error: translateError(error) };
   },
 
   getLatestInventory: (farmId, productId) => {

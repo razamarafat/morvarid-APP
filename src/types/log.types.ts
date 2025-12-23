@@ -1,6 +1,1 @@
-
-// LOGGING SYSTEM DELETED
-export type LogLevel = any;
-export type LogCategory = any;
-export interface LogEntry {}
-export interface LogFilterState {}
+// This file is obsolete and has been cleaned up to resolve build errors.
