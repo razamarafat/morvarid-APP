@@ -2,29 +2,20 @@
 <html lang="fa" dir="rtl">
   <head>
     <meta charset="UTF-8" />
-    
-    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192x192.png" />
-    
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    
     <title>سامانه مدیریت یکپارچه آمار مروارید</title>
     
-    <!-- PWA Fullscreen Meta Tags -->
-    <meta name="mobile-web-app-capable" content="yes">
+    <!-- PWA Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="مروارید">
-    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
-    
-    <meta name="theme-color" content="#1D1D1D" media="(prefers-color-scheme: dark)">
-    <meta name="theme-color" content="#F3F3F3" media="(prefers-color-scheme: light)">
-    
-    <meta name="full-screen" content="yes">
-    <meta name="browsermode" content="application">
-    <meta name="screen-orientation" content="portrait">
-    
-    <link rel="manifest" href="/manifest.webmanifest">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="/vite.svg">
+    <meta name="theme-color" content="#2D89EF">
+    <link rel="manifest" href="/manifest.json">
 
+    <!-- Fonts and Styles -->
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/font-face.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -60,9 +51,7 @@
               }
             },
             spacing: {
-              'safe': 'env(safe-area-inset-bottom)',
-              'safe-top': 'env(safe-area-inset-top)',
-              'safe-bottom': 'env(safe-area-inset-bottom)',
+              'safe': 'env(safe-area-inset-bottom)'
             },
             animation: {
               'wiggle': 'wiggle 6s ease-in-out infinite',
@@ -85,6 +74,7 @@
       }
     </script>
     <style>
+      /* Base Global Styles */
       * {
         -webkit-tap-highlight-color: transparent;
         box-sizing: border-box;
@@ -94,44 +84,10 @@
         font-family: 'Vazir', sans-serif !important;
       }
       
-      html {
-        overflow: hidden;
-        height: 100%;
-        height: 100dvh;
-        overscroll-behavior: none !important;
-        overscroll-behavior-y: none !important;
-        -webkit-overflow-scrolling: auto;
-        touch-action: pan-x pan-y;
-      }
-      
-      body {
-        overflow: hidden;
-        height: 100%;
-        height: 100dvh;
-        overscroll-behavior: none !important;
-        overscroll-behavior-y: none !important;
-        position: fixed;
-        width: 100%;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        padding-top: env(safe-area-inset-top);
-        padding-bottom: env(safe-area-inset-bottom);
-        padding-left: env(safe-area-inset-left);
-        padding-right: env(safe-area-inset-right);
-        touch-action: pan-x pan-y;
-        -webkit-overflow-scrolling: auto;
-      }
-
       html, body {
         scrollbar-width: none;
         -ms-overflow-style: none;
         overflow-x: hidden;
-        background-color: #1D1D1D;
-      }
-      
-      html:not(.dark) body {
         background-color: #F3F3F3;
       }
 
@@ -148,179 +104,11 @@
       
       body {
         transition: background-color 0.2s ease;
+        overscroll-behavior-y: none;
         -webkit-user-select: none;
         user-select: none;
         -webkit-touch-callout: none;
         text-rendering: optimizeSpeed;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-      }
-      
-      #root {
-        height: 100%;
-        width: 100%;
-        overflow-y: auto;
-        overflow-x: hidden;
-        overscroll-behavior: contain !important;
-        overscroll-behavior-y: contain !important;
-        -webkit-overflow-scrolling: touch;
-        padding-top: env(safe-area-inset-top);
-      }
-
-      input, textarea {
-        -webkit-user-select: text;
-        user-select: text;
-      }
-
-      input::-webkit-outer-spin-button,
-      input::-webkit-inner-spin-button {
-        -webkit-appearance: none;
-        margin: 0;
-      }
-      input[type=number] {
-        -moz-appearance: textfield;
-      }
-
-      .gpu-accelerated {
-        transform: translateZ(0);
-        backface-visibility: hidden;
-        perspective: 1000px;
-        will-change: transform, opacity;
-      }
-
-      @keyframes metro-shine {
-          0% { transform: translateX(-150%) skewX(-25deg); }
-          100% { transform: translateX(250%) skewX(-25deg); }
-      }
-      
-      @keyframes metro-flow {
-          0%, 100% { opacity: 0.05; transform: scale(1) translateZ(0); }
-          50% { opacity: 0.12; transform: scale(1.02) translateZ(0); }
-      }
-
-      .metro-shine-overlay {
-          position: absolute;
-          inset: 0;
-          width: 100%;
-          background: linear-gradient(to right, transparent, rgba(255,255,255,0.15), transparent);
-          animation: metro-shine 6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-          pointer-events: none;
-          z-index: 5;
-          will-change: transform;
-      }
-
-      .metro-flow-overlay {
-          position: absolute;
-          inset: 0;
-          background: radial-gradient(circle at center, rgba(255,255,255,0.1), transparent 70%);
-          animation: metro-flow 10s ease-in-out infinite;
-          pointer-events: none;
-          z-index: 1;
-          will-change: opacity, transform;
-      }
-
-      .shiny-text {
-        position: relative;
-        display: inline-block;
-        color: #2D89EF;
-        overflow: hidden;
-        background: transparent;
-        -webkit-background-clip: unset;
-        background-clip: unset;
-        -webkit-text-fill-color: currentcolor;
-      }
-
-      .shiny-text::after {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 50%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-        transform: skewX(-20deg);
-        animation: shine-move 3s infinite linear;
-      }
-
-      @keyframes shine-move {
-        0% { transform: translateX(0) skewX(-20deg); }
-        100% { transform: translateX(400%) skewX(-20deg); }
-      }
-
-      .smooth-transition {
-        transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-      }
-      
-      .pt-safe { padding-top: env(safe-area-inset-top); }
-      .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-      .pl-safe { padding-left: env(safe-area-inset-left); }
-      .pr-safe { padding-right: env(safe-area-inset-right); }
-    </style>
-    <script type="importmap">
-{
-  "imports": {
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
-    "react-router-dom": "https://esm.sh/react-router-dom@^7.11.0",
-    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
-    "framer-motion": "https://esm.sh/framer-motion@^12.23.26",
-    "vite": "https://esm.sh/vite@^7.3.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "uuid": "https://esm.sh/uuid@^13.0.0",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.89.0",
-    "@hookform/resolvers/": "https://esm.sh/@hookform/resolvers@^5.2.2/",
-    "zustand/": "https://esm.sh/zustand@^5.0.9/",
-    "zustand": "https://esm.sh/zustand@^5.0.9",
-    "zod": "https://esm.sh/zod@^4.2.1",
-    "xlsx": "https://esm.sh/xlsx@^0.18.5",
-    "react-hook-form": "https://esm.sh/react-hook-form@^7.69.0",
-    "path": "https://esm.sh/path@^0.12.7",
-    "vite-plugin-pwa": "https://esm.sh/vite-plugin-pwa@^1.2.0"
-  }
-}
-</script>
-</head>
-  <body class="text-gray-900 dark:text-white selection:bg-metro-blue selection:text-white">
-    <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
-    
-    <!-- Disable Pull-to-Refresh in PWA -->
-    <script>
-      (function() {
-        var isStandalone = window.matchMedia('(display-mode: standalone)').matches 
-          || window.matchMedia('(display-mode: fullscreen)').matches
-          || window.navigator.standalone === true;
-        
-        if (!isStandalone) {
-          console.log('[PWA] Not standalone, skip PTR prevention');
-          return;
-        }
-        
-        console.log('[PWA] Disabling pull-to-refresh');
-        
-        var startY = 0;
-        
-        document.addEventListener('touchstart', function(e) {
-          startY = e.touches[0].pageY;
-        }, { passive: true });
-        
-        document.addEventListener('touchmove', function(e) {
-          var root = document.getElementById('root');
-          var scrollTop = root ? root.scrollTop : 0;
-          var y = e.touches[0].pageY;
-          var deltaY = y - startY;
-          
-          if (scrollTop <= 0 && deltaY > 5) {
-            e.preventDefault();
-          }
-        }, { passive: false });
-        
-        console.log('[PWA] PTR prevention active');
-      })();
-    </script>
-  </body>
-</html>        text-rendering: optimizeSpeed;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
       }
