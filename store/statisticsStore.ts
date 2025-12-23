@@ -133,7 +133,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
 
       let { error } = await supabase.from('daily_statistics').update(fullPayload).eq('id', id);
       
-      if (error && (String(error.status) === '400' || error.code === 'PGRST204' || error.code === '42703')) {
+      if (error && (String((error as any).status) === '400' || error.code === 'PGRST204' || error.code === '42703')) {
           const corePayload = {
               production: fullPayload.production,
               sales: fullPayload.sales,

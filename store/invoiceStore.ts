@@ -90,7 +90,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
       
       let { error } = await supabase.from('invoices').insert(dbInv);
       
-      if (error && (String(error.status) === '400' || error.code === 'PGRST204')) {
+      if (error && (String((error as any).status) === '400' || error.code === 'PGRST204')) {
           const safeInv = { ...dbInv };
           delete safeInv.description; 
           const retry = await supabase.from('invoices').insert(safeInv);
@@ -120,7 +120,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
       let { error } = await supabase.from('invoices').update(fullPayload).eq('id', id);
 
       // NUCLEAR FALLBACK: Strips everything but the essentials
-      if (error && (String(error.status) === '400' || error.code === 'PGRST204' || error.code === '42703')) {
+      if (error && (String((error as any).status) === '400' || error.code === 'PGRST204' || error.code === '42703')) {
           const corePayload: any = {
               total_cartons: fullPayload.total_cartons,
               total_weight: fullPayload.total_weight,
