@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Icons } from '../common/Icons';
 import { useAuthStore } from '../../store/authStore';
@@ -60,11 +59,17 @@ const MobileNav: React.FC<MobileNavProps> = ({ onNavigate, currentView }) => {
   };
 
   return (
-    <div className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#F3F3F3]/95 dark:bg-[#2D2D2D]/95 backdrop-blur-lg border-t border-gray-200 dark:border-gray-700 z-40 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] pb-safe">
-      <div className="flex items-center justify-around h-full max-w-md mx-auto px-2">
+    <nav 
+      className="lg:hidden fixed bottom-0 left-0 right-0 bg-[#F3F3F3]/95 dark:bg-[#2D2D2D]/95 backdrop-blur-lg border-t border-gray-200 dark:border-gray-700 z-40 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]"
+      style={{
+        height: 'calc(64px + env(safe-area-inset-bottom))',
+        paddingBottom: 'env(safe-area-inset-bottom)'
+      }}
+    >
+      <div className="flex items-center justify-around h-16 max-w-md mx-auto px-2">
         {renderNavItems()}
       </div>
-    </div>
+    </nav>
   );
 };
 
