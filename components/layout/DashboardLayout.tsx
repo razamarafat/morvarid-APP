@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
@@ -26,7 +25,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, onNa
     setSidebarOpen(!isSidebarOpen);
   };
 
-  // Listen for navigation events from Header (Desktop)
   useEffect(() => {
     const handleNavEvent = (e: Event) => {
         const customEvent = e as CustomEvent;
@@ -40,25 +38,28 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, onNa
   }, [onNavigate]);
 
   return (
-    <div className={`flex h-screen ${themeColors.background} text-black dark:text-white overflow-hidden font-sans`}>
+    <div className={`flex flex-col h-[100dvh] w-full ${themeColors.background} text-black dark:text-white overflow-hidden font-sans`}>
       
-      {/* Sidebar is always off-canvas (hidden by default) */}
       <Sidebar 
           isOpen={isSidebarOpen} 
           onClose={() => setSidebarOpen(false)} 
           onNavigate={onNavigate}
       />
 
-      <div className="flex-1 flex flex-col h-full w-full relative transition-all duration-300">
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-h-0 w-full relative">
+        
+        {/* Header */}
         <Header onMenuClick={handleToggleSidebar} title={title} />
         
-        <main className="flex-1 overflow-x-hidden overflow-y-auto pb-24 lg:pb-8 scroll-smooth bg-[#F3F3F3] dark:bg-[#1D1D1D]">
-          {/* Changed max-w-7xl to max-w-full and increased padding for a wider, Metro UI feel */}
-          <div className="container-fluid mx-auto px-4 py-6 md:px-10 md:py-10 animate-in fade-in duration-500 max-w-full">
+        {/* Scrollable Main Content */}
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-[#F3F3F3] dark:bg-[#1D1D1D]">
+          <div className="container-fluid mx-auto px-4 py-6 md:px-10 md:py-10 pb-24 lg:pb-8 animate-in fade-in duration-500 max-w-full">
              {children}
           </div>
         </main>
 
+        {/* Mobile Bottom Navigation */}
         <MobileNav onNavigate={onNavigate} currentView={currentView} />
       </div>
     </div>
