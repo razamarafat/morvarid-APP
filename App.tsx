@@ -19,7 +19,7 @@ import ToastContainer from './components/common/Toast';
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const RegistrationDashboard = lazy(() => import('./pages/RegistrationDashboard'));
-const SalesDashboard = lazy(() => import('./pages/SalesDashboard'));
+const SalesDashboard = lazy(() => import('./components/sales/SalesDashboard'));
 
 interface ErrorBoundaryProps {
   children?: ReactNode;

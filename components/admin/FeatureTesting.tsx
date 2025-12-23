@@ -112,24 +112,50 @@ const FeatureTesting: React.FC = () => {
                 break;
 
             case 'system_notification':
-                addLog('Requesting Notification API...', 'info');
+                addLog('Initiating Notification & Service Worker Test...', 'info');
                 
+                // 1. Browser Support Check
                 if (!("Notification" in window)) {
-                    addLog('API Error: Notifications not supported in this browser.', 'error');
+                    addLog('❌ Notification API not supported.', 'error');
+                    break;
+                }
+                if (!("serviceWorker" in navigator)) {
+                    addLog('❌ Service Worker API not supported.', 'error');
                     break;
                 }
 
+                // 2. Permission Check
                 addLog(`Current Permission: ${Notification.permission}`, 'info');
-                
-                // This triggers the store function which also checks/requests permission
-                await triggerTestNotification();
-                
-                if (Notification.permission === 'granted') {
-                    addLog('Notification dispatched to system tray.', 'success');
-                    addLog('Check your device notification center.', 'warn');
+                if (Notification.permission !== 'granted') {
+                    addLog('Requesting permission...', 'info');
+                    const permission = await Notification.requestPermission();
+                    if (permission !== 'granted') {
+                        addLog('❌ Permission denied by user.', 'error');
+                        break;
+                    }
+                    addLog('✅ Permission granted.', 'success');
+                }
+
+                // 3. Service Worker Readiness
+                try {
+                    addLog('Waiting for Service Worker registration...', 'info');
+                    const registration = await navigator.serviceWorker.ready;
+                    if (!registration) {
+                         addLog('❌ Service Worker not ready.', 'error');
+                         break;
+                    }
+                    addLog(`✅ Service Worker Active (Scope: ${registration.scope})`, 'success');
+
+                    // 4. Trigger Notification via SW
+                    addLog('Dispatching notification via Service Worker...', 'info');
+                    await triggerTestNotification();
+                    
+                    addLog('✅ Notification dispatched.', 'success');
+                    addLog('👉 Please check your system tray or notification center.', 'warn');
                     success = true;
-                } else {
-                    addLog('Permission denied or dismissed by user.', 'error');
+
+                } catch (e: any) {
+                    addLog(`❌ Exception: ${e.message}`, 'error');
                 }
                 break;
         }
@@ -180,7 +206,7 @@ const FeatureTesting: React.FC = () => {
 
         <div className="bg-white dark:bg-gray-800 p-5 flex justify-between items-center shadow-sm border border-gray-100 dark:border-gray-700 border-l-4 border-l-metro-orange">
             <div>
-                <h4 className="font-bold dark:text-white">تست اعلان سیستمی</h4>
+                <h4 className="font-bold dark:text-white">تست اعلان سیستمی (Push)</h4>
                 <p className="text-xs text-gray-400">ارسال نوتیفیکیشن واقعی</p>
             </div>
             <Button size="sm" onClick={() => runTest('system_notification')} isLoading={isRunning === 'system_notification'}>ارسال اعلان</Button>

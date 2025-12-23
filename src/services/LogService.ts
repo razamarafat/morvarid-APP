@@ -1,1 +1,7 @@
-// This file is obsolete and has been cleaned up to resolve build errors.
+
+// This file is a placeholder to resolve build conflicts.
+export class LogService {
+    static async saveLog(entry: any) { return true; }
+    static async fetchLogs() { return []; }
+    static async syncQueue() { return 0; }
+}

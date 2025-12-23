@@ -1,12 +1,10 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { useFarmStore } from '../../store/farmStore';
 import { useStatisticsStore } from '../../store/statisticsStore';
+import { useInvoiceStore } from '../../store/invoiceStore';
 import { useToastStore } from '../../store/toastStore';
-import { useThemeStore } from '../../store/themeStore';
-import { FarmType, UserRole } from '../../types';
-import { THEMES } from '../../constants';
 import { getTodayJalali, getTodayDayName, getCurrentTime, normalizeDate, toPersianDigits } from '../../utils/dateUtils';
 import Button from '../common/Button';
 import { useConfirm } from '../../hooks/useConfirm';
@@ -20,8 +18,6 @@ interface StatisticsFormProps {
 interface ProductFormState {
     production: string;
     productionKg: string;
-    sales: string;
-    salesKg: string;
     previousBalance: string;
     previousBalanceKg: string;
 }
@@ -29,9 +25,9 @@ interface ProductFormState {
 const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
     const { user } = useAuthStore();
     const { getProductById } = useFarmStore();
-    const { statistics, bulkUpsertStatistics, fetchStatistics } = useStatisticsStore();
+    const { statistics, bulkUpsertStatistics } = useStatisticsStore();
+    const { invoices } = useInvoiceStore();
     const { addToast } = useToastStore();
-    const theme = useThemeStore(state => state.theme);
     const { confirm } = useConfirm();
     
     const [formsState, setFormsState] = useState<Record<string, ProductFormState>>({});
@@ -47,8 +43,39 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
     const [selectedFarmId] = useState<string>(userFarms[0]?.id || '');
     const selectedFarm = userFarms.find(f => f.id === selectedFarmId);
 
-    const role = user?.role || UserRole.REGISTRATION;
-    const isMotefereghe = selectedFarm?.type === FarmType.MOTEFEREGHE;
+    // --- SORT LOGIC START ---
+    const sortedProductIds = useMemo(() => {
+        if (!selectedFarm) return [];
+        return [...selectedFarm.productIds].sort((aId, bId) => {
+            const pA = getProductById(aId);
+            const pB = getProductById(bId);
+            if (!pA || !pB) return 0;
+            
+            const getScore = (name: string) => {
+                // Priority 1: Shirink Products
+                if (name.includes('شیرینگ') || name.includes('شیرینک')) {
+                    if (name.includes('پرینتی')) return 1; // Highest Priority
+                    return 2; // Shirink Sadeh
+                }
+
+                // Priority 2: General Products (Carton/Bulk)
+                if (name.includes('پرینتی')) return 3;
+                if (name.includes('ساده')) return 4;
+
+                // Priority 3: Special Types
+                if (name.includes('دوزرده')) return 5;
+                if (name.includes('نوکی')) return 6;
+                if (name.includes('کودی')) return 7;
+                if (name.includes('مایع')) return 8;
+
+                return 9; // Others
+            };
+            
+            // Ascending sort (Lower number comes first)
+            return getScore(pA.name) - getScore(pB.name);
+        });
+    }, [selectedFarm, getProductById]);
+    // --- SORT LOGIC END ---
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(getCurrentTime(false)), 30000);
@@ -56,82 +83,65 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
     }, []);
 
     useEffect(() => {
-        fetchStatistics();
-    }, [fetchStatistics]);
-
-    useEffect(() => {
         if (!selectedFarm) return;
-
         const newState: Record<string, ProductFormState> = {};
         selectedFarm.productIds.forEach(pid => {
             const record = statistics.find(s => s.farmId === selectedFarmId && s.date === normalizedDate && s.productId === pid);
-            // TASK: Empty by default. If value is zero, show empty string.
             const fmt = (val: any) => (val === undefined || val === null || val === 0) ? '' : String(val);
-
             newState[pid] = {
                 production: fmt(record?.production),
                 productionKg: fmt(record?.productionKg),
-                sales: fmt(record?.sales),
-                salesKg: fmt(record?.salesKg),
                 previousBalance: fmt(record?.previousBalance),
                 previousBalanceKg: fmt(record?.previousBalanceKg)
             };
         });
         setFormsState(newState);
-    }, [selectedFarmId, statistics.length, selectedFarm]);
+    }, [selectedFarmId, statistics, selectedFarm, normalizedDate]);
 
     const handleInputChange = (productId: string, field: keyof ProductFormState, value: string) => {
-        if (Number(value) < 0) return;
-        setFormsState(prev => ({
-            ...prev,
-            [productId]: { ...prev[productId], [field]: value }
-        }));
+        setFormsState(prev => ({ ...prev, [productId]: { ...prev[productId], [field]: value } }));
     };
 
     const handleFinalSubmit = async () => {
         if (!selectedFarm) return;
-
-        const registeredProductIds = statistics
-            .filter(s => s.farmId === selectedFarmId && s.date === normalizedDate)
-            .map(s => s.productId);
-
         const payloads = [];
         for (const pid of selectedFarm.productIds) {
-            if (registeredProductIds.includes(pid)) continue;
+            // Skip if already registered
+            if (statistics.some(s => s.farmId === selectedFarmId && s.date === normalizedDate && s.productId === pid)) continue;
             
             const vals = formsState[pid];
             if (!vals) continue;
 
             const prod = vals.production === '' ? 0 : Number(vals.production);
-            const prev = vals.previousBalance === '' ? 0 : Number(vals.previousBalance);
             const prodKg = vals.productionKg === '' ? 0 : Number(vals.productionKg);
+            const prev = vals.previousBalance === '' ? 0 : Number(vals.previousBalance);
             const prevKg = vals.previousBalanceKg === '' ? 0 : Number(vals.previousBalanceKg);
-            
-            const sale = 0; 
-            const saleKg = 0;
 
-            if (vals.production === '' && vals.previousBalance === '' && vals.productionKg === '' && vals.previousBalanceKg === '') continue;
+            // Skip empty rows
+            if (vals.production === '' && vals.productionKg === '' && vals.previousBalance === '' && vals.previousBalanceKg === '') continue;
 
-            const current = isMotefereghe ? prod : (prev + prod - sale);
-            const currentKg = isMotefereghe ? prodKg : (prevKg + prodKg - saleKg);
+            // Calculate sales from invoices to ensure consistency on creation
+            const relevantInvoices = invoices.filter(inv => inv.farmId === selectedFarmId && inv.date === normalizedDate && inv.productId === pid);
+            const totalSales = relevantInvoices.reduce((sum, inv) => sum + (inv.totalCartons || 0), 0);
+            const totalSalesKg = relevantInvoices.reduce((sum, inv) => sum + (inv.totalWeight || 0), 0);
 
             payloads.push({
                 farmId: selectedFarmId,
                 date: normalizedDate,
                 productId: pid,
-                previousBalance: isMotefereghe ? 0 : prev,
                 production: prod,
-                sales: sale, 
-                currentInventory: current,
-                previousBalanceKg: isMotefereghe ? 0 : prevKg,
                 productionKg: prodKg,
-                salesKg: saleKg,
-                currentInventoryKg: currentKg
+                previousBalance: prev,
+                previousBalanceKg: prevKg,
+                sales: totalSales,
+                salesKg: totalSalesKg,
+                currentInventory: prev + prod - totalSales,
+                currentInventoryKg: prevKg + prodKg - totalSalesKg
             });
         }
 
         if (payloads.length === 0) {
-            addToast('تغییری برای ثبت وجود ندارد یا تمام محصولات قبلاً ثبت شده‌اند.', 'warning');
+            addToast('تغییری برای ثبت وجود ندارد.', 'warning');
             return;
         }
 
@@ -148,161 +158,144 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
         const result = await bulkUpsertStatistics(payloads);
         setIsSubmitting(false);
 
-        if (result.success) {
-            addToast('آمار با موفقیت ثبت شد.', 'success');
-        } else {
-            addToast(`خطا: ${result.error}`, 'error');
-        }
+        if (result.success) addToast('آمار با موفقیت ثبت شد.', 'success');
+        else addToast(`خطا: ${result.error}`, 'error');
     };
 
     if (!selectedFarm) return <div className="p-20 text-center font-bold text-gray-400">فارمی یافت نشد.</div>;
 
-    const inputClasses = "w-full p-3 bg-white dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 text-center font-black text-2xl rounded-xl focus:border-metro-orange outline-none h-16 transition-colors focus:bg-orange-50 dark:focus:bg-orange-900/10";
-
-    const sortedProductIds = [...selectedFarm.productIds].sort((aId, bId) => {
-        const pA = getProductById(aId);
-        const pB = getProductById(bId);
-        if (!pA || !pB) return 0;
-
-        const isLowA = /کودی|نوکی|دوزرده|مایع/.test(pA.name);
-        const isLowB = /کودی|نوکی|دوزرده|مایع/.test(pB.name);
-
-        if (isLowA && !isLowB) return 1;
-        if (!isLowA && isLowB) return -1;
-
-        const isPrintiA = pA.name.includes('پرینتی');
-        const isPrintiB = pB.name.includes('پرینتی');
-
-        if (isPrintiA && !isPrintiB) return -1;
-        if (!isPrintiA && isPrintiB) return 1;
-
-        return 0;
-    });
+    const inputClasses = "w-full p-3 bg-white border-2 border-gray-200 text-center font-black text-2xl rounded-xl focus:border-metro-orange focus:ring-4 focus:ring-orange-100 outline-none h-14 transition-all shadow-sm";
 
     return (
-        <div className="max-w-4xl mx-auto space-y-6 pb-12"> 
-            <div className="bg-metro-orange p-8 text-white shadow-xl relative overflow-hidden flex flex-col items-center justify-center gap-4 border-b-8 border-orange-700/20 rounded-[28px]">
-                <div className="absolute inset-0 z-0 bg-gradient-to-r from-metro-orange via-amber-500 to-metro-orange bg-[length:200%_200%] animate-[gradient-xy_3s_ease_infinite]"></div>
-                <Icons.BarChart className="absolute -right-12 -bottom-8 w-64 h-64 opacity-10 pointer-events-none rotate-12 animate-pulse" />
-                
-                <div className="relative z-10 flex justify-center items-center gap-4 text-xl font-bold bg-white/10 backdrop-blur-md px-8 py-3 w-full max-w-sm border-r-4 border-white shadow-lg transition-transform hover:scale-[1.02] rounded-full">
-                    <span className="opacity-90">{todayDayName}</span>
-                    <div className="w-[2px] h-6 bg-white/30 rounded-full"></div>
-                    <span className="font-sans tracking-tight text-3xl font-black drop-shadow-sm">{toPersianDigits(normalizedDate)}</span>
-                </div>
+        <div className="max-w-4xl mx-auto pb-24"> 
+            
+            {/* COMPACT & OPTIMIZED HEADER */}
+            <div className="bg-gradient-to-br from-metro-orange via-orange-500 to-amber-500 p-6 text-white shadow-xl relative overflow-hidden flex flex-col items-center justify-center gap-3 rounded-b-[32px] mb-8 border-b-4 border-orange-700/20 gpu-accelerated">
+                 {/* Infinite Shimmer */}
+                 <div className="absolute inset-0 shimmer-bg z-0"></div>
+                 
+                 <Icons.BarChart className="absolute -left-8 -bottom-8 w-48 h-48 text-white opacity-10 pointer-events-none rotate-12" />
 
-                <div className="relative z-10 text-7xl font-black font-sans tabular-nums tracking-widest mt-2 drop-shadow-2xl flex items-center gap-2">
-                    {currentTime}
-                </div>
+                 <div className="relative z-10 flex flex-col items-center w-full">
+                     <div className="flex items-center gap-3 mb-1">
+                        <span className="text-orange-100 font-bold text-sm tracking-widest uppercase bg-black/10 px-3 py-0.5 rounded-full backdrop-blur-sm">
+                             {todayDayName}
+                        </span>
+                        <div className="text-xl font-bold opacity-90 font-sans tabular-nums tracking-wide">{currentTime}</div>
+                     </div>
+                     
+                     <div className="flex items-center gap-4">
+                         <h1 className="text-5xl lg:text-6xl font-black font-sans tabular-nums tracking-tighter drop-shadow-lg leading-none">
+                             {toPersianDigits(normalizedDate)}
+                         </h1>
+                     </div>
+                     
+                     <div className="mt-3 text-white font-black tracking-wide text-lg border-b-2 border-white/20 pb-1">
+                        ثبت آمار تولید
+                     </div>
+                 </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 p-4 md:p-8 shadow-xl border-l-[12px] border-metro-orange rounded-[28px] space-y-4">
+            <div className="px-4 space-y-4">
                 {sortedProductIds.map((pid) => {
                     const product = getProductById(pid);
-                    const vals = formsState[pid] || { production: '', sales: '', previousBalance: '', productionKg: '', salesKg: '', previousBalanceKg: '' };
+                    const isLiq = product?.name.includes('مایع');
+                    const statRecord = statistics.find(s => s.farmId === selectedFarmId && s.date === normalizedDate && s.productId === pid);
+                    const isRegistered = !!statRecord;
+                    const vals = formsState[pid] || { production: '', productionKg: '', previousBalance: '', previousBalanceKg: '' };
                     const isExpanded = expandedProductId === pid;
-                    const isRegistered = statistics.some(s => s.farmId === selectedFarmId && s.date === normalizedDate && s.productId === pid);
-                    
-                    const num = (v: string) => v === '' ? 0 : Number(v);
-                    
-                    const currentInventory = isMotefereghe ? num(vals.production) : (num(vals.previousBalance) + num(vals.production) - num(vals.sales));
-                    const isNegative = currentInventory < 0;
+
+                    // Calculate sales from invoices for this product/date
+                    const productInvoices = invoices.filter(inv => inv.farmId === selectedFarmId && inv.date === normalizedDate && inv.productId === pid);
+                    const soldUnits = productInvoices.reduce((sum, inv) => sum + (inv.totalCartons || 0), 0);
+                    const soldKg = productInvoices.reduce((sum, inv) => sum + (inv.totalWeight || 0), 0);
 
                     return (
-                        <div key={pid} className={`bg-gray-50 dark:bg-gray-900/50 shadow-sm transition-all overflow-hidden border-r-[8px] rounded-[20px] ${isRegistered ? 'border-green-500 opacity-95' : 'border-metro-orange'}`}>
-                            <div onClick={() => setExpandedProductId(isExpanded ? null : pid)} className={`p-5 flex items-center justify-between cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 ${isExpanded ? 'bg-orange-50 dark:bg-orange-900/10' : ''}`}>
-                                <div className="flex items-center gap-4 flex-1 overflow-hidden">
-                                    <div className={`w-3 h-3 min-w-[12px] rounded-full shadow-sm ${isRegistered ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]'}`}></div>
-                                    <div className="flex flex-col">
-                                        <h3 className="text-lg font-black text-gray-800 dark:text-white truncate">{product?.name}</h3>
-                                        {isRegistered && <span className="text-[10px] text-green-600 font-bold bg-green-100 dark:bg-green-900/20 px-2 py-0.5 rounded-full w-fit mt-1">ثبت شده</span>}
+                        <div key={pid} className={`relative bg-white dark:bg-gray-800 rounded-[20px] shadow-sm overflow-hidden border-r-[8px] transition-transform duration-200 gpu-accelerated ${isRegistered ? 'border-green-500' : 'border-red-500'}`}>
+                            <div 
+                                onClick={() => setExpandedProductId(isExpanded ? null : pid)} 
+                                className="p-5 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 active:bg-gray-100"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className={`flex items-center justify-center w-8 h-8 rounded-full shadow-sm ring-2 ${isRegistered ? 'bg-green-100 ring-green-50 text-green-600' : 'bg-red-100 ring-red-50 text-red-600'}`}>
+                                        {isRegistered ? <Icons.Check className="w-5 h-5" /> : <Icons.X className="w-5 h-5" />}
+                                    </div>
+
+                                    <div>
+                                        <h3 className="text-lg font-black text-gray-800 dark:text-gray-100 leading-tight">{product?.name}</h3>
+                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md mt-1 inline-block ${isRegistered ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                                            {isRegistered ? 'ثبت شده' : 'ثبت نشده'}
+                                        </span>
                                     </div>
                                 </div>
-                                <Icons.ChevronDown className={`w-6 h-6 transition-transform text-gray-400 shrink-0 ${isExpanded ? 'rotate-180 text-metro-orange' : ''}`} />
+                                <Icons.ChevronDown className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
                             </div>
-
+                            
                             <AnimatePresence>
                                 {isExpanded && (
-                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="border-t border-gray-200 dark:border-gray-700 p-6 bg-white dark:bg-gray-900/20">
-                                        <div className={`space-y-6 ${isRegistered ? 'pointer-events-none grayscale-[0.5] opacity-70' : ''}`}>
-                                            {isRegistered && (
-                                                <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-xl border border-yellow-200 dark:border-yellow-800 text-center mb-4 flex flex-col gap-1">
-                                                    <p className="text-sm text-yellow-800 dark:text-yellow-200 font-bold">این محصول قبلا ثبت شده است.</p>
-                                                    <p className="text-xs text-yellow-700 dark:text-yellow-300 font-bold">(برای ویرایش به قسمت سوابق اخیر مراجعه کنید)</p>
-                                                </div>
-                                            )}
-                                            {!isRegistered && isNegative && !isMotefereghe && <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-xl border border-red-200 dark:border-red-800 text-center animate-pulse"><p className="text-sm text-red-600 dark:text-red-300 font-bold">هشدار: موجودی منفی است</p></div>}
+                                    <motion.div 
+                                        initial={{ height: 0, opacity: 0 }} 
+                                        animate={{ height: 'auto', opacity: 1 }} 
+                                        exit={{ height: 0, opacity: 0 }} 
+                                        transition={{ duration: 0.2, ease: "easeOut" }}
+                                        className="bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700"
+                                        style={{ willChange: "height, opacity", transform: "translateZ(0)" }}
+                                    >
+                                        <div className="p-5 space-y-5">
                                             
-                                            <div className="space-y-4">
-                                                <h4 className="text-sm font-black text-metro-orange flex items-center gap-2"><Icons.BarChart className="w-5 h-5" />کارتن</h4>
-                                                <div className="flex items-end gap-3 md:gap-6">
-                                                     {!isMotefereghe && (
-                                                         <div className="flex-1">
-                                                            <label className="block text-xs font-bold text-gray-500 mb-2 mr-1">موجودی قبل</label>
-                                                            <input type="number" disabled={isRegistered} value={vals.previousBalance} onChange={e => handleInputChange(pid, 'previousBalance', e.target.value)} className={inputClasses} placeholder="" />
-                                                         </div>
-                                                     )}
-                                                     
-                                                     <div className="flex-1">
-                                                        <label className="block text-xs font-bold text-green-600 mb-2 mr-1">{isMotefereghe ? 'موجودی اعلامی' : 'تولید روز'}</label>
-                                                        <input type="number" disabled={isRegistered} value={vals.production} onChange={e => handleInputChange(pid, 'production', e.target.value)} className={inputClasses} placeholder="" />
-                                                     </div>
-                                                     
-                                                     {!isMotefereghe && (
-                                                         <div className="flex-1 relative">
-                                                            <label className="block text-xs font-bold text-red-600 mb-2 mr-1">فروش (خودکار)</label>
-                                                            <div className="relative">
-                                                                <input 
-                                                                    type="number" 
-                                                                    disabled={true} 
-                                                                    value={vals.sales} 
-                                                                    className={`${inputClasses} bg-gray-100 dark:bg-gray-800 border-dashed border-red-200 dark:border-red-900 text-gray-500 cursor-not-allowed`} 
-                                                                    placeholder=""
-                                                                />
-                                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10">
-                                                                    <Icons.Lock className="w-6 h-6 text-red-500" />
-                                                                </div>
-                                                            </div>
-                                                            <span className="text-[9px] text-gray-400 absolute -bottom-4 right-0 w-full text-center">محاسبه از حواله</span>
-                                                         </div>
-                                                     )}
+                                            <div className="flex gap-3">
+                                                <div className="flex-1 bg-red-50 dark:bg-red-900/10 p-3 rounded-xl border border-red-100 dark:border-red-900/20 text-center">
+                                                    <span className="block text-gray-500 text-[10px] font-bold mb-1">فروش حواله (تعداد)</span>
+                                                    <span className="text-lg font-black text-red-600 tracking-tight">{toPersianDigits(soldUnits)}</span>
                                                 </div>
+                                                {isLiq && (
+                                                    <div className="flex-1 bg-orange-50 dark:bg-orange-900/10 p-3 rounded-xl border border-orange-100 dark:border-orange-900/20 text-center">
+                                                        <span className="block text-gray-500 text-[10px] font-bold mb-1">فروش حواله (Kg)</span>
+                                                        <span className="text-lg font-black text-orange-600 tracking-tight">{toPersianDigits(soldKg)}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className={`space-y-5 ${isRegistered ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
+                                                <div className="space-y-3">
+                                                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-metro-orange"></span>
+                                                        اطلاعات تعداد (کارتن)
+                                                    </h4>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div>
+                                                            <label className="block text-[10px] font-bold mb-1.5 text-gray-400 pr-1">موجودی قبل</label>
+                                                            <input type="tel" inputMode="numeric" value={vals.previousBalance} onChange={e => handleInputChange(pid, 'previousBalance', e.target.value)} className={inputClasses} placeholder="0" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] font-bold mb-1.5 text-gray-400 pr-1">تولید روز</label>
+                                                            <input type="tel" inputMode="numeric" value={vals.production} onChange={e => handleInputChange(pid, 'production', e.target.value)} className={inputClasses} placeholder="0" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {isLiq && (
+                                                    <div className="space-y-3 pt-3 border-t border-dashed border-gray-200">
+                                                        <h4 className="text-xs font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-metro-blue"></span>
+                                                            اطلاعات وزن (کیلوگرم)
+                                                        </h4>
+                                                        <div className="grid grid-cols-2 gap-3">
+                                                            <div>
+                                                                <label className="block text-[10px] font-bold mb-1.5 text-gray-400 pr-1">وزن قبل</label>
+                                                                <input type="tel" inputMode="decimal" value={vals.previousBalanceKg} onChange={e => handleInputChange(pid, 'previousBalanceKg', e.target.value)} className={`${inputClasses} border-blue-100 focus:border-metro-blue focus:ring-blue-100`} placeholder="0" />
+                                                            </div>
+                                                            <div>
+                                                                <label className="block text-[10px] font-bold mb-1.5 text-gray-400 pr-1">تولید روز</label>
+                                                                <input type="tel" inputMode="decimal" value={vals.productionKg} onChange={e => handleInputChange(pid, 'productionKg', e.target.value)} className={`${inputClasses} border-blue-100 focus:border-metro-blue focus:ring-blue-100`} placeholder="0" />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                             
-                                            {product?.hasKilogramUnit && (
-                                                <div className="space-y-4 pt-6 border-t border-gray-200 dark:border-gray-700">
-                                                    <h4 className="text-sm font-black text-metro-blue flex items-center gap-2"><Icons.HardDrive className="w-5 h-5" />کیلوگرم</h4>
-                                                    <div className="flex items-end gap-3 md:gap-6">
-                                                         {!isMotefereghe && (
-                                                             <div className="flex-1">
-                                                                <label className="block text-xs font-bold text-gray-500 mb-2 mr-1">قبل (Kg)</label>
-                                                                <input type="number" step="0.1" disabled={isRegistered} value={vals.previousBalanceKg} onChange={e => handleInputChange(pid, 'previousBalanceKg', e.target.value)} className={inputClasses.replace('focus:border-metro-orange', 'focus:border-metro-blue')} placeholder="" />
-                                                             </div>
-                                                         )}
-                                                         <div className="flex-1">
-                                                            <label className="block text-xs font-bold text-green-600 mb-2 mr-1">{isMotefereghe ? 'موجودی (Kg)' : 'تولید (Kg)'}</label>
-                                                            <input type="number" step="0.1" disabled={isRegistered} value={vals.productionKg} onChange={e => handleInputChange(pid, 'productionKg', e.target.value)} className={inputClasses.replace('focus:border-metro-orange', 'focus:border-metro-blue')} placeholder="" />
-                                                         </div>
-                                                         
-                                                         {!isMotefereghe && (
-                                                             <div className="flex-1 relative">
-                                                                <label className="block text-xs font-bold text-red-600 mb-2 mr-1">فروش (Kg)</label>
-                                                                <div className="relative">
-                                                                    <input 
-                                                                        type="number" 
-                                                                        step="0.1" 
-                                                                        disabled={true} 
-                                                                        value={vals.salesKg} 
-                                                                        className={`${inputClasses} bg-gray-100 dark:bg-gray-800 border-dashed border-red-200 dark:border-red-900 text-gray-500 cursor-not-allowed`} 
-                                                                        placeholder=""
-                                                                    />
-                                                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10">
-                                                                        <Icons.Lock className="w-6 h-6 text-red-500" />
-                                                                    </div>
-                                                                </div>
-                                                             </div>
-                                                         )}
-                                                    </div>
+                                            {isRegistered && (
+                                                <div className="flex items-center justify-center gap-2 text-green-700 text-sm font-black bg-green-50 p-3 rounded-xl border border-green-200">
+                                                    <Icons.Check className="w-5 h-5" /> اطلاعات ثبت شده است
                                                 </div>
                                             )}
                                         </div>
@@ -314,19 +307,11 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                 })}
             </div>
 
-            <div className="flex justify-center pt-8 pb-4">
-                <Button onClick={handleFinalSubmit} isLoading={isSubmitting} className="w-full max-w-md h-16 text-2xl font-black bg-metro-green hover:bg-green-600 shadow-xl !rounded-[24px]">
-                    ثبت نهایی آمار
-                    <Icons.Check className="mr-2 w-8 h-8" />
+            <div className="px-4 mt-8">
+                <Button onClick={handleFinalSubmit} isLoading={isSubmitting} className="w-full h-14 text-xl font-black bg-gradient-to-r from-metro-green to-emerald-600 hover:to-emerald-500 shadow-lg shadow-green-200 dark:shadow-none rounded-[20px] border-b-4 border-green-700 active:border-b-0 active:translate-y-1 transition-all">
+                    <Icons.Check className="ml-2 w-6 h-6" /> ثبت نهایی آمار
                 </Button>
             </div>
-            
-            <style>{`
-                @keyframes gradient-xy {
-                    0%, 100% { background-position: 0% 50%; }
-                    50% { background-position: 100% 50%; }
-                }
-            `}</style>
         </div>
     );
 };

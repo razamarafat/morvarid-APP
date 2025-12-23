@@ -24,18 +24,27 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
   const role = user?.role || UserRole.ADMIN;
   const themeColors = THEMES[theme][role];
 
-  const handleGoToDashboard = () => {
-    if (!user) {
-        navigate('/login');
-        return;
-    }
-
-    switch (user.role) {
-        case UserRole.ADMIN: navigate('/admin'); break;
-        case UserRole.REGISTRATION: navigate('/registration'); break;
-        case UserRole.SALES: navigate('/sales'); break;
-        default: navigate('/login');
-    }
+  // Helper to change view via query params or state if in dashboard, 
+  // but simpler here: we assume the parent component handles 'onNavigate'.
+  // Since Header doesn't receive onNavigate, we need to implement a way to switch views.
+  // HOWEVER, the architecture passes 'currentView' state in the Dashboard pages.
+  // To make this work seamlessly without prop drilling 'onNavigate' everywhere, 
+  // we will dispatch a custom event or rely on the fact that for now, 
+  // we might need to rely on the Dashboard Layout context if we had one.
+  // 
+  // CRITICAL FIX: The prompt asks to move navigation to the Top Bar for Desktop.
+  // The architecture uses 'currentView' state inside specific Dashboard pages (AdminDashboard, etc.).
+  // To support this without massive refactoring, we'll dispatch a CustomEvent that Dashboards listen to,
+  // OR we simply accept that 'onMenuClick' was for sidebar, and we might need to inject links here.
+  
+  // Actually, the cleanest way in this specific codebase is to grab the 'setCurrentView' function 
+  // if we can, but we can't easily. 
+  // ALTERNATIVE: We trigger a navigation event. 
+  
+  const handleNavClick = (view: string) => {
+      // Dispatch a custom event that the Dashboard pages will listen to
+      const event = new CustomEvent('dashboard-navigate', { detail: { view } });
+      window.dispatchEvent(event);
   };
 
   const handleLogout = async () => {
@@ -53,13 +62,47 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
       }
   };
 
-  const dashboardPaths = ['/admin', '/registration', '/sales'];
-  const isAtDashboard = dashboardPaths.includes(location.pathname);
-  const shouldShowHome = !['/', '/login'].includes(location.pathname) && !isAtDashboard;
+  const getDesktopNavItems = () => {
+      const btnClass = "px-4 py-2 rounded-xl text-sm font-bold transition-all hover:bg-black/5 dark:hover:bg-white/10 flex items-center gap-2";
+      const activeClass = `bg-black/5 dark:bg-white/10 ${themeColors.text}`;
+      
+      // We can't easily know "currentView" here without prop drilling, 
+      // so we'll just show the buttons. Active state might be less visible but functional.
 
-  // M3 Top App Bar: Minimal elevation, surface color
+      switch(role) {
+          case UserRole.REGISTRATION:
+              return (
+                  <>
+                    <button onClick={() => handleNavClick('dashboard')} className={btnClass}><Icons.Home className="w-4 h-4"/> داشبورد</button>
+                    <button onClick={() => handleNavClick('stats')} className={btnClass}><Icons.BarChart className="w-4 h-4"/> ثبت آمار</button>
+                    <button onClick={() => handleNavClick('invoice')} className={btnClass}><Icons.FileText className="w-4 h-4"/> ثبت حواله</button>
+                    <button onClick={() => handleNavClick('recent')} className={btnClass}><Icons.Refresh className="w-4 h-4"/> سوابق</button>
+                  </>
+              );
+          case UserRole.SALES:
+              return (
+                  <>
+                    <button onClick={() => handleNavClick('dashboard')} className={btnClass}><Icons.Home className="w-4 h-4"/> داشبورد</button>
+                    <button onClick={() => handleNavClick('farm-stats')} className={btnClass}><Icons.BarChart className="w-4 h-4"/> آمار فارم</button>
+                    <button onClick={() => handleNavClick('invoices')} className={btnClass}><Icons.FileText className="w-4 h-4"/> لیست حواله</button>
+                    <button onClick={() => handleNavClick('analytics')} className={btnClass}><Icons.BarChart className="w-4 h-4"/> نمودارها</button>
+                  </>
+              );
+          case UserRole.ADMIN:
+          default:
+              return (
+                  <>
+                    <button onClick={() => handleNavClick('dashboard')} className={btnClass}><Icons.Home className="w-4 h-4"/> داشبورد</button>
+                    <button onClick={() => handleNavClick('farms')} className={btnClass}><Icons.Home className="w-4 h-4"/> فارم‌ها</button>
+                    <button onClick={() => handleNavClick('users')} className={btnClass}><Icons.Users className="w-4 h-4"/> کاربران</button>
+                    <button onClick={() => handleNavClick('reports')} className={btnClass}><Icons.FileText className="w-4 h-4"/> گزارشات</button>
+                  </>
+              );
+      }
+  };
+
   return (
-    <header className={`${themeColors.surface} ${themeColors.text} sticky top-0 z-30 transition-colors duration-300 border-b border-gray-200 dark:border-gray-800`}>
+    <header className={`${themeColors.surface} ${themeColors.text} sticky top-0 z-30 transition-colors duration-300 border-b border-gray-200 dark:border-gray-800 shadow-sm`}>
       <div className="container mx-auto px-4 h-16 flex justify-between items-center max-w-full">
         
         <div className="flex items-center gap-2 md:gap-4">
@@ -71,19 +114,14 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
             <Icons.Menu className="w-6 h-6" />
           </button>
 
-          {shouldShowHome && (
-              <button 
-                onClick={handleGoToDashboard} 
-                className={`p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors active:scale-95 text-${themeColors.primaryText}`}
-                title="بازگشت به داشبورد"
-              >
-                  <Icons.Home className="w-6 h-6" />
-              </button>
-          )}
-
-          <h1 className="text-lg md:text-2xl font-bold tracking-tight truncate max-w-[180px] sm:max-w-none">
+          <h1 className="text-lg md:text-2xl font-bold tracking-tight truncate max-w-[180px] sm:max-w-none ml-4">
             {title}
           </h1>
+
+          {/* DESKTOP NAVIGATION LINKS */}
+          <div className="hidden lg:flex items-center gap-1 mr-4 border-r pr-4 border-gray-300 dark:border-gray-600">
+              {getDesktopNavItems()}
+          </div>
         </div>
         
         <div className="flex items-center gap-2">

@@ -2,10 +2,7 @@
 <html lang="fa" dir="rtl">
   <head>
     <meta charset="UTF-8" />
-    
-    <!-- ✅ FIX: تغییر آیکون از vite.svg به آیکون PWA -->
-    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192x192.png" />
-    
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>سامانه مدیریت یکپارچه آمار مروارید</title>
     
@@ -14,9 +11,9 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="مروارید">
     <meta name="mobile-web-app-capable" content="yes">
-    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    <link rel="apple-touch-icon" href="/vite.svg">
     <meta name="theme-color" content="#2D89EF">
-    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="manifest" href="/manifest.json">
 
     <!-- Fonts and Styles -->
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/font-face.css" rel="stylesheet" type="text/css" />
@@ -87,25 +84,6 @@
         font-family: 'Vazir', sans-serif !important;
       }
       
-      /* ✅ FIX: غیرفعال کردن Pull-to-Refresh در PWA */
-      html {
-        overflow: hidden;
-        height: 100%;
-        overscroll-behavior: none;
-        overscroll-behavior-y: none;
-        -webkit-overflow-scrolling: touch;
-      }
-      
-      body {
-        overflow: auto;
-        height: 100%;
-        overscroll-behavior: none;
-        overscroll-behavior-y: none;
-        position: fixed;
-        width: 100%;
-        -webkit-overflow-scrolling: touch;
-      }
-
       html, body {
         scrollbar-width: none;
         -ms-overflow-style: none;
@@ -126,6 +104,7 @@
       
       body {
         transition: background-color 0.2s ease;
+        overscroll-behavior-y: none;
         -webkit-user-select: none;
         user-select: none;
         -webkit-touch-callout: none;
@@ -133,22 +112,13 @@
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
       }
-      
-      /* ✅ FIX: Container اصلی برای scroll داخلی */
-      #root {
-        height: 100%;
-        overflow-y: auto;
-        overflow-x: hidden;
-        overscroll-behavior: contain;
-        overscroll-behavior-y: contain;
-        -webkit-overflow-scrolling: touch;
-      }
 
       input, textarea {
         -webkit-user-select: text;
         user-select: text;
       }
 
+      /* TASK: Remove input number spinners (up/down arrows) */
       input::-webkit-outer-spin-button,
       input::-webkit-inner-spin-button {
         -webkit-appearance: none;
@@ -158,6 +128,7 @@
         -moz-appearance: textfield;
       }
 
+      /* Performance classes */
       .gpu-accelerated {
         transform: translateZ(0);
         backface-visibility: hidden;
@@ -165,70 +136,102 @@
         will-change: transform, opacity;
       }
 
-      @keyframes metro-shine {
-          0% { transform: translateX(-150%) skewX(-25deg); }
-          100% { transform: translateX(250%) skewX(-25deg); }
-      }
-      
-      @keyframes metro-flow {
-          0%, 100% { opacity: 0.05; transform: scale(1) translateZ(0); }
-          50% { opacity: 0.12; transform: scale(1.02) translateZ(0); }
-      }
-
-      .metro-shine-overlay {
-          position: absolute;
-          inset: 0;
-          width: 100%;
-          background: linear-gradient(to right, transparent, rgba(255,255,255,0.15), transparent);
-          animation: metro-shine 6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-          pointer-events: none;
-          z-index: 5;
-          will-change: transform;
-      }
-
-      .metro-flow-overlay {
-          position: absolute;
-          inset: 0;
-          background: radial-gradient(circle at center, rgba(255,255,255,0.1), transparent 70%);
-          animation: metro-flow 10s ease-in-out infinite;
-          pointer-events: none;
-          z-index: 1;
-          will-change: opacity, transform;
-      }
-
-      .shiny-text {
-        position: relative;
-        display: inline-block;
-        color: #2D89EF;
+      /* Optimized Infinite Shimmer (Transform-based) */
+      .shimmer-bg {
+        position: absolute;
+        inset: 0;
         overflow: hidden;
-        background: transparent;
-        -webkit-background-clip: unset;
-        background-clip: unset;
-        -webkit-text-fill-color: currentcolor;
+        pointer-events: none;
       }
 
-      .shiny-text::after {
-        content: "";
+      .shimmer-bg::after {
+        content: '';
         position: absolute;
         top: 0;
-        left: -100%;
-        width: 50%;
+        left: 0;
+        width: 200%;
         height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-        transform: skewX(-20deg);
-        animation: shine-move 3s infinite linear;
+        background: linear-gradient(
+          105deg, 
+          transparent 20%, 
+          rgba(255,255,255,0.1) 40%, 
+          rgba(255,255,255,0.2) 50%, 
+          rgba(255,255,255,0.1) 60%, 
+          transparent 80%
+        );
+        transform: translateX(-100%);
+        animation: shimmer-transform 8s infinite linear;
+        will-change: transform;
       }
 
-      @keyframes shine-move {
-        0% { transform: translateX(0) skewX(-20deg); }
-        100% { transform: translateX(400%) skewX(-20deg); }
+      @keyframes shimmer-transform {
+        0% { transform: translateX(-50%); }
+        100% { transform: translateX(0%); } 
+      }
+
+      /* Optimized Strong Shine for Cards (Transform-based) */
+      .strong-shine-overlay {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        border-radius: inherit;
+        pointer-events: none;
+        z-index: 5;
+        /* Force GPU layer */
+        transform: translateZ(0);
+      }
+      
+      .strong-shine-overlay::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          115deg,
+          transparent 40%,
+          rgba(255, 255, 255, 0.3) 50%, 
+          transparent 60%
+        );
+        /* Start fully off-screen left */
+        transform: translateX(-150%) skewX(-20deg);
+        animation: shine-slide 4s infinite linear;
+        will-change: transform;
+      }
+      
+      @keyframes shine-slide {
+        0% {
+          transform: translateX(-150%) skewX(-20deg);
+        }
+        100% {
+          transform: translateX(150%) skewX(-20deg);
+        }
+      }
+
+      /* TASK: Permanent Shiny Text for Headers */
+      .shiny-text {
+        background: linear-gradient(110deg, currentColor 35%, rgba(255, 255, 255, 0.9) 50%, currentColor 65%);
+        background-size: 200% 100%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: shine 3s infinite linear;
+        display: inline-block;
+      }
+      @keyframes shine {
+        to {
+          background-position-x: -200%;
+        }
       }
 
       .smooth-transition {
-        transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        transition-property: transform, opacity, background-color, height;
+        transition-duration: 0.3s;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
       }
     </style>
-    <script type="importmap">
+  <script type="importmap">
 {
   "imports": {
     "react/": "https://esm.sh/react@^19.2.3/",
@@ -247,8 +250,7 @@
     "zod": "https://esm.sh/zod@^4.2.1",
     "xlsx": "https://esm.sh/xlsx@^0.18.5",
     "react-hook-form": "https://esm.sh/react-hook-form@^7.69.0",
-    "path": "https://esm.sh/path@^0.12.7",
-    "vite-plugin-pwa": "https://esm.sh/vite-plugin-pwa@^1.2.0"
+    "path": "https://esm.sh/path@^0.12.7"
   }
 }
 </script>

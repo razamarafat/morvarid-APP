@@ -26,6 +26,9 @@ const LoginPage: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(getCurrentTime());
   const [currentDate, setCurrentDate] = useState(getTodayJalaliPersian());
   const [error, setError] = useState<string | null>(null);
+  
+  // Local state to keep loading active during redirect
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   // Time Updater
   useEffect(() => {
@@ -67,16 +70,22 @@ const LoginPage: React.FC = () => {
     const result = await login(data.username, data.password, !!data.rememberMe);
 
     if (result.success) {
+        // Keep the loading state true while navigating
+        setIsRedirecting(true);
         const currentUser = useAuthStore.getState().user;
         
-        switch (currentUser?.role) {
-            case UserRole.ADMIN: navigate('/admin', { replace: true }); break;
-            case UserRole.REGISTRATION: navigate('/registration', { replace: true }); break;
-            case UserRole.SALES: navigate('/sales', { replace: true }); break;
-            default: navigate('/home', { replace: true });
-        }
+        // Small delay to ensure the user sees the success/loading state
+        setTimeout(() => {
+            switch (currentUser?.role) {
+                case UserRole.ADMIN: navigate('/admin', { replace: true }); break;
+                case UserRole.REGISTRATION: navigate('/registration', { replace: true }); break;
+                case UserRole.SALES: navigate('/sales', { replace: true }); break;
+                default: navigate('/home', { replace: true });
+            }
+        }, 500);
     } else {
         setError(result.error || 'خطا در ورود');
+        setIsRedirecting(false);
     }
   };
 
@@ -183,10 +192,17 @@ const LoginPage: React.FC = () => {
 
                 <button
                     type="submit"
-                    disabled={isSubmitting || isBlocked}
-                    className="w-full py-4 mt-6 bg-metro-blue hover:bg-metro-cobalt text-white font-bold text-lg transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-metro-blue/30 rounded-full"
+                    disabled={isSubmitting || isRedirecting || isBlocked}
+                    className="w-full py-4 mt-6 bg-metro-blue hover:bg-metro-cobalt text-white font-bold text-lg transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-metro-blue/30 rounded-full disabled:opacity-70 disabled:cursor-wait"
                 >
-                    {isSubmitting ? 'در حال ورود...' : <><Icons.ChevronLeft className="w-5 h-5" /> ورود به سامانه</>}
+                    {isSubmitting || isRedirecting ? (
+                        <>
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white ml-2"></div>
+                            در حال ورود...
+                        </>
+                    ) : (
+                        <><Icons.ChevronLeft className="w-5 h-5" /> ورود به سامانه</>
+                    )}
                 </button>
             </form>
             

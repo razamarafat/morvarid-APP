@@ -15,41 +15,6 @@ interface SidebarProps {
   onNavigate: (view: string) => void;
 }
 
-const NavLink: React.FC<{ icon: React.ElementType, label: string, view: string, currentView: string, role: UserRole, onClick: () => void, isAction?: boolean }> = ({ icon: Icon, label, view, currentView, role, onClick, isAction }) => {
-    let activeClass = '';
-    let hoverClass = '';
-    
-    // M3: Active states use Tonal colors (Secondary Container)
-    // We map existing roles to M3-like tonal states
-    switch(role) {
-        case UserRole.REGISTRATION:
-            activeClass = 'bg-orange-100 text-orange-900 dark:bg-orange-900/40 dark:text-orange-100';
-            hoverClass = 'hover:bg-orange-50 dark:hover:bg-orange-900/20';
-            break;
-        case UserRole.SALES:
-            activeClass = 'bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-100';
-            hoverClass = 'hover:bg-blue-50 dark:hover:bg-blue-900/20';
-            break;
-        default: // ADMIN
-            activeClass = 'bg-purple-100 text-purple-900 dark:bg-purple-900/40 dark:text-purple-100';
-            hoverClass = 'hover:bg-purple-50 dark:hover:bg-purple-900/20';
-    }
-
-    const isActive = !isAction && currentView === view;
-
-    return (
-      <div className="px-3 mb-1">
-          <button 
-            onClick={onClick} 
-            className={`w-full text-right flex items-center p-3 lg:p-4 transition-all duration-200 group rounded-full ${isActive ? activeClass : `text-gray-700 dark:text-gray-300 ${hoverClass}`}`}
-          >
-            <Icon className={`w-5 h-5 lg:w-6 lg:h-6 ml-3 transition-transform ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
-            <span className={`font-bold text-sm lg:text-base tracking-wide ${isActive ? 'font-black' : ''}`}>{label}</span>
-          </button>
-      </div>
-    );
-};
-
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
@@ -61,8 +26,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
   let headerColor = 'bg-metro-purple';
   if (role === UserRole.REGISTRATION) headerColor = 'bg-metro-orange';
   if (role === UserRole.SALES) headerColor = 'bg-metro-blue';
-
-  const [active, setActive] = React.useState('dashboard');
 
   const handleInstallClick = async () => {
     if (isInstalled) {
@@ -97,65 +60,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
     }, 150);
   };
   
-  const handleNavigation = (view: string, label: string) => {
-    onNavigate(view);
-    onClose();
-  }
-
   const handleHome = () => {
-      setActive('dashboard');
-      handleNavigation('dashboard', 'داشبورد اصلی');
-  };
-
-  // Base links per role
-  const adminLinks = [
-    { icon: Icons.Home, label: 'مدیریت فارم‌ها', view: 'farms' },
-    { icon: Icons.Users, label: 'مدیریت کاربران', view: 'users' },
-    { icon: Icons.FileText, label: 'گزارشات', view: 'reports' },
-    { icon: Icons.TestTube, label: 'سنجش ویژگی‌ها', view: 'testing' },
-  ];
-
-  const registrationLinks = [
-    { icon: Icons.BarChart, label: 'ثبت آمار', view: 'stats' },
-    { icon: Icons.FileText, label: 'ثبت حواله فروش', view: 'invoice' },
-    { icon: Icons.Refresh, label: 'سوابق اخیر', view: 'recent' },
-  ];
-
-  const salesLinks = [
-    { icon: Icons.BarChart, label: 'آمار فارم‌ها', view: 'farm-stats' },
-    { icon: Icons.FileText, label: 'حواله‌های فروش', view: 'invoices' },
-    { icon: Icons.BarChart, label: 'تحلیل نموداری', view: 'analytics' },
-    { icon: Icons.FileText, label: 'گزارشات جامع', view: 'reports' },
-  ];
-
-  const getNavLinks = () => {
-    let links = user?.role === UserRole.ADMIN ? adminLinks : 
-                  user?.role === UserRole.REGISTRATION ? registrationLinks : 
-                  salesLinks;
-
-    return (
-        <>
-            {links.map(link => (
-                <NavLink 
-                    key={link.view} 
-                    {...link} 
-                    role={role}
-                    currentView={active}
-                    onClick={() => { setActive(link.view); handleNavigation(link.view, link.label); }} 
-                />
-            ))}
-            <div className="my-2 border-t border-gray-200 dark:border-gray-700 mx-4"></div>
-            <NavLink 
-                icon={isInstalled ? Icons.Check : Icons.Download}
-                label={isInstalled ? 'اپلیکیشن فعال است' : 'نصب نسخه PWA'}
-                view="pwa-install"
-                currentView={active}
-                role={role}
-                isAction={true}
-                onClick={handleInstallClick}
-            />
-        </>
-    );
+      onNavigate('dashboard');
+      onClose();
   };
 
   // M3 Drawer: Rounded top-right/bottom-right corners for the sheet
@@ -189,9 +96,21 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
         
         <nav className="flex-1 py-4 lg:py-6 overflow-y-auto custom-scrollbar space-y-1">
             <div className="px-4 mb-2">
-                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 px-3">منوی اصلی</p>
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 px-3">دسترسی سریع</p>
             </div>
-            {getNavLinks()}
+            
+            {/* ONLY PWA INSTALL BUTTON AS REQUESTED */}
+            <div className="px-3 mb-1">
+                <button 
+                    onClick={handleInstallClick} 
+                    className={`w-full text-right flex items-center p-3 lg:p-4 transition-all duration-200 group rounded-full ${isInstalled ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' : 'bg-gray-50 text-gray-700 dark:bg-gray-800 dark:text-gray-200 hover:bg-gray-100'}`}
+                >
+                    {isInstalled ? <Icons.Check className="w-6 h-6 ml-3" /> : <Icons.Download className="w-6 h-6 ml-3" />}
+                    <span className="font-bold text-sm lg:text-base tracking-wide">
+                        {isInstalled ? 'اپلیکیشن نصب شده است' : 'نصب نسخه PWA'}
+                    </span>
+                </button>
+            </div>
         </nav>
         
         <div className="p-4 lg:p-6 mb-safe">

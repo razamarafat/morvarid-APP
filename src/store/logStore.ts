@@ -1,1 +1,6 @@
-// This file is obsolete and has been cleaned up to resolve build errors.
+
+import { create } from 'zustand';
+export const useLogStore = create(() => ({
+    logs: [],
+    addLogEntry: () => {}
+}));

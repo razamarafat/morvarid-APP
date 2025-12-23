@@ -46,7 +46,6 @@ interface StatisticsState {
     addStatistic: (stat: Omit<DailyStatistic, 'id' | 'createdAt'>) => Promise<{ success: boolean; error?: string }>;
     updateStatistic: (id: string, updates: Partial<DailyStatistic>) => Promise<{ success: boolean; error?: string }>;
     deleteStatistic: (id: string) => Promise<{ success: boolean; error?: string }>;
-    bulkDeleteStatistics: (ids: string[]) => Promise<{ success: boolean; error?: string }>;
     bulkUpsertStatistics: (stats: Omit<DailyStatistic, 'id' | 'createdAt'>[]) => Promise<{ success: boolean; error?: string }>;
     getLatestInventory: (farmId: string, productId: string) => { units: number; kg: number };
     syncSalesFromInvoices: (farmId: string, date: string, productId: string) => Promise<void>;
@@ -64,6 +63,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           .order('date', { ascending: false });
       
       if (statsError) {
+          console.error('Fetch Stats Error:', statsError);
           set({ isLoading: false });
           return;
       }
@@ -133,8 +133,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
 
       let { error } = await supabase.from('daily_statistics').update(fullPayload).eq('id', id);
       
-      // ✅ FIX: Changed error.status to (error as any).status to resolve TypeScript build error
-      if (error && (String((error as any).status) === '400' || error.code === 'PGRST204' || error.code === '42703')) {
+      if (error && (String(error.status) === '400' || error.code === 'PGRST204' || error.code === '42703')) {
           const corePayload = {
               production: fullPayload.production,
               sales: fullPayload.sales,
@@ -142,7 +141,6 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
               current_inventory: fullPayload.current_inventory
           };
           Object.keys(corePayload).forEach(key => (corePayload as any)[key] === undefined && delete (corePayload as any)[key]);
-          
           const retry = await supabase.from('daily_statistics').update(corePayload).eq('id', id);
           error = retry.error;
       }
@@ -170,9 +168,9 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
               created_by: user.id
           }));
 
-          let { error } = await supabase.from('daily_statistics').upsert(dbPayloads);
-
+          const { error } = await supabase.from('daily_statistics').upsert(dbPayloads);
           if (error) return { success: false, error: translateError(error) };
+          
           await get().fetchStatistics();
           return { success: true };
       } catch (err: any) {
@@ -189,16 +187,6 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
       return { success: false, error: translateError(error) };
   },
 
-  bulkDeleteStatistics: async (ids) => {
-    if (ids.length === 0) return { success: true };
-    const { error } = await supabase.from('daily_statistics').delete().in('id', ids);
-    if (!error) {
-        await get().fetchStatistics();
-        return { success: true };
-    }
-    return { success: false, error: translateError(error) };
-  },
-
   getLatestInventory: (farmId, productId) => {
     const stats = get().statistics.filter(s => s.farmId === farmId && s.productId === productId);
     if (stats.length === 0) return { units: 0, kg: 0 };
@@ -207,26 +195,41 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
 
   syncSalesFromInvoices: async (farmId, date, productId) => {
       const normalizedDate = normalizeDate(date);
-      const { data: invoices } = await supabase
+      const { data: invoices, error: invError } = await supabase
           .from('invoices')
           .select('total_cartons')
           .eq('farm_id', farmId)
           .eq('date', normalizedDate)
           .eq('product_id', productId);
 
+      if (invError) {
+          console.error("Sync: Error fetching invoices:", invError);
+          return;
+      }
+
       const totalSales = invoices?.reduce((sum, inv) => sum + (inv.total_cartons || 0), 0) || 0;
       
-      const { data: statRecords } = await supabase
+      const { data: statRecords, error: statError } = await supabase
           .from('daily_statistics')
           .select('id, production, previous_balance')
           .eq('farm_id', farmId)
           .eq('date', normalizedDate)
           .eq('product_id', productId);
 
+      if (statError) {
+          console.error("Sync: Error fetching stats:", statError);
+          return;
+      }
+
       if (statRecords && statRecords.length > 0) {
           const rec = statRecords[0];
           const newInv = (rec.previous_balance || 0) + (rec.production || 0) - totalSales;
-          await supabase.from('daily_statistics').update({ sales: totalSales, current_inventory: newInv }).eq('id', rec.id);
+          const { error: updateError } = await supabase
+              .from('daily_statistics')
+              .update({ sales: totalSales, current_inventory: newInv })
+              .eq('id', rec.id);
+          
+          if (updateError) console.error("Sync: Error updating stats:", updateError);
       }
   }
 }));

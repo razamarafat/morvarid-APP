@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { Icons } from '../components/common/Icons';
@@ -18,19 +19,31 @@ const AdminDashboard: React.FC = () => {
     useEffect(() => {
         const performAutoBackup = async () => {
             const LAST_BACKUP_KEY = 'morvarid_last_auto_backup';
-            const BACKUP_INTERVAL = 8 * 60 * 60 * 1000;
+            const BACKUP_INTERVAL = 8 * 60 * 60 * 1000; 
             const lastBackupStr = localStorage.getItem(LAST_BACKUP_KEY);
             const now = Date.now();
+
             if (!lastBackupStr || (now - parseInt(lastBackupStr)) > BACKUP_INTERVAL) {
                 try {
-                    await supabase.from('farms').select('*', { count: 'exact', head: true });
+                    const [r1, r2, r3] = await Promise.all([
+                        supabase.from('farms').select('*', { count: 'exact', head: true }),
+                        supabase.from('daily_statistics').select('*', { count: 'exact', head: true }),
+                        supabase.from('invoices').select('*', { count: 'exact', head: true })
+                    ]);
+
+                    if (r1.error || r2.error || r3.error) {
+                        throw new Error('Database health check failed');
+                    }
+
                     localStorage.setItem(LAST_BACKUP_KEY, now.toString());
                     addToast('بررسی خودکار سلامت دیتابیس با موفقیت انجام شد.', 'success');
-                } catch (error) {
+                    console.log('Auto-Health Check completed successfully.');
+                } catch (error: any) {
                     console.error('Auto-Health Check Failed:', error);
                 }
             }
         };
+
         performAutoBackup();
         const backupInterval = setInterval(performAutoBackup, 60000); 
         return () => clearInterval(backupInterval);
@@ -68,66 +81,27 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
     const { addToast } = useToastStore();
 
     const handleInstallClick = async () => {
-        console.log('🔵 [PWA] Manual install trigger attempted');
-        
         if (isInstalled) {
-            console.log('ℹ️ [PWA] Status: Already installed');
             addToast('اپلیکیشن قبلاً نصب شده و فعال است.', 'info');
             return;
         }
-
         if (!deferredPrompt) {
-            console.error('❌ [PWA] Error: No deferred prompt found in memory.');
-            console.log('🔍 [PWA] DIAGNOSTIC CHECK:');
-            console.log('  - Protocol:', window.location.protocol);
-            console.log('  - Service Worker:', 'serviceWorker' in navigator ? 'SUPPORTED' : 'NOT SUPPORTED');
-            console.log('  - Standalone Mode:', window.matchMedia('(display-mode: standalone)').matches);
-            
-            const manifestLink = document.querySelector('link[rel="manifest"]');
-            console.log('  - Manifest Link:', manifestLink ? (manifestLink as any).href : 'NOT FOUND');
-
-            let errorMsg = 'مرورگر شما رویداد نصب را شلیک نکرده است. لطفا مطمئن شوید فایل‌های PNG آیکون در پوشه public/icons موجود هستند و از HTTPS استفاده می‌کنید.';
+            const isHttps = window.location.protocol === 'https:';
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            let errorMsg = 'مرورگر شما از نصب PWA پشتیبانی نمی‌کند یا قبلاً نصب شده است.';
+            if (!isHttps && !isLocal) errorMsg = 'نصب برنامه نیازمند اتصال امن (HTTPS) است.';
             addToast(errorMsg, 'warning');
             return;
         }
-        
-        console.log('✅ [PWA] Executing deferredPrompt.prompt()...');
         deferredPrompt.prompt();
-        
         const { outcome } = await deferredPrompt.userChoice;
-        console.log(`✅ [PWA] User Response Outcome: ${outcome}`);
-        
-        if (outcome === 'accepted') {
-            setDeferredPrompt(null);
-        }
+        if (outcome === 'accepted') setDeferredPrompt(null);
     };
 
     const getPwaTileConfig = () => {
-        if (isInstalled) {
-            return {
-                title: "اپلیکیشن فعال است",
-                icon: Icons.Check,
-                color: "bg-green-700",
-                count: "نصب شده",
-                click: () => addToast('نسخه نصبی فعال است.', 'success')
-            };
-        }
-        if (deferredPrompt) {
-            return {
-                title: "نصب نسخه PWA",
-                icon: Icons.Download,
-                color: "bg-metro-teal animate-pulse",
-                count: "نصب",
-                click: handleInstallClick
-            };
-        }
-        return {
-            title: "نصب اپلیکیشن",
-            icon: Icons.Globe,
-            color: "bg-gray-500",
-            count: "تحت وب",
-            click: handleInstallClick
-        };
+        if (isInstalled) return { title: "اپلیکیشن فعال است", icon: Icons.Check, color: "bg-green-700", count: "نصب شده", click: () => addToast('نسخه نصبی فعال است.', 'success') };
+        if (deferredPrompt) return { title: "نصب نسخه PWA", icon: Icons.Download, color: "bg-metro-teal animate-pulse", count: "نصب", click: handleInstallClick };
+        return { title: "نسخه وب (مرورگر)", icon: Icons.Globe, color: "bg-gray-500", count: "تحت وب", click: handleInstallClick };
     };
 
     const pwaConfig = getPwaTileConfig();
@@ -138,15 +112,7 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
             <MetroTile title="مدیریت کاربران" icon={Icons.Users} color="bg-metro-purple" size="wide" onClick={() => onNavigate('users')} />
             <MetroTile title="گزارشات" icon={Icons.FileText} color="bg-metro-blue" size="medium" onClick={() => onNavigate('reports')} />
             <MetroTile title="سنجش فنی" icon={Icons.TestTube} color="bg-metro-teal" size="medium" onClick={() => onNavigate('testing')} />
-            <MetroTile 
-                title={pwaConfig.title}
-                icon={pwaConfig.icon}
-                color={pwaConfig.color}
-                size="medium"
-                count={pwaConfig.count}
-                onClick={pwaConfig.click}
-                className={!isInstalled && !deferredPrompt ? "opacity-80" : ""}
-            />
+            <MetroTile title={pwaConfig.title} icon={pwaConfig.icon} color={pwaConfig.color} size="medium" count={pwaConfig.count} onClick={pwaConfig.click} className={!isInstalled && !deferredPrompt ? "opacity-80 grayscale-[0.3]" : ""} />
             <div className="col-span-1 h-32 sm:h-40 bg-gray-700 p-4 flex items-end justify-center relative overflow-hidden">
                 <div className="absolute inset-0 bg-black/20 pattern-grid-lg opacity-20" />
                 <span className="text-white text-xs opacity-50 relative z-10 font-mono">v{APP_VERSION}</span>

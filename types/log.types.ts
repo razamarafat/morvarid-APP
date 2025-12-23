@@ -1,1 +1,6 @@
-// This file is obsolete and has been cleaned up to resolve build errors.
+
+// LOGGING SYSTEM DELETED
+export type LogLevel = 'INFO';
+export type LogCategory = 'SYSTEM';
+export interface LogEntry { id: string; }
+export interface LogFilterState {}

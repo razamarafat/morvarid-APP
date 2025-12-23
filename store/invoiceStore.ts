@@ -27,7 +27,6 @@ interface InvoiceState {
     addInvoice: (invoice: Omit<Invoice, 'id' | 'createdAt'>) => Promise<{ success: boolean; error?: string }>;
     updateInvoice: (id: string, updates: Partial<Invoice>) => Promise<{ success: boolean; error?: string }>;
     deleteInvoice: (id: string) => Promise<{ success: boolean; error?: string }>;
-    bulkDeleteInvoices: (ids: string[]) => Promise<{ success: boolean; error?: string }>;
 }
 
 export const useInvoiceStore = create<InvoiceState>((set, get) => ({
@@ -60,6 +59,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
               description: i.description,
               isYesterday: i.is_yesterday,
               createdAt: i.created_at ? new Date(i.created_at).getTime() : Date.now(),
+              updatedAt: i.updated_at ? new Date(i.updated_at).getTime() : undefined,
               createdBy: i.created_by,
               creatorName: profileMap[i.created_by] || 'ناشناس'
           }));
@@ -90,8 +90,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
       
       let { error } = await supabase.from('invoices').insert(dbInv);
       
-      // ✅ FIX: Added type assertion to access 'status'
-      if (error && (String((error as any).status) === '400' || error.code === 'PGRST204')) {
+      if (error && (String(error.status) === '400' || error.code === 'PGRST204')) {
           const safeInv = { ...dbInv };
           delete safeInv.description; 
           const retry = await supabase.from('invoices').insert(safeInv);
@@ -120,8 +119,8 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
 
       let { error } = await supabase.from('invoices').update(fullPayload).eq('id', id);
 
-      // ✅ FIX: Added type assertion to access 'status'
-      if (error && (String((error as any).status) === '400' || error.code === 'PGRST204' || error.code === '42703')) {
+      // NUCLEAR FALLBACK: Strips everything but the essentials
+      if (error && (String(error.status) === '400' || error.code === 'PGRST204' || error.code === '42703')) {
           const corePayload: any = {
               total_cartons: fullPayload.total_cartons,
               total_weight: fullPayload.total_weight,
@@ -153,23 +152,5 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           return { success: true };
       }
       return { success: false, error: translateError(error) };
-  },
-
-  bulkDeleteInvoices: async (ids) => {
-    if (ids.length === 0) return { success: true };
-    const originals = get().invoices.filter(i => ids.includes(i.id));
-
-    const { error } = await supabase.from('invoices').delete().in('id', ids);
-
-    if (!error) {
-        await get().fetchInvoices();
-        for (const inv of originals) {
-            if (inv.productId) {
-                useStatisticsStore.getState().syncSalesFromInvoices(inv.farmId, inv.date, inv.productId);
-            }
-        }
-        return { success: true };
-    }
-    return { success: false, error: translateError(error) };
   }
 }));

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
@@ -25,6 +25,19 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, onNa
   const handleToggleSidebar = () => {
     setSidebarOpen(!isSidebarOpen);
   };
+
+  // Listen for navigation events from Header (Desktop)
+  useEffect(() => {
+    const handleNavEvent = (e: Event) => {
+        const customEvent = e as CustomEvent;
+        if (customEvent.detail && customEvent.detail.view) {
+            onNavigate(customEvent.detail.view);
+        }
+    };
+
+    window.addEventListener('dashboard-navigate', handleNavEvent);
+    return () => window.removeEventListener('dashboard-navigate', handleNavEvent);
+  }, [onNavigate]);
 
   return (
     <div className={`flex h-screen ${themeColors.background} text-black dark:text-white overflow-hidden font-sans`}>

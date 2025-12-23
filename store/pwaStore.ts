@@ -1,3 +1,4 @@
+
 import { create } from 'zustand';
 
 interface PwaState {
@@ -13,17 +14,26 @@ export const usePwaStore = create<PwaState>((set) => ({
   isInstalled: false,
   
   setDeferredPrompt: (prompt) => {
-    console.log('✅ [PWA] Event Captured: beforeinstallprompt stored in state.');
+    const style = 'background: #0050EF; color: white; padding: 2px 5px; border-radius: 3px; font-weight: bold;';
+    console.log(`%c[PWA Installer] Event: beforeinstallprompt captured!`, style);
+    console.log(`%c[PWA Installer] App is ready to be installed. Prompt saved.`, 'color: #0050EF;');
     set({ deferredPrompt: prompt });
   },
 
   setIsInstalled: (value) => {
-    console.log(`ℹ️ [PWA] Install Mode: ${value ? 'Standalone (PWA)' : 'Browser Tab'}`);
+    const style = value 
+        ? 'background: #00A300; color: white; padding: 2px 5px; border-radius: 3px;' 
+        : 'background: #F09609; color: black; padding: 2px 5px; border-radius: 3px;';
+    
+    console.log(`%c[PWA Installer] Mode: ${value ? 'STANDALONE (Installed)' : 'BROWSER (Web)'}`, style);
     set({ isInstalled: value });
   },
 
   logEvent: (message, data) => {
-    console.log(`🔵 [PWA] LOG: ${message}`);
-    if (data) console.dir(data);
+    const style = 'background: #603CBA; color: white; padding: 2px 5px; border-radius: 3px;';
+    console.log(`%c[PWA Debug] ${message}`, style);
+    if (data) {
+        console.dir(data);
+    }
   }
 }));
