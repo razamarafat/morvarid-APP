@@ -1,19 +1,19 @@
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
-  <head>
+<head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192x192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>سامانه مدیریت یکپارچه آمار مروارید</title>
-    
+   
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="مروارید">
     <meta name="mobile-web-app-capable" content="yes">
     <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
     <meta name="theme-color" content="#2D89EF">
+    <meta name="description" content="سیستم یکپارچه مدیریت آمار تولید، فروش و انبارداری فارم‌های مروارید"> <!-- اضافه شده برای SEO و توضیح اپ -->
     <link rel="manifest" href="/manifest.webmanifest">
-
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/font-face.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -76,11 +76,11 @@
         -webkit-tap-highlight-color: transparent;
         box-sizing: border-box;
       }
-      
+     
       body, input, textarea, select, button, table, .font-sans, .font-mono, [class*="text-"] {
         font-family: 'Vazir', sans-serif !important;
       }
-      
+     
       html {
         overflow: hidden;
         height: 100%;
@@ -88,7 +88,7 @@
         overscroll-behavior: none;
         -webkit-overflow-scrolling: auto;
       }
-      
+     
       body {
         overflow: hidden;
         height: 100%;
@@ -101,22 +101,19 @@
         padding-top: env(safe-area-inset-top);
         padding-bottom: env(safe-area-inset-bottom);
       }
-
       html, body {
         scrollbar-width: none;
         -ms-overflow-style: none;
         overflow-x: hidden;
         background-color: #F3F3F3;
       }
-
       html.dark body {
         background-color: #1D1D1D;
       }
-
       ::-webkit-scrollbar {
         display: none;
       }
-      
+     
       body {
         transition: background-color 0.2s ease;
         -webkit-user-select: none;
@@ -126,7 +123,7 @@
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
       }
-      
+     
       #root {
         height: 100%;
         width: 100%;
@@ -135,36 +132,31 @@
         overscroll-behavior: contain;
         -webkit-overflow-scrolling: touch;
       }
-
       input, textarea {
         -webkit-user-select: text;
         user-select: text;
       }
-
       input::-webkit-outer-spin-button,
       input::-webkit-inner-spin-button {
         -webkit-appearance: none;
         margin: 0;
       }
-      
+     
       input[type=number] {
         -moz-appearance: textfield;
       }
-
       .gpu-accelerated {
         transform: translateZ(0);
         backface-visibility: hidden;
         perspective: 1000px;
         will-change: transform, opacity;
       }
-
       .shimmer-bg {
         position: absolute;
         inset: 0;
         overflow: hidden;
         pointer-events: none;
       }
-
       .shimmer-bg::after {
         content: '';
         position: absolute;
@@ -177,12 +169,10 @@
         animation: shimmer-transform 8s infinite linear;
         will-change: transform;
       }
-
       @keyframes shimmer-transform {
         0% { transform: translateX(-50%); }
         100% { transform: translateX(0%); }
       }
-
       .strong-shine-overlay {
         position: absolute;
         inset: 0;
@@ -192,7 +182,7 @@
         z-index: 5;
         transform: translateZ(0);
       }
-      
+     
       .strong-shine-overlay::before {
         content: '';
         position: absolute;
@@ -205,12 +195,11 @@
         animation: shine-slide 4s infinite linear;
         will-change: transform;
       }
-      
+     
       @keyframes shine-slide {
         0% { transform: translateX(-150%) skewX(-20deg); }
         100% { transform: translateX(150%) skewX(-20deg); }
       }
-
       .shiny-text {
         background: linear-gradient(110deg, currentColor 35%, rgba(255, 255, 255, 0.9) 50%, currentColor 65%);
         background-size: 200% 100%;
@@ -220,11 +209,10 @@
         animation: shine 3s infinite linear;
         display: inline-block;
       }
-      
+     
       @keyframes shine {
         to { background-position-x: -200%; }
       }
-
       .smooth-transition {
         transition-property: transform, opacity, background-color, height;
         transition-duration: 0.3s;
@@ -255,7 +243,7 @@
   }
 }
 </script>
-  </head>
+  </head>  
   <body class="text-gray-900 dark:text-white selection:bg-metro-blue selection:text-white">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
