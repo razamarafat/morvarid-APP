@@ -222,6 +222,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                           .select('id', { count: 'exact' });
                   }
                   
+                  // If fallback found something (or had error), update 'error' and 'count'
                   error = retry.error;
                   count = retry.count;
               } else {
@@ -239,17 +240,19 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           return { success: true };
       }
       
-      console.error('❌ UPDATE FAILED. Final Error:', error);
-      if (error) {
-          console.error('Error Code:', error.code);
-          console.error('Error Message:', error.message);
-          console.error('Error Details:', error.details);
-          console.error('Error Hint:', error.hint);
-      } else {
-          console.error('Error: No records matched the query criteria (Count is 0).');
-      }
+      if (!error && (count === null || count === 0)) {
+          console.error('❌ UPDATE FAILED. Record not found (Count: 0).');
+          
+          // DIAGNOSTIC FOR ADMIN: Check if row exists but RLS blocked it
+          const { data: checkData } = await supabase.from('daily_statistics').select('id').eq('id', id).maybeSingle();
+          if (checkData) {
+              console.error('CRITICAL: Record exists in DB but update returned 0. This is likely an RLS Permission Issue.');
+              console.groupEnd();
+              return { success: false, error: 'مجوز ویرایش این رکورد را ندارید (محدودیت دیتابیس).' };
+          }
+      } 
+      
       console.groupEnd();
-
       const errorMessage = error ? translateError(error) : 'رکورد یافت نشد یا مجوز ویرایش ندارید.';
       return { success: false, error: errorMessage, debug: error };
   },
@@ -414,10 +417,19 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
       }
       
       if (!count || count === 0) {
-          console.warn('❌ Record not found in DB or permission denied.');
+          // DIAGNOSTIC: Check if row actually exists (RLS Check)
+          const { data: checkData } = await supabase.from('daily_statistics').select('id').eq('id', id).maybeSingle();
+          
+          if (checkData) {
+              console.error('CRITICAL: Row exists but DELETE returned 0 count. This confirms RLS (Row Level Security) is blocking the delete.');
+              console.groupEnd();
+              return { success: false, error: 'شما دسترسی لازم برای حذف این رکورد را ندارید (محدودیت دیتابیس).' };
+          }
+
+          console.warn('❌ Record not found in DB at all.');
           await get().fetchStatistics();
           console.groupEnd();
-          return { success: false, error: 'رکورد یافت نشد یا مجوز حذف ندارید.' };
+          return { success: false, error: 'رکورد یافت نشد.' };
       }
 
       console.log('✅ Delete Successful.');

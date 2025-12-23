@@ -4,6 +4,7 @@ import { useStatisticsStore, DailyStatistic } from '../../store/statisticsStore'
 import { useInvoiceStore } from '../../store/invoiceStore';
 import { useFarmStore } from '../../store/farmStore';
 import { useAuthStore } from '../../store/authStore';
+import { UserRole } from '../../types';
 import { Icons } from '../common/Icons';
 import { useConfirm } from '../../hooks/useConfirm';
 import Modal from '../common/Modal';
@@ -41,7 +42,7 @@ const StatCard: React.FC<StatCardProps> = ({ stat, getProductName, getProductUni
                         </button>
                     </>
                 ) : (
-                    <div className="p-2 bg-gray-50 dark:bg-gray-700 rounded-full">
+                    <div className="p-2 bg-gray-50 dark:bg-gray-700 rounded-full" title="زمان ویرایش تمام شده">
                          <Icons.Lock className="w-5 h-5 text-gray-300" />
                     </div>
                 )}
@@ -104,7 +105,7 @@ const InvoiceCard: React.FC<InvoiceCardProps> = ({ inv, getProductName, isEditab
                         </button>
                     </>
                 ) : (
-                    <div className="p-2 bg-gray-50 dark:bg-gray-700 rounded-full">
+                    <div className="p-2 bg-gray-50 dark:bg-gray-700 rounded-full" title="زمان ویرایش تمام شده">
                         <Icons.Lock className="w-5 h-5 text-gray-300" />
                     </div>
                 )}
@@ -167,11 +168,13 @@ const RecentRecords: React.FC = () => {
     const getProductName = (id: string) => products.find(p => p.id === id)?.name || 'محصول حذف شده';
     const getProductUnit = (id: string) => products.find(p => p.id === id)?.unit === 'CARTON' ? 'کارتن' : 'واحد';
 
+    // FIX: Allow ADMIN to bypass the 5-hour limit
     const isEditable = (createdAt?: number) => {
+        if (user?.role === UserRole.ADMIN) return true; // ADMIN BYPASS
         if (!createdAt) return false;
         const now = Date.now();
         const diff = now - createdAt;
-        return diff < 5 * 60 * 60 * 1000; // 5 Hours
+        return diff < 5 * 60 * 60 * 1000; // 5 Hours for others
     };
 
     // Filter and Sort Data
@@ -221,7 +224,12 @@ const RecentRecords: React.FC = () => {
         const yes = await confirm({ title: 'حذف آمار', message: 'آیا از حذف این رکورد اطمینان دارید؟', type: 'danger' });
         if(yes) {
             console.log('🗑️ UI: User triggered deleteStatistic for ID:', id);
-            await deleteStatistic(id);
+            const result = await deleteStatistic(id);
+            if (!result.success) {
+                addToast(result.error || 'خطا در حذف', 'error');
+            } else {
+                addToast('رکورد با موفقیت حذف شد', 'success');
+            }
         }
     };
 
@@ -229,7 +237,12 @@ const RecentRecords: React.FC = () => {
         const yes = await confirm({ title: 'حذف حواله', message: 'آیا از حذف این حواله اطمینان دارید؟', type: 'danger' });
         if(yes) {
             console.log('🗑️ UI: User triggered deleteInvoice for ID:', id);
-            await deleteInvoice(id);
+            const result = await deleteInvoice(id);
+            if (!result.success) {
+                addToast(result.error || 'خطا در حذف', 'error');
+            } else {
+                addToast('حواله با موفقیت حذف شد', 'success');
+            }
         }
     };
 

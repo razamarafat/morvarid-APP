@@ -171,7 +171,16 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           return { success: true };
       }
       
-      const errMsg = error ? translateError(error) : 'رکورد یافت نشد یا مجوز ویرایش ندارید.';
+      // Diagnostic check for RLS
+      if (!error && (count === null || count === 0)) {
+          const { data: exists } = await supabase.from('invoices').select('id').eq('id', id).maybeSingle();
+          if (exists) {
+              console.error('Invoice Update Failed via RLS block');
+              return { success: false, error: 'مجوز ویرایش این حواله را ندارید (محدودیت دیتابیس).' };
+          }
+      }
+
+      const errMsg = error ? translateError(error) : 'رکورد یافت نشد.';
       return { success: false, error: errMsg, debug: error };
   },
 
@@ -183,7 +192,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           .delete({ count: 'exact' })
           .eq('id', id);
       
-      // 2. Fallback: Delete by Invoice Number if ID fails
+      // 2. Fallback: Delete by Invoice Number if ID fails (and no error)
       if ((!count || count === 0) && !error && original) {
           const retry = await supabase.from('invoices')
               .delete({ count: 'exact' })
@@ -200,10 +209,17 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           }
           return { success: true };
       } else {
+          // Diagnostic Check
+          if (!error && (count === null || count === 0)) {
+              const { data: exists } = await supabase.from('invoices').select('id').eq('id', id).maybeSingle();
+              if (exists) {
+                  return { success: false, error: 'مجوز حذف این حواله را ندارید (محدودیت دیتابیس).' };
+              }
+          }
+
           console.error('Error deleting invoice:', error?.message || error);
-          // Refresh list to remove stale items if any
           if (!count || count === 0) await get().fetchInvoices();
-          return { success: false, error: error ? translateError(error) : 'رکورد یافت نشد یا مجوز حذف ندارید' };
+          return { success: false, error: error ? translateError(error) : 'رکورد یافت نشد.' };
       }
   }
 }));
