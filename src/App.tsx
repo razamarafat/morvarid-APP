@@ -14,6 +14,8 @@ import { useAlertStore } from '../store/alertStore';
 import { usePwaStore } from '../store/pwaStore'; 
 import ConfirmDialog from '../components/common/ConfirmDialog';
 import ToastContainer from '../components/common/Toast';
+// بعد از سایر import ها اضافه کنید:
+import UpdateNotification from '../components/common/UpdateNotification';
 
 // Lazy Load Pages to reduce initial bundle size
 const LoginPage = lazy(() => import('../pages/LoginPage'));
@@ -154,6 +156,7 @@ function App() {
       </HashRouter>
       <ConfirmDialog />
       <ToastContainer />
+      <UpdateNotification />
     </ErrorBoundary>
   );
 }
