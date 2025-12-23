@@ -7,7 +7,7 @@
   "display": "fullscreen",
   "orientation": "portrait",
   "background_color": "#1D1D1D",
-  "theme_color": "#2D89EF",
+  "theme_color": "#1D1D1D",
   "lang": "fa-IR",
   "dir": "rtl",
   "categories": ["productivity", "business"],
