@@ -142,20 +142,18 @@ const RecentRecords: React.FC = () => {
     const { confirm } = useConfirm();
     const { addToast } = useToastStore();
     
-    // View State
     const [activeTab, setActiveTab] = useState<'stats' | 'invoices'>('stats');
     const [expandedHistoryDates, setExpandedHistoryDates] = useState<string[]>([]);
 
-    // Edit States
     const [editStat, setEditStat] = useState<DailyStatistic | null>(null);
     const [editInvoice, setEditInvoice] = useState<Invoice | null>(null);
     
-    // Values for Edit
-    const [statValues, setStatValues] = useState({ prod: 0, sales: 0, prev: 0, prodKg: 0, salesKg: 0, prevKg: 0 });
+    // Values as strings to allow empty fields instead of pre-filled zeros
+    const [statValues, setStatValues] = useState({ prod: '', sales: '', prev: '', prodKg: '', salesKg: '', prevKg: '' });
     const [invoiceValues, setInvoiceValues] = useState({ 
         invoiceNumber: '',
-        cartons: 0, 
-        weight: 0,
+        cartons: '', 
+        weight: '',
         driverName: '',
         plateNumber: '',
         driverPhone: ''
@@ -164,29 +162,24 @@ const RecentRecords: React.FC = () => {
     const farmId = user?.assignedFarms?.[0]?.id;
     const today = normalizeDate(getTodayJalali());
 
-    // --- Data Processing ---
     const getProductName = (id: string) => products.find(p => p.id === id)?.name || 'محصول حذف شده';
     const getProductUnit = (id: string) => products.find(p => p.id === id)?.unit === 'CARTON' ? 'کارتن' : 'واحد';
 
-    // FIX: Allow ADMIN to bypass the 5-hour limit
     const isEditable = (createdAt?: number) => {
-        if (user?.role === UserRole.ADMIN) return true; // ADMIN BYPASS
+        // Fix: Manager (Admin) has full unrestricted access
+        if (user?.role === UserRole.ADMIN) return true; 
         if (!createdAt) return false;
         const now = Date.now();
         const diff = now - createdAt;
-        return diff < 5 * 60 * 60 * 1000; // 5 Hours for others
+        // Normal users have 5 hours to edit
+        return diff < 5 * 60 * 60 * 1000; 
     };
 
-    // Filter and Sort Data
-    const { todayStats, historyStatsGrouped } = useMemo<{
-        todayStats: DailyStatistic[];
-        historyStatsGrouped: Record<string, DailyStatistic[]>;
-    }>(() => {
+    const { todayStats, historyStatsGrouped } = useMemo(() => {
         const farmStats = statistics.filter(s => s.farmId === farmId);
         const todayRecs = farmStats.filter(s => s.date === today).sort((a,b) => b.createdAt - a.createdAt);
         const historyRecs = farmStats.filter(s => s.date !== today).sort((a,b) => b.date.localeCompare(a.date));
 
-        // Group history by date
         const grouped: Record<string, DailyStatistic[]> = {};
         historyRecs.forEach(rec => {
             if (!grouped[rec.date]) grouped[rec.date] = [];
@@ -196,10 +189,7 @@ const RecentRecords: React.FC = () => {
         return { todayStats: todayRecs, historyStatsGrouped: grouped };
     }, [statistics, farmId, today]);
 
-    const { todayInvoices, historyInvoicesGrouped } = useMemo<{
-        todayInvoices: Invoice[];
-        historyInvoicesGrouped: Record<string, Invoice[]>;
-    }>(() => {
+    const { todayInvoices, historyInvoicesGrouped } = useMemo(() => {
         const farmInvoices = invoices.filter(i => i.farmId === farmId);
         const todayRecs = farmInvoices.filter(i => i.date === today).sort((a,b) => b.createdAt - a.createdAt);
         const historyRecs = farmInvoices.filter(i => i.date !== today).sort((a,b) => b.date.localeCompare(a.date));
@@ -213,7 +203,6 @@ const RecentRecords: React.FC = () => {
         return { todayInvoices: todayRecs, historyInvoicesGrouped: grouped };
     }, [invoices, farmId, today]);
 
-    // --- Handlers ---
     const toggleHistoryDate = (date: string) => {
         setExpandedHistoryDates(prev => 
             prev.includes(date) ? prev.filter(d => d !== date) : [...prev, date]
@@ -221,9 +210,8 @@ const RecentRecords: React.FC = () => {
     };
 
     const handleDeleteStat = async (id: string) => {
-        const yes = await confirm({ title: 'حذف آمار', message: 'آیا از حذف این رکورد اطمینان دارید؟', type: 'danger' });
+        const yes = await confirm({ title: 'حذف آمار', message: 'آیا از حذف دائمی این رکورد اطمینان دارید؟', type: 'danger' });
         if(yes) {
-            console.log('🗑️ UI: User triggered deleteStatistic for ID:', id);
             const result = await deleteStatistic(id);
             if (!result.success) {
                 addToast(result.error || 'خطا در حذف', 'error');
@@ -234,9 +222,8 @@ const RecentRecords: React.FC = () => {
     };
 
     const handleDeleteInv = async (id: string) => {
-        const yes = await confirm({ title: 'حذف حواله', message: 'آیا از حذف این حواله اطمینان دارید؟', type: 'danger' });
+        const yes = await confirm({ title: 'حذف حواله', message: 'آیا از حذف دائمی این حواله اطمینان دارید؟', type: 'danger' });
         if(yes) {
-            console.log('🗑️ UI: User triggered deleteInvoice for ID:', id);
             const result = await deleteInvoice(id);
             if (!result.success) {
                 addToast(result.error || 'خطا در حذف', 'error');
@@ -247,14 +234,16 @@ const RecentRecords: React.FC = () => {
     };
 
     const handleEditStatOpen = (stat: DailyStatistic) => {
+        // Fix: Format values so zeros are empty strings
+        const fmt = (v: any) => (v === 0 || v === undefined || v === null) ? '' : String(v);
         setEditStat(stat);
         setStatValues({ 
-            prod: stat.production, 
-            sales: stat.sales || 0,
-            prev: stat.previousBalance || 0,
-            prodKg: stat.productionKg || 0,
-            salesKg: stat.salesKg || 0,
-            prevKg: stat.previousBalanceKg || 0
+            prod: fmt(stat.production), 
+            sales: fmt(stat.sales),
+            prev: fmt(stat.previousBalance),
+            prodKg: fmt(stat.productionKg),
+            salesKg: fmt(stat.salesKg),
+            prevKg: fmt(stat.previousBalanceKg)
         });
     };
 
@@ -263,20 +252,24 @@ const RecentRecords: React.FC = () => {
         const yes = await confirm({ title: 'ویرایش آمار', message: 'آیا از ذخیره تغییرات اطمینان دارید؟', type: 'info' });
         if (!yes) return;
 
-        console.log('💾 UI: User triggered updateStatistic for ID:', editStat.id);
-        console.log('💾 UI Payload:', statValues);
+        const prod = Number(statValues.prod);
+        const sales = Number(statValues.sales);
+        const prev = Number(statValues.prev);
+        const prodKg = Number(statValues.prodKg);
+        const salesKg = Number(statValues.salesKg);
+        const prevKg = Number(statValues.prevKg);
 
-        const newInventory = statValues.prev + statValues.prod - statValues.sales;
-        const newInventoryKg = statValues.prevKg + statValues.prodKg - statValues.salesKg;
+        const newInventory = prev + prod - sales;
+        const newInventoryKg = prevKg + prodKg - salesKg;
 
         const result = await updateStatistic(editStat.id, {
-            production: statValues.prod,
-            sales: statValues.sales,
-            previousBalance: statValues.prev,
+            production: prod,
+            sales: sales,
+            previousBalance: prev,
             currentInventory: newInventory,
-            productionKg: statValues.prodKg,
-            salesKg: statValues.salesKg,
-            previousBalanceKg: statValues.prevKg,
+            productionKg: prodKg,
+            salesKg: salesKg,
+            previousBalanceKg: prevKg,
             currentInventoryKg: newInventoryKg
         });
 
@@ -289,11 +282,13 @@ const RecentRecords: React.FC = () => {
     };
 
     const handleEditInvoiceOpen = (inv: Invoice) => {
+        // Fix: Format values so zeros are empty strings
+        const fmt = (v: any) => (v === 0 || v === undefined || v === null) ? '' : String(v);
         setEditInvoice(inv);
         setInvoiceValues({ 
             invoiceNumber: inv.invoiceNumber,
-            cartons: inv.totalCartons, 
-            weight: inv.totalWeight,
+            cartons: fmt(inv.totalCartons), 
+            weight: fmt(inv.totalWeight),
             driverName: inv.driverName || '',
             plateNumber: inv.plateNumber || '',
             driverPhone: inv.driverPhone || ''
@@ -303,25 +298,18 @@ const RecentRecords: React.FC = () => {
     const handleSaveInvoice = async () => {
         if (!editInvoice) return;
         
-        // Strict Validation
         if (!/^(17|18)\d{8}$/.test(invoiceValues.invoiceNumber)) {
             addToast('فرمت شماره حواله صحیح نیست (باید ۱۰ رقم و شروع با ۱۷ یا ۱۸ باشد)', 'error');
-            return;
-        }
-        if (!/^[^a-zA-Z]*$/.test(invoiceValues.driverName) || !/^[^a-zA-Z]*$/.test(invoiceValues.plateNumber)) {
-            addToast('استفاده از حروف انگلیسی مجاز نیست', 'error');
             return;
         }
 
         const yes = await confirm({ title: 'ویرایش حواله', message: 'آیا از ذخیره تغییرات اطمینان دارید؟', type: 'info' });
         if (!yes) return;
 
-        console.log('💾 UI: User triggered updateInvoice for ID:', editInvoice.id);
-
         const result = await updateInvoice(editInvoice.id, {
             invoiceNumber: invoiceValues.invoiceNumber,
-            totalCartons: invoiceValues.cartons,
-            totalWeight: invoiceValues.weight,
+            totalCartons: Number(invoiceValues.cartons),
+            totalWeight: Number(invoiceValues.weight),
             driverName: invoiceValues.driverName,
             plateNumber: invoiceValues.plateNumber,
             driverPhone: invoiceValues.driverPhone
@@ -339,7 +327,6 @@ const RecentRecords: React.FC = () => {
 
     return (
         <div className="pb-24">
-            {/* --- Custom Tab Switcher --- */}
             <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-full mb-8 mx-auto max-w-md sticky top-6 z-20 shadow-md border border-gray-200 dark:border-gray-700">
                 <button 
                     onClick={() => setActiveTab('stats')}
@@ -366,7 +353,6 @@ const RecentRecords: React.FC = () => {
             </div>
 
             <div className="max-w-4xl mx-auto space-y-10 animate-in fade-in duration-300 px-2">
-                
                 <div className="space-y-4">
                     <div className="flex items-center gap-3 px-2">
                         <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
@@ -439,49 +425,46 @@ const RecentRecords: React.FC = () => {
                 </div>
             </div>
 
-            {/* Edit Stat Modal */}
             <Modal isOpen={!!editStat} onClose={() => setEditStat(null)} title="ویرایش آمار">
                 <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1 custom-scrollbar">
                     <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-2xl text-sm font-bold text-blue-800 dark:text-blue-300 leading-relaxed border border-blue-100 dark:border-blue-800">
                         توجه: با تغییر مقادیر تولید یا فروش، موجودی نهایی به صورت خودکار محاسبه می‌شود.
                     </div>
                     
-                    {/* Unit Section */}
                     <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700">
                         <h4 className="text-sm font-black text-metro-orange flex items-center gap-2 mb-4"><Icons.BarChart className="w-5 h-5"/> تعداد (کارتن/دبه)</h4>
                         <div className="grid grid-cols-2 gap-4 mb-4">
                             <div>
                                 <label className="block text-xs font-bold mb-2 dark:text-gray-300">تولید</label>
-                                <input type="number" className="w-full p-4 border-2 border-gray-200 rounded-xl text-center font-black text-2xl bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:border-green-500 outline-none transition-colors" value={statValues.prod} onChange={(e) => setStatValues({ ...statValues, prod: Number(e.target.value) })} />
+                                <input type="number" className="w-full p-4 border-2 border-gray-200 rounded-xl text-center font-black text-2xl bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:border-green-500 outline-none transition-colors" value={statValues.prod} onChange={(e) => setStatValues({ ...statValues, prod: e.target.value })} />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold mb-2 dark:text-gray-300">فروش</label>
-                                <input type="number" className="w-full p-4 border-2 border-gray-200 rounded-xl text-center font-black text-2xl bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:border-red-500 outline-none transition-colors" value={statValues.sales} onChange={(e) => setStatValues({ ...statValues, sales: Number(e.target.value) })} />
+                                <input type="number" className="w-full p-4 border-2 border-gray-200 rounded-xl text-center font-black text-2xl bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:border-red-500 outline-none transition-colors" value={statValues.sales} onChange={(e) => setStatValues({ ...statValues, sales: e.target.value })} />
                             </div>
                         </div>
                         <div>
                             <label className="block text-xs font-bold mb-2 dark:text-gray-300">مانده قبل (اصلاح دستی)</label>
-                            <input type="number" className="w-full p-3 border rounded-xl text-center font-bold bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white text-lg" value={statValues.prev} onChange={(e) => setStatValues({ ...statValues, prev: Number(e.target.value) })} />
+                            <input type="number" className="w-full p-3 border rounded-xl text-center font-bold bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white text-lg" value={statValues.prev} onChange={(e) => setStatValues({ ...statValues, prev: e.target.value })} />
                         </div>
                     </div>
 
-                    {/* Weight Section (Conditional) */}
-                    {(productHasKg || statValues.prodKg > 0) && (
+                    {(productHasKg || Number(statValues.prodKg) > 0) && (
                         <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700">
                             <h4 className="text-sm font-black text-metro-blue flex items-center gap-2 mb-4"><Icons.HardDrive className="w-5 h-5"/> وزن (کیلوگرم)</h4>
                             <div className="grid grid-cols-2 gap-4 mb-4">
                                 <div>
                                     <label className="block text-xs font-bold mb-2 dark:text-gray-300">تولید (Kg)</label>
-                                    <input type="number" step="0.1" className="w-full p-4 border-2 border-gray-200 rounded-xl text-center font-black text-2xl bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:border-green-500 outline-none transition-colors" value={statValues.prodKg} onChange={(e) => setStatValues({ ...statValues, prodKg: Number(e.target.value) })} />
+                                    <input type="number" step="0.1" className="w-full p-4 border-2 border-gray-200 rounded-xl text-center font-black text-2xl bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:border-green-500 outline-none transition-colors" value={statValues.prodKg} onChange={(e) => setStatValues({ ...statValues, prodKg: e.target.value })} />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold mb-2 dark:text-gray-300">فروش (Kg)</label>
-                                    <input type="number" step="0.1" className="w-full p-4 border-2 border-gray-200 rounded-xl text-center font-black text-2xl bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:border-red-500 outline-none transition-colors" value={statValues.salesKg} onChange={(e) => setStatValues({ ...statValues, salesKg: Number(e.target.value) })} />
+                                    <input type="number" step="0.1" className="w-full p-4 border-2 border-gray-200 rounded-xl text-center font-black text-2xl bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:border-red-500 outline-none transition-colors" value={statValues.salesKg} onChange={(e) => setStatValues({ ...statValues, salesKg: e.target.value })} />
                                 </div>
                             </div>
                             <div>
                                 <label className="block text-xs font-bold mb-2 dark:text-gray-300">مانده قبل (Kg)</label>
-                                <input type="number" step="0.1" className="w-full p-3 border rounded-xl text-center font-bold bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white text-lg" value={statValues.prevKg} onChange={(e) => setStatValues({ ...statValues, prevKg: Number(e.target.value) })} />
+                                <input type="number" step="0.1" className="w-full p-3 border rounded-xl text-center font-bold bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white text-lg" value={statValues.prevKg} onChange={(e) => setStatValues({ ...statValues, prevKg: e.target.value })} />
                             </div>
                         </div>
                     )}
@@ -493,10 +476,8 @@ const RecentRecords: React.FC = () => {
                 </div>
             </Modal>
 
-            {/* Edit Invoice Modal */}
             <Modal isOpen={!!editInvoice} onClose={() => setEditInvoice(null)} title="ویرایش کامل حواله">
                  <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1 custom-scrollbar">
-                    {/* Invoice Number Field Added */}
                     <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-2xl border border-orange-200 dark:border-orange-800">
                         <label className="block text-xs font-bold mb-2 text-orange-800 dark:text-orange-300">شماره حواله (اصلاحیه)</label>
                         <input 
@@ -513,11 +494,11 @@ const RecentRecords: React.FC = () => {
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-bold mb-2 dark:text-gray-300">تعداد کارتن</label>
-                            <input type="number" className="w-full p-4 border-2 border-gray-200 rounded-xl text-center font-black text-2xl bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:border-metro-orange outline-none transition-colors" value={invoiceValues.cartons} onChange={(e) => setInvoiceValues({ ...invoiceValues, cartons: Number(e.target.value) })} />
+                            <input type="number" className="w-full p-4 border-2 border-gray-200 rounded-xl text-center font-black text-2xl bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:border-metro-orange outline-none transition-colors" value={invoiceValues.cartons} onChange={(e) => setInvoiceValues({ ...invoiceValues, cartons: e.target.value })} />
                         </div>
                         <div>
                             <label className="block text-xs font-bold mb-2 dark:text-gray-300">وزن (کیلوگرم)</label>
-                            <input type="number" className="w-full p-4 border-2 border-gray-200 rounded-xl text-center font-black text-2xl bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:border-metro-orange outline-none transition-colors" value={invoiceValues.weight} onChange={(e) => setInvoiceValues({ ...invoiceValues, weight: Number(e.target.value) })} />
+                            <input type="number" className="w-full p-4 border-2 border-gray-200 rounded-xl text-center font-black text-2xl bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:border-metro-orange outline-none transition-colors" value={invoiceValues.weight} onChange={(e) => setInvoiceValues({ ...invoiceValues, weight: e.target.value })} />
                         </div>
                     </div>
                     

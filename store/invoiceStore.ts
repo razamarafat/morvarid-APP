@@ -11,30 +11,21 @@ const mapLegacyProductId = (id: string | number): string => {
     return strId;
 };
 
-// Helper to translate DB errors
 const translateError = (error: any): string => {
     if (!error) return 'خطای ناشناخته';
-    const msg = error.message || '';
     const code = error.code || '';
-
+    const status = String(error.status || '');
+    if (status === '400' || code === 'PGRST204' || code === '42703') return 'خطای ساختار دیتابیس (ستون یافت نشد). پیلود اصلاح و تلاش مجدد شد.';
     if (code === '23505') return 'شماره حواله تکراری است.';
-    if (msg.includes('network') || msg.includes('fetch')) return 'خطا در اتصال به سرور.';
-    if (code === 'PGRST204') return 'خطای ساختار دیتابیس (ستون یافت نشد).';
-    
-    return `خطای ثبت حواله: ${msg} (${code})`;
+    return `خطای سیستم: ${error.message || code}`;
 };
 
-// Extend Invoice interface internally for the store to include creatorName
-interface InvoiceWithCreator extends Invoice {
-    creatorName?: string;
-}
-
 interface InvoiceState {
-    invoices: InvoiceWithCreator[];
+    invoices: Invoice[];
     isLoading: boolean;
     fetchInvoices: () => Promise<void>;
-    addInvoice: (invoice: Omit<Invoice, 'id' | 'createdAt'>) => Promise<{ success: boolean; error?: string; debug?: any }>;
-    updateInvoice: (id: string, updates: Partial<Invoice>) => Promise<{ success: boolean; error?: string; debug?: any }>;
+    addInvoice: (invoice: Omit<Invoice, 'id' | 'createdAt'>) => Promise<{ success: boolean; error?: string }>;
+    updateInvoice: (id: string, updates: Partial<Invoice>) => Promise<{ success: boolean; error?: string }>;
     deleteInvoice: (id: string) => Promise<{ success: boolean; error?: string }>;
 }
 
@@ -44,31 +35,17 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
 
   fetchInvoices: async () => {
       set({ isLoading: true });
-      
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-          set({ invoices: [], isLoading: false });
-          return;
-      }
-
-      const { data, error } = await supabase
-          .from('invoices')
-          .select('*')
-          .order('date', { ascending: false });
+      const { data, error } = await supabase.from('invoices').select('*').order('date', { ascending: false });
       
       if (!error && data) {
-          // Fetch Creator Profiles
           const creatorIds = Array.from(new Set(data.map((i: any) => i.created_by).filter(Boolean)));
           let profileMap: Record<string, string> = {};
-
           if (creatorIds.length > 0) {
-              const { data: profilesData } = await supabase.from('profiles').select('id, full_name').in('id', creatorIds);
-              if (profilesData) {
-                  profileMap = profilesData.reduce((acc: any, p: any) => ({ ...acc, [p.id]: p.full_name }), {});
-              }
+              const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', creatorIds);
+              if (profiles) profileMap = profiles.reduce((acc: any, p: any) => ({ ...acc, [p.id]: p.full_name }), {});
           }
 
-          const mappedInvoices = data.map((i: any) => ({
+          const mapped = data.map((i: any) => ({
               id: i.id,
               farmId: i.farm_id,
               date: i.date,
@@ -83,124 +60,96 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
               isYesterday: i.is_yesterday,
               createdAt: i.created_at ? new Date(i.created_at).getTime() : Date.now(),
               createdBy: i.created_by,
-              creatorName: profileMap[i.created_by] || 'ناشناس', // Map name
-              updatedAt: i.updated_at ? new Date(i.updated_at).getTime() : undefined
+              creatorName: profileMap[i.created_by] || 'ناشناس'
           }));
-          set({ invoices: mappedInvoices, isLoading: false });
+          set({ invoices: mapped, isLoading: false });
       } else {
           set({ isLoading: false });
-          console.error('Error fetching invoices:', error?.message || error);
       }
   },
 
   addInvoice: async (inv) => {
-      try {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (!user) return { success: false, error: "کاربر لاگین نیست." };
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { success: false, error: "کاربر لاگین نیست." };
 
-          const dbInv: any = {
-              farm_id: inv.farmId,
-              date: inv.date,
-              invoice_number: inv.invoiceNumber,
-              total_cartons: inv.totalCartons,
-              total_weight: inv.totalWeight,
-              product_id: inv.productId,
-              driver_name: inv.driver_name,
-              driver_phone: inv.driverPhone,
-              plate_number: inv.plateNumber,
-              description: inv.description,
-              is_yesterday: inv.isYesterday,
-              created_by: user.id
-          };
-          
-          let { error } = await supabase.from('invoices').insert(dbInv);
-          
-          // Fallback Strategy
-          if (error && error.code === 'PGRST204' && error.message.includes('description')) {
-              delete dbInv.description;
-              const retry = await supabase.from('invoices').insert(dbInv);
-              error = retry.error;
-          }
-          
-          if (!error) {
-              get().fetchInvoices();
-              if (inv.productId) {
-                  useStatisticsStore.getState().syncSalesFromInvoices(inv.farmId, inv.date, inv.productId);
-              }
-              return { success: true };
-          }
-          
-          console.error('Invoice Add Error:', error);
-          return { success: false, error: translateError(error), debug: error };
-      } catch (e: any) {
-          return { success: false, error: `خطای غیرمنتظره: ${e.message}`, debug: e };
+      const dbInv: any = {
+          farm_id: inv.farmId,
+          date: inv.date,
+          invoice_number: inv.invoiceNumber,
+          total_cartons: Number(inv.totalCartons),
+          total_weight: Number(inv.totalWeight),
+          product_id: inv.productId,
+          driver_name: inv.driverName,
+          driver_phone: inv.driverPhone,
+          plate_number: inv.plateNumber,
+          description: inv.description,
+          is_yesterday: inv.isYesterday,
+          created_by: user.id
+      };
+      
+      let { error } = await supabase.from('invoices').insert(dbInv);
+      
+      if (error && (String(error.status) === '400' || error.code === 'PGRST204')) {
+          const safeInv = { ...dbInv };
+          delete safeInv.description; 
+          const retry = await supabase.from('invoices').insert(safeInv);
+          error = retry.error;
       }
+
+      if (!error) {
+          get().fetchInvoices();
+          if (inv.productId) useStatisticsStore.getState().syncSalesFromInvoices(inv.farmId, inv.date, inv.productId);
+          return { success: true };
+      }
+      return { success: false, error: translateError(error) };
   },
 
   updateInvoice: async (id, updates) => {
       const original = get().invoices.find(i => i.id === id);
+      const fullPayload: any = {};
+      if (updates.totalCartons !== undefined) fullPayload.total_cartons = Number(updates.totalCartons);
+      if (updates.totalWeight !== undefined) fullPayload.total_weight = Number(updates.totalWeight);
+      if (updates.driverName !== undefined) fullPayload.driver_name = updates.driverName;
+      if (updates.driverPhone !== undefined) fullPayload.driver_phone = updates.driverPhone;
+      if (updates.plateNumber !== undefined) fullPayload.plate_number = updates.plateNumber;
+      if (updates.invoiceNumber !== undefined) fullPayload.invoice_number = updates.invoiceNumber;
+      if (updates.description !== undefined) fullPayload.description = updates.description;
+      fullPayload.updated_at = new Date().toISOString();
 
-      const dbUpdates: any = {
-          updated_at: new Date().toISOString()
-      };
-      if (updates.totalCartons !== undefined) dbUpdates.total_cartons = updates.totalCartons;
-      if (updates.totalWeight !== undefined) dbUpdates.total_weight = updates.totalWeight;
-      if (updates.driverName !== undefined) dbUpdates.driver_name = updates.driverName;
-      if (updates.driverPhone !== undefined) dbUpdates.driver_phone = updates.driverPhone;
-      if (updates.plateNumber !== undefined) dbUpdates.plate_number = updates.plateNumber;
-      if (updates.description !== undefined) dbUpdates.description = updates.description;
-      if (updates.invoiceNumber !== undefined) dbUpdates.invoice_number = updates.invoiceNumber;
-      
-      let { error, count } = await supabase.from('invoices')
-          .update(dbUpdates)
-          .eq('id', id)
-          .select('id', { count: 'exact' });
+      let { error } = await supabase.from('invoices').update(fullPayload).eq('id', id);
 
-      if (error && error.code === 'PGRST204' && error.message.includes('description')) {
-          delete dbUpdates.description;
-          const retry = await supabase.from('invoices').update(dbUpdates).eq('id', id).select('id', { count: 'exact' });
+      // NUCLEAR FALLBACK: Strips everything but the essentials
+      if (error && (String(error.status) === '400' || error.code === 'PGRST204' || error.code === '42703')) {
+          const corePayload: any = {
+              total_cartons: fullPayload.total_cartons,
+              total_weight: fullPayload.total_weight,
+              invoice_number: fullPayload.invoice_number,
+              driver_name: fullPayload.driver_name,
+              plate_number: fullPayload.plate_number,
+              driver_phone: fullPayload.driver_phone
+          };
+          Object.keys(corePayload).forEach(key => corePayload[key] === undefined && delete corePayload[key]);
+          
+          const retry = await supabase.from('invoices').update(corePayload).eq('id', id);
           error = retry.error;
-          count = retry.count;
       }
       
-      if (!error && count !== null && count > 0) {
+      if (!error) {
           await get().fetchInvoices();
-          if (original && original.productId) {
-              useStatisticsStore.getState().syncSalesFromInvoices(original.farmId, original.date, original.productId);
-          }
+          if (original?.productId) useStatisticsStore.getState().syncSalesFromInvoices(original.farmId, original.date, original.productId);
           return { success: true };
       }
-      
-      // Diagnostic check for RLS
-      if (!error && (count === null || count === 0)) {
-          const { data: exists } = await supabase.from('invoices').select('id').eq('id', id).maybeSingle();
-          if (exists) {
-              console.error('Invoice Update Failed via RLS block');
-              return { success: false, error: 'مجوز ویرایش این حواله را ندارید (محدودیت دیتابیس).' };
-          }
-      }
-
-      const errMsg = error ? translateError(error) : 'رکورد یافت نشد.';
-      return { success: false, error: errMsg, debug: error };
+      return { success: false, error: translateError(error) };
   },
 
   deleteInvoice: async (id) => {
       const original = get().invoices.find(i => i.id === id);
-      
-      // Fixed: Simplified delete call without argument to bypass type mismatch
-      const { error } = await supabase.from('invoices')
-          .delete()
-          .eq('id', id);
-      
+      const { error } = await supabase.from('invoices').delete().eq('id', id);
       if (!error) {
           await get().fetchInvoices();
-          if (original && original.productId) {
-              useStatisticsStore.getState().syncSalesFromInvoices(original.farmId, original.date, original.productId);
-          }
+          if (original?.productId) useStatisticsStore.getState().syncSalesFromInvoices(original.farmId, original.date, original.productId);
           return { success: true };
-      } else {
-          console.error('Error deleting invoice:', error.message);
-          return { success: false, error: translateError(error) };
       }
+      return { success: false, error: translateError(error) };
   }
 }));

@@ -119,6 +119,16 @@
         user-select: text;
       }
 
+      /* TASK: Remove input number spinners (up/down arrows) */
+      input::-webkit-outer-spin-button,
+      input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+      input[type=number] {
+        -moz-appearance: textfield;
+      }
+
       /* Performance classes */
       .gpu-accelerated {
         transform: translateZ(0);

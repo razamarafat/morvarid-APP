@@ -1,5 +1,5 @@
 
-import React, { useEffect, Component, ErrorInfo, ReactNode, lazy, Suspense } from 'react';
+import React, { useEffect, ErrorInfo, ReactNode, lazy, Suspense } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import SplashPage from './pages/SplashPage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
@@ -29,10 +29,15 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-// Fixed: Using explicit constructor and named Component import to resolve prop type inference issues
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+// Fix: Explicitly using React.Component and a constructor ensures TypeScript correctly identifies 'props' and 'state' as inherited members.
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  // Explicitly declaring state and props members to satisfy the TypeScript compiler when inheritance inference fails.
+  public state: ErrorBoundaryState;
+  public props: ErrorBoundaryProps;
+
   constructor(props: ErrorBoundaryProps) {
     super(props);
+    this.props = props;
     this.state = { hasError: false };
   }
 
@@ -44,8 +49,12 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     console.error("Uncaught error:", error, errorInfo);
   }
 
-  render() {
-    if (this.state.hasError) {
+  render(): ReactNode {
+    // Accessing props and state from the instance with destructuring via 'this'
+    const { hasError } = this.state;
+    const { children } = this.props;
+
+    if (hasError) {
       return (
         <div className="flex flex-col items-center justify-center h-screen bg-gray-100 dark:bg-gray-900 text-center p-4">
           <h1 className="text-2xl font-bold text-red-600 mb-2">خطای سیستمی رخ داده است</h1>
@@ -56,8 +65,8 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
         </div>
       );
     }
-    // Accessing children from props safely through inheritance fix
-    return this.props.children;
+    
+    return children;
   }
 }
 

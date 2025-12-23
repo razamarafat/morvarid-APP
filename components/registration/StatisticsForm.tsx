@@ -65,14 +65,16 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
         const newState: Record<string, ProductFormState> = {};
         selectedFarm.productIds.forEach(pid => {
             const record = statistics.find(s => s.farmId === selectedFarmId && s.date === normalizedDate && s.productId === pid);
+            // TASK: Empty by default. If value is zero, show empty string.
+            const fmt = (val: any) => (val === undefined || val === null || val === 0) ? '' : String(val);
+
             newState[pid] = {
-                // If record exists, show it. If not, empty string (no default 0).
-                production: record?.production !== undefined ? String(record.production) : '',
-                productionKg: record?.productionKg !== undefined ? String(record.productionKg) : '',
-                sales: record?.sales !== undefined ? String(record.sales) : '',
-                salesKg: record?.salesKg !== undefined ? String(record.salesKg) : '',
-                previousBalance: record?.previousBalance !== undefined ? String(record.previousBalance) : '',
-                previousBalanceKg: record?.previousBalanceKg !== undefined ? String(record.previousBalanceKg) : ''
+                production: fmt(record?.production),
+                productionKg: fmt(record?.productionKg),
+                sales: fmt(record?.sales),
+                salesKg: fmt(record?.salesKg),
+                previousBalance: fmt(record?.previousBalance),
+                previousBalanceKg: fmt(record?.previousBalanceKg)
             };
         });
         setFormsState(newState);
@@ -105,11 +107,9 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
             const prodKg = vals.productionKg === '' ? 0 : Number(vals.productionKg);
             const prevKg = vals.previousBalanceKg === '' ? 0 : Number(vals.previousBalanceKg);
             
-            // Sales are automatically calculated from invoices, so we submit 0 initially unless manually entered logic changes
             const sale = 0; 
             const saleKg = 0;
 
-            // Skip empty submissions if user didn't touch anything
             if (vals.production === '' && vals.previousBalance === '' && vals.productionKg === '' && vals.previousBalanceKg === '') continue;
 
             const current = isMotefereghe ? prod : (prev + prod - sale);
@@ -159,7 +159,6 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
 
     const inputClasses = "w-full p-3 bg-white dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 text-center font-black text-2xl rounded-xl focus:border-metro-orange outline-none h-16 transition-colors focus:bg-orange-50 dark:focus:bg-orange-900/10";
 
-    // TASK 5: Sort Logic for Statistics Form
     const sortedProductIds = [...selectedFarm.productIds].sort((aId, bId) => {
         const pA = getProductById(aId);
         const pB = getProductById(bId);
