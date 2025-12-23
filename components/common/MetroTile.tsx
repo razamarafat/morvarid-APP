@@ -30,15 +30,19 @@ const MetroTile: React.FC<MetroTileProps> = ({
 
   return (
     <motion.div
-      whileHover={{ scale: 0.98, y: -2 }}
+      whileHover={{ scale: 0.985, y: -2 }}
       whileTap={{ scale: 0.96 }}
-      transition={{ type: 'tween', duration: 0.2, ease: 'easeOut' }}
+      transition={{ 
+        type: 'tween', 
+        duration: 0.15, 
+        ease: [0.4, 0, 0.2, 1] 
+      }}
       onClick={onClick}
       className={`${sizeClasses[size]} ${color} relative p-5 lg:p-7 flex flex-col justify-between cursor-pointer select-none overflow-hidden group rounded-[28px] shadow-sm hover:shadow-xl transition-shadow gpu-accelerated ${className}`}
     >
         <div className="metro-flow-overlay" />
         <div className="metro-shine-overlay" />
-        <div className="absolute -right-6 -bottom-6 opacity-10 group-hover:opacity-20 transition-opacity duration-500 z-0">
+        <div className="absolute -right-6 -bottom-6 opacity-10 group-hover:opacity-20 transition-opacity duration-300 z-0 pointer-events-none">
              <Icon className="w-28 h-28 md:w-32 md:h-32 lg:w-48 lg:h-48 animate-wiggle" />
         </div>
         <div className="relative z-10 flex justify-between items-start">

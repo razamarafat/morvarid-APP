@@ -15,14 +15,12 @@ import { usePwaStore } from './store/pwaStore';
 import ConfirmDialog from './components/common/ConfirmDialog';
 import ToastContainer from './components/common/Toast';
 
-// Lazy Load Pages to reduce initial bundle size
+// Lazy Load Pages
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const RegistrationDashboard = lazy(() => import('./pages/RegistrationDashboard'));
-// Note: Keeping existing import path structure
 const SalesDashboard = lazy(() => import('./components/sales/SalesDashboard'));
 
-// --- Error Boundary ---
 interface ErrorBoundaryProps {
   children?: ReactNode;
 }
@@ -31,12 +29,9 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-// Fixed: Explicitly use React.Component and provide a constructor to correctly type 'this.props' in TypeScript
+// Fixed: Using class fields for state to avoid constructor-related type inference issues in ErrorBoundary
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false };
-  }
+  state: ErrorBoundaryState = { hasError: false };
 
   static getDerivedStateFromError(_: Error): ErrorBoundaryState {
     return { hasError: true };
@@ -52,21 +47,19 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
         <div className="flex flex-col items-center justify-center h-screen bg-gray-100 dark:bg-gray-900 text-center p-4">
           <h1 className="text-2xl font-bold text-red-600 mb-2">خطای سیستمی رخ داده است</h1>
           <p className="text-gray-600 dark:text-gray-400 mb-4">لطفا صفحه را رفرش کنید.</p>
-          <button onClick={() => window.location.reload()} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+          <button onClick={() => window.location.reload()} className="px-6 py-2 bg-metro-blue text-white rounded-full font-bold">
             بارگذاری مجدد
           </button>
         </div>
       );
     }
-    // Correctly accessing props.children inherited from Component
     return this.props.children;
   }
 }
 
-// Simple Loading Component for Suspense
 const PageLoader = () => (
   <div className="flex flex-col items-center justify-center h-screen bg-[#F3F3F3] dark:bg-[#1D1D1D]">
-    <div className="w-16 h-16 border-4 border-metro-blue border-t-transparent rounded-full animate-spin"></div>
+    <div className="w-12 h-12 border-4 border-metro-blue border-t-transparent rounded-full animate-spin"></div>
     <p className="mt-4 text-gray-500 font-bold text-sm">در حال بارگذاری...</p>
   </div>
 );
@@ -86,42 +79,32 @@ function App() {
     document.documentElement.classList.add(theme);
   }, [theme]);
 
-  // Initial System Setup
   useEffect(() => {
-      const init = async () => {
-          await checkSession();
-          // Alert system can initialize early
-          initListener();
-          checkAndRequestPermission(); 
-      };
-      init();
+    const init = async () => {
+        await checkSession();
+        initListener();
+        checkAndRequestPermission(); 
+    };
+    init();
 
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-      logEvent('Checking standalone mode', { isStandalone });
-      setIsInstalled(isStandalone);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    setIsInstalled(isStandalone);
 
-      const handleAppInstalled = () => {
-          logEvent('App installed event fired');
-          setIsInstalled(true);
-      };
-      window.addEventListener('appinstalled', handleAppInstalled);
-      return () => window.removeEventListener('appinstalled', handleAppInstalled);
+    const handleAppInstalled = () => {
+        setIsInstalled(true);
+    };
+    window.addEventListener('appinstalled', handleAppInstalled);
+    return () => window.removeEventListener('appinstalled', handleAppInstalled);
   }, []);
 
-  // Unified Data Fetching Trigger
   useEffect(() => {
-      if (user) {
-          // Fire all fetches in parallel when user is authenticated
-          const loadData = async () => {
-              // Non-blocking parallel execution
-              fetchFarms();
-              fetchProducts();
-              fetchStatistics();
-              fetchInvoices();
-              if (user.role === UserRole.ADMIN) fetchUsers();
-          };
-          loadData();
-      }
+    if (user) {
+        fetchFarms();
+        fetchProducts();
+        fetchStatistics();
+        fetchInvoices();
+        if (user.role === UserRole.ADMIN) fetchUsers();
+    }
   }, [user]);
   
   const HomeRedirect = () => {
@@ -145,6 +128,7 @@ function App() {
             <Route path="/registration" element={<ProtectedRoute allowedRoles={[UserRole.REGISTRATION]}><RegistrationDashboard /></ProtectedRoute>} />
             <Route path="/sales" element={<ProtectedRoute allowedRoles={[UserRole.SALES]}><SalesDashboard /></ProtectedRoute>} />
             <Route path="/home" element={<HomeRedirect />} />
+            <Route path="*" element={<Navigate to="/home" />} />
           </Routes>
         </Suspense>
       </HashRouter>

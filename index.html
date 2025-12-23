@@ -75,19 +75,27 @@
       }
     </script>
     <style>
-      /* M3 Base Styles */
+      /* Base Global Styles */
       * {
         -webkit-tap-highlight-color: transparent;
+        box-sizing: border-box;
       }
       
       body, input, textarea, select, button, table, .font-sans, .font-mono, [class*="text-"] {
         font-family: 'Vazir', sans-serif !important;
       }
       
-      html, body, div, main, section, table, ul, ol {
+      html, body {
         scrollbar-width: none;
         -ms-overflow-style: none;
+        overflow-x: hidden;
+        background-color: #F3F3F3;
       }
+
+      html.dark body {
+        background-color: #1D1D1D;
+      }
+
       ::-webkit-scrollbar {
         display: none;
         width: 0px;
@@ -96,69 +104,46 @@
       }
       
       body {
-        transition: background-color 0.3s ease, color 0.3s ease;
+        transition: background-color 0.2s ease;
         overscroll-behavior-y: none;
         -webkit-user-select: none;
         user-select: none;
         -webkit-touch-callout: none;
-        /* Performance boost */
-        text-rendering: optimizeLegibility;
+        text-rendering: optimizeSpeed;
         -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
       }
 
       input, textarea {
         -webkit-user-select: text;
         user-select: text;
       }
-      
-      input:-webkit-autofill,
-      input:-webkit-autofill:hover, 
-      input:-webkit-autofill:focus, 
-      input:-webkit-autofill:active{
-          -webkit-box-shadow: 0 0 0 30px #2d2d2d inset !important;
-          -webkit-text-fill-color: white !important;
-          border-radius: 12px;
-      }
-      
-      html.light input:-webkit-autofill,
-      html.light input:-webkit-autofill:hover, 
-      html.light input:-webkit-autofill:focus, 
-      html.light input:-webkit-autofill:active{
-          -webkit-box-shadow: 0 0 0 30px #ffffff inset !important;
-          -webkit-text-fill-color: black !important;
-          border-radius: 12px;
+
+      /* Performance classes */
+      .gpu-accelerated {
+        transform: translateZ(0);
+        backface-visibility: hidden;
+        perspective: 1000px;
+        will-change: transform, opacity;
       }
 
-      input[type=number]::-webkit-inner-spin-button, 
-      input[type=number]::-webkit-outer-spin-button { 
-        -webkit-appearance: none; 
-        margin: 0; 
-      }
-      input[type=number] {
-        -moz-appearance: textfield;
-      }
-
-      /* --- OPTIMIZED ANIMATIONS (GPU ACCELERATED) --- */
+      /* Optimized keyframes */
       @keyframes metro-shine {
-          0% { transform: translateX(-150%) skewX(-25deg); opacity: 0; }
-          20% { opacity: 0.3; }
-          100% { transform: translateX(250%) skewX(-25deg); opacity: 0; }
+          0% { transform: translateX(-150%) skewX(-25deg); }
+          100% { transform: translateX(250%) skewX(-25deg); }
       }
       
       @keyframes metro-flow {
-          0% { opacity: 0.05; transform: scale(1) translateZ(0); }
-          50% { opacity: 0.15; transform: scale(1.05) translateZ(0); }
-          100% { opacity: 0.05; transform: scale(1) translateZ(0); }
+          0%, 100% { opacity: 0.05; transform: scale(1) translateZ(0); }
+          50% { opacity: 0.12; transform: scale(1.02) translateZ(0); }
       }
 
       .metro-shine-overlay {
           position: absolute;
-          top: 0;
-          left: 0;
-          width: 60%;
-          height: 100%;
-          background: linear-gradient(to right, transparent, rgba(255,255,255,0.25), transparent);
-          animation: metro-shine 5s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
+          inset: 0;
+          width: 100%;
+          background: linear-gradient(to right, transparent, rgba(255,255,255,0.15), transparent);
+          animation: metro-shine 6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
           pointer-events: none;
           z-index: 5;
           will-change: transform;
@@ -168,48 +153,43 @@
           position: absolute;
           inset: 0;
           background: radial-gradient(circle at center, rgba(255,255,255,0.1), transparent 70%);
-          animation: metro-flow 8s ease-in-out infinite;
+          animation: metro-flow 10s ease-in-out infinite;
           pointer-events: none;
           z-index: 1;
           will-change: opacity, transform;
       }
 
-      @keyframes text-shine-loop {
-        0% { background-position: 0% center; }
-        100% { background-position: 200% center; }
-      }
-
+      /* Shiny Text: Uses transform instead of background-position for 60FPS */
       .shiny-text {
-        color: transparent;
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
-        animation: text-shine-loop 4s linear infinite;
+        position: relative;
         display: inline-block;
-        font-weight: 900;
-        vertical-align: middle;
-        background-size: 200% auto;
-        will-change: background-position;
+        color: #2D89EF;
+        overflow: hidden;
+        background: transparent;
+        -webkit-background-clip: unset;
+        background-clip: unset;
+        -webkit-text-fill-color: currentcolor;
       }
 
-      html.dark .shiny-text {
-        background-image: linear-gradient(to right, #ffffff 0%, #2D89EF 25%, #ffffff 50%, #2D89EF 75%, #ffffff 100%);
-        text-shadow: 0 0 15px rgba(45, 137, 239, 0.2);
+      .shiny-text::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 50%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+        transform: skewX(-20deg);
+        animation: shine-move 3s infinite linear;
       }
 
-      html.light .shiny-text {
-        background-image: linear-gradient(to right, #1a1a1a 0%, #2D89EF 25%, #1a1a1a 50%, #2D89EF 75%, #1a1a1a 100%);
+      @keyframes shine-move {
+        0% { transform: translateX(0) skewX(-20deg); }
+        100% { transform: translateX(400%) skewX(-20deg); }
       }
 
-      /* Transitions Smoothing */
       .smooth-transition {
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      }
-      
-      .gpu-accelerated {
-        transform: translateZ(0);
-        backface-visibility: hidden;
-        perspective: 1000px;
+        transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
       }
     </style>
   <script type="importmap">
@@ -236,7 +216,7 @@
 }
 </script>
 </head>
-  <body class="bg-[#F3F3F3] text-gray-900 dark:bg-[#1D1D1D] dark:text-white transition-colors duration-200 overflow-x-hidden selection:bg-metro-blue selection:text-white">
+  <body class="text-gray-900 dark:text-white selection:bg-metro-blue selection:text-white">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
