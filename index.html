@@ -2,20 +2,18 @@
 <html lang="fa" dir="rtl">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192x192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>سامانه مدیریت یکپارچه آمار مروارید</title>
     
-    <!-- PWA Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="مروارید">
     <meta name="mobile-web-app-capable" content="yes">
-    <link rel="apple-touch-icon" href="/vite.svg">
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
     <meta name="theme-color" content="#2D89EF">
-    <link rel="manifest" href="/manifest.json">
+    <link rel="manifest" href="/manifest.webmanifest">
 
-    <!-- Fonts and Styles -->
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/font-face.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -74,7 +72,6 @@
       }
     </script>
     <style>
-      /* Base Global Styles */
       * {
         -webkit-tap-highlight-color: transparent;
         box-sizing: border-box;
@@ -84,6 +81,27 @@
         font-family: 'Vazir', sans-serif !important;
       }
       
+      html {
+        overflow: hidden;
+        height: 100%;
+        height: 100dvh;
+        overscroll-behavior: none;
+        -webkit-overflow-scrolling: auto;
+      }
+      
+      body {
+        overflow: hidden;
+        height: 100%;
+        height: 100dvh;
+        overscroll-behavior: none;
+        position: fixed;
+        width: 100%;
+        top: 0;
+        left: 0;
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+
       html, body {
         scrollbar-width: none;
         -ms-overflow-style: none;
@@ -97,14 +115,10 @@
 
       ::-webkit-scrollbar {
         display: none;
-        width: 0px;
-        height: 0px;
-        background: transparent;
       }
       
       body {
         transition: background-color 0.2s ease;
-        overscroll-behavior-y: none;
         -webkit-user-select: none;
         user-select: none;
         -webkit-touch-callout: none;
@@ -112,23 +126,31 @@
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
       }
+      
+      #root {
+        height: 100%;
+        width: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+      }
 
       input, textarea {
         -webkit-user-select: text;
         user-select: text;
       }
 
-      /* TASK: Remove input number spinners (up/down arrows) */
       input::-webkit-outer-spin-button,
       input::-webkit-inner-spin-button {
         -webkit-appearance: none;
         margin: 0;
       }
+      
       input[type=number] {
         -moz-appearance: textfield;
       }
 
-      /* Performance classes */
       .gpu-accelerated {
         transform: translateZ(0);
         backface-visibility: hidden;
@@ -136,7 +158,6 @@
         will-change: transform, opacity;
       }
 
-      /* Optimized Infinite Shimmer (Transform-based) */
       .shimmer-bg {
         position: absolute;
         inset: 0;
@@ -151,14 +172,7 @@
         left: 0;
         width: 200%;
         height: 100%;
-        background: linear-gradient(
-          105deg, 
-          transparent 20%, 
-          rgba(255,255,255,0.1) 40%, 
-          rgba(255,255,255,0.2) 50%, 
-          rgba(255,255,255,0.1) 60%, 
-          transparent 80%
-        );
+        background: linear-gradient(105deg, transparent 20%, rgba(255,255,255,0.1) 40%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.1) 60%, transparent 80%);
         transform: translateX(-100%);
         animation: shimmer-transform 8s infinite linear;
         will-change: transform;
@@ -166,10 +180,9 @@
 
       @keyframes shimmer-transform {
         0% { transform: translateX(-50%); }
-        100% { transform: translateX(0%); } 
+        100% { transform: translateX(0%); }
       }
 
-      /* Optimized Strong Shine for Cards (Transform-based) */
       .strong-shine-overlay {
         position: absolute;
         inset: 0;
@@ -177,7 +190,6 @@
         border-radius: inherit;
         pointer-events: none;
         z-index: 5;
-        /* Force GPU layer */
         transform: translateZ(0);
       }
       
@@ -188,28 +200,17 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background: linear-gradient(
-          115deg,
-          transparent 40%,
-          rgba(255, 255, 255, 0.3) 50%, 
-          transparent 60%
-        );
-        /* Start fully off-screen left */
+        background: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.3) 50%, transparent 60%);
         transform: translateX(-150%) skewX(-20deg);
         animation: shine-slide 4s infinite linear;
         will-change: transform;
       }
       
       @keyframes shine-slide {
-        0% {
-          transform: translateX(-150%) skewX(-20deg);
-        }
-        100% {
-          transform: translateX(150%) skewX(-20deg);
-        }
+        0% { transform: translateX(-150%) skewX(-20deg); }
+        100% { transform: translateX(150%) skewX(-20deg); }
       }
 
-      /* TASK: Permanent Shiny Text for Headers */
       .shiny-text {
         background: linear-gradient(110deg, currentColor 35%, rgba(255, 255, 255, 0.9) 50%, currentColor 65%);
         background-size: 200% 100%;
@@ -219,10 +220,9 @@
         animation: shine 3s infinite linear;
         display: inline-block;
       }
+      
       @keyframes shine {
-        to {
-          background-position-x: -200%;
-        }
+        to { background-position-x: -200%; }
       }
 
       .smooth-transition {
@@ -231,7 +231,7 @@
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
       }
     </style>
-  <script type="importmap">
+    <script type="importmap">
 {
   "imports": {
     "react/": "https://esm.sh/react@^19.2.3/",
@@ -250,13 +250,25 @@
     "zod": "https://esm.sh/zod@^4.2.1",
     "xlsx": "https://esm.sh/xlsx@^0.18.5",
     "react-hook-form": "https://esm.sh/react-hook-form@^7.69.0",
-    "path": "https://esm.sh/path@^0.12.7"
+    "path": "https://esm.sh/path@^0.12.7",
+    "vite-plugin-pwa": "https://esm.sh/vite-plugin-pwa@^1.2.0"
   }
 }
 </script>
-</head>
+  </head>
   <body class="text-gray-900 dark:text-white selection:bg-metro-blue selection:text-white">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
+    <script>
+      (function() {
+        if (!window.matchMedia('(display-mode: standalone)').matches && !window.matchMedia('(display-mode: fullscreen)').matches) return;
+        let startY = 0;
+        document.addEventListener('touchstart', function(e) { startY = e.touches[0].pageY; }, { passive: true });
+        document.addEventListener('touchmove', function(e) {
+          var root = document.getElementById('root');
+          if (root && root.scrollTop <= 0 && e.touches[0].pageY - startY > 5) e.preventDefault();
+        }, { passive: false });
+      })();
+    </script>
   </body>
 </html>
