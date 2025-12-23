@@ -6,13 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>سامانه مدیریت یکپارچه آمار مروارید</title>
    
+    <!-- PWA iOS Settings - تغییر یافته -->
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="مروارید">
     <meta name="mobile-web-app-capable" content="yes">
     <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
-    <meta name="theme-color" content="#2D89EF">
-    <meta name="description" content="سیستم یکپارچه مدیریت آمار تولید، فروش و انبارداری فارم‌های مروارید"> <!-- اضافه شده برای SEO و توضیح اپ -->
+    <meta name="theme-color" content="#1D1D1D">
     <meta name="description" content="سیستم یکپارچه مدیریت آمار تولید، فروش و انبارداری فارم‌های مروارید">
     <link rel="manifest" href="/manifest.webmanifest">
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/font-face.css" rel="stylesheet" type="text/css" />
@@ -50,7 +50,10 @@
               }
             },
             spacing: {
-              'safe': 'env(safe-area-inset-bottom)'
+              'safe-top': 'env(safe-area-inset-top)',
+              'safe-bottom': 'env(safe-area-inset-bottom)',
+              'safe-left': 'env(safe-area-inset-left)',
+              'safe-right': 'env(safe-area-inset-right)'
             },
             animation: {
               'wiggle': 'wiggle 6s ease-in-out infinite',
@@ -81,6 +84,13 @@
       body, input, textarea, select, button, table, .font-sans, .font-mono, [class*="text-"] {
         font-family: 'Vazir', sans-serif !important;
       }
+
+      :root {
+        --sat: env(safe-area-inset-top);
+        --sar: env(safe-area-inset-right);
+        --sab: env(safe-area-inset-bottom);
+        --sal: env(safe-area-inset-left);
+      }
      
       html {
         overflow: hidden;
@@ -99,18 +109,22 @@
         width: 100%;
         top: 0;
         left: 0;
-        padding-top: env(safe-area-inset-top);
-        padding-bottom: env(safe-area-inset-bottom);
+        margin: 0;
+        padding: 0;
+        /* حذف شد: padding-top و padding-bottom */
       }
+
       html, body {
         scrollbar-width: none;
         -ms-overflow-style: none;
         overflow-x: hidden;
-        background-color: #F3F3F3;
+        background-color: #1D1D1D;
       }
+
       html.dark body {
         background-color: #1D1D1D;
       }
+
       ::-webkit-scrollbar {
         display: none;
       }
@@ -127,16 +141,18 @@
      
       #root {
         height: 100%;
+        height: 100dvh;
         width: 100%;
-        overflow-y: auto;
-        overflow-x: hidden;
-        overscroll-behavior: contain;
-        -webkit-overflow-scrolling: touch;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
       }
+
       input, textarea {
         -webkit-user-select: text;
         user-select: text;
       }
+
       input::-webkit-outer-spin-button,
       input::-webkit-inner-spin-button {
         -webkit-appearance: none;
@@ -146,18 +162,21 @@
       input[type=number] {
         -moz-appearance: textfield;
       }
+
       .gpu-accelerated {
         transform: translateZ(0);
         backface-visibility: hidden;
         perspective: 1000px;
         will-change: transform, opacity;
       }
+
       .shimmer-bg {
         position: absolute;
         inset: 0;
         overflow: hidden;
         pointer-events: none;
       }
+
       .shimmer-bg::after {
         content: '';
         position: absolute;
@@ -170,10 +189,12 @@
         animation: shimmer-transform 8s infinite linear;
         will-change: transform;
       }
+
       @keyframes shimmer-transform {
         0% { transform: translateX(-50%); }
         100% { transform: translateX(0%); }
       }
+
       .strong-shine-overlay {
         position: absolute;
         inset: 0;
@@ -201,6 +222,7 @@
         0% { transform: translateX(-150%) skewX(-20deg); }
         100% { transform: translateX(150%) skewX(-20deg); }
       }
+
       .shiny-text {
         background: linear-gradient(110deg, currentColor 35%, rgba(255, 255, 255, 0.9) 50%, currentColor 65%);
         background-size: 200% 100%;
@@ -214,10 +236,39 @@
       @keyframes shine {
         to { background-position-x: -200%; }
       }
+
       .smooth-transition {
         transition-property: transform, opacity, background-color, height;
         transition-duration: 0.3s;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      /* Safe Area Classes for Fullscreen PWA */
+      .pt-safe {
+        padding-top: env(safe-area-inset-top);
+      }
+      .pb-safe {
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+      .mt-safe {
+        margin-top: env(safe-area-inset-top);
+      }
+      .mb-safe {
+        margin-bottom: env(safe-area-inset-bottom);
+      }
+
+      /* App Container - handles fullscreen properly */
+      .app-container {
+        display: flex;
+        flex-direction: column;
+        height: 100dvh;
+        width: 100%;
+        overflow: hidden;
+        background-color: #1D1D1D;
+      }
+
+      .app-container.light {
+        background-color: #F3F3F3;
       }
     </style>
     <script type="importmap">
@@ -244,20 +295,28 @@
   }
 }
 </script>
-  </head>  
-  <body class="text-gray-900 dark:text-white selection:bg-metro-blue selection:text-white">
+</head>  
+<body class="text-gray-900 dark:text-white selection:bg-metro-blue selection:text-white">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
     <script>
       (function() {
-        if (!window.matchMedia('(display-mode: standalone)').matches && !window.matchMedia('(display-mode: fullscreen)').matches) return;
+        // Fullscreen PWA - prevent pull to refresh
+        if (!window.matchMedia('(display-mode: standalone)').matches && 
+            !window.matchMedia('(display-mode: fullscreen)').matches) return;
+        
         let startY = 0;
-        document.addEventListener('touchstart', function(e) { startY = e.touches[0].pageY; }, { passive: true });
+        document.addEventListener('touchstart', function(e) { 
+          startY = e.touches[0].pageY; 
+        }, { passive: true });
+        
         document.addEventListener('touchmove', function(e) {
           var root = document.getElementById('root');
-          if (root && root.scrollTop <= 0 && e.touches[0].pageY - startY > 5) e.preventDefault();
+          if (root && root.scrollTop <= 0 && e.touches[0].pageY - startY > 5) {
+            e.preventDefault();
+          }
         }, { passive: false });
       })();
     </script>
-  </body>
+</body>
 </html>
