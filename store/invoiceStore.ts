@@ -27,7 +27,7 @@ interface InvoiceState {
     addInvoice: (invoice: Omit<Invoice, 'id' | 'createdAt'>) => Promise<{ success: boolean; error?: string }>;
     updateInvoice: (id: string, updates: Partial<Invoice>) => Promise<{ success: boolean; error?: string }>;
     deleteInvoice: (id: string) => Promise<{ success: boolean; error?: string }>;
-    bulkDeleteInvoices: (ids: string[]) => Promise<{ success: boolean; error?: string }>; // ✅ NEW
+    bulkDeleteInvoices: (ids: string[]) => Promise<{ success: boolean; error?: string }>;
 }
 
 export const useInvoiceStore = create<InvoiceState>((set, get) => ({
@@ -90,7 +90,8 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
       
       let { error } = await supabase.from('invoices').insert(dbInv);
       
-      if (error && (String(error.status) === '400' || error.code === 'PGRST204')) {
+      // ✅ FIX: Added type assertion to access 'status'
+      if (error && (String((error as any).status) === '400' || error.code === 'PGRST204')) {
           const safeInv = { ...dbInv };
           delete safeInv.description; 
           const retry = await supabase.from('invoices').insert(safeInv);
@@ -119,8 +120,8 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
 
       let { error } = await supabase.from('invoices').update(fullPayload).eq('id', id);
 
-      // NUCLEAR FALLBACK: Strips everything but the essentials
-      if (error && (String(error.status) === '400' || error.code === 'PGRST204' || error.code === '42703')) {
+      // ✅ FIX: Added type assertion to access 'status'
+      if (error && (String((error as any).status) === '400' || error.code === 'PGRST204' || error.code === '42703')) {
           const corePayload: any = {
               total_cartons: fullPayload.total_cartons,
               total_weight: fullPayload.total_weight,
@@ -154,7 +155,6 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
       return { success: false, error: translateError(error) };
   },
 
-  // ✅ NEW BULK DELETE FUNCTION
   bulkDeleteInvoices: async (ids) => {
     if (ids.length === 0) return { success: true };
     const originals = get().invoices.filter(i => ids.includes(i.id));
@@ -163,7 +163,6 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
 
     if (!error) {
         await get().fetchInvoices();
-        // Sync stats for each deleted invoice's context
         for (const inv of originals) {
             if (inv.productId) {
                 useStatisticsStore.getState().syncSalesFromInvoices(inv.farmId, inv.date, inv.productId);

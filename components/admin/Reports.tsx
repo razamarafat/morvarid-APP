@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useFarmStore } from '../../store/farmStore';
 import { useStatisticsStore } from '../../store/statisticsStore';
@@ -11,7 +12,7 @@ import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange } from '.
 import { useConfirm } from '../../hooks/useConfirm';
 import Modal from '../common/Modal';
 import { usePermissions } from '../../hooks/usePermissions';
-import Checkbox from '../common/Checkbox'; // ✅ IMPORT CHECKBOX
+import Checkbox from '../common/Checkbox';
 
 type ReportTab = 'stats' | 'invoices';
 
@@ -21,25 +22,20 @@ const Reports: React.FC = () => {
     const { deleteInvoice, updateInvoice, bulkDeleteInvoices } = useInvoiceStore();
     const { addToast } = useToastStore();
     const { confirm } = useConfirm();
-
     const { canSeeOperationsColumn } = usePermissions();
 
     const [reportTab, setReportTab] = useState<ReportTab>('invoices');
-    
     const [selectedFarmId, setSelectedFarmId] = useState<string>('all');
     const [selectedProductId, setSelectedProductId] = useState<string>('all');
     const [startDate, setStartDate] = useState(getTodayJalali());
     const [endDate, setEndDate] = useState(getTodayJalali());
-    
     const [previewData, setPreviewData] = useState<any[]>([]);
     const [hasSearched, setHasSearched] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
 
-    // ✅ NEW: Selection State
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [isDeleting, setIsDeleting] = useState(false);
 
-    // ✅ NEW: Selection Logic
     const isAllSelected = previewData.length > 0 && selectedIds.size === previewData.length;
     const isSomeSelected = selectedIds.size > 0 && selectedIds.size < previewData.length;
 
@@ -53,17 +49,14 @@ const Reports: React.FC = () => {
     };
 
     const toggleAll = () => {
-        if (isAllSelected) {
-            setSelectedIds(new Set());
-        } else {
-            setSelectedIds(new Set(previewData.map(item => item.id)));
-        }
+        if (isAllSelected) setSelectedIds(new Set());
+        else setSelectedIds(new Set(previewData.map(item => item.id)));
     };
 
     const handleSearch = () => {
         setIsSearching(true);
         setHasSearched(true);
-        setSelectedIds(new Set()); // ✅ Clear selection on new search
+        setSelectedIds(new Set());
         const start = normalizeDate(startDate);
         const end = normalizeDate(endDate);
 
@@ -87,7 +80,6 @@ const Reports: React.FC = () => {
         }, 100);
     };
 
-    // ✅ NEW: Bulk Delete Handler
     const handleBulkDelete = async () => {
         const idsToDelete = Array.from(selectedIds);
         if (idsToDelete.length === 0) return;
@@ -102,19 +94,14 @@ const Reports: React.FC = () => {
         if (confirmed) {
             setIsDeleting(true);
             let result;
-            if (reportTab === 'stats') {
-                result = await bulkDeleteStatistics(idsToDelete);
-            } else {
-                result = await bulkDeleteInvoices(idsToDelete);
-            }
+            if (reportTab === 'stats') result = await bulkDeleteStatistics(idsToDelete);
+            else result = await bulkDeleteInvoices(idsToDelete);
 
             if (result.success) {
                 addToast(`${toPersianDigits(idsToDelete.length)} مورد با موفقیت حذف شد.`, 'success');
                 setSelectedIds(new Set());
-                handleSearch(); // Refresh data
-            } else {
-                addToast(result.error || 'خطا در حذف دسته‌جمعی', 'error');
-            }
+                handleSearch();
+            } else addToast(result.error || 'خطا در حذف دسته‌جمعی', 'error');
             setIsDeleting(false);
         }
     };
@@ -142,7 +129,6 @@ const Reports: React.FC = () => {
     const [statForm, setStatForm] = useState({ prod: '', sales: '', prev: '', prodKg: '', salesKg: '', prevKg: '' });
     const [invoiceForm, setInvoiceForm] = useState({ invoiceNumber: '', cartons: '', weight: '', driver: '', plate: '', phone: '', desc: '' });
 
-    // FIX: Changed function re-assignments to proper const declarations to resolve errors.
     const openStatEdit = (stat: any) => {
         const f = (v: any) => (v === 0 || v === undefined || v === null) ? '' : String(v);
         setEditingStat(stat);
@@ -184,51 +170,23 @@ const Reports: React.FC = () => {
     };
 
     const handleExportExcel = () => {
-        if (previewData.length === 0) {
-            addToast('داده‌ای برای خروجی وجود ندارد.', 'warning');
-            return;
-        }
-
+        if (previewData.length === 0) return;
         let dataToExport: any[] = [];
-        let filename = '';
+        let filename = `Report_${getTodayJalali().replace(/\//g, '-')}.xlsx`;
 
         if (reportTab === 'stats') {
-            filename = `Morvarid_Stats_Report_${getTodayJalali().replace(/\//g, '-')}.xlsx`;
             dataToExport = previewData.map(s => ({
-                'تاریخ': toPersianDigits(s.date),
-                'نام فارم': farms.find(f => f.id === s.farmId)?.name || 'ناشناخته',
-                'محصول': products.find(p => p.id === s.productId)?.name || 'ناشناخته',
-                'موجودی قبلی': toPersianDigits(s.previousBalance),
-                'تولید': toPersianDigits(s.production),
-                'فروش': toPersianDigits(s.sales),
-                'موجودی فعلی': toPersianDigits(s.currentInventory),
-                'موجودی قبلی (کیلوگرم)': toPersianDigits(s.previousBalanceKg || 0),
-                'تولید (کیلوگرم)': toPersianDigits(s.productionKg || 0),
-                'فروش (کیلوگرم)': toPersianDigits(s.salesKg || 0),
-                'موجودی فعلی (کیلوگرم)': toPersianDigits(s.currentInventoryKg || 0),
-                'ثبت کننده': s.creatorName || 'ناشناس'
+                'تاریخ': s.date, 'نام فارم': farms.find(f => f.id === s.farmId)?.name, 'تولید': s.production, 'فروش': s.sales, 'موجودی': s.currentInventory, 'ثبت کننده': s.creatorName
             }));
-        } else { // invoices
-            filename = `Morvarid_Invoices_Report_${getTodayJalali().replace(/\//g, '-')}.xlsx`;
+        } else {
             dataToExport = previewData.map(i => ({
-                'تاریخ': toPersianDigits(i.date),
-                'رمز حواله': toPersianDigits(i.invoiceNumber),
-                'نام فارم': farms.find(f => f.id === i.farmId)?.name || 'ناشناخته',
-                'محصول': products.find(p => p.id === i.productId)?.name || 'ناشناخته',
-                'تعداد (کارتن)': toPersianDigits(i.totalCartons),
-                'وزن (کیلوگرم)': toPersianDigits(i.totalWeight),
-                'نام راننده': i.driverName || '-',
-                'شماره تماس': toPersianDigits(i.driverPhone || '-'),
-                'پلاک': toPersianDigits(i.plateNumber || '-'),
-                'توضیحات': i.description || '-',
-                'ثبت کننده': i.creatorName || 'ناشناس'
+                'تاریخ': i.date, 'رمز حواله': i.invoiceNumber, 'تعداد': i.totalCartons, 'وزن': i.totalWeight, 'راننده': i.driverName, 'ثبت کننده': i.creatorName
             }));
         }
-
-        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'گزارش');
-        XLSX.writeFile(workbook, filename);
+        const ws = XLSX.utils.json_to_sheet(dataToExport);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Data');
+        XLSX.writeFile(wb, filename);
     };
 
     const selectClass = "w-full p-4 border-2 border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white font-bold rounded-xl outline-none focus:border-metro-blue";
@@ -260,7 +218,6 @@ const Reports: React.FC = () => {
                     <div><JalaliDatePicker value={endDate} onChange={setEndDate} label="تا تاریخ" /></div>
                 </div>
 
-                {/* ✅ NEW/MODIFIED ACTION BAR */}
                 <div className="flex flex-wrap items-center justify-between gap-4 mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
                     <div className="flex items-center gap-3">
                         <Button onClick={handleSearch} isLoading={isSearching} className="h-14 px-10 text-lg font-black bg-gray-900 text-white hover:bg-black rounded-full shadow-lg">جستجو</Button>
@@ -278,12 +235,7 @@ const Reports: React.FC = () => {
                                 <span className="text-sm font-bold text-gray-500 dark:text-gray-400">
                                     {toPersianDigits(selectedIds.size)} مورد انتخاب شده
                                 </span>
-                                <Button 
-                                    onClick={handleBulkDelete} 
-                                    isLoading={isDeleting}
-                                    variant="danger" 
-                                    className="h-14 px-6 rounded-full text-lg font-black"
-                                >
+                                <Button onClick={handleBulkDelete} isLoading={isDeleting} variant="danger" className="h-14 px-6 rounded-full text-lg font-black">
                                     <Icons.Trash className="w-5 h-5 ml-2" />
                                     حذف ({toPersianDigits(selectedIds.size)})
                                 </Button>
@@ -301,11 +253,8 @@ const Reports: React.FC = () => {
                     <table className="w-full text-right border-collapse min-w-[1000px]">
                         <thead className="bg-gray-50 dark:bg-gray-900 text-gray-500 font-black text-xs lg:text-sm uppercase tracking-wider">
                             <tr>
-                                {/* ✅ NEW: Checkbox Header */}
                                 {canSeeOperationsColumn && (
-                                    <th className="p-5 w-12">
-                                        <Checkbox checked={isAllSelected} indeterminate={isSomeSelected} onChange={toggleAll} />
-                                    </th>
+                                    <th className="p-5 w-12"><Checkbox checked={isAllSelected} indeterminate={isSomeSelected} onChange={toggleAll} /></th>
                                 )}
                                 {reportTab === 'stats' ? <>
                                     <th className="p-5">تاریخ</th><th className="p-5">فارم</th><th className="p-5">محصول</th><th className="p-5 text-center">تولید</th><th className="p-5 text-center">فروش</th><th className="p-5 text-center">موجودی</th><th className="p-5">ثبت کننده</th><th className="p-5">زمان ثبت</th>
@@ -321,11 +270,8 @@ const Reports: React.FC = () => {
                                 const isSelected = selectedIds.has(row.id);
                                 return (
                                 <tr key={row.id} className={`transition-colors ${isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}`}>
-                                    {/* ✅ NEW: Row Checkbox */}
                                     {canSeeOperationsColumn && (
-                                        <td className="p-5">
-                                            <Checkbox checked={isSelected} onChange={() => toggleRow(row.id)} />
-                                        </td>
+                                        <td className="p-5"><Checkbox checked={isSelected} onChange={() => toggleRow(row.id)} /></td>
                                     )}
                                     {reportTab === 'stats' ? <>
                                         <td className="p-5 font-mono font-bold text-lg">{toPersianDigits(row.date)}</td>
@@ -360,9 +306,37 @@ const Reports: React.FC = () => {
                 </div>
             </div>
 
-            {/* Modals remain unchanged */}
-            <Modal isOpen={!!editingStat} onClose={() => setEditingStat(null)} title="اصلاح مدیریتی آمار">{/* ... */}</Modal>
-            <Modal isOpen={!!editingInvoice} onClose={() => setEditingInvoice(null)} title="اصلاح مدیریتی حواله">{/* ... */}</Modal>
+            <Modal isOpen={!!editingStat} onClose={() => setEditingStat(null)} title="اصلاح مدیریتی آمار">
+                <div className="space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-bold mb-2">تولید</label>
+                            <input type="number" className="w-full p-4 border rounded-xl text-center font-black text-xl dark:bg-gray-700" value={statForm.prod} onChange={e => setStatForm({...statForm, prod: e.target.value})} />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold mb-2">فروش</label>
+                            <input type="number" className="w-full p-4 border rounded-xl text-center font-black text-xl dark:bg-gray-700" value={statForm.sales} onChange={e => setStatForm({...statForm, sales: e.target.value})} />
+                        </div>
+                    </div>
+                    <Button onClick={saveStatEdit} className="w-full h-14 text-lg">ذخیره تغییرات</Button>
+                </div>
+            </Modal>
+
+            <Modal isOpen={!!editingInvoice} onClose={() => setEditingInvoice(null)} title="اصلاح مدیریتی حواله">
+                <div className="space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-bold mb-2">تعداد کارتن</label>
+                            <input type="number" className="w-full p-4 border rounded-xl text-center font-black text-xl dark:bg-gray-700" value={invoiceForm.cartons} onChange={e => setInvoiceForm({...invoiceForm, cartons: e.target.value})} />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold mb-2">وزن (Kg)</label>
+                            <input type="number" className="w-full p-4 border rounded-xl text-center font-black text-xl dark:bg-gray-700" value={invoiceForm.weight} onChange={e => setInvoiceForm({...invoiceForm, weight: e.target.value})} />
+                        </div>
+                    </div>
+                    <Button onClick={saveInvoiceEdit} className="w-full h-14 text-lg">ذخیره تغییرات</Button>
+                </div>
+            </Modal>
         </div>
     );
 };

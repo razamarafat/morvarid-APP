@@ -46,7 +46,7 @@ interface StatisticsState {
     addStatistic: (stat: Omit<DailyStatistic, 'id' | 'createdAt'>) => Promise<{ success: boolean; error?: string }>;
     updateStatistic: (id: string, updates: Partial<DailyStatistic>) => Promise<{ success: boolean; error?: string }>;
     deleteStatistic: (id: string) => Promise<{ success: boolean; error?: string }>;
-    bulkDeleteStatistics: (ids: string[]) => Promise<{ success: boolean; error?: string }>; // ✅ NEW
+    bulkDeleteStatistics: (ids: string[]) => Promise<{ success: boolean; error?: string }>;
     bulkUpsertStatistics: (stats: Omit<DailyStatistic, 'id' | 'createdAt'>[]) => Promise<{ success: boolean; error?: string }>;
     getLatestInventory: (farmId: string, productId: string) => { units: number; kg: number };
     syncSalesFromInvoices: (farmId: string, date: string, productId: string) => Promise<void>;
@@ -118,7 +118,6 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
   },
 
   updateStatistic: async (id, updates) => {
-      // 1. Build initial full payload (optimistic)
       const fullPayload: any = {};
       if (updates.production !== undefined) fullPayload.production = Number(updates.production);
       if (updates.sales !== undefined) fullPayload.sales = Number(updates.sales);
@@ -126,7 +125,6 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
       if (updates.currentInventory !== undefined) fullPayload.current_inventory = Number(updates.currentInventory);
       if (updates.date) fullPayload.date = normalizeDate(updates.date);
       
-      // Try optional columns that might not exist in old schemas
       fullPayload.updated_at = new Date().toISOString();
       if (updates.productionKg !== undefined) fullPayload.production_kg = Number(updates.productionKg);
       if (updates.salesKg !== undefined) fullPayload.sales_kg = Number(updates.salesKg);
@@ -135,15 +133,14 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
 
       let { error } = await supabase.from('daily_statistics').update(fullPayload).eq('id', id);
       
-      // 2. ABSOLUTE ROOT FIX: If error 400 or column mismatch, retry with ONLY core numeric fields
-      if (error && (String(error.status) === '400' || error.code === 'PGRST204' || error.code === '42703')) {
+      // ✅ FIX: Changed error.status to (error as any).status to resolve TypeScript build error
+      if (error && (String((error as any).status) === '400' || error.code === 'PGRST204' || error.code === '42703')) {
           const corePayload = {
               production: fullPayload.production,
               sales: fullPayload.sales,
               previous_balance: fullPayload.previous_balance,
               current_inventory: fullPayload.current_inventory
           };
-          // Filter out undefined just in case
           Object.keys(corePayload).forEach(key => (corePayload as any)[key] === undefined && delete (corePayload as any)[key]);
           
           const retry = await supabase.from('daily_statistics').update(corePayload).eq('id', id);
@@ -192,7 +189,6 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
       return { success: false, error: translateError(error) };
   },
 
-  // ✅ NEW BULK DELETE FUNCTION
   bulkDeleteStatistics: async (ids) => {
     if (ids.length === 0) return { success: true };
     const { error } = await supabase.from('daily_statistics').delete().in('id', ids);
@@ -230,8 +226,6 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
       if (statRecords && statRecords.length > 0) {
           const rec = statRecords[0];
           const newInv = (rec.previous_balance || 0) + (rec.production || 0) - totalSales;
-          // Fixed: Removed .catch() as Supabase query builders (PostgrestFilterBuilder) 
-          // do not implement standard Promise .catch() directly in all context versions.
           await supabase.from('daily_statistics').update({ sales: totalSales, current_inventory: newInv }).eq('id', rec.id);
       }
   }

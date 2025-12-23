@@ -7,7 +7,7 @@ interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
-  children: React.ReactNode;
+  children?: React.ReactNode; // ✅ FIX: Optional children
   footer?: React.ReactNode;
 }
 
