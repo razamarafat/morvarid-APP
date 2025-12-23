@@ -1,0 +1,28 @@
+{
+  "name": "سامانه مدیریت آمار مروارید",
+  "short_name": "مروارید",
+  "description": "سیستم یکپارچه مدیریت آمار تولید، فروش و انبارداری فارم‌های مروارید",
+  "start_url": "/",
+  "scope": "/",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#1D1D1D",
+  "theme_color": "#1D1D1D",
+  "lang": "fa-IR",
+  "dir": "rtl",
+  "categories": ["productivity", "business", "utilities"],
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
