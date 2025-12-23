@@ -168,7 +168,6 @@ const Reports: React.FC = () => {
                 'ساعت ثبت': new Date(item.createdAt).toLocaleTimeString('fa-IR')
             }));
         } else {
-            // Task: Ordered from Right to Left for Persian readability
             colOrder = ['تاریخ', 'رمز حواله', 'فارم', 'نوع محصول', 'تعداد', 'وزن', 'شماره تماس', 'راننده', 'پلاک', 'مسئول ثبت', 'ساعت ثبت'];
             wsData = previewData.map(item => ({
                 'تاریخ': item.date,
@@ -187,18 +186,20 @@ const Reports: React.FC = () => {
 
         const ws = XLSX.utils.json_to_sheet(wsData, { header: colOrder });
         
-        // Task: Force RTL direction (Ensures Column A starts on the Right side)
+        // --- FORCE RTL EXCEL EXPORT ---
+        // The '!views' property is the canonical way to set sheet properties like RTL.
+        // The key 'rtl' MUST be lowercase for the library to recognize it.
+        ws['!views'] = [{ rtl: true }];
+        
+        // '!dir' is a secondary, less-supported property but included for redundancy.
         ws['!dir'] = 'rtl';
-        // Secondary safeguard for various Excel versions/readers
-        ws['!views'] = [{ RTL: true }];
 
-        // Task: Auto-adjust column widths based on maximum content length
         const colWidths = colOrder.map(key => {
             const maxLen = Math.max(
                 key.length,
                 ...wsData.map(row => String(row[key] || '').length)
             );
-            return { wch: maxLen + 6 }; // Added padding for better readability
+            return { wch: maxLen + 6 }; 
         });
         ws['!cols'] = colWidths;
 
