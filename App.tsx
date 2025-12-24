@@ -1,3 +1,4 @@
+
 import React, { useEffect, ErrorInfo, ReactNode, lazy, Suspense } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import SplashPage from './pages/SplashPage';
@@ -14,6 +15,7 @@ import { usePwaStore } from './store/pwaStore';
 import ConfirmDialog from './components/common/ConfirmDialog';
 import ToastContainer from './components/common/Toast';
 import { useAutoUpdate } from './hooks/useAutoUpdate';
+import { useOfflineSync } from './hooks/useOfflineSync';
 
 // Lazy Load Pages
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -89,6 +91,9 @@ function App() {
   
   // Enable Auto-Update Mechanism
   useAutoUpdate();
+  
+  // Enable Offline Sync Mechanism
+  useOfflineSync();
 
   useEffect(() => {
     document.documentElement.classList.remove('light', 'dark');

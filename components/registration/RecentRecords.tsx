@@ -1,5 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
+import { FixedSizeList as List } from 'react-window';
+import AutoSizer from 'react-virtualized-auto-sizer';
 import { useStatisticsStore, DailyStatistic } from '../../store/statisticsStore';
 import { useInvoiceStore } from '../../store/invoiceStore';
 import { useFarmStore } from '../../store/farmStore';
@@ -13,6 +15,7 @@ import { useToastStore } from '../../store/toastStore';
 import { toPersianDigits, getTodayJalali, normalizeDate } from '../../utils/dateUtils';
 import { Invoice } from '../../types';
 import { AnimatePresence, motion } from 'framer-motion';
+import { SkeletonCard } from '../common/Skeleton';
 
 const PERSIAN_LETTERS = [
     'الف', 'ب', 'پ', 'ت', 'ث', 'ج', 'چ', 'ح', 'خ', 'د', 'ذ', 'ر', 'ز', 'ژ', 
@@ -33,10 +36,10 @@ const StatCard: React.FC<StatCardProps> = ({ stat, getProductName, getProductUni
     const isLiquid = getProductName(stat.productId).includes('مایع');
     
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-[24px] shadow-sm border border-gray-200 dark:border-gray-700 p-6 relative overflow-hidden group hover:shadow-xl transition-all duration-300">
+        <div className="bg-white dark:bg-gray-800 rounded-[24px] shadow-sm border border-gray-200 dark:border-gray-700 p-6 relative overflow-hidden group hover:shadow-xl transition-all duration-300 h-full">
             <div className="flex justify-between items-start mb-4">
                 <div>
-                    <h4 className="font-black text-xl text-gray-800 dark:text-gray-100">{getProductName(stat.productId)}</h4>
+                    <h4 className="font-black text-xl text-gray-800 dark:text-gray-100 truncate max-w-[150px]">{getProductName(stat.productId)}</h4>
                     <span className="text-sm text-gray-400 font-bold bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">{getProductUnit(stat.productId)}</span>
                 </div>
                 
@@ -130,7 +133,7 @@ const InvoiceCard: React.FC<InvoiceCardProps> = ({ inv, getProductName, isEditab
     };
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-[24px] shadow-sm border-l-[6px] border-metro-orange p-6 relative group hover:shadow-xl transition-all duration-300">
+        <div className="bg-white dark:bg-gray-800 rounded-[24px] shadow-sm border-l-[6px] border-metro-orange p-6 relative group hover:shadow-xl transition-all duration-300 h-full">
             <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-3">
                     <div className="bg-orange-100 dark:bg-orange-900/20 p-2.5 rounded-full text-orange-600">
@@ -161,7 +164,7 @@ const InvoiceCard: React.FC<InvoiceCardProps> = ({ inv, getProductName, isEditab
             </div>
 
             <div className="mb-5">
-                <h4 className="font-bold text-xl text-gray-700 dark:text-gray-200">{getProductName(inv.productId || '')}</h4>
+                <h4 className="font-bold text-xl text-gray-700 dark:text-gray-200 truncate max-w-[200px]">{getProductName(inv.productId || '')}</h4>
                 <div className="flex flex-col gap-1 mt-2">
                     {inv.driverName && <p className="text-base text-gray-500 flex items-center gap-2">
                         <Icons.User className="w-4 h-4" /> {inv.driverName} 
@@ -187,8 +190,8 @@ const InvoiceCard: React.FC<InvoiceCardProps> = ({ inv, getProductName, isEditab
 };
 
 const RecentRecords: React.FC = () => {
-    const { statistics, deleteStatistic, updateStatistic } = useStatisticsStore();
-    const { invoices, deleteInvoice, updateInvoice } = useInvoiceStore();
+    const { statistics, deleteStatistic, updateStatistic, isLoading: statsLoading } = useStatisticsStore();
+    const { invoices, deleteInvoice, updateInvoice, isLoading: invLoading } = useInvoiceStore();
     const { user } = useAuthStore();
     const { products, getProductById } = useFarmStore();
     const { confirm } = useConfirm();
@@ -327,12 +330,60 @@ const RecentRecords: React.FC = () => {
         else addToast('خطا در ویرایش: ' + result.error, 'error');
     };
 
+    // --- VIRTUALIZATION LOGIC ---
+    // Calculates how many items fit in a row based on container width
+    const getItemsPerRow = (width: number) => {
+        // MD breakpoint is usually 768px.
+        // Below MD: 1 col
+        // MD and above: 2 cols
+        return width >= 768 ? 2 : 1; 
+    };
+
+    const Row = ({ index, style, data }: any) => {
+        const { items, itemsPerRow, type } = data;
+        const fromIndex = index * itemsPerRow;
+        const toIndex = Math.min(fromIndex + itemsPerRow, items.length);
+        const rowItems = items.slice(fromIndex, toIndex);
+
+        return (
+            <div style={style} className="flex gap-6 px-2">
+                {rowItems.map((item: any) => (
+                    <div key={item.id} className="flex-1 min-w-0 h-full">
+                        {type === 'stats' ? (
+                            <StatCard 
+                                stat={item} 
+                                getProductName={getProductName} 
+                                getProductUnit={(id)=>products.find(p=>p.id===id)?.unit==='CARTON'?'کارتن':'واحد'} 
+                                isEditable={isEditable} 
+                                onEdit={handleEditStatOpen} 
+                                onDelete={(id)=>deleteStatistic(id)} 
+                                isMotefereghe={isMotefereghe} 
+                            />
+                        ) : (
+                            <InvoiceCard 
+                                inv={item} 
+                                getProductName={getProductName} 
+                                isEditable={isEditable} 
+                                onEdit={handleEditInvoiceOpen} 
+                                onDelete={(id)=>deleteInvoice(id)} 
+                            />
+                        )}
+                    </div>
+                ))}
+                {/* Spacer for empty slots in last row to maintain grid alignment */}
+                {rowItems.length < itemsPerRow && Array.from({ length: itemsPerRow - rowItems.length }).map((_, i) => (
+                    <div key={`spacer-${i}`} className="flex-1 invisible" />
+                ))}
+            </div>
+        );
+    };
+
     // Updated styles for dark mode compatibility
     const inputClasses = "w-full p-4 border-2 rounded-xl text-center font-black text-2xl bg-white dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:border-metro-blue outline-none transition-all";
 
     return (
-        <div className="pb-24">
-            <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-full mb-8 mx-auto max-w-md sticky top-6 z-20 shadow-md border border-gray-200 dark:border-gray-700">
+        <div className="pb-24 h-full flex flex-col">
+            <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-full mb-4 mx-auto max-w-md w-full sticky top-0 z-20 shadow-md border border-gray-200 dark:border-gray-700">
                 <button onClick={() => setActiveTab('stats')} className={`flex-1 py-3 rounded-full text-base font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'stats' ? 'bg-white dark:bg-gray-700 text-metro-blue shadow-sm' : 'text-gray-500'}`}>
                     <Icons.BarChart className="w-5 h-5" /> آمار تولید
                 </button>
@@ -341,14 +392,64 @@ const RecentRecords: React.FC = () => {
                 </button>
             </div>
 
-            <div className="max-w-4xl mx-auto space-y-10 px-2">
-                <div className="space-y-4">
-                    <h3 className="font-black text-3xl px-2 text-gray-800 dark:text-white">امروز ({toPersianDigits(today)})</h3>
-                    <div className="grid gap-6 md:grid-cols-2">
-                        {activeTab === 'stats' ? (
-                            todayStats.length > 0 ? todayStats.map(stat => <StatCard key={stat.id} stat={stat} getProductName={getProductName} getProductUnit={(id)=>products.find(p=>p.id===id)?.unit==='CARTON'?'کارتن':'واحد'} isEditable={isEditable} onEdit={handleEditStatOpen} onDelete={(id)=>deleteStatistic(id)} isMotefereghe={isMotefereghe} />) : <div className="col-span-full p-10 text-center text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-[24px]">هنوز آماری ثبت نشده است.</div>
+            <div className="max-w-4xl mx-auto w-full px-2 flex-1 flex flex-col">
+                <div className="space-y-4 flex-1 flex flex-col">
+                    <h3 className="font-black text-3xl px-2 text-gray-800 dark:text-white shrink-0">امروز ({toPersianDigits(today)})</h3>
+                    
+                    <div className="flex-1 min-h-[500px]">
+                        {(statsLoading || invLoading) ? (
+                            <div className="grid gap-6 md:grid-cols-2">
+                                <SkeletonCard />
+                                <SkeletonCard />
+                                <SkeletonCard />
+                                <SkeletonCard />
+                            </div>
+                        ) : activeTab === 'stats' ? (
+                            todayStats.length > 0 ? (
+                                <AutoSizer>
+                                    {({ height, width }) => {
+                                        const itemsPerRow = getItemsPerRow(width);
+                                        const rowCount = Math.ceil(todayStats.length / itemsPerRow);
+                                        return (
+                                            <List
+                                                height={height}
+                                                itemCount={rowCount}
+                                                itemSize={320} // Approximate height of card + gap
+                                                width={width}
+                                                itemData={{ items: todayStats, itemsPerRow, type: 'stats' }}
+                                                className="custom-scrollbar !overflow-y-auto"
+                                            >
+                                                {Row}
+                                            </List>
+                                        );
+                                    }}
+                                </AutoSizer>
+                            ) : (
+                                <div className="p-10 text-center text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-[24px]">هنوز آماری ثبت نشده است.</div>
+                            )
                         ) : (
-                            todayInvoices.length > 0 ? todayInvoices.map(inv => <InvoiceCard key={inv.id} inv={inv} getProductName={getProductName} isEditable={isEditable} onEdit={handleEditInvoiceOpen} onDelete={(id)=>deleteInvoice(id)} />) : <div className="col-span-full p-10 text-center text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-[24px]">هنوز حواله‌ای ثبت نشده است.</div>
+                            todayInvoices.length > 0 ? (
+                                <AutoSizer>
+                                    {({ height, width }) => {
+                                        const itemsPerRow = getItemsPerRow(width);
+                                        const rowCount = Math.ceil(todayInvoices.length / itemsPerRow);
+                                        return (
+                                            <List
+                                                height={height}
+                                                itemCount={rowCount}
+                                                itemSize={280} // Approximate height of invoice card + gap
+                                                width={width}
+                                                itemData={{ items: todayInvoices, itemsPerRow, type: 'invoices' }}
+                                                className="custom-scrollbar !overflow-y-auto"
+                                            >
+                                                {Row}
+                                            </List>
+                                        );
+                                    }}
+                                </AutoSizer>
+                            ) : (
+                                <div className="p-10 text-center text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-[24px]">هنوز حواله‌ای ثبت نشده است.</div>
+                            )
                         )}
                     </div>
                 </div>

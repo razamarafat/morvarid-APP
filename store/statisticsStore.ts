@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { normalizeDate, toEnglishDigits } from '../utils/dateUtils';
+import { useSyncStore } from './syncStore';
 
 export interface DailyStatistic {
     id: string;
@@ -43,10 +44,10 @@ interface StatisticsState {
     isLoading: boolean;
     fetchStatistics: () => Promise<void>;
     subscribeToStatistics: () => () => void; 
-    addStatistic: (stat: Omit<DailyStatistic, 'id' | 'createdAt'>) => Promise<{ success: boolean; error?: string }>;
-    updateStatistic: (id: string, updates: Partial<DailyStatistic>) => Promise<{ success: boolean; error?: string }>;
-    deleteStatistic: (id: string) => Promise<{ success: boolean; error?: string }>;
-    bulkUpsertStatistics: (stats: Omit<DailyStatistic, 'id' | 'createdAt'>[]) => Promise<{ success: boolean; error?: string }>;
+    addStatistic: (stat: Omit<DailyStatistic, 'id' | 'createdAt'>, isSyncing?: boolean) => Promise<{ success: boolean; error?: string }>;
+    updateStatistic: (id: string, updates: Partial<DailyStatistic>, isSyncing?: boolean) => Promise<{ success: boolean; error?: string }>;
+    deleteStatistic: (id: string, isSyncing?: boolean) => Promise<{ success: boolean; error?: string }>;
+    bulkUpsertStatistics: (stats: Omit<DailyStatistic, 'id' | 'createdAt'>[], isSyncing?: boolean) => Promise<{ success: boolean; error?: string }>;
     getLatestInventory: (farmId: string, productId: string) => { units: number; kg: number };
     syncSalesFromInvoices: (farmId: string, date: string, productId: string) => Promise<void>;
 }
@@ -113,11 +114,16 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
       return () => { supabase.removeChannel(channel); };
   },
 
-  addStatistic: async (stat) => {
-      return await get().bulkUpsertStatistics([stat]);
+  addStatistic: async (stat, isSyncing = false) => {
+      return await get().bulkUpsertStatistics([stat], isSyncing);
   },
 
-  updateStatistic: async (id, updates) => {
+  updateStatistic: async (id, updates, isSyncing = false) => {
+      if (!isSyncing && !navigator.onLine) {
+          useSyncStore.getState().addToQueue('UPDATE_STAT', { id, updates });
+          return { success: true, error: 'ذخیره در صف آفلاین' };
+      }
+
       const fullPayload: any = {};
       if (updates.production !== undefined) fullPayload.production = Number(updates.production);
       if (updates.sales !== undefined) fullPayload.sales = Number(updates.sales);
@@ -152,7 +158,13 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
       return { success: false, error: translateError(error) };
   },
 
-  bulkUpsertStatistics: async (stats) => {
+  bulkUpsertStatistics: async (stats, isSyncing = false) => {
+      if (!isSyncing && !navigator.onLine) {
+          // Note: bulk offline might need loop
+          stats.forEach(s => useSyncStore.getState().addToQueue('STAT', s));
+          return { success: true, error: 'ذخیره در صف آفلاین' };
+      }
+
       try {
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) return { success: false, error: "کاربر احراز هویت نشده است." };
@@ -178,7 +190,12 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
       }
   },
 
-  deleteStatistic: async (id) => {
+  deleteStatistic: async (id, isSyncing = false) => {
+      if (!isSyncing && !navigator.onLine) {
+          useSyncStore.getState().addToQueue('DELETE_STAT', { id });
+          return { success: true, error: 'ذخیره در صف آفلاین' };
+      }
+
       const { error } = await supabase.from('daily_statistics').delete().eq('id', id);
       if (!error) {
           await get().fetchStatistics();
@@ -194,6 +211,9 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
   },
 
   syncSalesFromInvoices: async (farmId, date, productId) => {
+      // Sync logic should only run when online because it queries DB
+      if (!navigator.onLine) return;
+
       const normalizedDate = normalizeDate(date);
       const { data: invoices, error: invError } = await supabase
           .from('invoices')

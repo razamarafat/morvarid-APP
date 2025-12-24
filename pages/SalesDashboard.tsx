@@ -1,5 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { FixedSizeList as List } from 'react-window';
+import AutoSizer from 'react-virtualized-auto-sizer';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { Icons } from '../components/common/Icons';
 import Reports from '../components/admin/Reports';
@@ -15,6 +17,7 @@ import MetroTile from '../components/common/MetroTile';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FarmType } from '../types';
 import JalaliDatePicker from '../components/common/JalaliDatePicker';
+import { SkeletonTile, SkeletonRow } from '../components/common/Skeleton';
 
 const sortProducts = (products: any[], aId: string, bId: string) => {
     const pA = products.find(p => p.id === aId);
@@ -86,6 +89,16 @@ const FarmStatistics = () => {
     const toggleFarm = (farmId: string) => {
         setExpandedFarmId(expandedFarmId === farmId ? null : farmId);
     };
+
+    if (isLoading && statistics.length === 0) {
+        return (
+            <div className="space-y-4">
+                <SkeletonRow height="h-24" />
+                <SkeletonRow height="h-24" />
+                <SkeletonRow height="h-24" />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6 lg:space-y-8">
@@ -200,8 +213,31 @@ const FarmStatistics = () => {
     );
 };
 
+// --- Virtualized Invoice Row ---
+const InvoiceRow = ({ index, style, data }: any) => {
+    const invoice = data.invoices[index];
+    const { farms, products, renderInvoiceNumber } = data;
+    const productName = products.find((p: any) => p.id === invoice.productId)?.name || '-';
+    
+    return (
+        <div style={style} className="flex items-center text-right border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors text-gray-800 dark:text-gray-200 text-base lg:text-lg">
+            <div className="flex-[1] px-2 font-black whitespace-nowrap tracking-tighter">{toPersianDigits(invoice.date)}</div>
+            <div className="flex-[1] px-2 text-center dir-ltr">{renderInvoiceNumber(invoice.invoiceNumber)}</div>
+            <div className="flex-[1] px-2 whitespace-nowrap font-bold text-lg lg:text-xl truncate">{farms.find((f: any) => f.id === invoice.farmId)?.name}</div>
+            <div className="flex-[1] px-2 font-bold text-gray-600 dark:text-gray-300 truncate">{productName}</div>
+            <div className="flex-[1] px-2 text-center font-black text-xl lg:text-2xl">{toPersianDigits(invoice.totalCartons)}</div>
+            <div className="flex-[1] px-2 font-black text-metro-blue text-xl lg:text-2xl">{toPersianDigits(invoice.totalWeight)}</div>
+            <div className="flex-[1] px-2">
+                <span className={`px-2 py-0.5 text-sm font-black text-white rounded ${invoice.isYesterday ? 'bg-metro-orange' : 'bg-metro-green'}`}>
+                    {invoice.isYesterday ? 'دیروزی' : 'عادی'}
+                </span>
+            </div>
+        </div>
+    );
+};
+
 const InvoiceList = () => {
-    const { invoices, fetchInvoices } = useInvoiceStore();
+    const { invoices, fetchInvoices, isLoading } = useInvoiceStore();
     const { farms, products } = useFarmStore(); 
     const { addToast } = useToastStore();
     const [selectedFarmId, setSelectedFarmId] = useState<string>('all');
@@ -239,8 +275,8 @@ const InvoiceList = () => {
     };
 
     return (
-        <div className="space-y-4 lg:space-y-6">
-             <div className="bg-white dark:bg-gray-800 p-4 lg:p-6 shadow-sm border-l-4 border-metro-orange flex flex-col md:flex-row gap-4 lg:gap-6 items-end rounded-xl">
+        <div className="space-y-4 lg:space-y-6 flex flex-col h-full">
+             <div className="bg-white dark:bg-gray-800 p-4 lg:p-6 shadow-sm border-l-4 border-metro-orange flex flex-col md:flex-row gap-4 lg:gap-6 items-end rounded-xl shrink-0">
                 <div className="w-full md:w-1/3">
                     <JalaliDatePicker value={filterDate} onChange={setFilterDate} label="نمایش حواله‌های تاریخ" />
                 </div>
@@ -263,64 +299,55 @@ const InvoiceList = () => {
                 </Button>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 p-0 shadow-sm overflow-hidden border border-gray-100 dark:border-gray-700 rounded-xl">
-                <div className="p-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+            <div className="bg-white dark:bg-gray-800 p-0 shadow-sm overflow-hidden border border-gray-100 dark:border-gray-700 rounded-xl flex-1 flex flex-col min-h-[500px]">
+                <div className="p-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shrink-0">
                     <h3 className="font-black text-xl text-gray-800 dark:text-white flex items-center gap-2">
                         <Icons.FileText className="w-6 h-6 text-metro-orange" />
                         جدول فروش روزانه
                     </h3>
                 </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-base lg:text-lg text-right border-collapse">
-                        <thead className="bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 whitespace-nowrap text-sm lg:text-lg font-bold">
-                            <tr>
-                                <th className="px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-200 dark:border-gray-700">تاریخ خروج</th>
-                                <th className="px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-200 dark:border-gray-700 text-center">رمز حواله</th>
-                                <th className="px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-200 dark:border-gray-700">فارم</th>
-                                <th className="px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-200 dark:border-gray-700">نوع محصول</th>
-                                <th className="px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-200 dark:border-gray-700 text-center">تعداد (کارتن)</th>
-                                <th className="px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-200 dark:border-gray-700">وزن (Kg)</th>
-                                <th className="px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-200 dark:border-gray-700">وضعیت</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-800 font-sans tabular-nums text-base lg:text-lg">
-                            {filteredInvoices.length === 0 ? (
-                                <tr>
-                                    <td colSpan={7} className="text-center py-10 lg:py-20 text-gray-400 font-bold lg:text-lg">
-                                        <div className="flex flex-col items-center">
-                                            <Icons.FileText className="w-10 h-10 lg:w-16 lg:h-16 mb-2 opacity-30" />
-                                            <span>هیچ حواله‌ای برای تاریخ {toPersianDigits(normalizedFilterDate)} ثبت نشده است.</span>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ) : (
-                                filteredInvoices.map(i => {
-                                    const productName = products.find(p => p.id === i.productId)?.name || '-';
-                                    return (
-                                    <tr key={i.id} className="hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors text-gray-800 dark:text-gray-200">
-                                        <td className="px-4 py-3 lg:px-6 lg:py-6 font-black whitespace-nowrap tracking-tighter text-lg lg:text-xl">{toPersianDigits(i.date)}</td>
-                                        <td className="px-4 py-3 lg:px-6 lg:py-6 text-center dir-ltr" dir="ltr">
-                                            {renderInvoiceNumber(i.invoiceNumber)}
-                                        </td>
-                                        <td className="px-4 py-3 lg:px-6 lg:py-6 whitespace-nowrap font-bold text-lg lg:text-xl">{farms.find(f => f.id === i.farmId)?.name}</td>
-                                        <td className="px-4 py-3 lg:px-6 lg:py-6 font-bold text-gray-600 dark:text-gray-300">{productName}</td>
-                                        <td className="px-4 py-3 lg:px-6 lg:py-6 text-center font-black text-xl lg:text-2xl">{toPersianDigits(i.totalCartons)}</td>
-                                        <td className="px-4 py-3 lg:px-6 lg:py-6 font-black text-metro-blue text-xl lg:text-2xl">{toPersianDigits(i.totalWeight)}</td>
-                                        <td className="px-4 py-3 lg:px-6 lg:py-6">
-                                            <div className="flex flex-col gap-1">
-                                                <span className={`px-2 lg:px-3 py-0.5 lg:py-1 text-sm lg:text-base font-black text-white w-fit rounded ${i.isYesterday ? 'bg-metro-orange' : 'bg-metro-green'}`}>
-                                                    {i.isYesterday ? 'دیروزی' : 'عادی'}
-                                                </span>
-                                                {i.updatedAt && (
-                                                    <span className="text-xs text-amber-600 dark:text-amber-400 font-bold">(اصلاح شده)</span>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                )})
+                
+                {/* Header Row (Flexbox to match virtual items) */}
+                <div className="flex bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 text-sm lg:text-lg font-bold p-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
+                    <div className="flex-[1] px-2">تاریخ خروج</div>
+                    <div className="flex-[1] px-2 text-center">رمز حواله</div>
+                    <div className="flex-[1] px-2">فارم</div>
+                    <div className="flex-[1] px-2">نوع محصول</div>
+                    <div className="flex-[1] px-2 text-center">تعداد (کارتن)</div>
+                    <div className="flex-[1] px-2">وزن (Kg)</div>
+                    <div className="flex-[1] px-2">وضعیت</div>
+                </div>
+
+                <div className="flex-1 w-full">
+                    {isLoading ? (
+                        <div className="p-4">
+                            <SkeletonRow cols={7} />
+                            <SkeletonRow cols={7} />
+                            <SkeletonRow cols={7} />
+                        </div>
+                    ) : filteredInvoices.length === 0 ? (
+                        <div className="text-center py-20 text-gray-400 font-bold lg:text-lg">
+                            <div className="flex flex-col items-center">
+                                <Icons.FileText className="w-16 h-16 mb-2 opacity-30" />
+                                <span>هیچ حواله‌ای برای تاریخ {toPersianDigits(normalizedFilterDate)} ثبت نشده است.</span>
+                            </div>
+                        </div>
+                    ) : (
+                        <AutoSizer>
+                            {({ height, width }) => (
+                                <List
+                                    height={height}
+                                    itemCount={filteredInvoices.length}
+                                    itemSize={80} // Height of each row
+                                    width={width}
+                                    itemData={{ invoices: filteredInvoices, farms, products, renderInvoiceNumber }}
+                                    className="custom-scrollbar"
+                                >
+                                    {InvoiceRow}
+                                </List>
                             )}
-                        </tbody>
-                    </table>
+                        </AutoSizer>
+                    )}
                 </div>
             </div>
         </div>
@@ -513,6 +540,8 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
 
 const SalesDashboard: React.FC = () => {
     const [currentView, setCurrentView] = useState('dashboard');
+    const { isLoading } = useAuthStore();
+
     const getTitle = () => {
         if(currentView === 'farm-stats') return 'پایش آمار لحظه‌ای';
         if(currentView === 'invoices') return 'جدول فروش روزانه';
@@ -522,6 +551,17 @@ const SalesDashboard: React.FC = () => {
     }
 
     const renderContent = () => {
+        if (isLoading && currentView === 'dashboard') {
+            return (
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                    <SkeletonTile size="wide" />
+                    <SkeletonTile size="wide" />
+                    <SkeletonTile size="medium" />
+                    <SkeletonTile size="medium" />
+                </div>
+            );
+        }
+
         switch (currentView) {
             case 'farm-stats': return <FarmStatistics />;
             case 'invoices': return <InvoiceList />;

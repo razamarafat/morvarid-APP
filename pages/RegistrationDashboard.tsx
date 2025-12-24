@@ -6,12 +6,25 @@ import StatisticsForm from '../components/registration/StatisticsForm';
 import { InvoiceForm } from '../components/registration/InvoiceForm';
 import RecentRecords from '../components/registration/RecentRecords';
 import MetroTile from '../components/common/MetroTile';
+import { SkeletonTile } from '../components/common/Skeleton';
+import { useAuthStore } from '../store/authStore';
 
 const RegistrationDashboard: React.FC = () => {
     const [currentView, setCurrentView] = useState('dashboard');
+    const { isLoading } = useAuthStore();
     const dashboardTitle = 'داشبورد ثبت اطلاعات روزانه';
 
     const renderContent = () => {
+        if (isLoading && currentView === 'dashboard') {
+            return (
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                    <SkeletonTile size="large" />
+                    <SkeletonTile size="wide" />
+                    <SkeletonTile size="wide" />
+                </div>
+            );
+        }
+
         switch (currentView) {
             case 'stats': return <StatisticsForm onNavigate={setCurrentView} />;
             case 'invoice': return <InvoiceForm />;

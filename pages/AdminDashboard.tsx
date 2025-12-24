@@ -11,10 +11,13 @@ import { usePwaStore } from '../store/pwaStore';
 import { useToastStore } from '../store/toastStore';
 import { APP_VERSION } from '../constants';
 import { supabase } from '../lib/supabase';
+import { useAuthStore } from '../store/authStore';
+import { SkeletonTile } from '../components/common/Skeleton';
 
 const AdminDashboard: React.FC = () => {
     const [currentView, setCurrentView] = useState('dashboard');
     const { addToast } = useToastStore();
+    const { isLoading } = useAuthStore();
 
     useEffect(() => {
         const performAutoBackup = async () => {
@@ -50,6 +53,18 @@ const AdminDashboard: React.FC = () => {
     }, []);
 
     const renderContent = () => {
+        if (isLoading && currentView === 'dashboard') {
+            return (
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                    <SkeletonTile size="wide" />
+                    <SkeletonTile size="wide" />
+                    <SkeletonTile size="medium" />
+                    <SkeletonTile size="medium" />
+                    <SkeletonTile size="medium" />
+                </div>
+            );
+        }
+
         switch (currentView) {
             case 'farms': return <FarmManagement />;
             case 'users': return <UserManagement />;

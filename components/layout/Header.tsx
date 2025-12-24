@@ -8,7 +8,8 @@ import { UserRole } from '../../types';
 import { useThemeStore } from '../../store/themeStore';
 import { THEMES } from '../../constants';
 import { useConfirm } from '../../hooks/useConfirm';
-import { usePwaStore } from '../../store/pwaStore'; // Import PWA Store
+import { usePwaStore } from '../../store/pwaStore';
+import OnlineStatusBadge from '../common/OnlineStatusBadge';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -21,7 +22,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
   const location = useLocation();
   const theme = useThemeStore(state => state.theme);
   const { confirm } = useConfirm();
-  const { deferredPrompt, setDeferredPrompt, isInstalled } = usePwaStore(); // Use PWA State
+  const { deferredPrompt, setDeferredPrompt, isInstalled } = usePwaStore(); 
 
   const role = user?.role || UserRole.ADMIN;
   const themeColors = THEMES[theme][role];
@@ -117,6 +118,8 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
         
         <div className="flex items-center gap-2">
           
+          <OnlineStatusBadge />
+
           {/* PWA INSTALL BUTTON (Desktop Only) */}
           {deferredPrompt && !isInstalled && (
               <button 
