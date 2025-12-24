@@ -26,11 +26,9 @@ const invoiceGlobalSchema = z.object({
     contactPhone: z.string()
         .min(1, 'شماره تماس الزامی است')
         .regex(mobileRegex, 'شماره همراه باید ۱۱ رقم و با ۰۹ شروع شود'),
-    driverName: z.string()
-        .min(2, 'نام راننده الزامی است')
-        .regex(persianLettersRegex, 'نام راننده فقط باید شامل حروف فارسی باشد (بدون عدد)'),
+    driverName: z.string().optional(), // Changed to optional
     description: z.string().optional()
-        .refine(val => !val || persianLettersRegex.test(val.replace(/[0-9]/g, '')), 'توضیحات باید فارسی باشد'), // Relaxed for description to allow addresses
+        .refine(val => !val || persianLettersRegex.test(val.replace(/[0-9]/g, '')), 'توضیحات باید فارسی باشد'),
 });
 
 type GlobalValues = z.infer<typeof invoiceGlobalSchema>;
@@ -350,7 +348,7 @@ export const InvoiceForm: React.FC = () => {
                     <div className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <label className={labelClass}>نام راننده</label>
+                                <label className={labelClass}>نام راننده (اختیاری)</label>
                                 <input 
                                     type="text" 
                                     {...register('driverName')} 
@@ -394,15 +392,15 @@ export const InvoiceForm: React.FC = () => {
 
                                 <input type="tel" maxLength={3} value={plateParts.part3} onChange={e => setPlateParts(p => ({...p, part3: e.target.value.replace(/\D/g, '')}))} className="w-16 h-16 bg-transparent text-center font-black text-2xl outline-none text-black dark:text-black placeholder-gray-400" placeholder="365" />
 
-                                {/* IRAN CODE */}
-                                <div className="flex flex-col items-center justify-center w-12 h-16 border-l-2 border-black pl-2">
+                                {/* IRAN CODE - Increased width for better mobile visibility */}
+                                <div className="flex flex-col items-center justify-center w-14 h-16 border-l-2 border-black pl-0 p-0">
                                     <span className="text-[10px] font-black text-black dark:text-black">ایران</span>
                                     <input 
                                         type="tel" 
                                         maxLength={2} 
                                         value={plateParts.part4} 
                                         onChange={e => setPlateParts(p => ({...p, part4: e.target.value.replace(/\D/g, '')}))} 
-                                        className="w-full h-full bg-transparent text-center font-black text-xl outline-none text-black dark:text-black placeholder-gray-400" 
+                                        className="w-full h-full bg-transparent text-center font-black text-xl outline-none text-black dark:text-black placeholder-gray-400 p-0" 
                                         placeholder="11" 
                                     />
                                 </div>

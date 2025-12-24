@@ -237,7 +237,7 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                      </div>
                      
                      <div className="mt-3 text-white font-black tracking-wide text-lg border-b-2 border-white/20 pb-1">
-                        ثبت آمار تولید {isMotefereghe && '(متفرقه)'}
+                        ثبت آمار تولید
                      </div>
                  </div>
             </div>
