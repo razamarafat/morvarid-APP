@@ -137,30 +137,53 @@ const FarmStatistics = () => {
                             <AnimatePresence>
                                 {isExpanded && hasStats && (
                                     <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="bg-gray-50 dark:bg-black/20 p-5 lg:p-8 border-t">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-1 gap-4">
                                             {sortedFarmStats.map(stat => {
                                                 const prod = products.find(p => p.id === stat.productId);
                                                 const isLiquid = prod?.name.includes('مایع') || prod?.hasKilogramUnit;
 
+                                                const unitLabel = isLiquid ? 'Kg' : '';
+                                                const prodVal = isLiquid ? (stat.productionKg || 0) : (stat.production || 0);
+                                                const salesVal = isLiquid ? (stat.salesKg || 0) : (stat.sales || 0);
+                                                const prevVal = isLiquid ? (stat.previousBalanceKg || 0) : (stat.previousBalance || 0);
+                                                const currVal = isLiquid ? (stat.currentInventoryKg || 0) : (stat.currentInventory || 0);
+
                                                 return (
-                                                <div key={stat.id} className="bg-white dark:bg-gray-700 p-5 rounded-[24px] border relative overflow-hidden">
-                                                    <div className="flex justify-between mb-4">
-                                                        <h5 className="font-black text-xl">{prod?.name}</h5>
-                                                        <span className="text-sm font-mono opacity-50 font-bold">{new Date(stat.createdAt).toLocaleTimeString('fa-IR')}</span>
+                                                <div key={stat.id} className="bg-white dark:bg-gray-800 p-4 rounded-[24px] border border-gray-100 dark:border-gray-700 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                                                    <div className="flex justify-between items-center mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">
+                                                        <h5 className="font-black text-lg text-gray-800 dark:text-white">{prod?.name}</h5>
+                                                        <div className="flex items-center gap-4 text-xs font-bold text-gray-400">
+                                                            <div className="flex items-center gap-1">
+                                                                <Icons.User className="w-3 h-3" />
+                                                                <span>{stat.creatorName || 'ناشناس'}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-1">
+                                                                <Icons.Clock className="w-3 h-3" />
+                                                                <span className="font-mono">{new Date(stat.createdAt).toLocaleTimeString('fa-IR', {hour: '2-digit', minute:'2-digit'})}</span>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <div className="grid grid-cols-3 gap-2">
-                                                        <div className="flex flex-col items-center justify-center">
-                                                            {/* Improved readability for labels and values */}
-                                                            <span className="block text-sm font-bold opacity-60 mb-1">تولید</span>
-                                                            <span className="font-black text-2xl lg:text-3xl text-green-600">+{toPersianDigits(isLiquid ? (stat.productionKg || 0) : (stat.production || 0))} {isLiquid && <small className="text-xs">Kg</small>}</span>
+                                                    
+                                                    {/* Colored Cells Grid */}
+                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                                        <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-slate-500 text-white shadow-sm">
+                                                            <span className="text-xs font-bold opacity-80 mb-1">موجودی قبل</span>
+                                                            <span className="font-black text-xl lg:text-2xl">{toPersianDigits(prevVal)} <small className="text-[10px]">{unitLabel}</small></span>
                                                         </div>
-                                                        <div className="flex flex-col items-center justify-center border-r border-l border-gray-100 dark:border-gray-600">
-                                                            <span className="block text-sm font-bold opacity-60 mb-1">فروش</span>
-                                                            <span className="font-black text-2xl lg:text-3xl text-red-500">-{toPersianDigits(isLiquid ? (stat.salesKg || 0) : (stat.sales || 0))} {isLiquid && <small className="text-xs">Kg</small>}</span>
+                                                        
+                                                        <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-emerald-600 text-white shadow-sm">
+                                                            <span className="text-xs font-bold opacity-80 mb-1">تولید روز</span>
+                                                            <span className="font-black text-xl lg:text-2xl">+{toPersianDigits(prodVal)} <small className="text-[10px]">{unitLabel}</small></span>
                                                         </div>
-                                                        <div className="flex flex-col items-center justify-center">
-                                                            <span className="block text-sm font-bold opacity-60 mb-1">موجودی</span>
-                                                            <span className="font-black text-2xl lg:text-3xl text-blue-600">{toPersianDigits(isLiquid ? (stat.currentInventoryKg || 0) : (stat.currentInventory || 0))} {isLiquid && <small className="text-xs">Kg</small>}</span>
+
+                                                        <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-rose-600 text-white shadow-sm">
+                                                            <span className="text-xs font-bold opacity-80 mb-1">فروش</span>
+                                                            <span className="font-black text-xl lg:text-2xl">-{toPersianDigits(salesVal)} <small className="text-[10px]">{unitLabel}</small></span>
+                                                        </div>
+
+                                                        <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-blue-600 text-white shadow-sm">
+                                                            <span className="text-xs font-bold opacity-80 mb-1">مانده نهایی</span>
+                                                            <span className="font-black text-xl lg:text-2xl">{toPersianDigits(currVal)} <small className="text-[10px]">{unitLabel}</small></span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -242,6 +265,12 @@ const InvoiceList = () => {
             </div>
 
             <div className="bg-white dark:bg-gray-800 p-0 shadow-sm overflow-hidden border border-gray-100 dark:border-gray-700 rounded-xl">
+                <div className="p-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+                    <h3 className="font-black text-xl text-gray-800 dark:text-white flex items-center gap-2">
+                        <Icons.FileText className="w-6 h-6 text-metro-orange" />
+                        جدول فروش روزانه
+                    </h3>
+                </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-base lg:text-lg text-right border-collapse">
                         <thead className="bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 whitespace-nowrap text-sm lg:text-lg font-bold">
@@ -249,6 +278,7 @@ const InvoiceList = () => {
                                 <th className="px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-200 dark:border-gray-700">تاریخ خروج</th>
                                 <th className="px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-200 dark:border-gray-700 text-center">رمز حواله</th>
                                 <th className="px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-200 dark:border-gray-700">فارم</th>
+                                <th className="px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-200 dark:border-gray-700">نوع محصول</th>
                                 <th className="px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-200 dark:border-gray-700 text-center">تعداد (کارتن)</th>
                                 <th className="px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-200 dark:border-gray-700">وزن (Kg)</th>
                                 <th className="px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-200 dark:border-gray-700">وضعیت</th>
@@ -257,7 +287,7 @@ const InvoiceList = () => {
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-800 font-sans tabular-nums text-base lg:text-lg">
                             {filteredInvoices.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="text-center py-10 lg:py-20 text-gray-400 font-bold lg:text-lg">
+                                    <td colSpan={7} className="text-center py-10 lg:py-20 text-gray-400 font-bold lg:text-lg">
                                         <div className="flex flex-col items-center">
                                             <Icons.FileText className="w-10 h-10 lg:w-16 lg:h-16 mb-2 opacity-30" />
                                             <span>هیچ حواله‌ای برای تاریخ {toPersianDigits(normalizedFilterDate)} ثبت نشده است.</span>
@@ -265,13 +295,16 @@ const InvoiceList = () => {
                                     </td>
                                 </tr>
                             ) : (
-                                filteredInvoices.map(i => (
+                                filteredInvoices.map(i => {
+                                    const productName = products.find(p => p.id === i.productId)?.name || '-';
+                                    return (
                                     <tr key={i.id} className="hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors text-gray-800 dark:text-gray-200">
                                         <td className="px-4 py-3 lg:px-6 lg:py-6 font-black whitespace-nowrap tracking-tighter text-lg lg:text-xl">{toPersianDigits(i.date)}</td>
                                         <td className="px-4 py-3 lg:px-6 lg:py-6 text-center dir-ltr" dir="ltr">
                                             {renderInvoiceNumber(i.invoiceNumber)}
                                         </td>
                                         <td className="px-4 py-3 lg:px-6 lg:py-6 whitespace-nowrap font-bold text-lg lg:text-xl">{farms.find(f => f.id === i.farmId)?.name}</td>
+                                        <td className="px-4 py-3 lg:px-6 lg:py-6 font-bold text-gray-600 dark:text-gray-300">{productName}</td>
                                         <td className="px-4 py-3 lg:px-6 lg:py-6 text-center font-black text-xl lg:text-2xl">{toPersianDigits(i.totalCartons)}</td>
                                         <td className="px-4 py-3 lg:px-6 lg:py-6 font-black text-metro-blue text-xl lg:text-2xl">{toPersianDigits(i.totalWeight)}</td>
                                         <td className="px-4 py-3 lg:px-6 lg:py-6">
@@ -285,7 +318,7 @@ const InvoiceList = () => {
                                             </div>
                                         </td>
                                     </tr>
-                                ))
+                                )})
                             )}
                         </tbody>
                     </table>
@@ -303,7 +336,6 @@ const AnalyticsView = () => {
     const [selectedFarmId, setSelectedFarmId] = useState<string>('all');
 
     const chartData = useMemo(() => {
-        // 1. Collect all unique dates from stats/invoices relevant to selection
         const allDates = new Set<string>();
         const relevantStats = statistics.filter(s => selectedFarmId === 'all' || s.farmId === selectedFarmId);
         const relevantInvoices = invoices.filter(i => selectedFarmId === 'all' || i.farmId === selectedFarmId);
@@ -311,7 +343,6 @@ const AnalyticsView = () => {
         relevantStats.forEach(s => allDates.add(s.date));
         relevantInvoices.forEach(i => allDates.add(i.date));
 
-        // Sort dates descending and take top N
         const sortedDates = Array.from(allDates).sort().reverse().slice(0, range).reverse();
 
         let maxVal = 0;
@@ -319,12 +350,10 @@ const AnalyticsView = () => {
         let totalSales = 0;
 
         const dataPoints = sortedDates.map(date => {
-            // Sum Production for this date
             const prod = relevantStats
                 .filter(s => s.date === date)
                 .reduce((sum, s) => sum + (s.production || 0), 0);
 
-            // Sum Sales for this date (using Invoices for accuracy)
             const sale = relevantInvoices
                 .filter(i => i.date === date)
                 .reduce((sum, i) => sum + (i.totalCartons || 0), 0);
@@ -338,7 +367,6 @@ const AnalyticsView = () => {
             return { date, prod, sale };
         });
 
-        // Add 10% headroom to maxVal
         maxVal = Math.max(10, Math.ceil(maxVal * 1.1));
 
         return { dataPoints, maxVal, totalProd, totalSales };
@@ -348,7 +376,6 @@ const AnalyticsView = () => {
 
     return (
         <div className="space-y-6 lg:space-y-8">
-            {/* Filters */}
             <div className="bg-white dark:bg-gray-800 p-4 lg:p-6 rounded-xl shadow-sm border-l-4 border-purple-500 flex flex-col sm:flex-row gap-4 justify-between items-center">
                 <div className="flex items-center gap-2">
                     <Icons.BarChart className="w-6 h-6 lg:w-8 lg:h-8 text-purple-600" />
@@ -375,7 +402,6 @@ const AnalyticsView = () => {
                 </div>
             </div>
 
-            {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-8">
                 <div className="bg-green-50 dark:bg-green-900/20 p-4 lg:p-6 rounded-xl border border-green-200 dark:border-green-800 flex items-center justify-between">
                     <div>
@@ -400,10 +426,8 @@ const AnalyticsView = () => {
                 </div>
             </div>
 
-            {/* Chart Area */}
             <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-x-auto">
                 <div className="min-w-[600px] h-[350px] lg:h-[450px] relative pt-6 pb-8 px-4 flex items-end gap-2 md:gap-4 lg:gap-6">
-                    {/* Background Grid Lines */}
                     <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-8 pt-6 px-4">
                         {[1, 0.75, 0.5, 0.25, 0].map((tick, i) => (
                             <div key={i} className="w-full border-b border-gray-100 dark:border-gray-700 h-0 relative">
@@ -425,7 +449,6 @@ const AnalyticsView = () => {
                             
                             return (
                                 <div key={index} className="flex-1 flex flex-col justify-end items-center gap-1 group relative h-full z-10">
-                                    {/* Tooltip */}
                                     <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black text-white text-[10px] lg:text-sm p-2 lg:p-3 rounded pointer-events-none whitespace-nowrap z-20">
                                         <div className="text-center font-bold mb-1 border-b border-white/20 pb-1">{point.date}</div>
                                         <div>تولید: {toPersianDigits(point.prod)}</div>
@@ -433,7 +456,6 @@ const AnalyticsView = () => {
                                     </div>
 
                                     <div className="w-full flex justify-center items-end gap-1 h-full">
-                                        {/* Production Bar */}
                                         <motion.div 
                                             initial={{ height: 0 }} 
                                             animate={{ height: `${prodHeight}%` }}
@@ -443,7 +465,6 @@ const AnalyticsView = () => {
                                             {prodHeight > 10 && <span className="absolute top-1 left-0 w-full text-center text-[10px] lg:text-xs text-white/90 font-bold">{toPersianDigits(point.prod)}</span>}
                                         </motion.div>
                                         
-                                        {/* Sales Bar */}
                                         <motion.div 
                                             initial={{ height: 0 }} 
                                             animate={{ height: `${saleHeight}%` }}
@@ -465,7 +486,6 @@ const AnalyticsView = () => {
                     )}
                 </div>
                 
-                {/* Legend */}
                 <div className="flex justify-center gap-6 lg:gap-10 mt-4 lg:mt-8">
                     <div className="flex items-center gap-2">
                         <div className="w-3 h-3 lg:w-5 lg:h-5 bg-green-500 rounded-sm"></div>
@@ -496,7 +516,7 @@ const SalesDashboard: React.FC = () => {
     const [currentView, setCurrentView] = useState('dashboard');
     const getTitle = () => {
         if(currentView === 'farm-stats') return 'پایش آمار لحظه‌ای';
-        if(currentView === 'invoices') return 'حواله‌های توزیع';
+        if(currentView === 'invoices') return 'جدول فروش روزانه';
         if(currentView === 'reports') return 'گزارشات فروش';
         if(currentView === 'analytics') return 'تحلیل نموداری تولید و فروش';
         return 'داشبورد فروش و توزیع';
