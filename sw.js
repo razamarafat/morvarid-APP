@@ -4,9 +4,8 @@
  * Optimized for Automatic Updates & Immediate Claiming
  */
 
-// We use a dynamic cache name here, but the main update logic is driven by
-// the 'useAutoUpdate' hook which clears caches on version mismatch.
-const CACHE_NAME = 'morvarid-pwa-v3.6-auto'; 
+// Bumped to v4.0 to invalidate all previous caches
+const CACHE_NAME = 'morvarid-pwa-v4.0-force-update'; 
 const ASSETS = [
   './',
   './index.html',
@@ -43,7 +42,10 @@ self.addEventListener('fetch', (event) => {
 
   // Never cache version.json so the client always gets the latest
   if (event.request.url.includes('version.json')) {
-      event.respondWith(fetch(event.request));
+      event.respondWith(fetch(event.request, { 
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' }
+      }));
       return;
   }
 

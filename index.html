@@ -8,7 +8,7 @@
     <title>سامانه مدیریت یکپارچه آمار مروارید</title>
    
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="مروارید">
     <meta name="mobile-web-app-capable" content="yes">
     <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
@@ -57,11 +57,16 @@
             },
             animation: {
               'wiggle': 'wiggle 6s ease-in-out infinite',
+              'bg-pan': 'bgPan 40s linear infinite',
             },
             keyframes: {
               wiggle: {
                 '0%, 100%': { transform: 'rotate(-3deg) translateZ(0)' },
                 '50%': { transform: 'rotate(3deg) translateZ(0)' },
+              },
+              bgPan: {
+                '0%': { backgroundPosition: '0% 0%' },
+                '100%': { backgroundPosition: '100% 100%' },
               }
             },
             borderRadius: {
@@ -93,16 +98,13 @@
       }
      
       html {
-        overflow: hidden;
         height: 100%;
-        height: 100dvh;
+        height: 100dvh; /* Dynamic Viewport Height for mobile browsers */
         overscroll-behavior: none;
-        -webkit-overflow-scrolling: auto;
-        touch-action: pan-y;
+        -webkit-overflow-scrolling: touch;
       }
      
       body {
-        overflow: hidden;
         height: 100%;
         height: 100dvh;
         overscroll-behavior: none;
@@ -112,13 +114,10 @@
         left: 0;
         margin: 0;
         padding: 0;
-        touch-action: pan-y;
+        overflow: hidden; /* Prevent body scroll, handle in #root */
       }
 
       html, body {
-        scrollbar-width: none;
-        -ms-overflow-style: none;
-        overflow-x: hidden;
         background-color: #1D1D1D;
       }
 
@@ -126,17 +125,6 @@
         background-color: #1D1D1D;
       }
 
-      ::-webkit-scrollbar {
-        display: none;
-      }
-     
-      body {
-        transition: background-color 0.2s ease;
-        text-rendering: optimizeSpeed;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-      }
-     
       #root {
         height: 100%;
         height: 100dvh;
@@ -144,37 +132,22 @@
         overflow: hidden;
         display: flex;
         flex-direction: column;
-        touch-action: pan-y;
       }
 
-      /* اسکرول روان برای همه عناصر */
-      .overflow-y-auto, 
-      .overflow-auto,
-      main,
-      [data-scrollable] {
-        -webkit-overflow-scrolling: touch !important;
-        overscroll-behavior: contain;
-        touch-action: pan-y;
+      /* Custom Scrollbar for inner containers */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
       }
-
-      input, textarea, [contenteditable] {
-        -webkit-user-select: text !important;
-        user-select: text !important;
-        touch-action: manipulation;
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
       }
-
-      button, a, [role="button"] {
-        touch-action: manipulation;
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(156, 163, 175, 0.5);
+        border-radius: 3px;
       }
-
-      input::-webkit-outer-spin-button,
-      input::-webkit-inner-spin-button {
-        -webkit-appearance: none;
-        margin: 0;
-      }
-     
-      input[type=number] {
-        -moz-appearance: textfield;
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(156, 163, 175, 0.8);
       }
 
       .shimmer-bg {
@@ -259,19 +232,6 @@
       .mb-safe {
         margin-bottom: env(safe-area-inset-bottom);
       }
-
-      .app-container {
-        display: flex;
-        flex-direction: column;
-        height: 100dvh;
-        width: 100%;
-        overflow: hidden;
-        background-color: #1D1D1D;
-      }
-
-      .app-container.light {
-        background-color: #F3F3F3;
-      }
     </style>
     <script type="importmap">
 {
@@ -303,8 +263,5 @@
 <body class="text-gray-900 dark:text-white selection:bg-metro-blue selection:text-white">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
-    <script>
-      // No pull-to-refresh script - removed to fix scroll freeze
-    </script>
 </body>
 </html>

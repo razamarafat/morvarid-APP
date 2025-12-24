@@ -40,7 +40,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, onNa
   }, [onNavigate]);
 
   return (
-    <div className={`flex h-screen ${themeColors.background} text-black dark:text-white overflow-hidden font-sans`}>
+    <div className={`flex h-[100dvh] ${themeColors.background} text-black dark:text-white overflow-hidden font-sans`}>
       
       {/* Sidebar is always off-canvas (hidden by default) */}
       <Sidebar 

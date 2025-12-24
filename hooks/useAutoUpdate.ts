@@ -4,21 +4,21 @@ import { useToastStore } from '../store/toastStore';
 
 export const useAutoUpdate = () => {
   const { addToast } = useToastStore();
-  // Store the version timestamp loaded when the app first started
   const initialBuildDate = useRef<number | null>(null);
   
-  // Check every 60 seconds
-  const CHECK_INTERVAL = 60 * 1000; 
+  // Check frequently (every 30 seconds)
+  const CHECK_INTERVAL = 30 * 1000; 
 
   useEffect(() => {
     const checkVersion = async () => {
       try {
-        // Fetch version.json with a query param to bypass browser cache
-        const response = await fetch(`./version.json?t=${Date.now()}`, {
+        // Force bypass cache with timestamp and random number
+        const response = await fetch(`./version.json?t=${Date.now()}&r=${Math.random()}`, {
           cache: 'no-store',
           headers: {
             'Pragma': 'no-cache',
-            'Cache-Control': 'no-cache'
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Expires': '0'
           }
         });
 
@@ -28,15 +28,13 @@ export const useAutoUpdate = () => {
         const serverBuildDate = data.buildDate;
 
         if (initialBuildDate.current === null) {
-          // First load: set the reference
           initialBuildDate.current = serverBuildDate;
         } else if (serverBuildDate !== initialBuildDate.current) {
-          // Version mismatch detected!
-          console.log('[AutoUpdate] New version detected. Updating...');
+          console.log('[AutoUpdate] New version detected! Forcing update...');
           
-          addToast('نسخه جدید یافت شد. در حال بروزرسانی...', 'info');
+          addToast('نسخه جدید شناسایی شد. در حال بروزرسانی...', 'info');
           
-          // 1. Unregister Service Worker to clear control
+          // 1. Unregister Service Workers
           if ('serviceWorker' in navigator) {
             const registrations = await navigator.serviceWorker.getRegistrations();
             for (const registration of registrations) {
@@ -44,40 +42,42 @@ export const useAutoUpdate = () => {
             }
           }
 
-          // 2. Clear Caches (Optional but recommended for hard reset)
+          // 2. Clear All Caches
           if ('caches' in window) {
              const keys = await caches.keys();
-             for (const key of keys) {
-                 await caches.delete(key);
-             }
+             await Promise.all(keys.map(key => caches.delete(key)));
           }
 
-          // 3. Force Reload
+          // 3. Clear Local Storage flags related to updates (optional, keeping auth)
+          // We intentionally don't clear auth tokens here to keep user logged in.
+
+          // 4. Force Reload from Server (ignoring cache)
           setTimeout(() => {
+              window.location.href = window.location.href.split('?')[0] + '?v=' + Date.now();
               window.location.reload();
-          }, 1500);
+          }, 1000);
         }
       } catch (error) {
         console.error('[AutoUpdate] Failed to check version:', error);
       }
     };
 
-    // Initial check
     checkVersion();
-
-    // Periodic check
     const interval = setInterval(checkVersion, CHECK_INTERVAL);
 
-    // Also check when the tab becomes visible again
     const handleVisibilityChange = () => {
         if (document.visibilityState === 'visible') {
             checkVersion();
         }
     };
+    
+    // Also check on focus/click to ensure active users get it
+    window.addEventListener('focus', checkVersion);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
         clearInterval(interval);
+        window.removeEventListener('focus', checkVersion);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
