@@ -12,10 +12,12 @@ export const useAutoUpdate = () => {
   useEffect(() => {
     const checkVersion = async () => {
       try {
-        // Exclude AI Studio / Google User Content preview environments
-        const isGooglePreview = window.location.hostname.includes('googleusercontent') || 
-                                window.location.hostname.includes('ai.studio') || 
-                                window.location.hostname.includes('usercontent.goog');
+        // Robust check for AI Studio / Google User Content preview environments
+        const isGooglePreview = 
+            window.location.hostname.includes('googleusercontent') || 
+            window.location.hostname.includes('ai.studio') || 
+            window.location.hostname.includes('usercontent.goog') ||
+            (window.origin && window.origin.includes('usercontent.goog'));
 
         // Skip version check in preview environments to avoid "Failed to fetch" errors
         if (isGooglePreview) return;

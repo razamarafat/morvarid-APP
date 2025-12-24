@@ -33,13 +33,16 @@ if (!rootElement) throw new Error("Could not find root element to mount to");
 // --- SERVICE WORKER REGISTRATION ---
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
-    // Exclude blob URLs (often used in development/previews)
+    // Exclude blob URLs
     const isBlob = window.location.protocol === 'blob:' || window.location.href.startsWith('blob:');
     
-    // Exclude AI Studio / Google User Content preview environments which cause origin mismatch errors
-    const isGooglePreview = window.location.hostname.includes('googleusercontent') || 
-                            window.location.hostname.includes('ai.studio') || 
-                            window.location.hostname.includes('usercontent.goog');
+    // Robust check for AI Studio / Google User Content / Cloud Shell preview environments
+    // We check both hostname and origin to catch iframe discrepancies
+    const isGooglePreview = 
+        window.location.hostname.includes('googleusercontent') || 
+        window.location.hostname.includes('ai.studio') || 
+        window.location.hostname.includes('usercontent.goog') ||
+        (window.origin && window.origin.includes('usercontent.goog'));
 
     if (isBlob || isGooglePreview) {
         console.warn('[PWA Warning] Service Worker registration skipped in preview environment to prevent origin mismatch errors.');
@@ -72,8 +75,13 @@ if ('serviceWorker' in navigator) {
           }
         };
     } catch (error: any) {
-        console.error('[PWA Error] Service Worker Registration Failed:', error);
-        usePwaStore.getState().logEvent('Service Worker Registration Failed', error);
+        // Suppress the specific "origin mismatch" error from cluttering logs if it slips through
+        if (error?.message?.includes('does not match the current origin')) {
+            console.warn('[PWA] Origin mismatch detected during registration (likely preview env).');
+        } else {
+            console.error('[PWA Error] Service Worker Registration Failed:', error);
+            usePwaStore.getState().logEvent('Service Worker Registration Failed', error);
+        }
     }
   });
 } else {
