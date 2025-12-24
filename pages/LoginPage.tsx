@@ -149,6 +149,7 @@ const LoginPage: React.FC = () => {
             <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-6">
                 
                 {/* Username Input - M3 Outlined */}
+                {/* Fix: Added autofill specific styles to force dark background */}
                 <div className="relative group">
                     <input
                         type="text"
@@ -156,7 +157,7 @@ const LoginPage: React.FC = () => {
                         id="username"
                         disabled={isBlocked}
                         {...register('username')}
-                        className="peer block w-full h-[56px] px-4 rounded-xl bg-transparent border border-gray-500 text-white text-lg placeholder-transparent focus:border-metro-blue focus:border-2 focus:outline-none transition-all disabled:opacity-50"
+                        className="peer block w-full h-[56px] px-4 rounded-xl bg-transparent border border-gray-500 text-white text-lg placeholder-transparent focus:border-metro-blue focus:border-2 focus:outline-none transition-all disabled:opacity-50 [&:-webkit-autofill]:shadow-[inset_0_0_0px_1000px_#111827] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
                         placeholder=" "
                         autoComplete="username"
                     />
@@ -173,6 +174,7 @@ const LoginPage: React.FC = () => {
                 </div>
 
                 {/* Password Input - M3 Outlined with Toggle */}
+                {/* Fix: Added autofill specific styles to force dark background */}
                 <div className="relative group">
                     <input
                         type={showPassword ? "text" : "password"}
@@ -180,7 +182,7 @@ const LoginPage: React.FC = () => {
                         id="password"
                         disabled={isBlocked}
                         {...register('password')}
-                        className="peer block w-full h-[56px] pl-12 pr-4 rounded-xl bg-transparent border border-gray-500 text-white text-lg font-mono tracking-widest placeholder-transparent focus:border-metro-blue focus:border-2 focus:outline-none transition-all disabled:opacity-50"
+                        className="peer block w-full h-[56px] pl-12 pr-4 rounded-xl bg-transparent border border-gray-500 text-white text-lg font-mono tracking-widest placeholder-transparent focus:border-metro-blue focus:border-2 focus:outline-none transition-all disabled:opacity-50 [&:-webkit-autofill]:shadow-[inset_0_0_0px_1000px_#111827] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
                         placeholder=" "
                         autoComplete="current-password"
                     />
