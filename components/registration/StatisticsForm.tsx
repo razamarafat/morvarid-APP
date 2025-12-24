@@ -208,8 +208,9 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
     if (!selectedFarm) return <div className="p-20 text-center font-bold text-gray-400">فارمی یافت نشد.</div>;
 
     const isMotefereghe = selectedFarm.type === FarmType.MOTEFEREGHE;
-    // Increased text-2xl to text-3xl for better visibility on mobile
-    const inputClasses = "w-full p-3 bg-white border-2 border-gray-200 text-center font-black text-3xl rounded-xl focus:border-metro-orange focus:ring-4 focus:ring-orange-100 outline-none h-16 transition-all shadow-sm";
+    
+    // Explicit text colors: text-gray-900 for light mode, text-white for dark mode
+    const inputClasses = "w-full p-3 bg-white dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 text-center font-black text-3xl text-gray-900 dark:text-white rounded-xl focus:border-metro-orange focus:ring-4 focus:ring-orange-100 dark:focus:ring-orange-900/20 outline-none h-16 transition-all shadow-sm";
 
     return (
         <div className="max-w-4xl mx-auto pb-24"> 
@@ -292,12 +293,12 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                                             {!isMotefereghe && (
                                                 <div className="flex gap-3">
                                                     <div className="flex-1 bg-red-50 dark:bg-red-900/10 p-3 rounded-xl border border-red-100 dark:border-red-900/20 text-center">
-                                                        <span className="block text-gray-500 text-sm font-bold mb-1">فروش حواله (تعداد)</span>
+                                                        <span className="block text-gray-500 dark:text-gray-400 text-sm font-bold mb-1">فروش حواله (تعداد)</span>
                                                         <span className="text-xl font-black text-red-600 tracking-tight">{toPersianDigits(soldUnits)}</span>
                                                     </div>
                                                     {isLiq && (
                                                         <div className="flex-1 bg-orange-50 dark:bg-orange-900/10 p-3 rounded-xl border border-orange-100 dark:border-orange-900/20 text-center">
-                                                            <span className="block text-gray-500 text-sm font-bold mb-1">فروش حواله (Kg)</span>
+                                                            <span className="block text-gray-500 dark:text-gray-400 text-sm font-bold mb-1">فروش حواله (Kg)</span>
                                                             <span className="text-xl font-black text-orange-600 tracking-tight">{toPersianDigits(soldKg)}</span>
                                                         </div>
                                                     )}
@@ -328,7 +329,7 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                                                     </div>
                                                 </div>
                                                 {isLiq && (
-                                                    <div className="space-y-3 pt-3 border-t border-dashed border-gray-200">
+                                                    <div className="space-y-3 pt-3 border-t border-dashed border-gray-200 dark:border-gray-700">
                                                         <h4 className="text-sm font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">
                                                             <span className="w-1.5 h-1.5 rounded-full bg-metro-blue"></span>
                                                             اطلاعات وزن (کیلوگرم)
@@ -337,14 +338,14 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                                                             {!isMotefereghe && (
                                                                 <div>
                                                                     <label className="block text-sm font-bold mb-1.5 text-gray-400 pr-1">وزن قبل</label>
-                                                                    <input type="tel" inputMode="decimal" value={vals.previousBalanceKg} onChange={e => handleInputChange(pid, 'previousBalanceKg', e.target.value)} className={`${inputClasses} border-blue-100 focus:border-metro-blue focus:ring-blue-100`} placeholder="" />
+                                                                    <input type="tel" inputMode="decimal" value={vals.previousBalanceKg} onChange={e => handleInputChange(pid, 'previousBalanceKg', e.target.value)} className={`${inputClasses} border-blue-100 dark:border-blue-900/30 focus:border-metro-blue focus:ring-blue-100 dark:focus:ring-blue-900/20`} placeholder="" />
                                                                 </div>
                                                             )}
                                                             <div>
                                                                 <label className="block text-sm font-bold mb-1.5 text-gray-400 pr-1">
                                                                     {isMotefereghe ? 'موجودی اعلامی (وزن)' : 'تولید روز (وزن)'}
                                                                 </label>
-                                                                <input type="tel" inputMode="decimal" value={vals.productionKg} onChange={e => handleInputChange(pid, 'productionKg', e.target.value)} className={`${inputClasses} border-blue-100 focus:border-metro-blue focus:ring-blue-100`} placeholder="" />
+                                                                <input type="tel" inputMode="decimal" value={vals.productionKg} onChange={e => handleInputChange(pid, 'productionKg', e.target.value)} className={`${inputClasses} border-blue-100 dark:border-blue-900/30 focus:border-metro-blue focus:ring-blue-100 dark:focus:ring-blue-900/20`} placeholder="" />
                                                             </div>
                                                         </div>
                                                     </div>
@@ -352,7 +353,7 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                                             </div>
                                             
                                             {isRegistered && (
-                                                <div className="flex items-center justify-center gap-2 text-green-700 text-base font-black bg-green-50 p-3 rounded-xl border border-green-200">
+                                                <div className="flex items-center justify-center gap-2 text-green-700 text-base font-black bg-green-50 dark:bg-green-900/20 p-3 rounded-xl border border-green-200 dark:border-green-900/30">
                                                     <Icons.Check className="w-6 h-6" /> اطلاعات ثبت شده است
                                                 </div>
                                             )}

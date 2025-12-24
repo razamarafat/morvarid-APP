@@ -18,8 +18,9 @@ type ReportTab = 'stats' | 'invoices';
 
 const Reports: React.FC = () => {
     const { farms, products, getProductById } = useFarmStore();
-    const { deleteStatistic, updateStatistic } = useStatisticsStore();
-    const { deleteInvoice, updateInvoice } = useInvoiceStore();
+    // Destructure statistics directly so component re-renders when they change
+    const { statistics, deleteStatistic, updateStatistic } = useStatisticsStore();
+    const { invoices, deleteInvoice, updateInvoice } = useInvoiceStore();
     const { addToast } = useToastStore();
     const { confirm } = useConfirm();
     const { user: currentUser } = useAuthStore();
@@ -55,13 +56,15 @@ const Reports: React.FC = () => {
         setTimeout(() => {
             let data: any[] = [];
             if (reportTab === 'stats') {
-                data = useStatisticsStore.getState().statistics.filter(s => {
+                // Use the reactive 'statistics' variable from the hook
+                data = statistics.filter(s => {
                     const farmMatch = selectedFarmId === 'all' || s.farmId === selectedFarmId;
                     const prodMatch = selectedProductId === 'all' || s.productId === selectedProductId;
                     return farmMatch && prodMatch && isDateInRange(s.date, start, end);
                 });
             } else {
-                data = useInvoiceStore.getState().invoices.filter(i => {
+                // Use the reactive 'invoices' variable from the hook
+                data = invoices.filter(i => {
                     const farmMatch = selectedFarmId === 'all' || i.farmId === selectedFarmId;
                     const prodMatch = selectedProductId === 'all' || i.productId === selectedProductId;
                     return farmMatch && prodMatch && isDateInRange(i.date, start, end);
@@ -148,51 +151,134 @@ const Reports: React.FC = () => {
         else addToast(result.error || 'خطا در ثبت تغییرات', 'error');
     };
 
+    const formatPlateForExcel = (plate: string) => {
+        if (!plate || !plate.includes('-')) return plate;
+        const parts = plate.split('-');
+        if (parts.length === 4) {
+            // LOGICAL STRING FORMAT: (Iran) - (3Digits) (Letter) (2Digits)
+            // Example: 60 - 169 M 39
+            // When Sheet Direction is RTL, this will render with 60 on the Right.
+            return `${parts[3]} - ${parts[2]} ${parts[1]} ${parts[0]}`;
+        }
+        return plate;
+    };
+
+    // Helper to detect liquid/weight-based records robustly
+    const isStatLiquid = (stat: any, prod?: any) => {
+        if (prod?.name?.includes('مایع')) return true;
+        if (prod?.hasKilogramUnit) return true;
+        // Fallback: If production unit is 0 but weight > 0, treat as liquid/weight-based
+        if ((stat.production === 0 || stat.production === undefined) && (stat.productionKg > 0)) return true;
+        return false;
+    };
+
     const handleExportExcel = () => {
         if (previewData.length === 0) return;
-        const wb = XLSX.utils.book_new();
         
+        // --- UNIVERSAL STYLE: Font 18, Bold, Right Aligned ---
+        const commonStyle = {
+            font: { name: "Koodak", sz: 18, bold: true },
+            alignment: { horizontal: "right", vertical: "center", wrapText: true } 
+        };
+
+        // --- INVOICE SPECIFIC STYLE: Red Text + Universal Style ---
+        const invoiceStyle = {
+            font: { name: "Koodak", sz: 18, bold: true, color: { rgb: "FF0000" } },
+            alignment: { horizontal: "right", vertical: "center", wrapText: true }
+        };
+
+        // --- HEADER STYLE: Grey Bg + Universal Style ---
+        const headerStyle = {
+            font: { name: "Koodak", sz: 18, bold: true },
+            alignment: { horizontal: "right", vertical: "center", wrapText: true },
+            fill: { fgColor: { rgb: "E0E0E0" } }
+        };
+
         let wsData: any[] = [];
-        let colOrder: string[] = [];
+        let headers: string[] = [];
+
+        // Helper to wrap value in style object
+        const cell = (v: any, style: any = commonStyle) => ({ v: v, s: style });
 
         if (reportTab === 'stats') {
-            colOrder = ['تاریخ', 'فارم', 'محصول', 'تولید', 'فروش', 'موجودی', 'مسئول ثبت', 'ساعت ثبت', 'آخرین ویرایش'];
-            wsData = previewData.map(item => {
+            headers = ['تاریخ', 'فارم', 'محصول', 'تولید', 'فروش', 'موجودی', 'مسئول ثبت', 'ساعت ثبت', 'آخرین ویرایش'];
+            // Wrap headers
+            const headerRow = headers.map(h => cell(h, headerStyle));
+            
+            const rows = previewData.map(item => {
                 const prod = getProductById(item.productId);
-                const isLiquid = prod?.name.includes('مایع') || prod?.hasKilogramUnit;
-                return {
-                    'تاریخ': item.date,
-                    'فارم': farms.find(f => f.id === item.farmId)?.name || '-',
-                    'محصول': prod?.name || '-',
-                    'تولید': isLiquid ? `${item.productionKg || 0} Kg` : item.production || 0,
-                    'فروش': isLiquid ? `${item.salesKg || 0} Kg` : item.sales || 0,
-                    'موجودی': isLiquid ? `${item.currentInventoryKg || 0} Kg` : item.currentInventory || 0,
-                    'مسئول ثبت': item.creatorName || '-',
-                    'ساعت ثبت': new Date(item.createdAt).toLocaleTimeString('fa-IR'),
-                    'آخرین ویرایش': item.updatedAt ? new Date(item.updatedAt).toLocaleString('fa-IR') : '-'
-                };
+                const isLiquid = isStatLiquid(item, prod);
+                
+                return [
+                    cell(item.date),
+                    cell(farms.find(f => f.id === item.farmId)?.name || '-'),
+                    cell(prod?.name || '-'),
+                    cell(isLiquid ? `${item.productionKg || 0} Kg` : item.production || 0),
+                    cell(isLiquid ? `${item.salesKg || 0} Kg` : item.sales || 0),
+                    cell(isLiquid ? `${item.currentInventoryKg || 0} Kg` : item.currentInventory || 0),
+                    cell(item.creatorName || '-'),
+                    cell(new Date(item.createdAt).toLocaleTimeString('fa-IR')),
+                    cell(item.updatedAt ? new Date(item.updatedAt).toLocaleString('fa-IR') : '-')
+                ];
             });
+            wsData = [headerRow, ...rows];
+
         } else {
-            colOrder = ['تاریخ', 'رمز حواله', 'فارم', 'نوع محصول', 'تعداد', 'وزن', 'شماره تماس', 'راننده', 'پلاک', 'مسئول ثبت', 'ساعت ثبت', 'آخرین ویرایش'];
-            wsData = previewData.map(item => ({
-                'تاریخ': item.date,
-                'رمز حواله': item.invoiceNumber || '-',
-                'فارم': farms.find(f => f.id === item.farmId)?.name || '-',
-                'نوع محصول': products.find(p => p.id === item.productId)?.name || '-',
-                'تعداد': item.totalCartons || 0,
-                'وزن': item.totalWeight || 0,
-                'شماره تماس': item.driverPhone || '-',
-                'راننده': item.driverName || '-',
-                'پلاک': item.plateNumber || '-',
-                'مسئول ثبت': item.creatorName || '-',
-                'ساعت ثبت': new Date(item.createdAt).toLocaleTimeString('fa-IR'),
-                'آخرین ویرایش': item.updatedAt ? new Date(item.updatedAt).toLocaleString('fa-IR') : '-'
-            }));
+            headers = ['تاریخ', 'رمز حواله', 'فارم', 'نوع محصول', 'تعداد', 'وزن', 'شماره تماس', 'راننده', 'پلاک', 'مسئول ثبت', 'ساعت ثبت', 'آخرین ویرایش'];
+            // Wrap headers
+            const headerRow = headers.map(h => cell(h, headerStyle));
+
+            const rows = previewData.map(item => {
+                return [
+                    cell(item.date),
+                    cell(item.invoiceNumber, invoiceStyle), // Apply Red Style
+                    cell(farms.find(f => f.id === item.farmId)?.name || '-'),
+                    cell(products.find(p => p.id === item.productId)?.name || '-'),
+                    cell(item.totalCartons || 0),
+                    cell(item.totalWeight || 0),
+                    cell(item.driverPhone || '-'),
+                    cell(item.driverName || '-'),
+                    cell(formatPlateForExcel(item.plateNumber)), // Apply Plate Logic
+                    cell(item.creatorName || '-'),
+                    cell(new Date(item.createdAt).toLocaleTimeString('fa-IR')),
+                    cell(item.updatedAt ? new Date(item.updatedAt).toLocaleString('fa-IR') : '-')
+                ];
+            });
+            wsData = [headerRow, ...rows];
         }
 
-        const ws = XLSX.utils.json_to_sheet(wsData, { header: colOrder });
-        ws['!views'] = [{ rtl: true }];
+        // Create Sheet directly from Object Data
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+        // --- GLOBAL RTL SETTINGS ---
+        // CRITICAL: Set Worksheet Direction to RTL.
+        // This ensures the plate logic (which puts numbers first) renders right-to-left.
         ws['!dir'] = 'rtl';
+        ws['!views'] = [{ rightToLeft: true }];
+        
+        // --- COLUMN WIDTHS (Optimized for Font 18) ---
+        const colWidths = headers.map((header, i) => {
+            let maxLen = header.length;
+            // Iterate over raw data to find max length
+            previewData.forEach((row) => {
+                // Approximate length based on field mapping (simplified)
+                maxLen = Math.max(maxLen, 10); // Minimum base width
+            });
+
+            // Tighter packing for Driver and Product
+            if (header === 'نوع محصول' || header === 'راننده' || header === 'فارم') {
+                 return { wch: 25 }; 
+            }
+            if (header === 'پلاک') return { wch: 30 };
+            if (header === 'رمز حواله') return { wch: 20 };
+            
+            // Default wide width for Font 18
+            return { wch: 22 }; 
+        });
+        ws['!cols'] = colWidths;
+
+        const wb = XLSX.utils.book_new();
+        wb.Workbook = { Views: [{ RTL: true }] };
 
         XLSX.utils.book_append_sheet(wb, ws, "گزارش");
         XLSX.writeFile(wb, `Morvarid_Report_${reportTab}_${getTodayJalali().replace(/\//g, '-')}.xlsx`);
@@ -211,7 +297,7 @@ const Reports: React.FC = () => {
                 <div>
                     <label className="text-sm font-bold text-gray-400 mb-2 block px-1">فارم</label>
                     <select value={selectedFarmId} onChange={e => setSelectedFarmId(e.target.value)} className={selectClass}>
-                        <option value="all">همه فارم‌ها</option>
+                        <option value="all">همه فارم‌های فعال</option>
                         {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                     </select>
                 </div>
@@ -238,14 +324,15 @@ const Reports: React.FC = () => {
                                 {reportTab === 'stats' ? <>
                                     <th className="p-5">تاریخ</th><th className="p-5">فارم</th><th className="p-5">محصول</th><th className="p-5 text-center">تولید</th><th className="p-5 text-center">فروش</th><th className="p-5 text-center">موجودی</th><th className="p-5">اطلاعات ثبت</th>{isAdmin && <th className="p-5 text-center">عملیات</th>}
                                 </> : <>
-                                    <th className="p-5">تاریخ</th><th className="p-5 text-center">رمز حواله</th><th className="p-5">فارم</th><th className="p-5">نوع محصول</th><th className="p-5 text-center">تعداد</th><th className="p-5 text-center">وزن</th><th className="p-5">شماره تماس</th><th className="p-5">اطلاعات ثبت</th>{isAdmin && <th className="p-5 text-center">عملیات</th>}
+                                    <th className="p-5">تاریخ</th><th className="p-5 text-center">رمز حواله</th><th className="p-5">فارم</th><th className="p-5">نوع محصول</th><th className="p-5 text-center">تعداد</th><th className="p-5 text-center">وزن</th><th className="p-5">شماره تماس</th><th className="p-5">راننده</th><th className="p-5">پلاک</th><th className="p-5">اطلاعات ثبت</th>{isAdmin && <th className="p-5 text-center">عملیات</th>}
                                 </>}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                             {previewData.map(row => {
                                 const prod = getProductById(row.productId);
-                                const isLiquid = prod?.name.includes('مایع') || prod?.hasKilogramUnit;
+                                // Improved liquid detection fallback
+                                const isLiquid = isStatLiquid(row, prod);
 
                                 return (
                                 <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
@@ -283,6 +370,8 @@ const Reports: React.FC = () => {
                                         <td className="p-5 text-center font-black text-xl lg:text-2xl">{toPersianDigits(row.totalCartons || 0)}</td>
                                         <td className="p-5 text-center text-blue-600 font-black text-xl lg:text-2xl">{toPersianDigits(row.totalWeight || 0)}</td>
                                         <td className="p-5 font-mono font-bold text-sm">{toPersianDigits(row.driverPhone || '-')}</td>
+                                        <td className="p-5 font-bold">{row.driverName || '-'}</td>
+                                        <td className="p-5 font-mono text-sm">{formatPlateForExcel(row.plateNumber) || '-'}</td>
                                         <td className="p-5">
                                             <div className="flex flex-col gap-1">
                                                 <div className="flex items-center gap-2">
@@ -312,12 +401,12 @@ const Reports: React.FC = () => {
             <Modal isOpen={!!editingStat} onClose={() => setEditingStat(null)} title="اصلاح مدیریتی آمار">
                 <div className="space-y-6">
                     <div className="grid grid-cols-2 gap-4">
-                        <div><label className="text-xs font-bold mb-2 block mr-1">تولید (تعداد)</label><input type="number" value={statForm.prod} onChange={e => setStatForm({...statForm, prod: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-700 rounded-xl text-center font-black text-2xl outline-none border-none focus:ring-2 focus:ring-metro-blue"/></div>
-                        <div><label className="text-xs font-bold mb-2 block mr-1">فروش (تعداد)</label><input type="number" value={statForm.sales} onChange={e => setStatForm({...statForm, sales: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-700 rounded-xl text-center font-black text-2xl outline-none border-none focus:ring-2 focus:ring-metro-blue"/></div>
+                        <div><label className="text-xs font-bold mb-2 block mr-1 dark:text-gray-300">تولید (تعداد)</label><input type="number" value={statForm.prod} onChange={e => setStatForm({...statForm, prod: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-700 dark:text-white rounded-xl text-center font-black text-2xl outline-none border-none focus:ring-2 focus:ring-metro-blue"/></div>
+                        <div><label className="text-xs font-bold mb-2 block mr-1 dark:text-gray-300">فروش (تعداد)</label><input type="number" value={statForm.sales} onChange={e => setStatForm({...statForm, sales: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-700 dark:text-white rounded-xl text-center font-black text-2xl outline-none border-none focus:ring-2 focus:ring-metro-blue"/></div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 border-t pt-4 border-dashed">
-                        <div><label className="text-xs font-bold mb-2 block mr-1">تولید (Kg)</label><input type="number" step="0.1" value={statForm.prodKg} onChange={e => setStatForm({...statForm, prodKg: e.target.value})} className="w-full p-4 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl text-center font-black text-2xl outline-none border-none focus:ring-2 focus:ring-blue-500"/></div>
-                        <div><label className="text-xs font-bold mb-2 block mr-1">فروش (Kg)</label><input type="number" step="0.1" value={statForm.salesKg} onChange={e => setStatForm({...statForm, salesKg: e.target.value})} className="w-full p-4 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl text-center font-black text-2xl outline-none border-none focus:ring-2 focus:ring-blue-500"/></div>
+                    <div className="grid grid-cols-2 gap-4 border-t pt-4 border-dashed border-gray-300 dark:border-gray-600">
+                        <div><label className="text-xs font-bold mb-2 block mr-1 dark:text-gray-300">تولید (Kg)</label><input type="number" step="0.1" value={statForm.prodKg} onChange={e => setStatForm({...statForm, prodKg: e.target.value})} className="w-full p-4 bg-blue-50/50 dark:bg-blue-900/10 dark:text-white rounded-xl text-center font-black text-2xl outline-none border-none focus:ring-2 focus:ring-blue-500"/></div>
+                        <div><label className="text-xs font-bold mb-2 block mr-1 dark:text-gray-300">فروش (Kg)</label><input type="number" step="0.1" value={statForm.salesKg} onChange={e => setStatForm({...statForm, salesKg: e.target.value})} className="w-full p-4 bg-blue-50/50 dark:bg-blue-900/10 dark:text-white rounded-xl text-center font-black text-2xl outline-none border-none focus:ring-2 focus:ring-blue-500"/></div>
                     </div>
                     <div className="flex justify-end gap-3 pt-6 border-t border-gray-100 dark:border-gray-700"><Button variant="secondary" onClick={() => setEditingStat(null)}>انصراف</Button><Button onClick={saveStatEdit}>ذخیره تغییرات مدیریت</Button></div>
                 </div>
@@ -325,10 +414,10 @@ const Reports: React.FC = () => {
 
             <Modal isOpen={!!editingInvoice} onClose={() => setEditingInvoice(null)} title="اصلاح مدیریتی حواله">
                 <div className="space-y-6">
-                    <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-xl"><label className="block text-sm font-bold mb-2 text-gray-500">رمز حواله</label><input type="text" value={invoiceForm.invoiceNumber} onChange={e => setInvoiceForm({...invoiceForm, invoiceNumber: e.target.value})} className="w-full p-3 bg-white dark:bg-gray-800 border-2 border-orange-300 rounded-lg text-center font-black text-3xl tracking-widest outline-none"/></div>
+                    <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-xl"><label className="block text-sm font-bold mb-2 text-gray-500 dark:text-gray-400">رمز حواله</label><input type="text" value={invoiceForm.invoiceNumber} onChange={e => setInvoiceForm({...invoiceForm, invoiceNumber: e.target.value})} className="w-full p-3 bg-white dark:bg-gray-800 dark:text-white border-2 border-orange-300 rounded-lg text-center font-black text-3xl tracking-widest outline-none"/></div>
                     <div className="grid grid-cols-2 gap-4">
-                        <div><label className="text-xs font-bold mb-2 block mr-1">تعداد</label><input type="number" value={invoiceForm.cartons} onChange={e => setInvoiceForm({...invoiceForm, cartons: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-700 rounded-xl text-center font-black text-2xl outline-none border-none focus:ring-2 focus:ring-metro-orange"/></div>
-                        <div><label className="text-xs font-bold mb-2 block mr-1">وزن (Kg)</label><input type="number" step="0.1" value={invoiceForm.weight} onChange={e => setInvoiceForm({...invoiceForm, weight: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-700 rounded-xl text-center font-black text-2xl outline-none border-none focus:ring-2 focus:ring-metro-orange"/></div>
+                        <div><label className="text-xs font-bold mb-2 block mr-1 dark:text-gray-300">تعداد</label><input type="number" value={invoiceForm.cartons} onChange={e => setInvoiceForm({...invoiceForm, cartons: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-700 dark:text-white rounded-xl text-center font-black text-2xl outline-none border-none focus:ring-2 focus:ring-metro-orange"/></div>
+                        <div><label className="text-xs font-bold mb-2 block mr-1 dark:text-gray-300">وزن (Kg)</label><input type="number" step="0.1" value={invoiceForm.weight} onChange={e => setInvoiceForm({...invoiceForm, weight: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-700 dark:text-white rounded-xl text-center font-black text-2xl outline-none border-none focus:ring-2 focus:ring-metro-orange"/></div>
                     </div>
                     <div className="flex justify-end gap-3 pt-6 border-t border-gray-100 dark:border-gray-700"><Button variant="secondary" onClick={() => setEditingInvoice(null)}>انصراف</Button><Button onClick={saveInvoiceEdit}>ذخیره اصلاحیه مدیریت</Button></div>
                 </div>

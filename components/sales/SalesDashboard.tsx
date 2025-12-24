@@ -239,6 +239,16 @@ const InvoiceList = () => {
         );
     };
 
+    const formatPlate = (plate?: string) => {
+        if (!plate || !plate.includes('-')) return plate || '-';
+        const parts = plate.split('-');
+        if (parts.length === 4) {
+            // Visual: 39 M 169 - 60
+            return `${parts[0]} ${parts[1]} ${parts[2]} - ${parts[3]}`;
+        }
+        return plate;
+    };
+
     return (
         <div className="space-y-4 lg:space-y-6">
              <div className="bg-white dark:bg-gray-800 p-4 lg:p-6 shadow-sm border-l-4 border-metro-orange flex flex-col md:flex-row gap-4 lg:gap-6 items-end rounded-xl">

@@ -212,7 +212,7 @@ export const InvoiceForm: React.FC = () => {
         }
     };
 
-    const inputClass = "w-full p-4 border-2 border-gray-200 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-black text-center focus:border-metro-blue outline-none transition-all text-xl rounded-xl shadow-sm";
+    const inputClass = "w-full p-4 border-2 border-gray-200 bg-white dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white font-black text-center focus:border-metro-blue outline-none transition-all text-xl rounded-xl shadow-sm";
     const labelClass = "block text-sm font-black text-gray-500 dark:text-gray-400 mb-1.5 uppercase text-right px-1";
 
     if (!selectedFarm) return <div className="p-20 text-center font-bold text-gray-400">فارمی یافت نشد.</div>;
@@ -281,7 +281,7 @@ export const InvoiceForm: React.FC = () => {
                             <Icons.List className="w-6 h-6 text-metro-blue" />
                             اقلام حواله
                         </h3>
-                        <button type="button" onClick={() => setIsProductSelectorOpen(!isProductSelectorOpen)} className="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg flex items-center gap-1">
+                        <button type="button" onClick={() => setIsProductSelectorOpen(!isProductSelectorOpen)} className="text-sm font-bold text-blue-600 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors">
                             <Icons.Plus className="w-4 h-4" /> افزودن کالا
                         </button>
                     </div>
@@ -298,7 +298,7 @@ export const InvoiceForm: React.FC = () => {
                                                 key={pid}
                                                 type="button"
                                                 onClick={() => handleProductToggle(pid)}
-                                                className={`p-3 rounded-xl text-sm font-bold transition-all ${isSelected ? 'bg-metro-blue text-white shadow-lg scale-95' : 'bg-white text-gray-600 border hover:bg-gray-100'}`}
+                                                className={`p-3 rounded-xl text-sm font-bold transition-all ${isSelected ? 'bg-metro-blue text-white shadow-lg scale-95' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
                                             >
                                                 {p?.name}
                                             </button>
@@ -311,7 +311,7 @@ export const InvoiceForm: React.FC = () => {
 
                     <div className="space-y-4">
                         {selectedProductIds.length === 0 ? (
-                            <div className="text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-2xl">
+                            <div className="text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl">
                                 هیچ کالایی انتخاب نشده است
                             </div>
                         ) : (
@@ -326,11 +326,11 @@ export const InvoiceForm: React.FC = () => {
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <label className="text-[10px] font-bold text-gray-400 block mb-1">تعداد (کارتن)</label>
-                                                <input type="tel" className="w-full p-3 bg-white text-center font-black text-xl rounded-xl outline-none focus:ring-2 focus:ring-metro-blue" placeholder="" value={itemsState[pid]?.cartons || ''} onChange={e => handleItemChange(pid, 'cartons', e.target.value)} />
+                                                <input type="tel" className="w-full p-3 bg-white dark:bg-gray-800 dark:text-white text-center font-black text-xl rounded-xl outline-none focus:ring-2 focus:ring-metro-blue border-2 border-transparent dark:border-gray-700" placeholder="" value={itemsState[pid]?.cartons || ''} onChange={e => handleItemChange(pid, 'cartons', e.target.value)} />
                                             </div>
                                             <div>
                                                 <label className="text-[10px] font-bold text-gray-400 block mb-1">وزن (کیلوگرم)</label>
-                                                <input type="tel" className="w-full p-3 bg-white text-center font-black text-xl rounded-xl outline-none focus:ring-2 focus:ring-metro-blue border-b-4 border-metro-blue" placeholder="" value={itemsState[pid]?.weight || ''} onChange={e => handleItemChange(pid, 'weight', e.target.value)} />
+                                                <input type="tel" className="w-full p-3 bg-white dark:bg-gray-800 dark:text-white text-center font-black text-xl rounded-xl outline-none focus:ring-2 focus:ring-metro-blue border-b-4 border-metro-blue dark:border-metro-blue" placeholder="" value={itemsState[pid]?.weight || ''} onChange={e => handleItemChange(pid, 'weight', e.target.value)} />
                                             </div>
                                         </div>
                                     </div>
@@ -372,9 +372,10 @@ export const InvoiceForm: React.FC = () => {
                         <div>
                             <label className={labelClass}>شماره پلاک</label>
                             {/* Updated Order: Part1(2 digits) - Letter - Part3(3 digits) - Part4(Iran/2 digits) */}
-                            <div className="flex flex-row gap-2 items-center justify-center bg-gray-100 p-4 rounded-2xl border-2 border-gray-300" dir="ltr">
+                            {/* FIXED: Force light background and dark text for license plate even in dark mode to mimic real plate */}
+                            <div className="flex flex-row gap-2 items-center justify-center bg-gray-100 dark:bg-gray-200 p-4 rounded-2xl border-2 border-gray-300" dir="ltr">
                                 
-                                <input type="tel" maxLength={2} value={plateParts.part1} onChange={e => setPlateParts(p => ({...p, part1: e.target.value.replace(/\D/g, '')}))} className="w-12 h-16 bg-transparent text-center font-black text-2xl outline-none" placeholder="22" />
+                                <input type="tel" maxLength={2} value={plateParts.part1} onChange={e => setPlateParts(p => ({...p, part1: e.target.value.replace(/\D/g, '')}))} className="w-12 h-16 bg-transparent text-center font-black text-2xl outline-none text-black dark:text-black placeholder-gray-400" placeholder="22" />
                                 
                                 <div className="relative">
                                     <button type="button" onClick={() => setShowLetterPicker(!showLetterPicker)} className="w-12 h-16 font-black text-2xl flex items-center justify-center text-red-600">
@@ -382,26 +383,26 @@ export const InvoiceForm: React.FC = () => {
                                     </button>
                                     <AnimatePresence>
                                         {showLetterPicker && (
-                                            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="absolute bottom-full mb-2 bg-white shadow-xl rounded-xl p-2 grid grid-cols-4 gap-2 w-64 z-50 h-48 overflow-y-auto">
+                                            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="absolute bottom-full mb-2 bg-white shadow-xl rounded-xl p-2 grid grid-cols-4 gap-2 w-64 z-50 h-48 overflow-y-auto border border-gray-200">
                                                 {PERSIAN_LETTERS.map(l => (
-                                                    <button key={l} type="button" onClick={() => { setPlateParts(p => ({...p, letter: l})); setShowLetterPicker(false); }} className="p-2 hover:bg-gray-100 rounded font-bold">{l}</button>
+                                                    <button key={l} type="button" onClick={() => { setPlateParts(p => ({...p, letter: l})); setShowLetterPicker(false); }} className="p-2 hover:bg-gray-100 rounded font-bold text-black">{l}</button>
                                                 ))}
                                             </motion.div>
                                         )}
                                     </AnimatePresence>
                                 </div>
 
-                                <input type="tel" maxLength={3} value={plateParts.part3} onChange={e => setPlateParts(p => ({...p, part3: e.target.value.replace(/\D/g, '')}))} className="w-16 h-16 bg-transparent text-center font-black text-2xl outline-none" placeholder="365" />
+                                <input type="tel" maxLength={3} value={plateParts.part3} onChange={e => setPlateParts(p => ({...p, part3: e.target.value.replace(/\D/g, '')}))} className="w-16 h-16 bg-transparent text-center font-black text-2xl outline-none text-black dark:text-black placeholder-gray-400" placeholder="365" />
 
                                 {/* IRAN CODE */}
                                 <div className="flex flex-col items-center justify-center w-12 h-16 border-l-2 border-black pl-2">
-                                    <span className="text-[10px] font-black">ایران</span>
+                                    <span className="text-[10px] font-black text-black dark:text-black">ایران</span>
                                     <input 
                                         type="tel" 
                                         maxLength={2} 
                                         value={plateParts.part4} 
                                         onChange={e => setPlateParts(p => ({...p, part4: e.target.value.replace(/\D/g, '')}))} 
-                                        className="w-full h-full bg-transparent text-center font-black text-xl outline-none" 
+                                        className="w-full h-full bg-transparent text-center font-black text-xl outline-none text-black dark:text-black placeholder-gray-400" 
                                         placeholder="11" 
                                     />
                                 </div>
@@ -413,7 +414,7 @@ export const InvoiceForm: React.FC = () => {
 
                         <div>
                             <label className={labelClass}>توضیحات (اختیاری)</label>
-                            <textarea {...register('description')} className="w-full p-4 border-2 border-gray-200 rounded-xl bg-white outline-none focus:border-metro-blue h-24 text-right" placeholder=""></textarea>
+                            <textarea {...register('description')} className="w-full p-4 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white outline-none focus:border-metro-blue h-24 text-right" placeholder=""></textarea>
                             {errors.description && <p className="text-red-500 text-xs font-bold mt-2">{errors.description.message}</p>}
                         </div>
                     </div>
