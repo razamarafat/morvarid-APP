@@ -31,3 +31,20 @@ export const useBiometric = () => {
       addToast('خطا در ثبت اثر انگشت', 'error');
       return false;
     }
+  };
+
+  const authenticate = async () => {
+    try {
+      // In a real app, fetch challenge from backend
+      // const credential = await navigator.credentials.get({ publicKey: options });
+      
+      // Simulation
+      await new Promise(resolve => setTimeout(resolve, 800));
+      return true;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  return { isAvailable, register, authenticate };
+};
