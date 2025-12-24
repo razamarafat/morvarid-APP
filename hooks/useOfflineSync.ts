@@ -101,7 +101,8 @@ export const useOfflineSync = () => {
         const otherItems = queueSnapshot.filter(i => !['STAT', 'INVOICE'].includes(i.type));
         
         for (const item of otherItems) {
-            let result = { success: false, error: '' };
+            // Explicitly type result to allow optional error string
+            let result: { success: boolean; error?: string } = { success: false };
             let isConflict = false;
 
             try {
