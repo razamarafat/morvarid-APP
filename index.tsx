@@ -15,9 +15,10 @@ if (!manifestLink) {
 
 // 2. Capture Install Prompt
 window.addEventListener('beforeinstallprompt', (e) => {
-    // Prevent the mini-infobar from appearing on mobile
+    // Prevent the mini-infobar from appearing on mobile (we provide custom UI)
     e.preventDefault();
     // Stash the event so it can be triggered later.
+    console.log('[PWA] beforeinstallprompt captured!');
     usePwaStore.getState().setDeferredPrompt(e);
 });
 
@@ -34,29 +35,26 @@ if (!rootElement) throw new Error("Could not find root element to mount to");
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
-        // Exclude blob URLs
+        // Only exclude Blob URLs which strictly cannot support SW
         const isBlob = window.location.protocol === 'blob:' || window.location.href.startsWith('blob:');
         
-        // Robust check for AI Studio / Google User Content / Cloud Shell preview environments
-        // We check both hostname and origin to catch iframe discrepancies
-        const isGooglePreview = 
-            window.location.hostname.includes('googleusercontent') || 
-            window.location.hostname.includes('ai.studio') || 
-            window.location.hostname.includes('usercontent.goog') ||
-            (window.origin && window.origin.includes('usercontent.goog'));
-
-        if (isBlob || isGooglePreview) {
-            console.warn('[PWA Warning] Service Worker registration skipped in preview environment.');
+        if (isBlob) {
+            console.warn('[PWA Warning] Service Worker registration skipped (Blob URL).');
             return;
         }
 
-        const registration = await navigator.serviceWorker.register('./sw.js', { scope: './' });
+        // Use ABSOLUTE path for SW to ensure it works from nested routes (e.g. /admin)
+        // Scope '/' ensures it controls the entire origin
+        const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
         
         if (registration.installing) {
+            console.log('[PWA] Service Worker installing...');
             usePwaStore.getState().logEvent('Service Worker installing...');
         } else if (registration.waiting) {
+            console.log('[PWA] Service Worker waiting...');
             usePwaStore.getState().logEvent('Service Worker waiting...');
         } else if (registration.active) {
+            console.log('[PWA] Service Worker active!');
             usePwaStore.getState().logEvent('Service Worker active');
         }
 
@@ -66,8 +64,10 @@ if ('serviceWorker' in navigator) {
             installingWorker.onstatechange = () => {
               if (installingWorker.state === 'installed') {
                 if (navigator.serviceWorker.controller) {
+                  console.log('[PWA] New content available');
                   usePwaStore.getState().logEvent('New content is available; please refresh.');
                 } else {
+                  console.log('[PWA] Content cached for offline use');
                   usePwaStore.getState().logEvent('Content is cached for offline use.');
                 }
               }
@@ -75,14 +75,8 @@ if ('serviceWorker' in navigator) {
           }
         };
     } catch (error: any) {
-        // Suppress specific "origin mismatch" error common in preview environments
-        if (error?.message?.includes('does not match the current origin') || 
-            error?.message?.includes('The origin of the provided documentURL')) {
-            console.warn('[PWA] Service Worker skipped due to origin mismatch (Preview Environment).');
-        } else {
-            console.error('[PWA Error] Service Worker Registration Failed:', error);
-            usePwaStore.getState().logEvent('Service Worker Registration Failed', error);
-        }
+        console.error('[PWA Error] Service Worker Registration Failed:', error);
+        usePwaStore.getState().logEvent('Service Worker Registration Failed', error);
     }
   });
 } else {

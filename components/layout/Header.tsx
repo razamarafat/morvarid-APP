@@ -8,6 +8,7 @@ import { UserRole } from '../../types';
 import { useThemeStore } from '../../store/themeStore';
 import { THEMES } from '../../constants';
 import { useConfirm } from '../../hooks/useConfirm';
+import { usePwaStore } from '../../store/pwaStore'; // Import PWA Store
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -20,25 +21,12 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
   const location = useLocation();
   const theme = useThemeStore(state => state.theme);
   const { confirm } = useConfirm();
+  const { deferredPrompt, setDeferredPrompt, isInstalled } = usePwaStore(); // Use PWA State
 
   const role = user?.role || UserRole.ADMIN;
   const themeColors = THEMES[theme][role];
 
-  // Helper to change view via query params or state if in dashboard, 
-  // but simpler here: we assume the parent component handles 'onNavigate'.
-  // Since Header doesn't receive onNavigate, we need to implement a way to switch views.
-  // HOWEVER, the architecture passes 'currentView' state in the Dashboard pages.
-  // To make this work seamlessly without prop drilling 'onNavigate' everywhere, 
-  // we will dispatch a custom event or rely on the fact that for now, 
-  // we might need to rely on the Dashboard Layout context if we had one.
-  
-  // CRITICAL FIX: The prompt asks to move navigation to the Top Bar for Desktop.
-  // The architecture uses 'currentView' state inside specific Dashboard pages (AdminDashboard, etc.).
-  // To support this without massive refactoring, we'll dispatch a CustomEvent that Dashboards listen to,
-  // OR we simply accept that 'onMenuClick' was for sidebar, and we might need to inject links here.
-  
   const handleNavClick = (view: string) => {
-      // Dispatch a custom event that the Dashboard pages will listen to
       const event = new CustomEvent('dashboard-navigate', { detail: { view } });
       window.dispatchEvent(event);
   };
@@ -56,6 +44,15 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
           await logout();
           navigate('/login');
       }
+  };
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
   };
 
   const getDesktopNavItems = () => {
@@ -119,6 +116,18 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
         </div>
         
         <div className="flex items-center gap-2">
+          
+          {/* PWA INSTALL BUTTON (Desktop Only) */}
+          {deferredPrompt && !isInstalled && (
+              <button 
+                onClick={handleInstallClick}
+                className="hidden lg:flex items-center gap-2 bg-metro-blue hover:bg-metro-cobalt text-white px-3 py-1.5 rounded-lg text-sm font-bold transition-all shadow-md active:scale-95 animate-pulse"
+              >
+                  <Icons.Download className="w-4 h-4" />
+                  <span>نصب برنامه</span>
+              </button>
+          )}
+
           <div className="hidden sm:flex items-center gap-3 bg-gray-100 dark:bg-gray-800 px-4 py-1.5 rounded-full border border-gray-200 dark:border-gray-700">
             <div className={`p-1 rounded-full ${themeColors.primary} text-white`}>
                 <Icons.User className="w-4 h-4" />
