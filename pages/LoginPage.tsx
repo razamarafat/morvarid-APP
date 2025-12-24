@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuthStore } from '../store/authStore';
+import { useToastStore } from '../store/toastStore';
 import ThemeToggle from '../components/common/ThemeToggle';
 import { Icons } from '../components/common/Icons';
 import { UserRole } from '../types';
@@ -22,10 +23,10 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { login, blockUntil, loadSavedUsername, savedUsername } = useAuthStore();
+  const { addToast } = useToastStore();
   
   const [currentTime, setCurrentTime] = useState(getCurrentTime());
   const [currentDate, setCurrentDate] = useState(getTodayJalaliPersian());
-  const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -58,9 +59,8 @@ const LoginPage: React.FC = () => {
   const isBlocked = blockUntil ? Date.now() < blockUntil : false;
 
   const onSubmit = async (data: LoginFormValues) => {
-    setError(null);
     if (isBlocked) {
-        setError('حساب مسدود است.');
+        addToast('حساب شما موقتاً مسدود است. لطفا دقایقی صبر کنید.', 'error');
         return;
     }
 
@@ -69,6 +69,7 @@ const LoginPage: React.FC = () => {
     if (result.success) {
         setIsRedirecting(true);
         const currentUser = useAuthStore.getState().user;
+        addToast(`خوش آمدید ${currentUser?.fullName || ''}`, 'success');
         setTimeout(() => {
             switch (currentUser?.role) {
                 case UserRole.ADMIN: navigate('/admin', { replace: true }); break;
@@ -78,7 +79,7 @@ const LoginPage: React.FC = () => {
             }
         }, 500);
     } else {
-        setError(result.error || 'خطا در ورود');
+        addToast(result.error || 'خطا در ورود به سیستم', 'error');
         setIsRedirecting(false);
     }
   };
@@ -137,12 +138,6 @@ const LoginPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                {error && (
-                    <div className="bg-red-500/10 border border-red-500/50 rounded-xl p-3 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-                        <Icons.AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
-                        <span className="text-red-200 text-sm font-bold leading-tight">{error}</span>
-                    </div>
-                )}
                 
                 {/* Username Input (M3 Outlined) */}
                 <div className="relative group">

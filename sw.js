@@ -1,5 +1,12 @@
 
-const CACHE_NAME = 'morvarid-pwa-v3.5'; // Updated version
+/*
+ * Morvarid PWA Service Worker
+ * Optimized for Automatic Updates & Immediate Claiming
+ */
+
+// We use a dynamic cache name here, but the main update logic is driven by
+// the 'useAutoUpdate' hook which clears caches on version mismatch.
+const CACHE_NAME = 'morvarid-pwa-v3.6-auto'; 
 const ASSETS = [
   './',
   './index.html',
@@ -7,9 +14,9 @@ const ASSETS = [
   './manifest.json'
 ];
 
-// 1. Install Event
+// 1. Install Event: Force waiting service worker to become active
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
+  self.skipWaiting(); // CRITICAL: Forces this new SW to activate immediately
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(ASSETS);
@@ -17,7 +24,7 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// 2. Activate Event
+// 2. Activate Event: Clean old caches and take control of all tabs immediately
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
@@ -26,37 +33,49 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
-  return self.clients.claim();
+  // CRITICAL: Tells the SW to take control of the page immediately, not after reload
+  return self.clients.claim(); 
 });
 
 // 3. Fetch Event
 self.addEventListener('fetch', (event) => {
   if (!event.request.url.startsWith(self.location.origin)) return;
 
+  // Never cache version.json so the client always gets the latest
+  if (event.request.url.includes('version.json')) {
+      event.respondWith(fetch(event.request));
+      return;
+  }
+
+  // SPA Navigation: Always serve index.html for navigation, but try network first to ensure freshness
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => {
-        return caches.match('./index.html');
-      })
+      fetch(event.request)
+        .catch(() => {
+          return caches.match('./index.html');
+        })
     );
     return;
   }
 
+  // Stale-While-Revalidate Strategy for other assets
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      return cachedResponse || fetch(event.request).then((response) => {
-          return caches.open(CACHE_NAME).then((cache) => {
-              if(response.status === 200) {
-                  cache.put(event.request, response.clone());
-              }
-              return response;
-          });
+      const fetchPromise = fetch(event.request).then((networkResponse) => {
+        if(networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+             const responseToCache = networkResponse.clone();
+             caches.open(CACHE_NAME).then((cache) => {
+                 cache.put(event.request, responseToCache);
+             });
+        }
+        return networkResponse;
       });
+      return cachedResponse || fetchPromise;
     })
   );
 });
 
-// 4. Push Event (Infrastructure for Server-Side Pushes)
+// 4. Push Event
 self.addEventListener('push', (event) => {
   let data = { title: 'سامانه مروارید', body: 'پیام جدید دریافت شد', icon: './vite.svg' };
   
@@ -74,7 +93,7 @@ self.addEventListener('push', (event) => {
     badge: './vite.svg',
     dir: 'rtl',
     lang: 'fa-IR',
-    vibrate: [200, 100, 200], // Simple Vibration
+    vibrate: [200, 100, 200],
     data: {
       dateOfArrival: Date.now(),
       primaryKey: 1,
@@ -87,21 +106,19 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// 5. Notification Click Handler - Focuses the App
+// 5. Notification Click Handler
 self.addEventListener('notificationclick', (event) => {
   console.log('[SW] Notification clicked');
   event.notification.close();
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // 1. Try to focus an existing window
       for (let i = 0; i < clientList.length; i++) {
         const client = clientList[i];
         if (client.url.includes(self.location.origin) && 'focus' in client) {
           return client.focus();
         }
       }
-      // 2. If no window is open, open a new one
       if (clients.openWindow) {
         return clients.openWindow('./');
       }

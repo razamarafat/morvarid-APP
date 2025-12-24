@@ -14,6 +14,7 @@ import { useAlertStore } from './store/alertStore';
 import { usePwaStore } from './store/pwaStore'; 
 import ConfirmDialog from './components/common/ConfirmDialog';
 import ToastContainer from './components/common/Toast';
+import { useAutoUpdate } from './hooks/useAutoUpdate';
 
 // Lazy Load Pages
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -86,6 +87,9 @@ function App() {
   const { fetchUsers } = useUserStore();
   const { initListener, checkAndRequestPermission } = useAlertStore();
   const { setIsInstalled, logEvent } = usePwaStore();
+  
+  // Enable Auto-Update Mechanism
+  useAutoUpdate();
 
   useEffect(() => {
     document.documentElement.classList.remove('light', 'dark');

@@ -94,7 +94,11 @@ export const useUserStore = create<UserState>((set, get) => ({
           });
 
           if (error) {
-              useToastStore.getState().addToast(`خطا در ساخت کاربر: ${error.message}`, 'error');
+              if (error.message.includes('unique')) {
+                  useToastStore.getState().addToast(`این نام کاربری قبلاً در سیستم ثبت شده است.`, 'error');
+              } else {
+                  useToastStore.getState().addToast(`خطا در ساخت کاربر: ${error.message}`, 'error');
+              }
               return;
           }
 
@@ -110,7 +114,11 @@ export const useUserStore = create<UserState>((set, get) => ({
 
               if (profileError) {
                   console.error('Profile Creation Failed:', profileError);
-                  useToastStore.getState().addToast('کاربر ساخته شد اما پروفایل ثبت نشد', 'warning');
+                  if (profileError.code === '23505') {
+                      useToastStore.getState().addToast('خطای دیتابیس: نام کاربری تکراری است.', 'error');
+                  } else {
+                      useToastStore.getState().addToast('کاربر ساخته شد اما پروفایل ثبت نشد', 'warning');
+                  }
               } else {
                   if (userData.assignedFarms && userData.assignedFarms.length > 0) {
                       const inserts = userData.assignedFarms.map(f => ({ user_id: data.user!.id, farm_id: f.id }));
@@ -149,7 +157,11 @@ export const useUserStore = create<UserState>((set, get) => ({
           useToastStore.getState().addToast('ویرایش کاربر با موفقیت ثبت شد', 'success');
       } catch (error: any) {
           console.error('User Update Failed:', error);
-          useToastStore.getState().addToast(`خطا در ویرایش کاربر: ${error.message}`, 'error');
+          if (error.code === '23505') {
+              useToastStore.getState().addToast('این نام کاربری قبلاً استفاده شده است.', 'error');
+          } else {
+              useToastStore.getState().addToast(`خطا در ویرایش کاربر: ${error.message}`, 'error');
+          }
       } finally {
           await get().fetchUsers();
           set({ isLoading: false });

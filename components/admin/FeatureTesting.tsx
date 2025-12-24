@@ -39,6 +39,7 @@ const FeatureTesting: React.FC = () => {
 
   const handleClearLogs = () => {
       setTestLogs([]);
+      addToast('لاگ‌ها پاکسازی شدند', 'info');
   };
 
   const runTest = async (feature: string) => {
@@ -224,9 +225,15 @@ const FeatureTesting: React.FC = () => {
                   <button onClick={handleCopyLogs} className="p-1 hover:bg-white/10 rounded text-gray-400 hover:text-white transition-colors" title="کپی لاگ‌ها">
                       <Icons.FileText className="w-4 h-4" />
                   </button>
-                  <button onClick={handleClearLogs} className="p-1 hover:bg-white/10 rounded text-gray-400 hover:text-red-400 transition-colors" title="پاکسازی">
-                      <Icons.Trash className="w-4 h-4" />
-                  </button>
+                  <Button 
+                    onClick={handleClearLogs} 
+                    variant="secondary" 
+                    size="sm" 
+                    className="text-xs h-7 bg-red-500/10 text-red-400 hover:bg-red-500/20 border-red-500/20 px-3"
+                  >
+                      <Icons.Trash className="w-3 h-3 ml-1" />
+                      پاکسازی لاگ
+                  </Button>
               </div>
           </div>
           <div 
