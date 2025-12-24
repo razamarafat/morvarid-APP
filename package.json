@@ -2,7 +2,7 @@
 {
   "name": "morvarid-statistics-management",
   "private": true,
-  "version": "2.2.1",
+  "version": "2.2.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
