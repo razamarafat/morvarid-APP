@@ -39,6 +39,12 @@ const translateError = (error: any): string => {
     return `خطای سیستم: ${error.message || code}`;
 };
 
+const isNetworkError = (error: any) => {
+    if (!error) return false;
+    const msg = error.message?.toLowerCase() || '';
+    return msg.includes('fetch') || msg.includes('network') || msg.includes('connection') || msg.includes('offline');
+};
+
 interface StatisticsState {
     statistics: DailyStatistic[];
     isLoading: boolean;
@@ -124,43 +130,52 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           return { success: true, error: 'ذخیره در صف آفلاین' };
       }
 
-      const fullPayload: any = {};
-      if (updates.production !== undefined) fullPayload.production = Number(updates.production);
-      if (updates.sales !== undefined) fullPayload.sales = Number(updates.sales);
-      if (updates.previousBalance !== undefined) fullPayload.previous_balance = Number(updates.previousBalance);
-      if (updates.currentInventory !== undefined) fullPayload.current_inventory = Number(updates.currentInventory);
-      if (updates.date) fullPayload.date = normalizeDate(updates.date);
-      
-      fullPayload.updated_at = new Date().toISOString();
-      if (updates.productionKg !== undefined) fullPayload.production_kg = Number(updates.productionKg);
-      if (updates.salesKg !== undefined) fullPayload.sales_kg = Number(updates.salesKg);
-      if (updates.previousBalanceKg !== undefined) fullPayload.previous_balance_kg = Number(updates.previousBalanceKg);
-      if (updates.currentInventoryKg !== undefined) fullPayload.current_inventory_kg = Number(updates.currentInventoryKg);
+      try {
+          const fullPayload: any = {};
+          if (updates.production !== undefined) fullPayload.production = Number(updates.production);
+          if (updates.sales !== undefined) fullPayload.sales = Number(updates.sales);
+          if (updates.previousBalance !== undefined) fullPayload.previous_balance = Number(updates.previousBalance);
+          if (updates.currentInventory !== undefined) fullPayload.current_inventory = Number(updates.currentInventory);
+          if (updates.date) fullPayload.date = normalizeDate(updates.date);
+          
+          fullPayload.updated_at = new Date().toISOString();
+          if (updates.productionKg !== undefined) fullPayload.production_kg = Number(updates.productionKg);
+          if (updates.salesKg !== undefined) fullPayload.sales_kg = Number(updates.salesKg);
+          if (updates.previousBalanceKg !== undefined) fullPayload.previous_balance_kg = Number(updates.previousBalanceKg);
+          if (updates.currentInventoryKg !== undefined) fullPayload.current_inventory_kg = Number(updates.currentInventoryKg);
 
-      let { error } = await supabase.from('daily_statistics').update(fullPayload).eq('id', id);
-      
-      if (error && (String((error as any).status) === '400' || error.code === 'PGRST204' || error.code === '42703')) {
-          const corePayload = {
-              production: fullPayload.production,
-              sales: fullPayload.sales,
-              previous_balance: fullPayload.previous_balance,
-              current_inventory: fullPayload.current_inventory
-          };
-          Object.keys(corePayload).forEach(key => (corePayload as any)[key] === undefined && delete (corePayload as any)[key]);
-          const retry = await supabase.from('daily_statistics').update(corePayload).eq('id', id);
-          error = retry.error;
-      }
-      
-      if (!error) {
+          let { error } = await supabase.from('daily_statistics').update(fullPayload).eq('id', id);
+          
+          if (error) {
+              if (String((error as any).status) === '400' || error.code === 'PGRST204' || error.code === '42703') {
+                  const corePayload = {
+                      production: fullPayload.production,
+                      sales: fullPayload.sales,
+                      previous_balance: fullPayload.previous_balance,
+                      current_inventory: fullPayload.current_inventory
+                  };
+                  Object.keys(corePayload).forEach(key => (corePayload as any)[key] === undefined && delete (corePayload as any)[key]);
+                  const retry = await supabase.from('daily_statistics').update(corePayload).eq('id', id);
+                  if (retry.error) throw retry.error;
+              } else {
+                  throw error;
+              }
+          }
+          
           await get().fetchStatistics();
           return { success: true };
+
+      } catch (error: any) {
+          if (!isSyncing && isNetworkError(error)) {
+              useSyncStore.getState().addToQueue('UPDATE_STAT', { id, updates });
+              return { success: true, error: 'ذخیره در صف آفلاین (عدم دسترسی به سرور)' };
+          }
+          return { success: false, error: translateError(error) };
       }
-      return { success: false, error: translateError(error) };
   },
 
   bulkUpsertStatistics: async (stats, isSyncing = false) => {
       if (!isSyncing && !navigator.onLine) {
-          // Note: bulk offline might need loop
           stats.forEach(s => useSyncStore.getState().addToQueue('STAT', s));
           return { success: true, error: 'ذخیره در صف آفلاین' };
       }
@@ -181,12 +196,16 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           }));
 
           const { error } = await supabase.from('daily_statistics').upsert(dbPayloads);
-          if (error) return { success: false, error: translateError(error) };
+          if (error) throw error;
           
           await get().fetchStatistics();
           return { success: true };
       } catch (err: any) {
-          return { success: false, error: err.message };
+          if (!isSyncing && isNetworkError(err)) {
+              stats.forEach(s => useSyncStore.getState().addToQueue('STAT', s));
+              return { success: true, error: 'ذخیره در صف آفلاین (عدم دسترسی به سرور)' };
+          }
+          return { success: false, error: translateError(err) };
       }
   },
 
@@ -196,12 +215,19 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           return { success: true, error: 'ذخیره در صف آفلاین' };
       }
 
-      const { error } = await supabase.from('daily_statistics').delete().eq('id', id);
-      if (!error) {
+      try {
+          const { error } = await supabase.from('daily_statistics').delete().eq('id', id);
+          if (error) throw error;
+
           await get().fetchStatistics();
           return { success: true };
+      } catch (error: any) {
+          if (!isSyncing && isNetworkError(error)) {
+              useSyncStore.getState().addToQueue('DELETE_STAT', { id });
+              return { success: true, error: 'ذخیره در صف آفلاین (عدم دسترسی به سرور)' };
+          }
+          return { success: false, error: translateError(error) };
       }
-      return { success: false, error: translateError(error) };
   },
 
   getLatestInventory: (farmId, productId) => {
@@ -211,7 +237,6 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
   },
 
   syncSalesFromInvoices: async (farmId, date, productId) => {
-      // Sync logic should only run when online because it queries DB
       if (!navigator.onLine) return;
 
       const normalizedDate = normalizeDate(date);
@@ -222,10 +247,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           .eq('date', normalizedDate)
           .eq('product_id', productId);
 
-      if (invError) {
-          console.error("Sync: Error fetching invoices:", invError);
-          return;
-      }
+      if (invError) return;
 
       const totalSales = invoices?.reduce((sum, inv) => sum + (inv.total_cartons || 0), 0) || 0;
       
@@ -236,20 +258,15 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           .eq('date', normalizedDate)
           .eq('product_id', productId);
 
-      if (statError) {
-          console.error("Sync: Error fetching stats:", statError);
-          return;
-      }
+      if (statError) return;
 
       if (statRecords && statRecords.length > 0) {
           const rec = statRecords[0];
           const newInv = (rec.previous_balance || 0) + (rec.production || 0) - totalSales;
-          const { error: updateError } = await supabase
+          await supabase
               .from('daily_statistics')
               .update({ sales: totalSales, current_inventory: newInv })
               .eq('id', rec.id);
-          
-          if (updateError) console.error("Sync: Error updating stats:", updateError);
       }
   }
 }));

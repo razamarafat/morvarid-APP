@@ -8,15 +8,20 @@ const OnlineStatusBadge: React.FC = () => {
   const queueLength = useSyncStore(state => state.queue.length);
 
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
+    const updateOnlineStatus = () => {
+        setIsOnline(navigator.onLine);
+    };
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    
+    // Also check when window gains focus (helps when waking from sleep)
+    window.addEventListener('focus', updateOnlineStatus);
 
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', updateOnlineStatus);
+      window.removeEventListener('offline', updateOnlineStatus);
+      window.removeEventListener('focus', updateOnlineStatus);
     };
   }, []);
 
@@ -26,24 +31,24 @@ const OnlineStatusBadge: React.FC = () => {
     <div 
       className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 ${
         !isOnline 
-          ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 animate-pulse' 
+          ? 'bg-red-500 text-white animate-pulse shadow-md' // More visible style for offline
           : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
       }`}
     >
       {!isOnline ? (
         <>
           <Icons.Globe className="w-4 h-4" />
-          <span>آفلاین</span>
+          <span>آفلاین (قطع ارتباط)</span>
         </>
       ) : (
         <>
           <Icons.Refresh className="w-4 h-4 animate-spin" />
-          <span>در حال همگام‌سازی...</span>
+          <span>در حال ارسال...</span>
         </>
       )}
       
       {queueLength > 0 && (
-        <span className="bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded-full shadow-sm min-w-[1.25rem] text-center">
+        <span className={`px-1.5 py-0.5 rounded-full shadow-sm min-w-[1.25rem] text-center ${!isOnline ? 'bg-white text-red-600' : 'bg-white dark:bg-gray-800'}`}>
           {queueLength}
         </span>
       )}

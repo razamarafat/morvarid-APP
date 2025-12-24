@@ -22,6 +22,12 @@ const translateError = (error: any): string => {
     return `خطای سیستم: ${error.message || code}`;
 };
 
+const isNetworkError = (error: any) => {
+    if (!error) return false;
+    const msg = error.message?.toLowerCase() || '';
+    return msg.includes('fetch') || msg.includes('network') || msg.includes('connection') || msg.includes('offline');
+};
+
 interface InvoiceState {
     invoices: Invoice[];
     isLoading: boolean;
@@ -73,46 +79,41 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
   },
 
   addInvoice: async (inv, isSyncing = false) => {
-      if (!isSyncing && !navigator.onLine) {
-          useSyncStore.getState().addToQueue('INVOICE', inv);
-          return { success: true, error: 'ذخیره در صف آفلاین' };
-      }
       return await get().bulkAddInvoices([inv], isSyncing);
   },
 
   bulkAddInvoices: async (invoicesList, isSyncing = false) => {
-      // Offline Check for batch
+      // 1. Explicit Offline Check
       if (!isSyncing && !navigator.onLine) {
           invoicesList.forEach(inv => useSyncStore.getState().addToQueue('INVOICE', inv));
           return { success: true, error: 'ذخیره در صف آفلاین' };
       }
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return { success: false, error: "کاربر لاگین نیست." };
+      try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) return { success: false, error: "کاربر لاگین نیست." };
 
-      // Simple validation for batch to avoid complex per-item logic overhead during sync
-      // We assume basic validation happened at UI level before queuing
-      
-      const dbInvoices = invoicesList.map(inv => ({
-          farm_id: inv.farmId,
-          date: inv.date,
-          invoice_number: inv.invoiceNumber,
-          total_cartons: Math.floor(Number(inv.totalCartons)), 
-          total_weight: Number(inv.totalWeight),
-          product_id: inv.productId,
-          driver_name: inv.driverName,
-          driver_phone: inv.driverPhone,
-          plate_number: inv.plateNumber,
-          description: inv.description,
-          is_yesterday: inv.isYesterday,
-          created_by: user.id
-      }));
+          const dbInvoices = invoicesList.map(inv => ({
+              farm_id: inv.farmId,
+              date: inv.date,
+              invoice_number: inv.invoiceNumber,
+              total_cartons: Math.floor(Number(inv.totalCartons)), 
+              total_weight: Number(inv.totalWeight),
+              product_id: inv.productId,
+              driver_name: inv.driverName,
+              driver_phone: inv.driverPhone,
+              plate_number: inv.plateNumber,
+              description: inv.description,
+              is_yesterday: inv.isYesterday,
+              created_by: user.id
+          }));
 
-      const { error } = await supabase.from('invoices').insert(dbInvoices);
+          const { error } = await supabase.from('invoices').insert(dbInvoices);
 
-      if (!error) {
+          if (error) throw error; // Throw to catch block
+
           get().fetchInvoices();
-          // Trigger stats sync for unique farm/date/product combinations in the batch
+          
           const uniqueKeys = new Set<string>();
           invoicesList.forEach(inv => {
               if (inv.productId) uniqueKeys.add(`${inv.farmId}|${inv.date}|${inv.productId}`);
@@ -124,8 +125,15 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           });
 
           return { success: true };
+
+      } catch (error: any) {
+          // 2. Fallback: Check if it was a network error
+          if (!isSyncing && isNetworkError(error)) {
+              invoicesList.forEach(inv => useSyncStore.getState().addToQueue('INVOICE', inv));
+              return { success: true, error: 'ذخیره در صف آفلاین (عدم دسترسی به سرور)' };
+          }
+          return { success: false, error: translateError(error) };
       }
-      return { success: false, error: translateError(error) };
   },
 
   updateInvoice: async (id, updates, isSyncing = false) => {
@@ -134,41 +142,52 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           return { success: true, error: 'ذخیره در صف آفلاین' };
       }
 
-      const original = get().invoices.find(i => i.id === id);
-      const fullPayload: any = {};
-      
-      if (updates.totalCartons !== undefined) fullPayload.total_cartons = Math.floor(Number(updates.totalCartons)); 
-      if (updates.totalWeight !== undefined) fullPayload.total_weight = Number(updates.totalWeight);
-      if (updates.driverName !== undefined) fullPayload.driver_name = updates.driverName;
-      if (updates.driverPhone !== undefined) fullPayload.driver_phone = updates.driverPhone;
-      if (updates.plateNumber !== undefined) fullPayload.plate_number = updates.plateNumber;
-      if (updates.invoiceNumber !== undefined) fullPayload.invoice_number = updates.invoiceNumber;
-      if (updates.description !== undefined) fullPayload.description = updates.description;
-      fullPayload.updated_at = new Date().toISOString();
-
-      let { error } = await supabase.from('invoices').update(fullPayload).eq('id', id);
-
-      if (error && (String((error as any).status) === '400' || error.code === 'PGRST204' || error.code === '42703')) {
-          const corePayload: any = {
-              total_cartons: fullPayload.total_cartons,
-              total_weight: fullPayload.total_weight,
-              invoice_number: fullPayload.invoice_number,
-              driver_name: fullPayload.driver_name,
-              plate_number: fullPayload.plate_number,
-              driver_phone: fullPayload.driver_phone
-          };
-          Object.keys(corePayload).forEach(key => corePayload[key] === undefined && delete corePayload[key]);
+      try {
+          const original = get().invoices.find(i => i.id === id);
+          const fullPayload: any = {};
           
-          const retry = await supabase.from('invoices').update(corePayload).eq('id', id);
-          error = retry.error;
-      }
-      
-      if (!error) {
+          if (updates.totalCartons !== undefined) fullPayload.total_cartons = Math.floor(Number(updates.totalCartons)); 
+          if (updates.totalWeight !== undefined) fullPayload.total_weight = Number(updates.totalWeight);
+          if (updates.driverName !== undefined) fullPayload.driver_name = updates.driverName;
+          if (updates.driverPhone !== undefined) fullPayload.driver_phone = updates.driverPhone;
+          if (updates.plateNumber !== undefined) fullPayload.plate_number = updates.plateNumber;
+          if (updates.invoiceNumber !== undefined) fullPayload.invoice_number = updates.invoiceNumber;
+          if (updates.description !== undefined) fullPayload.description = updates.description;
+          fullPayload.updated_at = new Date().toISOString();
+
+          let { error } = await supabase.from('invoices').update(fullPayload).eq('id', id);
+
+          if (error) {
+              // Retry Logic for Schema mismatches (handled inside try for safety)
+              if (String((error as any).status) === '400' || error.code === 'PGRST204' || error.code === '42703') {
+                  const corePayload: any = {
+                      total_cartons: fullPayload.total_cartons,
+                      total_weight: fullPayload.total_weight,
+                      invoice_number: fullPayload.invoice_number,
+                      driver_name: fullPayload.driver_name,
+                      plate_number: fullPayload.plate_number,
+                      driver_phone: fullPayload.driver_phone
+                  };
+                  Object.keys(corePayload).forEach(key => corePayload[key] === undefined && delete corePayload[key]);
+                  
+                  const retry = await supabase.from('invoices').update(corePayload).eq('id', id);
+                  if (retry.error) throw retry.error;
+              } else {
+                  throw error;
+              }
+          }
+          
           await get().fetchInvoices();
           if (original?.productId) useStatisticsStore.getState().syncSalesFromInvoices(original.farmId, original.date, original.productId);
           return { success: true };
+
+      } catch (error: any) {
+          if (!isSyncing && isNetworkError(error)) {
+              useSyncStore.getState().addToQueue('UPDATE_INVOICE', { id, updates });
+              return { success: true, error: 'ذخیره در صف آفلاین (عدم دسترسی به سرور)' };
+          }
+          return { success: false, error: translateError(error) };
       }
-      return { success: false, error: translateError(error) };
   },
 
   deleteInvoice: async (id, isSyncing = false) => {
@@ -177,13 +196,20 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           return { success: true, error: 'ذخیره در صف آفلاین' };
       }
 
-      const original = get().invoices.find(i => i.id === id);
-      const { error } = await supabase.from('invoices').delete().eq('id', id);
-      if (!error) {
+      try {
+          const original = get().invoices.find(i => i.id === id);
+          const { error } = await supabase.from('invoices').delete().eq('id', id);
+          if (error) throw error;
+
           await get().fetchInvoices();
           if (original?.productId) useStatisticsStore.getState().syncSalesFromInvoices(original.farmId, original.date, original.productId);
           return { success: true };
+      } catch (error: any) {
+          if (!isSyncing && isNetworkError(error)) {
+              useSyncStore.getState().addToQueue('DELETE_INVOICE', { id });
+              return { success: true, error: 'ذخیره در صف آفلاین (عدم دسترسی به سرور)' };
+          }
+          return { success: false, error: translateError(error) };
       }
-      return { success: false, error: translateError(error) };
   }
 }));
