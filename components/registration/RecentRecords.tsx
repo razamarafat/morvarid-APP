@@ -215,6 +215,11 @@ const RecentRecords: React.FC = () => {
         });
     };
 
+    const handleCancelStat = () => {
+        setEditStat(null);
+        setStatValues({ prod: '', prev: '', prodKg: '', prevKg: '' });
+    };
+
     const handleSaveStat = async () => {
         if (!editStat) return;
         const prod = Number(statValues.prod);
@@ -253,6 +258,19 @@ const RecentRecords: React.FC = () => {
         } else {
             setPlateParts({ part1: '', letter: '', part3: '', part4: '' });
         }
+    };
+
+    const handleCancelInvoice = () => {
+        setEditInvoice(null);
+        setInvoiceValues({ 
+            invoiceNumber: '',
+            cartons: '', 
+            weight: '',
+            driverName: '',
+            driverPhone: '',
+            description: ''
+        });
+        setPlateParts({ part1: '', letter: '', part3: '', part4: '' });
     };
 
     const handleSaveInvoice = async () => {
@@ -300,7 +318,7 @@ const RecentRecords: React.FC = () => {
                 </div>
             </div>
 
-            <Modal isOpen={!!editStat} onClose={() => setEditStat(null)} title="ویرایش آمار روزانه">
+            <Modal isOpen={!!editStat} onClose={handleCancelStat} title="ویرایش آمار روزانه">
                 <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1">
                     <div className="p-4 bg-white rounded-2xl border-2 border-blue-100 flex flex-col gap-2 shadow-sm">
                         <span className="text-xs font-bold text-blue-600">اطلاعات تعداد (کارتن)</span>
@@ -319,11 +337,11 @@ const RecentRecords: React.FC = () => {
                         </div>
                     )}
                     <p className="text-[10px] text-gray-400 text-center">توجه: مقدار فروش به صورت خودکار بر اساس حواله‌ها محاسبه می‌شود.</p>
-                    <div className="flex justify-end gap-3 pt-4 border-t"><Button variant="secondary" onClick={() => setEditStat(null)}>انصراف</Button><Button onClick={handleSaveStat}>بروزرسانی آمار</Button></div>
+                    <div className="flex justify-end gap-3 pt-4 border-t"><Button variant="secondary" onClick={handleCancelStat}>انصراف</Button><Button onClick={handleSaveStat}>بروزرسانی آمار</Button></div>
                 </div>
             </Modal>
 
-            <Modal isOpen={!!editInvoice} onClose={() => setEditInvoice(null)} title="ویرایش حواله خروج">
+            <Modal isOpen={!!editInvoice} onClose={handleCancelInvoice} title="ویرایش حواله خروج">
                 <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1 custom-scrollbar">
                     <div className="bg-white p-4 rounded-2xl border border-orange-200">
                         <label className="block text-xs font-bold mb-2 text-orange-700">رمز حواله</label>
@@ -364,7 +382,7 @@ const RecentRecords: React.FC = () => {
                         </div>
                         <div><label className="block text-xs font-bold mb-1">توضیحات</label><textarea className="w-full p-4 bg-white border-2 border-gray-100 rounded-xl h-20" value={invoiceValues.description} onChange={(e) => setInvoiceValues({ ...invoiceValues, description: e.target.value })} /></div>
                     </div>
-                    <div className="flex justify-end gap-3 pt-4 border-t"><Button variant="secondary" onClick={() => setEditInvoice(null)}>انصراف</Button><Button onClick={handleSaveInvoice}>ذخیره تغییرات</Button></div>
+                    <div className="flex justify-end gap-3 pt-4 border-t"><Button variant="secondary" onClick={handleCancelInvoice}>انصراف</Button><Button onClick={handleSaveInvoice}>ذخیره تغییرات</Button></div>
                 </div>
             </Modal>
         </div>

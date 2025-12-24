@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
@@ -23,7 +24,25 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
   const role = user?.role || UserRole.ADMIN;
   const themeColors = THEMES[theme][role];
 
+  // Helper to change view via query params or state if in dashboard, 
+  // but simpler here: we assume the parent component handles 'onNavigate'.
+  // Since Header doesn't receive onNavigate, we need to implement a way to switch views.
+  // HOWEVER, the architecture passes 'currentView' state in the Dashboard pages.
+  // To make this work seamlessly without prop drilling 'onNavigate' everywhere, 
+  // we will dispatch a custom event or rely on the fact that for now, 
+  // we might need to rely on the Dashboard Layout context if we had one.
+  // 
+  // CRITICAL FIX: The prompt asks to move navigation to the Top Bar for Desktop.
+  // The architecture uses 'currentView' state inside specific Dashboard pages (AdminDashboard, etc.).
+  // To support this without massive refactoring, we'll dispatch a CustomEvent that Dashboards listen to,
+  // OR we simply accept that 'onMenuClick' was for sidebar, and we might need to inject links here.
+  
+  // Actually, the cleanest way in this specific codebase is to grab the 'setCurrentView' function 
+  // if we can, but we can't easily. 
+  // ALTERNATIVE: We trigger a navigation event. 
+  
   const handleNavClick = (view: string) => {
+      // Dispatch a custom event that the Dashboard pages will listen to
       const event = new CustomEvent('dashboard-navigate', { detail: { view } });
       window.dispatchEvent(event);
   };
@@ -45,6 +64,10 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
 
   const getDesktopNavItems = () => {
       const btnClass = "px-4 py-2 rounded-xl text-sm font-bold transition-all hover:bg-black/5 dark:hover:bg-white/10 flex items-center gap-2";
+      const activeClass = `bg-black/5 dark:bg-white/10 ${themeColors.text}`;
+      
+      // We can't easily know "currentView" here without prop drilling, 
+      // so we'll just show the buttons. Active state might be less visible but functional.
 
       switch(role) {
           case UserRole.REGISTRATION:
@@ -79,7 +102,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
   };
 
   return (
-    <header className={`${themeColors.surface} ${themeColors.text} sticky top-0 z-30 transition-colors duration-300 border-b border-gray-200 dark:border-gray-800 shadow-sm flex-shrink-0`}>
+    <header className={`${themeColors.surface} ${themeColors.text} sticky top-0 z-30 transition-colors duration-300 border-b border-gray-200 dark:border-gray-800 shadow-sm`}>
       <div className="container mx-auto px-4 h-16 flex justify-between items-center max-w-full">
         
         <div className="flex items-center gap-2 md:gap-4">
@@ -95,6 +118,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
             {title}
           </h1>
 
+          {/* DESKTOP NAVIGATION LINKS */}
           <div className="hidden lg:flex items-center gap-1 mr-4 border-r pr-4 border-gray-300 dark:border-gray-600">
               {getDesktopNavItems()}
           </div>

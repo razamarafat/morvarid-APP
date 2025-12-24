@@ -199,121 +199,181 @@ export const InvoiceForm: React.FC = () => {
                  </div>
             </div>
 
-            {/* Invoice Info */}
-            <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 shadow-md border-l-[12px] border-metro-blue rounded-[28px] space-y-6 relative gpu-accelerated">
-                <div className="absolute top-0 right-0 bg-metro-blue text-white px-4 py-1.5 text-xs font-black rounded-bl-[20px]">مشخصات اصلی حواله</div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-8 mt-2">
-                    <div>
-                        <label className={labelClass}>رمز حواله</label>
-                        <input dir="ltr" type="tel" inputMode="numeric" {...register('invoiceNumber')} className={`${inputClass} !text-3xl tracking-[0.2em] border-metro-blue/20 bg-white`} maxLength={10} />
-                    </div>
-                    <div className="bg-white p-2 border-2 border-dashed border-blue-200 rounded-[20px]">
-                        <JalaliDatePicker label="تاریخ حواله" value={referenceDate} onChange={setReferenceDate} />
-                    </div>
-                </div>
-            </div>
-
-            {/* Product Selector */}
-            <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 shadow-md border-l-[12px] border-metro-orange rounded-[28px] space-y-2">
-                <button onClick={() => setIsProductSelectorOpen(!isProductSelectorOpen)} className="w-full flex justify-between items-center bg-gray-50 p-5 rounded-[20px] hover:bg-gray-100 transition-colors">
-                    <div className="flex items-center gap-2">
-                        <Icons.Check className="w-6 h-6 text-metro-orange" />
-                        <span className="font-black text-gray-700 lg:text-xl">انتخاب محصولات</span>
-                    </div>
-                    <Icons.ChevronDown className={`w-6 h-6 transition-transform duration-200 ${isProductSelectorOpen ? 'rotate-180' : ''}`} />
-                </button>
-                <AnimatePresence>
-                    {isProductSelectorOpen && (
-                        <motion.div 
-                            initial={{ height: 0, opacity: 0 }} 
-                            animate={{ height: 'auto', opacity: 1 }} 
-                            exit={{ height: 0, opacity: 0 }} 
-                            transition={{ duration: 0.2, ease: "easeOut" }}
-                            className="overflow-hidden bg-white rounded-[20px] border border-gray-100"
-                            style={{ willChange: "height, opacity", transform: "translateZ(0)" }}
-                        >
-                            <div className="p-3 space-y-1">
-                                {selectedFarm.productIds.map(pid => {
-                                    const p = getProductById(pid);
-                                    const isSelected = selectedProductIds.includes(pid);
-                                    return (
-                                        <label key={pid} className={`flex items-center p-4 rounded-xl cursor-pointer transition-all ${isSelected ? 'bg-orange-50 text-orange-700' : 'hover:bg-gray-50 text-gray-700'}`}>
-                                            <input type="checkbox" className="w-5 h-5 ml-4 rounded text-metro-orange border-gray-300" checked={isSelected} onChange={() => handleProductToggle(pid)} />
-                                            <span className="flex-1 font-black lg:text-xl">{p?.name}</span>
-                                        </label>
-                                    );
-                                })}
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
-
-            {/* Selected Product Inputs (Reordered: Now above Phone) */}
-            <AnimatePresence>
-                {selectedProductIds.map(pid => {
-                    const p = getProductById(pid);
-                    const state = itemsState[pid] || { cartons: '', weight: '' };
-                    return (
-                        <motion.div 
-                            key={pid} 
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -20 }}
-                            transition={{ duration: 0.2, ease: "easeOut" }}
-                            className="bg-white p-5 lg:p-7 border-r-8 border-metro-green shadow-lg rounded-[24px] flex flex-col md:flex-row items-center gap-4 lg:gap-8 gpu-accelerated"
-                        >
-                            <h5 className="font-black text-gray-800 lg:text-2xl w-full md:w-1/3 border-b md:border-b-0 md:border-l pb-2 md:pb-0">{p?.name}</h5>
-                            <div className="grid grid-cols-2 gap-4 flex-1 w-full">
-                                <div><label className={labelClass}>تعداد</label><input type="tel" inputMode="numeric" value={state.cartons} onChange={e => handleItemChange(pid, 'cartons', e.target.value)} className={`${inputClass} bg-white`} /></div>
-                                <div><label className={`${labelClass} text-blue-600`}>وزن (Kg)</label><input type="tel" inputMode="decimal" value={state.weight} onChange={e => handleItemChange(pid, 'weight', e.target.value)} className={`${inputClass} !border-blue-100 bg-white`} /></div>
-                            </div>
-                        </motion.div>
-                    );
-                })}
-            </AnimatePresence>
-
-            {/* Customer Phone (Moved Down) */}
-            <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 shadow-md border-l-[12px] border-metro-blue rounded-[28px] gpu-accelerated">
-                <label className={labelClass}>شماره تماس مشتری</label>
-                <input dir="ltr" type="tel" inputMode="numeric" {...register('contactPhone')} className={`${inputClass} bg-white`} maxLength={11} />
-            </div>
-
-            {/* Driver Details */}
-            <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-[28px] border-2 border-dashed border-gray-200 space-y-6 mt-8">
-                <h4 className="text-xs font-black text-gray-500 uppercase flex items-center gap-2">اطلاعات تکمیلی راننده (اختیاری)</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div><label className={labelClass}>نام راننده</label><input {...register('driverName')} className={`${inputClass} bg-white`} placeholder="فقط حروف فارسی" /></div>
-                    <div>
-                        <label className={labelClass}>شماره پلاک</label>
-                        <div className="flex flex-row gap-2 items-center" dir="ltr">
-                            <input type="tel" maxLength={2} value={plateParts.part1} onChange={e => setPlateParts(p => ({...p, part1: e.target.value.replace(/\D/g, '')}))} className="w-14 h-16 border-2 rounded-xl text-center font-black text-xl bg-white focus:border-metro-blue outline-none" placeholder="11" />
-                            <div className="relative">
-                                <button type="button" onClick={() => setShowLetterPicker(!showLetterPicker)} className="w-16 h-16 border-2 rounded-xl font-black text-xl bg-white text-blue-600 border-blue-100 flex items-center justify-center">{plateParts.letter || 'حرف'}</button>
-                                <AnimatePresence>
-                                    {showLetterPicker && (
-                                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute bottom-full left-0 right-0 mb-2 bg-white shadow-2xl rounded-[20px] p-1 z-50 flex flex-col h-64 overflow-y-auto custom-scrollbar border border-gray-100" dir="rtl">
-                                            {PERSIAN_LETTERS.map(l => (
-                                                <button key={l} type="button" onClick={() => { setPlateParts(p => ({...p, letter: l})); setShowLetterPicker(false); }} className="p-4 border-b last:border-0 hover:bg-metro-blue hover:text-white text-gray-700 font-black transition-colors rounded-lg">{l}</button>
-                                            ))}
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
-                            <input type="tel" maxLength={3} value={plateParts.part3} onChange={e => setPlateParts(p => ({...p, part3: e.target.value.replace(/\D/g, '')}))} className="w-24 h-16 border-2 rounded-xl text-center font-black text-xl bg-white focus:border-metro-blue outline-none" placeholder="365" />
-                            <div className="relative">
-                                <input type="tel" maxLength={2} value={plateParts.part4} onChange={e => setPlateParts(p => ({...p, part4: e.target.value.replace(/\D/g, '')}))} className="w-14 h-16 border-2 rounded-xl text-center font-black text-xl bg-white focus:border-metro-blue outline-none" placeholder="15" />
-                                <span className="absolute -top-3 left-0 right-0 text-center text-[8px] font-black text-gray-400">ایران</span>
+            <form onSubmit={handleSubmit(handleFinalSubmit)} className="px-4 space-y-8">
+                
+                {/* Invoice Code Section */}
+                <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-2 h-full bg-metro-orange"></div>
+                    <h3 className="font-black text-xl mb-6 text-gray-800 dark:text-white flex items-center gap-2">
+                        <Icons.FileText className="w-6 h-6 text-metro-orange" />
+                        اطلاعات پایه
+                    </h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label className={labelClass}>رمز حواله (۱۰ رقم)</label>
+                            <input 
+                                type="tel" 
+                                dir="ltr" 
+                                maxLength={10}
+                                {...register('invoiceNumber')} 
+                                className={`${inputClass} tracking-[0.3em] text-3xl h-16 border-metro-orange/30 focus:border-metro-orange focus:ring-4 focus:ring-orange-500/10`}
+                                placeholder="1700000000"
+                            />
+                            {errors.invoiceNumber && <p className="text-red-500 text-xs font-bold mt-2 mr-1">{errors.invoiceNumber.message}</p>}
+                        </div>
+                        
+                        <div>
+                            <label className={labelClass}>تاریخ صدور</label>
+                            <div className="h-16">
+                                <JalaliDatePicker value={referenceDate} onChange={setReferenceDate} />
                             </div>
                         </div>
                     </div>
                 </div>
-                <div><label className={labelClass}>توضیحات</label><textarea {...register('description')} className={`${inputClass} h-24 text-right !font-medium bg-white`} /></div>
-            </div>
 
-            <Button onClick={handleSubmit(handleFinalSubmit)} isLoading={isSubmitting} className="w-full h-16 text-2xl font-black bg-metro-green hover:bg-green-600 shadow-xl !rounded-[24px]">
-                <Icons.Check className="ml-2 w-8 h-8" /> ثبت نهایی حواله خروج
-            </Button>
+                {/* Product Selection */}
+                <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-2 h-full bg-metro-blue"></div>
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="font-black text-xl text-gray-800 dark:text-white flex items-center gap-2">
+                            <Icons.List className="w-6 h-6 text-metro-blue" />
+                            اقلام حواله
+                        </h3>
+                        <button type="button" onClick={() => setIsProductSelectorOpen(!isProductSelectorOpen)} className="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg flex items-center gap-1">
+                            <Icons.Plus className="w-4 h-4" /> افزودن کالا
+                        </button>
+                    </div>
+
+                    <AnimatePresence>
+                        {isProductSelectorOpen && (
+                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="mb-6 overflow-hidden">
+                                <div className="grid grid-cols-2 gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-2xl border border-dashed border-gray-300 dark:border-gray-700">
+                                    {selectedFarm.productIds.map(pid => {
+                                        const p = getProductById(pid);
+                                        const isSelected = selectedProductIds.includes(pid);
+                                        return (
+                                            <button 
+                                                key={pid}
+                                                type="button"
+                                                onClick={() => handleProductToggle(pid)}
+                                                className={`p-3 rounded-xl text-sm font-bold transition-all ${isSelected ? 'bg-metro-blue text-white shadow-lg scale-95' : 'bg-white text-gray-600 border hover:bg-gray-100'}`}
+                                            >
+                                                {p?.name}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    <div className="space-y-4">
+                        {selectedProductIds.length === 0 ? (
+                            <div className="text-center py-8 text-gray-400 border-2 border-dashed border-gray-200 rounded-2xl">
+                                هیچ کالایی انتخاب نشده است
+                            </div>
+                        ) : (
+                            selectedProductIds.map(pid => {
+                                const p = getProductById(pid);
+                                return (
+                                    <div key={pid} className="p-4 bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700">
+                                        <div className="flex justify-between items-center mb-3">
+                                            <span className="font-black text-gray-700 dark:text-gray-300">{p?.name}</span>
+                                            <button type="button" onClick={() => handleProductToggle(pid)} className="text-red-500 p-1"><Icons.X className="w-5 h-5" /></button>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-[10px] font-bold text-gray-400 block mb-1">تعداد (کارتن)</label>
+                                                <input type="tel" className="w-full p-3 bg-white text-center font-black text-xl rounded-xl outline-none focus:ring-2 focus:ring-metro-blue" placeholder="0" value={itemsState[pid]?.cartons || ''} onChange={e => handleItemChange(pid, 'cartons', e.target.value)} />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-bold text-gray-400 block mb-1">وزن (کیلوگرم)</label>
+                                                <input type="tel" className="w-full p-3 bg-white text-center font-black text-xl rounded-xl outline-none focus:ring-2 focus:ring-metro-blue border-b-4 border-metro-blue" placeholder="0" value={itemsState[pid]?.weight || ''} onChange={e => handleItemChange(pid, 'weight', e.target.value)} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+
+                {/* Driver Info */}
+                <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-2 h-full bg-metro-green"></div>
+                    <h3 className="font-black text-xl mb-6 text-gray-800 dark:text-white flex items-center gap-2">
+                        <Icons.User className="w-6 h-6 text-metro-green" />
+                        مشخصات راننده
+                    </h3>
+
+                    <div className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className={labelClass}>نام راننده</label>
+                                <input type="text" {...register('driverName')} className={inputClass} placeholder="نام و نام خانوادگی" />
+                                {errors.driverName && <p className="text-red-500 text-xs font-bold mt-2">{errors.driverName.message}</p>}
+                            </div>
+                            <div>
+                                <label className={labelClass}>شماره تماس</label>
+                                <input type="tel" dir="ltr" maxLength={11} {...register('contactPhone')} className={`${inputClass} font-mono tracking-widest`} placeholder="0912..." />
+                                {errors.contactPhone && <p className="text-red-500 text-xs font-bold mt-2">{errors.contactPhone.message}</p>}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className={labelClass}>شماره پلاک</label>
+                            <div className="flex flex-row gap-2 items-center justify-center bg-gray-100 p-4 rounded-2xl border-2 border-gray-300" dir="ltr">
+                                {/* IRAN CODE */}
+                                <div className="flex flex-col items-center justify-center w-12 h-16 border-r-2 border-black pr-2">
+                                    <span className="text-[8px] font-bold">IRAN</span>
+                                    <input 
+                                        type="tel" 
+                                        maxLength={2} 
+                                        value={plateParts.part4} 
+                                        onChange={e => setPlateParts(p => ({...p, part4: e.target.value.replace(/\D/g, '')}))} 
+                                        className="w-full h-full bg-transparent text-center font-black text-xl outline-none" 
+                                        placeholder="11" 
+                                    />
+                                </div>
+                                
+                                <input type="tel" maxLength={3} value={plateParts.part3} onChange={e => setPlateParts(p => ({...p, part3: e.target.value.replace(/\D/g, '')}))} className="w-16 h-16 bg-transparent text-center font-black text-2xl outline-none" placeholder="365" />
+                                
+                                <div className="relative">
+                                    <button type="button" onClick={() => setShowLetterPicker(!showLetterPicker)} className="w-12 h-16 font-black text-2xl flex items-center justify-center text-red-600">
+                                        {plateParts.letter || 'الف'}
+                                    </button>
+                                    <AnimatePresence>
+                                        {showLetterPicker && (
+                                            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="absolute bottom-full mb-2 bg-white shadow-xl rounded-xl p-2 grid grid-cols-4 gap-2 w-64 z-50 h-48 overflow-y-auto">
+                                                {PERSIAN_LETTERS.map(l => (
+                                                    <button key={l} type="button" onClick={() => { setPlateParts(p => ({...p, letter: l})); setShowLetterPicker(false); }} className="p-2 hover:bg-gray-100 rounded font-bold">{l}</button>
+                                                ))}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+
+                                <input type="tel" maxLength={2} value={plateParts.part1} onChange={e => setPlateParts(p => ({...p, part1: e.target.value.replace(/\D/g, '')}))} className="w-12 h-16 bg-transparent text-center font-black text-2xl outline-none" placeholder="22" />
+                                
+                                <div className="flex flex-col h-full justify-between pl-2">
+                                    <div className="w-4 h-full bg-blue-700"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className={labelClass}>توضیحات (اختیاری)</label>
+                            <textarea {...register('description')} className="w-full p-4 border-2 border-gray-200 rounded-xl bg-white outline-none focus:border-metro-blue h-24 text-right" placeholder="توضیحات تکمیلی..."></textarea>
+                            {errors.description && <p className="text-red-500 text-xs font-bold mt-2">{errors.description.message}</p>}
+                        </div>
+                    </div>
+                </div>
+
+                <Button type="submit" isLoading={isSubmitting} className="w-full h-16 text-xl font-black bg-gradient-to-r from-metro-blue to-indigo-600 hover:to-indigo-500 shadow-xl shadow-blue-200 dark:shadow-none rounded-[24px] border-b-4 border-blue-800 active:border-b-0 active:translate-y-1 transition-all mt-8">
+                    ثبت نهایی حواله
+                </Button>
+            </form>
         </div>
     );
 };

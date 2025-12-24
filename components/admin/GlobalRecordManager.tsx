@@ -100,6 +100,11 @@ const GlobalRecordManager: React.FC = () => {
         setStatForm({ prod: stat.production, sales: stat.sales || 0, prev: stat.previousBalance || 0 });
     };
 
+    const handleCancelStat = () => {
+        setEditingStat(null);
+        setStatForm({ prod: 0, sales: 0, prev: 0 });
+    };
+
     const saveStatEdit = async () => {
         if (!editingStat) return;
         const yes = await confirm({ title: 'اصلاح مدیریتی آمار', message: 'آیا تغییرات ذخیره شود؟ موجودی انبار بازنشانی خواهد شد.', type: 'info' });
@@ -126,6 +131,19 @@ const GlobalRecordManager: React.FC = () => {
             plate: inv.plateNumber || '',
             phone: inv.driverPhone || '',
             desc: inv.description || ''
+        });
+    };
+
+    const handleCancelInvoice = () => {
+        setEditingInvoice(null);
+        setInvoiceForm({ 
+            invoiceNumber: '',
+            cartons: 0, 
+            weight: 0, 
+            driver: '', 
+            plate: '', 
+            phone: '', 
+            desc: '' 
         });
     };
 
@@ -280,7 +298,7 @@ const GlobalRecordManager: React.FC = () => {
             {/* --- Modals --- */}
             
             {/* Stat Edit Modal */}
-            <Modal isOpen={!!editingStat} onClose={() => setEditingStat(null)} title="ویرایش آمار (مدیریت)">
+            <Modal isOpen={!!editingStat} onClose={handleCancelStat} title="ویرایش آمار (مدیریت)">
                 <div className="space-y-6">
                      <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl text-sm font-bold text-purple-800 dark:text-purple-300 border border-purple-100 dark:border-purple-800">
                          شما در حال ویرایش با دسترسی مدیر هستید. هیچ محدودیت زمانی اعمال نمی‌شود.
@@ -300,14 +318,14 @@ const GlobalRecordManager: React.FC = () => {
                          <input type="number" value={statForm.prev} onChange={e => setStatForm({...statForm, prev: Number(e.target.value)})} className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 text-center font-bold lg:text-2xl" />
                      </div>
                      <div className="flex justify-end gap-2 mt-8">
-                         <Button variant="secondary" onClick={() => setEditingStat(null)} className="lg:h-12 lg:px-6">لغو</Button>
+                         <Button variant="secondary" onClick={handleCancelStat} className="lg:h-12 lg:px-6">لغو</Button>
                          <Button onClick={saveStatEdit} className="lg:h-12 lg:px-6">ذخیره تغییرات</Button>
                      </div>
                 </div>
             </Modal>
 
              {/* Invoice Edit Modal */}
-             <Modal isOpen={!!editingInvoice} onClose={() => setEditingInvoice(null)} title="ویرایش حواله (مدیریت)">
+             <Modal isOpen={!!editingInvoice} onClose={handleCancelInvoice} title="ویرایش حواله (مدیریت)">
                 <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1 custom-scrollbar">
                      <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl text-sm font-bold text-purple-800 dark:text-purple-300 border border-purple-100 dark:border-purple-800">
                          ویرایش حواله باعث بروزرسانی خودکار موجودی انبار در تاریخ مربوطه خواهد شد.
@@ -355,7 +373,7 @@ const GlobalRecordManager: React.FC = () => {
                          <textarea value={invoiceForm.desc} onChange={e => setInvoiceForm({...invoiceForm, desc: e.target.value})} className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 h-24 lg:h-32 text-lg lg:text-xl outline-none focus:border-metro-purple" />
                      </div>
                      <div className="flex justify-end gap-2 mt-6">
-                         <Button variant="secondary" onClick={() => setEditingInvoice(null)} className="lg:h-12 lg:px-6">لغو</Button>
+                         <Button variant="secondary" onClick={handleCancelInvoice} className="lg:h-12 lg:px-6">لغو</Button>
                          <Button onClick={saveInvoiceEdit} className="lg:h-12 lg:px-6">ذخیره تغییرات</Button>
                      </div>
                 </div>
