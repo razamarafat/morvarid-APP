@@ -5,7 +5,7 @@
   "description": "سیستم یکپارچه مدیریت آمار تولید، فروش و انبارداری فارم‌های مروارید",
   "start_url": "./",
   "scope": "./",
-  "display": "fullscreen",
+  "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#1D1D1D",
   "theme_color": "#2D89EF",

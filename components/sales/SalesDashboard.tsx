@@ -436,7 +436,6 @@ const AnalyticsView = () => {
                                             initial={{ height: 0 }} 
                                             animate={{ height: `${prodHeight}%` }}
                                             transition={{ duration: 0.5, delay: index * 0.05 }}
-                                            style={{ willChange: 'height' }}
                                             className="w-1/2 max-w-[20px] lg:max-w-[40px] bg-green-500 rounded-t-sm hover:bg-green-400 transition-colors relative"
                                         >
                                             {prodHeight > 10 && <span className="absolute top-1 left-0 w-full text-center text-[8px] lg:text-[10px] text-white/90 font-bold">{toPersianDigits(point.prod)}</span>}
@@ -447,7 +446,6 @@ const AnalyticsView = () => {
                                             initial={{ height: 0 }} 
                                             animate={{ height: `${saleHeight}%` }}
                                             transition={{ duration: 0.5, delay: index * 0.05 + 0.1 }}
-                                            style={{ willChange: 'height' }}
                                             className="w-1/2 max-w-[20px] lg:max-w-[40px] bg-red-500 rounded-t-sm hover:bg-red-400 transition-colors relative"
                                         >
                                             {saleHeight > 10 && <span className="absolute top-1 left-0 w-full text-center text-[8px] lg:text-[10px] text-white/90 font-bold">{toPersianDigits(point.sale)}</span>}
@@ -486,8 +484,8 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 lg:gap-6">
             <MetroTile title="پایش آمار فارم‌ها" icon={Icons.BarChart} color="bg-metro-blue" size="wide" onClick={() => onNavigate('farm-stats')} />
             <MetroTile title="لیست حواله‌های فروش" icon={Icons.FileText} color="bg-metro-orange" size="wide" onClick={() => onNavigate('invoices')} />
-            <MetroTile title="تحلیل نموداری" icon={Icons.BarChart} color="bg-purple-600" size="wide" onClick={() => onNavigate('analytics')} />
-            <MetroTile title="گزارشات اکسل جامع" icon={Icons.FileText} color="bg-metro-green" size="wide" onClick={() => onNavigate('reports')} />
+            <MetroTile title="تحلیل نموداری" icon={Icons.BarChart} color="bg-purple-600" size="medium" onClick={() => onNavigate('analytics')} />
+            <MetroTile title="گزارشات اکسل جامع" icon={Icons.FileText} color="bg-metro-green" size="medium" onClick={() => onNavigate('reports')} />
         </div>
     );
 };
