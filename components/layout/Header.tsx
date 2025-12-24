@@ -31,15 +31,11 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
   // To make this work seamlessly without prop drilling 'onNavigate' everywhere, 
   // we will dispatch a custom event or rely on the fact that for now, 
   // we might need to rely on the Dashboard Layout context if we had one.
-  // 
+  
   // CRITICAL FIX: The prompt asks to move navigation to the Top Bar for Desktop.
   // The architecture uses 'currentView' state inside specific Dashboard pages (AdminDashboard, etc.).
   // To support this without massive refactoring, we'll dispatch a CustomEvent that Dashboards listen to,
   // OR we simply accept that 'onMenuClick' was for sidebar, and we might need to inject links here.
-  
-  // Actually, the cleanest way in this specific codebase is to grab the 'setCurrentView' function 
-  // if we can, but we can't easily. 
-  // ALTERNATIVE: We trigger a navigation event. 
   
   const handleNavClick = (view: string) => {
       // Dispatch a custom event that the Dashboard pages will listen to
@@ -64,11 +60,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
 
   const getDesktopNavItems = () => {
       const btnClass = "px-4 py-2 rounded-xl text-sm font-bold transition-all hover:bg-black/5 dark:hover:bg-white/10 flex items-center gap-2";
-      const activeClass = `bg-black/5 dark:bg-white/10 ${themeColors.text}`;
       
-      // We can't easily know "currentView" here without prop drilling, 
-      // so we'll just show the buttons. Active state might be less visible but functional.
-
       switch(role) {
           case UserRole.REGISTRATION:
               return (
@@ -86,6 +78,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
                     <button onClick={() => handleNavClick('farm-stats')} className={btnClass}><Icons.BarChart className="w-4 h-4"/> آمار فارم</button>
                     <button onClick={() => handleNavClick('invoices')} className={btnClass}><Icons.FileText className="w-4 h-4"/> لیست حواله</button>
                     <button onClick={() => handleNavClick('analytics')} className={btnClass}><Icons.BarChart className="w-4 h-4"/> نمودارها</button>
+                    <button onClick={() => handleNavClick('reports')} className={btnClass}><Icons.FileText className="w-4 h-4"/> گزارشات</button>
                   </>
               );
           case UserRole.ADMIN:
@@ -96,6 +89,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
                     <button onClick={() => handleNavClick('farms')} className={btnClass}><Icons.Home className="w-4 h-4"/> فارم‌ها</button>
                     <button onClick={() => handleNavClick('users')} className={btnClass}><Icons.Users className="w-4 h-4"/> کاربران</button>
                     <button onClick={() => handleNavClick('reports')} className={btnClass}><Icons.FileText className="w-4 h-4"/> گزارشات</button>
+                    <button onClick={() => handleNavClick('testing')} className={btnClass}><Icons.TestTube className="w-4 h-4"/> سنجش فنی</button>
                   </>
               );
       }
@@ -108,7 +102,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
         <div className="flex items-center gap-2 md:gap-4">
           <button 
             onClick={onMenuClick} 
-            className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors active:scale-95"
+            className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors active:scale-95 lg:hidden"
             aria-label="Menu"
           >
             <Icons.Menu className="w-6 h-6" />

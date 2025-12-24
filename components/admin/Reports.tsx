@@ -176,6 +176,7 @@ const Reports: React.FC = () => {
         if (previewData.length === 0) return;
         
         // --- UNIVERSAL STYLE: Font 18, Bold, Right Aligned ---
+        // Setting Koodak font and Bold for ALL cells
         const commonStyle = {
             font: { name: "Koodak", sz: 18, bold: true },
             alignment: { horizontal: "right", vertical: "center", wrapText: true } 
@@ -257,23 +258,17 @@ const Reports: React.FC = () => {
         ws['!views'] = [{ rightToLeft: true }];
         
         // --- COLUMN WIDTHS (Optimized for Font 18) ---
+        // Increased base width for larger font
         const colWidths = headers.map((header, i) => {
-            let maxLen = header.length;
-            // Iterate over raw data to find max length
-            previewData.forEach((row) => {
-                // Approximate length based on field mapping (simplified)
-                maxLen = Math.max(maxLen, 10); // Minimum base width
-            });
-
             // Tighter packing for Driver and Product
             if (header === 'نوع محصول' || header === 'راننده' || header === 'فارم') {
-                 return { wch: 25 }; 
+                 return { wch: 30 }; 
             }
-            if (header === 'پلاک') return { wch: 30 };
-            if (header === 'رمز حواله') return { wch: 20 };
+            if (header === 'پلاک') return { wch: 35 };
+            if (header === 'رمز حواله') return { wch: 25 };
             
             // Default wide width for Font 18
-            return { wch: 22 }; 
+            return { wch: 25 }; 
         });
         ws['!cols'] = colWidths;
 

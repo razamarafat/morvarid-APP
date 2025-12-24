@@ -22,7 +22,7 @@ const MobileNav: React.FC<MobileNavProps> = ({ onNavigate, currentView }) => {
          <Icon className={`w-6 h-6 ${isActive ? 'fill-current' : ''}`} />
       </div>
       {/* Changed text-[10px] to text-xs for better readability */}
-      <span className={`text-xs font-bold ${isActive ? 'opacity-100' : 'opacity-80'}`}>{label}</span>
+      <span className={`text-[10px] sm:text-xs font-bold ${isActive ? 'opacity-100' : 'opacity-80'}`}>{label}</span>
     </button>
   );
 
@@ -55,6 +55,7 @@ const MobileNav: React.FC<MobileNavProps> = ({ onNavigate, currentView }) => {
             <NavItem icon={Icons.Home} label="فارم‌ها" view="farms" isActive={currentView === 'farms'} />
             <NavItem icon={Icons.Users} label="کاربران" view="users" isActive={currentView === 'users'} />
             <NavItem icon={Icons.FileText} label="گزارشات" view="reports" isActive={currentView === 'reports'} />
+            <NavItem icon={Icons.TestTube} label="سنجش فنی" view="testing" isActive={currentView === 'testing'} />
           </>
         );
     }
