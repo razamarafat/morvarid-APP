@@ -13,7 +13,7 @@ import { getTodayJalali, normalizeDate, toPersianDigits } from '../utils/dateUti
 import Button from '../components/common/Button';
 import MetroTile from '../components/common/MetroTile';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FarmType } from '../../types';
+import { FarmType } from '../types';
 import JalaliDatePicker from '../components/common/JalaliDatePicker';
 
 const sortProducts = (products: any[], aId: string, bId: string) => {
@@ -142,12 +142,11 @@ const FarmStatistics = () => {
                                                 const prod = products.find(p => p.id === stat.productId);
                                                 const isLiquid = prod?.name.includes('مایع') || prod?.hasKilogramUnit;
 
-                                                // Use values directly
+                                                const unitLabel = isLiquid ? 'Kg' : '';
                                                 const prodVal = isLiquid ? (stat.productionKg || 0) : (stat.production || 0);
                                                 const salesVal = isLiquid ? (stat.salesKg || 0) : (stat.sales || 0);
-                                                const currVal = isLiquid ? (stat.currentInventoryKg || 0) : (stat.currentInventory || 0);
                                                 const prevVal = isLiquid ? (stat.previousBalanceKg || 0) : (stat.previousBalance || 0);
-                                                const unitLabel = isLiquid ? 'Kg' : '';
+                                                const currVal = isLiquid ? (stat.currentInventoryKg || 0) : (stat.currentInventory || 0);
 
                                                 return (
                                                 <div key={stat.id} className="bg-white dark:bg-gray-800 p-4 rounded-[24px] border border-gray-100 dark:border-gray-700 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow">
