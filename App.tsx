@@ -1,4 +1,3 @@
-
 import React, { useEffect, ErrorInfo, ReactNode, lazy, Suspense } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import SplashPage from './pages/SplashPage';
@@ -80,7 +79,7 @@ const PageLoader = () => (
 
 function App() {
   const { theme } = useThemeStore();
-  const { checkSession, user } = useAuthStore();
+  const { checkSession, user, updateActivity, checkInactivity } = useAuthStore();
   const { fetchFarms, fetchProducts } = useFarmStore();
   const { fetchStatistics } = useStatisticsStore();
   const { fetchInvoices } = useInvoiceStore();
@@ -96,6 +95,7 @@ function App() {
     document.documentElement.classList.add(theme);
   }, [theme]);
 
+  // Session & Activity Management
   useEffect(() => {
     const init = async () => {
         await checkSession();
@@ -104,6 +104,30 @@ function App() {
     };
     init();
 
+    // 1. Throttled Activity Listener
+    let activityTimeout: ReturnType<typeof setTimeout> | null = null;
+    const handleUserActivity = () => {
+        if (!activityTimeout) {
+            activityTimeout = setTimeout(() => {
+                updateActivity();
+                activityTimeout = null;
+            }, 5000); // Update max once every 5 seconds to avoid performance hits
+        }
+    };
+
+    window.addEventListener('mousemove', handleUserActivity);
+    window.addEventListener('click', handleUserActivity);
+    window.addEventListener('keydown', handleUserActivity);
+    window.addEventListener('touchstart', handleUserActivity);
+    window.addEventListener('scroll', handleUserActivity);
+
+    // 2. Periodic Inactivity Check (Every 1 minute)
+    // This catches cases where the user left the tab open and inactive
+    const inactivityInterval = setInterval(() => {
+        checkInactivity();
+    }, 60 * 1000);
+
+    // PWA Installation Handlers
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
     setIsInstalled(isStandalone);
 
@@ -111,7 +135,16 @@ function App() {
         setIsInstalled(true);
     };
     window.addEventListener('appinstalled', handleAppInstalled);
-    return () => window.removeEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+        window.removeEventListener('mousemove', handleUserActivity);
+        window.removeEventListener('click', handleUserActivity);
+        window.removeEventListener('keydown', handleUserActivity);
+        window.removeEventListener('touchstart', handleUserActivity);
+        window.removeEventListener('scroll', handleUserActivity);
+        window.removeEventListener('appinstalled', handleAppInstalled);
+        clearInterval(inactivityInterval);
+    };
   }, []);
 
   useEffect(() => {

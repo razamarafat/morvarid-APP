@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -49,11 +49,26 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
 
   const selectedType = watch('type');
 
-  // Defined IDs for Motefereghe defaults (Must match store/farmStore.ts UUIDs)
-  const MOTEFEREGHE_DEFAULT_IDS = [
-      '11111111-1111-1111-1111-111111111111', 
-      '22222222-2222-2222-2222-222222222222'
-  ]; 
+  // Defined IDs for Motefereghe defaults
+  const PRINTI_ID = '22222222-2222-2222-2222-222222222222';
+  const SADEH_ID = '11111111-1111-1111-1111-111111111111';
+  
+  const MOTEFEREGHE_DEFAULT_IDS = [PRINTI_ID, SADEH_ID]; 
+
+  // Sort products based on request: Printed first, then Simple, then others
+  const sortedProducts = useMemo(() => {
+      return [...allProducts].sort((a, b) => {
+          // 1. Printed (priority)
+          if (a.id === PRINTI_ID) return -1;
+          if (b.id === PRINTI_ID) return 1;
+          
+          // 2. Simple (second priority)
+          if (a.id === SADEH_ID) return -1;
+          if (b.id === SADEH_ID) return 1;
+          
+          return 0;
+      });
+  }, [allProducts]);
 
   useEffect(() => {
     if (isOpen) {
@@ -63,7 +78,7 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
       } else {
         reset({
           name: '',
-          type: undefined as any, // Fix TS2345: Explicit cast for reset to empty state
+          type: undefined as any, 
           isActive: true,
           productIds: [],
         });
@@ -74,7 +89,7 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
   // Logic for Farm Type selection
   useEffect(() => {
     if (selectedType === FarmType.MOTEFEREGHE) {
-       // Auto select simple and printi, disable others
+       // Auto select printed and simple, disable others
        setValue('productIds', MOTEFEREGHE_DEFAULT_IDS);
     } else if (selectedType === FarmType.MORVARIDI && !farm) {
        // Reset if switching to Morvaridi on new form
@@ -148,7 +163,7 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
           <input 
             id="farmName" 
             {...register('name')} 
-            placeholder="مثال: فارم یک"
+            placeholder=""
             className="w-full p-3 border-2 rounded-xl bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 dark:text-white focus:border-violet-500 outline-none transition-colors" 
           />
           {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>}
@@ -191,7 +206,7 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
                      <input 
                         value={newProductName}
                         onChange={(e) => setNewProductName(e.target.value)}
-                        placeholder="نام محصول..."
+                        placeholder=""
                         className="flex-1 p-2 text-sm border-none bg-transparent outline-none dark:text-white"
                      />
                      <Button size="sm" type="button" onClick={handleSaveProduct} className="rounded-lg">افزودن</Button>
@@ -206,8 +221,8 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
                 control={control}
                 render={({ field }) => (
                     <div className="space-y-1 max-h-48 overflow-y-auto pr-1 custom-scrollbar border-2 border-gray-100 dark:border-gray-700 rounded-xl p-2 bg-gray-50 dark:bg-gray-800">
-                        {allProducts.map(p => {
-                            // Rule 1: If Motefereghe, ONLY show defaults
+                        {sortedProducts.map(p => {
+                            // Rule 1: If Motefereghe, ONLY show defaults (Printed & Simple)
                             if (selectedType === FarmType.MOTEFEREGHE && !MOTEFEREGHE_DEFAULT_IDS.includes(p.id)) return null;
                             
                             // Rule 2: If Morvaridi, HIDE defaults

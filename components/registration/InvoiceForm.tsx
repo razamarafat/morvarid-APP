@@ -15,7 +15,7 @@ import { useConfirm } from '../../hooks/useConfirm';
 import JalaliDatePicker from '../common/JalaliDatePicker';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const noLatinRegex = /^[^a-zA-Z]*$/;
+const persianLettersRegex = /^[\u0600-\u06FF\s]+$/;
 const mobileRegex = /^09\d{9}$/;
 const invoiceNumberRegex = /^(17|18)\d{8}$/; 
 
@@ -26,10 +26,11 @@ const invoiceGlobalSchema = z.object({
     contactPhone: z.string()
         .min(1, 'شماره تماس الزامی است')
         .regex(mobileRegex, 'شماره همراه باید ۱۱ رقم و با ۰۹ شروع شود'),
-    driverName: z.string().optional()
-        .refine(val => !val || noLatinRegex.test(val), 'استفاده از حروف انگلیسی در نام راننده مجاز نیست'),
+    driverName: z.string()
+        .min(2, 'نام راننده الزامی است')
+        .regex(persianLettersRegex, 'نام راننده فقط باید شامل حروف فارسی باشد (بدون عدد)'),
     description: z.string().optional()
-        .refine(val => !val || noLatinRegex.test(val), 'استفاده از حروف انگلیسی در توضیحات مجاز نیست'),
+        .refine(val => !val || persianLettersRegex.test(val.replace(/[0-9]/g, '')), 'توضیحات باید فارسی باشد'), // Relaxed for description to allow addresses
 });
 
 type GlobalValues = z.infer<typeof invoiceGlobalSchema>;
@@ -83,6 +84,13 @@ export const InvoiceForm: React.FC = () => {
     }, []);
 
     const handleProductToggle = (pid: string) => {
+        // Prevent selecting if no statistics exist for this date
+        const statRecord = statistics.find(s => s.farmId === selectedFarmId && s.date === referenceDate && s.productId === pid);
+        if (!statRecord) {
+            addToast(`ابتدا باید آمار تولید ${getProductById(pid)?.name} برای تاریخ ${referenceDate} ثبت شود.`, 'error');
+            return;
+        }
+
         setSelectedProductIds(prev => {
             const exists = prev.includes(pid);
             if (exists) {
@@ -98,7 +106,15 @@ export const InvoiceForm: React.FC = () => {
     };
 
     const handleItemChange = (pid: string, field: 'cartons' | 'weight', val: string) => {
-        let cleanVal = val.replace(/[^0-9.]/g, '');
+        let cleanVal = '';
+        if (field === 'cartons') {
+            // Integers only for cartons
+            cleanVal = val.replace(/[^0-9]/g, '');
+        } else {
+            // Decimals allowed for weight
+            cleanVal = val.replace(/[^0-9.]/g, '');
+        }
+        
         setItemsState(prev => ({
             ...prev,
             [pid]: { ...prev[pid], [field]: cleanVal }
@@ -114,6 +130,7 @@ export const InvoiceForm: React.FC = () => {
         const { part1, letter, part3, part4 } = plateParts;
         const finalPlate = (part1 && letter && part3 && part4) ? `${part1}-${letter}-${part3}-${part4}` : '';
 
+        // Pre-validation Loop
         for (const pid of selectedProductIds) {
             const item = itemsState[pid];
             const product = getProductById(pid);
@@ -123,10 +140,20 @@ export const InvoiceForm: React.FC = () => {
                 addToast(`وزن برای "${name}" وارد نشده است.`, 'error');
                 return;
             }
+            if (!item.cartons || Number(item.cartons) <= 0) {
+                addToast(`تعداد کارتن برای "${name}" وارد نشده است.`, 'error');
+                return;
+            }
 
+            // Client-side Inventory Check
             const statRecord = statistics.find(s => s.farmId === selectedFarmId && s.date === referenceDate && s.productId === pid);
             if (!statRecord) {
-                addToast(`خطا: آمار تولید برای "${name}" در تاریخ ${referenceDate} هنوز ثبت نشده است. ابتدا آمار را ثبت کنید.`, 'error');
+                addToast(`خطا: آمار تولید برای "${name}" یافت نشد.`, 'error');
+                return;
+            }
+            
+            if (statRecord.currentInventory < Number(item.cartons)) {
+                addToast(`خطا: موجودی "${name}" کافی نیست. (موجود: ${statRecord.currentInventory})`, 'error');
                 return;
             }
         }
@@ -141,9 +168,12 @@ export const InvoiceForm: React.FC = () => {
         if (!confirmed) return;
 
         setIsSubmitting(true);
+        let successCount = 0;
+        let errorsList: string[] = [];
+
         for (const pid of selectedProductIds) {
             const item = itemsState[pid];
-            await addInvoice({
+            const result = await addInvoice({
                 farmId: selectedFarmId,
                 date: referenceDate, 
                 invoiceNumber: globalData.invoiceNumber,
@@ -156,17 +186,30 @@ export const InvoiceForm: React.FC = () => {
                 description: globalData.description,
                 isYesterday: referenceDate !== normalizedDate
             });
+
+            if (result.success) {
+                successCount++;
+            } else {
+                errorsList.push(result.error || 'Unknown error');
+            }
         }
 
         setIsSubmitting(false);
-        addToast(`حواله با موفقیت ثبت شد.`, 'success');
-        setSelectedProductIds([]);
-        setItemsState({});
-        setPlateParts({ part1: '', letter: '', part3: '', part4: '' });
-        setValue('invoiceNumber', '');
-        setValue('contactPhone', '');
-        setValue('driverName', '');
-        setValue('description', '');
+
+        if (errorsList.length > 0) {
+            addToast(`خطا در ثبت: ${errorsList[0]}`, 'error');
+        } 
+        
+        if (successCount > 0) {
+            addToast(`${toPersianDigits(successCount)} آیتم با موفقیت ثبت شد.`, 'success');
+            setSelectedProductIds([]);
+            setItemsState({});
+            setPlateParts({ part1: '', letter: '', part3: '', part4: '' });
+            setValue('invoiceNumber', '');
+            setValue('contactPhone', '');
+            setValue('driverName', '');
+            setValue('description', '');
+        }
     };
 
     const inputClass = "w-full p-4 border-2 border-gray-200 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-black text-center focus:border-metro-blue outline-none transition-all text-xl rounded-xl shadow-sm";
@@ -201,9 +244,8 @@ export const InvoiceForm: React.FC = () => {
 
             <form onSubmit={handleSubmit(handleFinalSubmit)} className="px-4 space-y-8">
                 
-                {/* Invoice Code Section */}
-                <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-2 h-full bg-metro-orange"></div>
+                {/* Invoice Code Section - Removed overflow-hidden, using border-r instead of absolute div */}
+                <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 relative border-r-[8px] border-r-metro-orange">
                     <h3 className="font-black text-xl mb-6 text-gray-800 dark:text-white flex items-center gap-2">
                         <Icons.FileText className="w-6 h-6 text-metro-orange" />
                         اطلاعات پایه
@@ -218,23 +260,22 @@ export const InvoiceForm: React.FC = () => {
                                 maxLength={10}
                                 {...register('invoiceNumber')} 
                                 className={`${inputClass} tracking-[0.3em] text-3xl h-16 border-metro-orange/30 focus:border-metro-orange focus:ring-4 focus:ring-orange-500/10`}
-                                placeholder="1700000000"
+                                placeholder=""
                             />
                             {errors.invoiceNumber && <p className="text-red-500 text-xs font-bold mt-2 mr-1">{errors.invoiceNumber.message}</p>}
                         </div>
                         
                         <div>
                             <label className={labelClass}>تاریخ صدور</label>
-                            <div className="h-16">
+                            <div className="h-16 relative z-10">
                                 <JalaliDatePicker value={referenceDate} onChange={setReferenceDate} />
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Product Selection */}
-                <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-2 h-full bg-metro-blue"></div>
+                {/* Product Selection - Using border-r */}
+                <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 relative border-r-[8px] border-r-metro-blue">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="font-black text-xl text-gray-800 dark:text-white flex items-center gap-2">
                             <Icons.List className="w-6 h-6 text-metro-blue" />
@@ -285,11 +326,11 @@ export const InvoiceForm: React.FC = () => {
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <label className="text-[10px] font-bold text-gray-400 block mb-1">تعداد (کارتن)</label>
-                                                <input type="tel" className="w-full p-3 bg-white text-center font-black text-xl rounded-xl outline-none focus:ring-2 focus:ring-metro-blue" placeholder="0" value={itemsState[pid]?.cartons || ''} onChange={e => handleItemChange(pid, 'cartons', e.target.value)} />
+                                                <input type="tel" className="w-full p-3 bg-white text-center font-black text-xl rounded-xl outline-none focus:ring-2 focus:ring-metro-blue" placeholder="" value={itemsState[pid]?.cartons || ''} onChange={e => handleItemChange(pid, 'cartons', e.target.value)} />
                                             </div>
                                             <div>
                                                 <label className="text-[10px] font-bold text-gray-400 block mb-1">وزن (کیلوگرم)</label>
-                                                <input type="tel" className="w-full p-3 bg-white text-center font-black text-xl rounded-xl outline-none focus:ring-2 focus:ring-metro-blue border-b-4 border-metro-blue" placeholder="0" value={itemsState[pid]?.weight || ''} onChange={e => handleItemChange(pid, 'weight', e.target.value)} />
+                                                <input type="tel" className="w-full p-3 bg-white text-center font-black text-xl rounded-xl outline-none focus:ring-2 focus:ring-metro-blue border-b-4 border-metro-blue" placeholder="" value={itemsState[pid]?.weight || ''} onChange={e => handleItemChange(pid, 'weight', e.target.value)} />
                                             </div>
                                         </div>
                                     </div>
@@ -299,9 +340,8 @@ export const InvoiceForm: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Driver Info */}
-                <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-2 h-full bg-metro-green"></div>
+                {/* Driver Info - Using border-r */}
+                <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 relative border-r-[8px] border-r-metro-green">
                     <h3 className="font-black text-xl mb-6 text-gray-800 dark:text-white flex items-center gap-2">
                         <Icons.User className="w-6 h-6 text-metro-green" />
                         مشخصات راننده
@@ -311,33 +351,30 @@ export const InvoiceForm: React.FC = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label className={labelClass}>نام راننده</label>
-                                <input type="text" {...register('driverName')} className={inputClass} placeholder="نام و نام خانوادگی" />
+                                <input 
+                                    type="text" 
+                                    {...register('driverName')} 
+                                    className={inputClass} 
+                                    placeholder="" 
+                                    onInput={(e) => {
+                                        e.currentTarget.value = e.currentTarget.value.replace(/[0-9]/g, '');
+                                    }}
+                                />
                                 {errors.driverName && <p className="text-red-500 text-xs font-bold mt-2">{errors.driverName.message}</p>}
                             </div>
                             <div>
                                 <label className={labelClass}>شماره تماس</label>
-                                <input type="tel" dir="ltr" maxLength={11} {...register('contactPhone')} className={`${inputClass} font-mono tracking-widest`} placeholder="0912..." />
+                                <input type="tel" dir="ltr" maxLength={11} {...register('contactPhone')} className={`${inputClass} font-mono tracking-widest`} placeholder="" />
                                 {errors.contactPhone && <p className="text-red-500 text-xs font-bold mt-2">{errors.contactPhone.message}</p>}
                             </div>
                         </div>
 
                         <div>
                             <label className={labelClass}>شماره پلاک</label>
+                            {/* Updated Order: Part1(2 digits) - Letter - Part3(3 digits) - Part4(Iran/2 digits) */}
                             <div className="flex flex-row gap-2 items-center justify-center bg-gray-100 p-4 rounded-2xl border-2 border-gray-300" dir="ltr">
-                                {/* IRAN CODE */}
-                                <div className="flex flex-col items-center justify-center w-12 h-16 border-r-2 border-black pr-2">
-                                    <span className="text-[8px] font-bold">IRAN</span>
-                                    <input 
-                                        type="tel" 
-                                        maxLength={2} 
-                                        value={plateParts.part4} 
-                                        onChange={e => setPlateParts(p => ({...p, part4: e.target.value.replace(/\D/g, '')}))} 
-                                        className="w-full h-full bg-transparent text-center font-black text-xl outline-none" 
-                                        placeholder="11" 
-                                    />
-                                </div>
                                 
-                                <input type="tel" maxLength={3} value={plateParts.part3} onChange={e => setPlateParts(p => ({...p, part3: e.target.value.replace(/\D/g, '')}))} className="w-16 h-16 bg-transparent text-center font-black text-2xl outline-none" placeholder="365" />
+                                <input type="tel" maxLength={2} value={plateParts.part1} onChange={e => setPlateParts(p => ({...p, part1: e.target.value.replace(/\D/g, '')}))} className="w-12 h-16 bg-transparent text-center font-black text-2xl outline-none" placeholder="22" />
                                 
                                 <div className="relative">
                                     <button type="button" onClick={() => setShowLetterPicker(!showLetterPicker)} className="w-12 h-16 font-black text-2xl flex items-center justify-center text-red-600">
@@ -354,9 +391,21 @@ export const InvoiceForm: React.FC = () => {
                                     </AnimatePresence>
                                 </div>
 
-                                <input type="tel" maxLength={2} value={plateParts.part1} onChange={e => setPlateParts(p => ({...p, part1: e.target.value.replace(/\D/g, '')}))} className="w-12 h-16 bg-transparent text-center font-black text-2xl outline-none" placeholder="22" />
-                                
-                                <div className="flex flex-col h-full justify-between pl-2">
+                                <input type="tel" maxLength={3} value={plateParts.part3} onChange={e => setPlateParts(p => ({...p, part3: e.target.value.replace(/\D/g, '')}))} className="w-16 h-16 bg-transparent text-center font-black text-2xl outline-none" placeholder="365" />
+
+                                {/* IRAN CODE */}
+                                <div className="flex flex-col items-center justify-center w-12 h-16 border-l-2 border-black pl-2">
+                                    <span className="text-[10px] font-black">ایران</span>
+                                    <input 
+                                        type="tel" 
+                                        maxLength={2} 
+                                        value={plateParts.part4} 
+                                        onChange={e => setPlateParts(p => ({...p, part4: e.target.value.replace(/\D/g, '')}))} 
+                                        className="w-full h-full bg-transparent text-center font-black text-xl outline-none" 
+                                        placeholder="11" 
+                                    />
+                                </div>
+                                <div className="flex flex-col h-full justify-between pr-2">
                                     <div className="w-4 h-full bg-blue-700"></div>
                                 </div>
                             </div>
@@ -364,13 +413,14 @@ export const InvoiceForm: React.FC = () => {
 
                         <div>
                             <label className={labelClass}>توضیحات (اختیاری)</label>
-                            <textarea {...register('description')} className="w-full p-4 border-2 border-gray-200 rounded-xl bg-white outline-none focus:border-metro-blue h-24 text-right" placeholder="توضیحات تکمیلی..."></textarea>
+                            <textarea {...register('description')} className="w-full p-4 border-2 border-gray-200 rounded-xl bg-white outline-none focus:border-metro-blue h-24 text-right" placeholder=""></textarea>
                             {errors.description && <p className="text-red-500 text-xs font-bold mt-2">{errors.description.message}</p>}
                         </div>
                     </div>
                 </div>
 
-                <Button type="submit" isLoading={isSubmitting} className="w-full h-16 text-xl font-black bg-gradient-to-r from-metro-blue to-indigo-600 hover:to-indigo-500 shadow-xl shadow-blue-200 dark:shadow-none rounded-[24px] border-b-4 border-blue-800 active:border-b-0 active:translate-y-1 transition-all mt-8">
+                {/* Increased size from h-16/text-xl to h-20/text-2xl */}
+                <Button type="submit" isLoading={isSubmitting} className="w-full h-20 text-2xl font-black bg-gradient-to-r from-metro-blue to-indigo-600 hover:to-indigo-500 shadow-xl shadow-blue-200 dark:shadow-none rounded-[24px] border-b-4 border-blue-800 active:border-b-0 active:translate-y-1 transition-all mt-8">
                     ثبت نهایی حواله
                 </Button>
             </form>

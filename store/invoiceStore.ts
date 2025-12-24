@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { Invoice } from '../types';
 import { useStatisticsStore } from './statisticsStore';
+import { normalizeDate } from '../utils/dateUtils';
 
 const mapLegacyProductId = (id: string | number): string => {
     const strId = String(id);
@@ -73,11 +74,56 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return { success: false, error: "کاربر لاگین نیست." };
 
+      // --- LOGIC CHECK 1: Inventory Check ---
+      if (inv.productId) {
+          const stats = useStatisticsStore.getState().statistics;
+          const currentStat = stats.find(s => 
+              s.farmId === inv.farmId && 
+              normalizeDate(s.date) === normalizeDate(inv.date) && 
+              s.productId === inv.productId
+          );
+
+          if (!currentStat) {
+              return { success: false, error: `آمار تولید برای محصول انتخاب شده در تاریخ ${inv.date} ثبت نشده است. ابتدا آمار را ثبت کنید.` };
+          }
+
+          if (currentStat.currentInventory < inv.totalCartons) {
+              return { success: false, error: `موجودی ناکافی است. موجودی فعلی: ${currentStat.currentInventory}، درخواستی: ${inv.totalCartons}` };
+          }
+      }
+
+      // --- LOGIC CHECK 2: Invoice Uniqueness ---
+      // Check if invoice number exists globally
+      const { data: existingInvoices } = await supabase
+          .from('invoices')
+          .select('date, farm_id, product_id')
+          .eq('invoice_number', inv.invoiceNumber);
+
+      if (existingInvoices && existingInvoices.length > 0) {
+          const firstMatch = existingInvoices[0];
+          
+          // Rule: Invoice Code cannot be on different dates
+          if (normalizeDate(firstMatch.date) !== normalizeDate(inv.date)) {
+              return { success: false, error: `این شماره حواله قبلاً در تاریخ ${firstMatch.date} ثبت شده است. یک شماره حواله نمی‌تواند در دو تاریخ متفاوت باشد.` };
+          }
+
+          // Rule: Invoice Code cannot be on different farms (implicitly handled by unique constraints usually, but good to enforce)
+          if (firstMatch.farm_id !== inv.farmId) {
+              return { success: false, error: `این شماره حواله قبلاً برای فارم دیگری ثبت شده است.` };
+          }
+
+          // Rule: Cannot register same product twice on same invoice code
+          const productExists = existingInvoices.some((i: any) => mapLegacyProductId(i.product_id) === inv.productId);
+          if (productExists) {
+              return { success: false, error: `این محصول قبلاً در این حواله ثبت شده است. امکان ثبت مجدد یک محصول در یک حواله وجود ندارد.` };
+          }
+      }
+
       const dbInv: any = {
           farm_id: inv.farmId,
           date: inv.date,
           invoice_number: inv.invoiceNumber,
-          total_cartons: Number(inv.totalCartons),
+          total_cartons: Math.floor(Number(inv.totalCartons)), // Force Integer
           total_weight: Number(inv.totalWeight),
           product_id: inv.productId,
           driver_name: inv.driverName,
@@ -108,7 +154,8 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
   updateInvoice: async (id, updates) => {
       const original = get().invoices.find(i => i.id === id);
       const fullPayload: any = {};
-      if (updates.totalCartons !== undefined) fullPayload.total_cartons = Number(updates.totalCartons);
+      
+      if (updates.totalCartons !== undefined) fullPayload.total_cartons = Math.floor(Number(updates.totalCartons)); // Force Integer
       if (updates.totalWeight !== undefined) fullPayload.total_weight = Number(updates.totalWeight);
       if (updates.driverName !== undefined) fullPayload.driver_name = updates.driverName;
       if (updates.driverPhone !== undefined) fullPayload.driver_phone = updates.driverPhone;

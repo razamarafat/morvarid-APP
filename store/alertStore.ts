@@ -18,105 +18,135 @@ interface AlertPayload {
 interface AlertState {
     isListening: boolean;
     channel: RealtimeChannel | null;
+    lastLog: string;
     initListener: () => void;
-    checkAndRequestPermission: () => Promise<void>;
+    checkAndRequestPermission: () => Promise<boolean>;
     sendAlert: (farmId: string, farmName: string, message: string) => Promise<{ success: boolean; detail: string; bytes: number }>;
     triggerTestNotification: () => Promise<void>;
+    addLog: (msg: string) => void;
 }
 
-// Helper to show system notification via Service Worker
+// Play a generic notification sound for open app state
+const playNotificationSound = () => {
+    try {
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A5
+        oscillator.frequency.exponentialRampToValueAtTime(440, audioContext.currentTime + 0.5);
+        
+        gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+        
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.5);
+    } catch (e) {
+        console.error('Audio play failed', e);
+    }
+};
+
 const showSystemNotification = async (title: string, body: string) => {
-    console.log('[Notif System] Attempting to show system notification:', { title, body });
+    console.log('[Notif System] Requesting System Notification:', { title, body });
     
+    // Check for preview environments
+    const isGooglePreview = window.location.hostname.includes('googleusercontent') || window.location.hostname.includes('ai.studio');
+    if (isGooglePreview) {
+        console.warn('[Notif System] System notifications skipped in preview environment.');
+        return false;
+    }
+
     if (!("serviceWorker" in navigator) || !("Notification" in window)) {
-        console.warn('[Notif System] Browser does not support Notifications or Service Workers.');
-        return;
+        return false;
     }
 
     if (Notification.permission === "granted") {
         try {
-            // Check if SW is ready
             const registration = await navigator.serviceWorker.ready;
             
             if (!registration) {
-                 console.error('[Notif System] Service Worker registration not found.');
-                 // Fallback to basic notification (might not work on Android Chrome without SW)
-                 new Notification(title, { body, icon: "/vite.svg" });
-                 return;
+                 // Fallback if SW not ready
+                 new Notification(title, { body, icon: "/icons/icon-192x192.png" });
+                 return true;
             }
 
+            // Using 'requireInteraction: true' to keep it visible until user clicks
             await registration.showNotification(title, {
                 body: body,
-                icon: "/vite.svg",
-                badge: "/vite.svg", // Small icon for Android status bar
-                tag: "morvarid-alert", // Overwrites older notifications with same tag
-                renotify: true, // Vibrate/Sound again even if tag exists
-                vibrate: [200, 100, 200], // Basic vibration
+                icon: "/icons/icon-192x192.png",
+                badge: "/icons/icon-192x192.png",
+                tag: "morvarid-alert-" + Date.now(), 
+                renotify: true,
+                vibrate: [200, 100, 200, 100, 200], 
                 dir: "rtl",
                 lang: "fa-IR",
-                requireInteraction: false, // Disappear automatically like standard notifications
+                requireInteraction: true,
                 data: {
-                    url: window.location.href // Used in sw.js to focus window
+                    url: window.location.href
                 }
             } as any);
-            console.log('[Notif System] Notification sent to Service Worker successfully.');
-
+            return true;
         } catch (e) {
-            console.error("[Notif System] Failed to show notification:", e);
+            console.error("[Notif System] SW Notification Failed:", e);
+            return false;
         }
-    } else {
-        console.log('[Notif System] Cannot show notification. Permission status:', Notification.permission);
     }
+    return false;
 };
 
 export const useAlertStore = create<AlertState>((set, get) => ({
     isListening: false,
     channel: null,
+    lastLog: '',
 
-    // Called on App Mount
+    addLog: (msg: string) => {
+        const time = new Date().toLocaleTimeString('fa-IR');
+        const log = `[${time}] ${msg}`;
+        console.log(log);
+        set({ lastLog: log });
+    },
+
     checkAndRequestPermission: async () => {
         if (!("Notification" in window)) {
-            console.log('[Notif System] Notifications not supported in this browser.');
-            return;
+            get().addLog('مرورگر از نوتیفیکیشن پشتیبانی نمی‌کند.');
+            return false;
         }
 
-        const currentPermission = Notification.permission;
-        console.log(`[Notif System] Startup Permission Check: ${currentPermission}`);
+        if (Notification.permission === 'granted') return true;
 
-        if (currentPermission === 'default') {
-            console.log('[Notif System] Permission is default. Requesting user...');
-            try {
-                const result = await Notification.requestPermission();
-                console.log(`[Notif System] User Response: ${result}`);
-                if (result === 'granted') {
-                    useToastStore.getState().addToast('دریافت اعلان‌ها فعال شد.', 'success');
-                }
-            } catch (error) {
-                console.error('[Notif System] Request Permission Error:', error);
+        if (Notification.permission !== 'denied') {
+            const permission = await Notification.requestPermission();
+            if (permission === 'granted') {
+                get().addLog('مجوز نوتیفیکیشن دریافت شد.');
+                return true;
             }
-        } else if (currentPermission === 'denied') {
-             console.log('[Notif System] Permission previously denied. Logs recorded.');
-        } else {
-             console.log('[Notif System] Permission already granted.');
         }
+        
+        get().addLog('مجوز نوتیفیکیشن رد شد یا وجود ندارد.');
+        return false;
     },
 
     triggerTestNotification: async () => {
-        console.log('[Notif System] Triggering TEST notification...');
-        await get().checkAndRequestPermission();
-        
-        if (Notification.permission === 'granted') {
-             // Force show system notification even if app is visible (for testing)
-             await showSystemNotification("تست سامانه مروارید", "این یک اعلان آزمایشی جهت بررسی صحت عملکرد است.");
+        const hasPermission = await get().checkAndRequestPermission();
+        if (hasPermission) {
+             const result = await showSystemNotification("تست سامانه مروارید", "این یک پیام آزمایشی است. صدای اعلان باید پخش شود.");
+             if (!result) {
+                 get().addLog('نمایش اعلان سیستمی ناموفق بود (احتمالاً محیط Preview).');
+             } else {
+                 get().addLog('پیام تست ارسال شد.');
+             }
         } else {
-             useToastStore.getState().addToast('مجوز نوتیفیکیشن داده نشده است.', 'error');
+             useToastStore.getState().addToast('لطفا مجوز نوتیفیکیشن را در تنظیمات مرورگر فعال کنید.', 'warning');
         }
     },
 
     initListener: () => {
         if (get().isListening) return;
 
-        // Ensure permissions are checked when listener starts
         get().checkAndRequestPermission();
 
         const channel = supabase.channel('app_alerts', {
@@ -131,34 +161,46 @@ export const useAlertStore = create<AlertState>((set, get) => ({
                     const payload = event.payload as AlertPayload;
                     const currentUser = useAuthStore.getState().user;
                     
-                    console.log('[Notif System] Signal Received:', payload);
+                    get().addLog(`سیگنال دریافت شد: ${payload.action}`);
 
-                    // Don't alert the sender
-                    if (!currentUser || payload.senderId === currentUser.id) return;
+                    // Logic: Even if currentUser is null (logged out?), if the browser is open, show alert?
+                    // No, must be logged in to know which farm they are.
+                    if (!currentUser) return;
+
+                    // Don't alert the sender (Sales Manager)
+                    if (payload.senderId === currentUser.id) return;
 
                     const assignedIds = currentUser.assignedFarms?.map(f => f.id) || [];
                     const isRelevant = currentUser.role === UserRole.ADMIN || assignedIds.includes(payload.targetFarmId);
 
                     if (isRelevant) {
-                        // Logic:
-                        // If Tab is Visible -> Toast
-                        // If Tab is Hidden/Background -> System Notification
+                        const title = "هشدار مدیریتی مروارید";
                         
-                        if (document.visibilityState === 'visible') {
-                            console.log('[Notif System] App is visible. Showing Toast.');
-                            useToastStore.getState().addToast(`هشدار فوری: ${payload.message}`, 'error');
+                        // CRITICAL LOGIC:
+                        // If document is hidden (minimized/background tab) -> Force System Notification
+                        // If document is visible -> Show Toast AND Play Sound
+                        
+                        if (document.visibilityState === 'hidden') {
+                            get().addLog('برنامه در پس‌زمینه است. ارسال اعلان سیستمی...');
+                            const sent = await showSystemNotification(title, payload.message);
+                            if (!sent) {
+                                // Fallback if system notification fails (rare)
+                                get().addLog('خطا در ارسال اعلان سیستمی. تلاش برای پخش صدا...');
+                                playNotificationSound(); 
+                            }
                         } else {
-                            console.log('[Notif System] App is hidden. Showing System Notification.');
-                            await showSystemNotification("سامانه مروارید: وضعیت بحرانی", payload.message);
+                            get().addLog('برنامه باز است. نمایش توست و پخش صدا.');
+                            useToastStore.getState().addToast(`پیام مدیریت: ${payload.message}`, 'error');
+                            playNotificationSound();
+                            // Optional: Also show system notification for better attention
+                            showSystemNotification(title, payload.message); 
                         }
-                    } else {
-                        console.log('[Notif System] Signal ignored (Not relevant to user).');
                     }
                 }
             )
             .subscribe((status) => {
                 if (status === 'SUBSCRIBED') {
-                    console.log('[Notif System] Subscribed to alert channel.');
+                    get().addLog('اتصال به کانال هشدار برقرار شد.');
                     set({ isListening: true });
                 }
             });
@@ -172,10 +214,10 @@ export const useAlertStore = create<AlertState>((set, get) => ({
 
         let channel = get().channel;
         if (!channel) { get().initListener(); channel = get().channel; }
+        // Wait a bit for connection if just initialized
         if (!channel) return { success: false, detail: 'Channel Error', bytes: 0 };
 
         const payload = { targetFarmId: farmId, farmName, message, senderId: user.id, sentAt: Date.now(), action: 'missing_stats' };
-        console.log('[Notif System] Sending Alert:', payload);
         
         const result = await channel.send({ type: 'broadcast', event: 'farm_alert', payload });
         

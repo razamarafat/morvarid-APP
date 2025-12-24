@@ -43,7 +43,7 @@ export const useFarmStore = create<FarmState>((set, get) => ({
       const mappedFarms = data.map((f: any) => {
           let pIds = (f.product_ids || []).map(mapLegacyProductId);
           if (f.type === 'MOTEFEREGHE' && pIds.length === 0) {
-              pIds = [DEFAULT_PROD_1, DEFAULT_PROD_2];
+              pIds = [DEFAULT_PROD_2, DEFAULT_PROD_1]; // Default order handled in UI, but IDs ensure existence
           }
           return { id: f.id, name: f.name, type: f.type, isActive: f.is_active, productIds: pIds };
       });
@@ -73,9 +73,10 @@ export const useFarmStore = create<FarmState>((set, get) => ({
           }));
       }
 
+      // Exact names as requested
       const defaultProducts: Product[] = [
-          { id: DEFAULT_PROD_1, name: 'شیرینگ پک ۶ شانه ساده', description: 'مخصوص فارم‌های متفرقه', unit: ProductUnit.CARTON, hasKilogramUnit: false, isDefault: true, isCustom: false },
-          { id: DEFAULT_PROD_2, name: 'شیرینگ پک ۶ شانه پرینتی', description: 'مخصوص فارم‌های متفرقه', unit: ProductUnit.CARTON, hasKilogramUnit: false, isDefault: true, isCustom: false }
+          { id: DEFAULT_PROD_2, name: 'شیرینگ پک ۶ شانه پرینتی', description: 'مخصوص فارم‌های متفرقه', unit: ProductUnit.CARTON, hasKilogramUnit: false, isDefault: true, isCustom: false },
+          { id: DEFAULT_PROD_1, name: 'شیرینگ پک ۶ شانه ساده', description: 'مخصوص فارم‌های متفرقه', unit: ProductUnit.CARTON, hasKilogramUnit: false, isDefault: true, isCustom: false }
       ];
 
       const missingDefaults = defaultProducts.filter(dp => !mappedProducts.find(p => p.id === dp.id));

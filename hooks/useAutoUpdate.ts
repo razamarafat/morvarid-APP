@@ -12,6 +12,12 @@ export const useAutoUpdate = () => {
   useEffect(() => {
     const checkVersion = async () => {
       try {
+        // Exclude AI Studio / Google User Content preview environments
+        const isGooglePreview = window.location.hostname.includes('googleusercontent') || window.location.hostname.includes('ai.studio');
+
+        // Skip version check in preview environments to avoid "Failed to fetch" errors
+        if (isGooglePreview) return;
+
         // Force bypass cache with timestamp and random number
         const response = await fetch(`./version.json?t=${Date.now()}&r=${Math.random()}`, {
           cache: 'no-store',
@@ -34,11 +40,15 @@ export const useAutoUpdate = () => {
           
           addToast('نسخه جدید شناسایی شد. در حال بروزرسانی...', 'info');
           
-          // 1. Unregister Service Workers
-          if ('serviceWorker' in navigator) {
-            const registrations = await navigator.serviceWorker.getRegistrations();
-            for (const registration of registrations) {
-              await registration.unregister();
+          // 1. Unregister Service Workers (Skip in preview to avoid origin mismatch errors)
+          if ('serviceWorker' in navigator && !isGooglePreview) {
+            try {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (const registration of registrations) {
+                  await registration.unregister();
+                }
+            } catch (swError) {
+                console.warn('[AutoUpdate] Failed to unregister SW:', swError);
             }
           }
 

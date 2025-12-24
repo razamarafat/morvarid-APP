@@ -21,22 +21,13 @@ const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({ value, onChange, la
   const [currentYear, setCurrentYear] = useState(year);
   const [currentMonth, setCurrentMonth] = useState(month);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
   const months = [
     'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
     'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
   ];
 
-  const handlePrevMonth = () => {
+  const handlePrevMonth = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (currentMonth === 1) {
       setCurrentMonth(12);
       setCurrentYear(currentYear - 1);
@@ -45,7 +36,8 @@ const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({ value, onChange, la
     }
   };
 
-  const handleNextMonth = () => {
+  const handleNextMonth = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (currentMonth === 12) {
       setCurrentMonth(1);
       setCurrentYear(currentYear + 1);
@@ -54,7 +46,8 @@ const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({ value, onChange, la
     }
   };
 
-  const handleDayClick = (d: number) => {
+  const handleDayClick = (d: number, e: React.MouseEvent) => {
+    e.stopPropagation();
     const formattedMonth = currentMonth.toString().padStart(2, '0');
     const formattedDay = d.toString().padStart(2, '0');
     onChange(`${currentYear}/${formattedMonth}/${formattedDay}`);
@@ -114,54 +107,64 @@ const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({ value, onChange, la
   }
 
   return (
-    <div className="relative group" ref={containerRef}>
-      {label && <label className="block text-base lg:text-xl font-bold mb-2 text-gray-700 dark:text-gray-300 px-1">{label}</label>}
-      <div 
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between w-full p-3 lg:p-4 border-2 border-gray-200 rounded-xl bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-white cursor-pointer hover:border-violet-500 transition-all shadow-sm"
-      >
-        <span dir="ltr" className="font-mono text-lg font-bold tracking-widest">{toPersianDigits(displayValue)}</span>
-        <Icons.Calendar className="w-5 h-5 text-gray-500 dark:text-gray-400 group-hover:text-violet-500 transition-colors" />
-      </div>
-
+    <>
+      {/* Invisible backdrop to close menu on click outside (works better on mobile than event listeners) */}
       {isOpen && (
-        <div className="absolute top-full mt-2 w-72 bg-[#FDFBFF] dark:bg-[#2B2930] rounded-[24px] shadow-2xl z-50 p-4 border border-gray-100 dark:border-gray-700 animate-in fade-in zoom-in-95 duration-200">
-          <div className="flex justify-between items-center mb-4 px-1">
-            <button onClick={handlePrevMonth} type="button" className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors">
-              <Icons.ChevronRight className="w-5 h-5 dark:text-gray-200" />
-            </button>
-            <span className="font-black text-gray-800 dark:text-gray-100 text-lg">{months[currentMonth - 1]} {toPersianDigits(currentYear)}</span>
-            <button onClick={handleNextMonth} type="button" className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors">
-              <Icons.ChevronLeft className="w-5 h-5 dark:text-gray-200" />
-            </button>
-          </div>
-          
-          <div className="grid grid-cols-7 gap-1 text-center text-sm mb-2">
-             {['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'].map(dayName => (
-                 <div key={dayName} className="text-gray-400 font-bold text-xs">{dayName}</div>
-             ))}
-          </div>
-          <div className="grid grid-cols-7 gap-1 text-center text-sm">
-             {slots.map((d, index) => (
-               <button
-                 key={index}
-                 onClick={() => d ? handleDayClick(d) : null}
-                 type="button"
-                 disabled={!d}
-                 className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-bold transition-all mx-auto ${
-                    !d ? 'invisible' :
-                    d === day && currentMonth === month && currentYear === year
-                    ? 'bg-violet-600 text-white shadow-md'
-                    : 'hover:bg-violet-100 dark:hover:bg-violet-900/50 text-gray-700 dark:text-gray-300'
-                 }`}
-               >
-                 {d ? toPersianDigits(d) : ''}
-               </button>
-             ))}
-          </div>
-        </div>
+        <div className="fixed inset-0 z-[999] bg-transparent" onClick={() => setIsOpen(false)} />
       )}
-    </div>
+
+      <div className="relative group" ref={containerRef}>
+        {label && <label className="block text-base lg:text-xl font-bold mb-2 text-gray-700 dark:text-gray-300 px-1">{label}</label>}
+        <div 
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex items-center justify-between w-full p-3 lg:p-4 border-2 border-gray-200 rounded-xl bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-white cursor-pointer hover:border-violet-500 transition-all shadow-sm relative z-[10]"
+        >
+          <span dir="ltr" className="font-mono text-lg font-bold tracking-widest">{toPersianDigits(displayValue)}</span>
+          <Icons.Calendar className="w-5 h-5 text-gray-500 dark:text-gray-400 group-hover:text-violet-500 transition-colors" />
+        </div>
+
+        {isOpen && (
+          <div 
+              className="absolute top-full mt-2 w-72 bg-[#FDFBFF] dark:bg-[#2B2930] rounded-[24px] shadow-2xl z-[1000] p-4 border border-gray-100 dark:border-gray-700 animate-in fade-in zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()} 
+          >
+            <div className="flex justify-between items-center mb-4 px-1">
+              <button onClick={handlePrevMonth} type="button" className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors">
+                <Icons.ChevronRight className="w-5 h-5 dark:text-gray-200" />
+              </button>
+              <span className="font-black text-gray-800 dark:text-gray-100 text-lg">{months[currentMonth - 1]} {toPersianDigits(currentYear)}</span>
+              <button onClick={handleNextMonth} type="button" className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors">
+                <Icons.ChevronLeft className="w-5 h-5 dark:text-gray-200" />
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-7 gap-1 text-center text-sm mb-2">
+               {['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'].map(dayName => (
+                   <div key={dayName} className="text-gray-400 font-bold text-xs">{dayName}</div>
+               ))}
+            </div>
+            <div className="grid grid-cols-7 gap-1 text-center text-sm">
+               {slots.map((d, index) => (
+                 <button
+                   key={index}
+                   onClick={(e) => d ? handleDayClick(d, e) : null}
+                   type="button"
+                   disabled={!d}
+                   className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-bold transition-all mx-auto ${
+                      !d ? 'invisible' :
+                      d === day && currentMonth === month && currentYear === year
+                      ? 'bg-violet-600 text-white shadow-md'
+                      : 'hover:bg-violet-100 dark:hover:bg-violet-900/50 text-gray-700 dark:text-gray-300'
+                   }`}
+                 >
+                   {d ? toPersianDigits(d) : ''}
+                 </button>
+               ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   );
 };
 

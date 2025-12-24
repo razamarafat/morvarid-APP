@@ -10,6 +10,7 @@ import Button from '../common/Button';
 import { useConfirm } from '../../hooks/useConfirm';
 import { Icons } from '../common/Icons';
 import { motion, AnimatePresence } from 'framer-motion';
+import { FarmType } from '../../types';
 
 interface StatisticsFormProps {
     onNavigate?: (view: string) => void;
@@ -99,12 +100,22 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
     }, [selectedFarmId, statistics, selectedFarm, normalizedDate]);
 
     const handleInputChange = (productId: string, field: keyof ProductFormState, value: string) => {
-        setFormsState(prev => ({ ...prev, [productId]: { ...prev[productId], [field]: value } }));
+        let cleanVal = '';
+        if (field === 'production' || field === 'previousBalance') {
+            // Integer only for units/cartons
+            cleanVal = value.replace(/[^0-9]/g, '');
+        } else {
+            // Decimals allowed for KG
+            cleanVal = value.replace(/[^0-9.]/g, '');
+        }
+        setFormsState(prev => ({ ...prev, [productId]: { ...prev[productId], [field]: cleanVal } }));
     };
 
     const handleFinalSubmit = async () => {
         if (!selectedFarm) return;
+        const isMotefereghe = selectedFarm.type === FarmType.MOTEFEREGHE;
         const payloads = [];
+
         for (const pid of selectedFarm.productIds) {
             // Skip if already registered
             if (statistics.some(s => s.farmId === selectedFarmId && s.date === normalizedDate && s.productId === pid)) continue;
@@ -112,31 +123,63 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
             const vals = formsState[pid];
             if (!vals) continue;
 
-            const prod = vals.production === '' ? 0 : Number(vals.production);
-            const prodKg = vals.productionKg === '' ? 0 : Number(vals.productionKg);
+            // Raw Inputs
+            const inputVal = vals.production === '' ? 0 : Number(vals.production); // Acts as Production OR Current Inv based on type
+            const inputValKg = vals.productionKg === '' ? 0 : Number(vals.productionKg);
+            
             const prev = vals.previousBalance === '' ? 0 : Number(vals.previousBalance);
             const prevKg = vals.previousBalanceKg === '' ? 0 : Number(vals.previousBalanceKg);
 
-            // Skip empty rows
+            // Skip empty rows (Relaxed check for Motefereghe as they might only fill "Declared Inv")
             if (vals.production === '' && vals.productionKg === '' && vals.previousBalance === '' && vals.previousBalanceKg === '') continue;
 
-            // Calculate sales from invoices to ensure consistency on creation
+            // Calculate sales from invoices
             const relevantInvoices = invoices.filter(inv => inv.farmId === selectedFarmId && inv.date === normalizedDate && inv.productId === pid);
             const totalSales = relevantInvoices.reduce((sum, inv) => sum + (inv.totalCartons || 0), 0);
             const totalSalesKg = relevantInvoices.reduce((sum, inv) => sum + (inv.totalWeight || 0), 0);
+
+            // Logic Divergence
+            let finalPrevious = prev;
+            let finalProduction = inputVal;
+            let finalCurrent = 0;
+
+            let finalPreviousKg = prevKg;
+            let finalProductionKg = inputValKg;
+            let finalCurrentKg = 0;
+
+            if (isMotefereghe) {
+                // Motefereghe Logic:
+                // Input = "Declared Current Inventory"
+                // Previous = 0 (Ignored)
+                // Equation: Current = Previous(0) + Production - Sales
+                // So: Production = Current + Sales
+                finalPrevious = 0;
+                finalPreviousKg = 0;
+                finalCurrent = inputVal;
+                finalCurrentKg = inputValKg;
+                finalProduction = inputVal + totalSales;
+                finalProductionKg = inputValKg + totalSalesKg;
+            } else {
+                // Morvaridi Logic:
+                // Input = "Daily Production"
+                // Previous = User Input
+                // Equation: Current = Previous + Production - Sales
+                finalCurrent = prev + inputVal - totalSales;
+                finalCurrentKg = prevKg + inputValKg - totalSalesKg;
+            }
 
             payloads.push({
                 farmId: selectedFarmId,
                 date: normalizedDate,
                 productId: pid,
-                production: prod,
-                productionKg: prodKg,
-                previousBalance: prev,
-                previousBalanceKg: prevKg,
+                production: finalProduction,
+                productionKg: finalProductionKg,
+                previousBalance: finalPrevious,
+                previousBalanceKg: finalPreviousKg,
                 sales: totalSales,
                 salesKg: totalSalesKg,
-                currentInventory: prev + prod - totalSales,
-                currentInventoryKg: prevKg + prodKg - totalSalesKg
+                currentInventory: finalCurrent,
+                currentInventoryKg: finalCurrentKg
             });
         }
 
@@ -164,7 +207,9 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
 
     if (!selectedFarm) return <div className="p-20 text-center font-bold text-gray-400">فارمی یافت نشد.</div>;
 
-    const inputClasses = "w-full p-3 bg-white border-2 border-gray-200 text-center font-black text-2xl rounded-xl focus:border-metro-orange focus:ring-4 focus:ring-orange-100 outline-none h-14 transition-all shadow-sm";
+    const isMotefereghe = selectedFarm.type === FarmType.MOTEFEREGHE;
+    // Increased text-2xl to text-3xl for better visibility on mobile
+    const inputClasses = "w-full p-3 bg-white border-2 border-gray-200 text-center font-black text-3xl rounded-xl focus:border-metro-orange focus:ring-4 focus:ring-orange-100 outline-none h-16 transition-all shadow-sm";
 
     return (
         <div className="max-w-4xl mx-auto pb-24"> 
@@ -191,7 +236,7 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                      </div>
                      
                      <div className="mt-3 text-white font-black tracking-wide text-lg border-b-2 border-white/20 pb-1">
-                        ثبت آمار تولید
+                        ثبت آمار تولید {isMotefereghe && '(متفرقه)'}
                      </div>
                  </div>
             </div>
@@ -222,8 +267,8 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                                     </div>
 
                                     <div>
-                                        <h3 className="text-lg font-black text-gray-800 dark:text-gray-100 leading-tight">{product?.name}</h3>
-                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md mt-1 inline-block ${isRegistered ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                                        <h3 className="text-xl font-black text-gray-800 dark:text-gray-100 leading-tight">{product?.name}</h3>
+                                        <span className={`text-xs font-bold px-2 py-0.5 rounded-md mt-1 inline-block ${isRegistered ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
                                             {isRegistered ? 'ثبت شده' : 'ثبت نشده'}
                                         </span>
                                     </div>
@@ -243,50 +288,63 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                                     >
                                         <div className="p-5 space-y-5">
                                             
-                                            <div className="flex gap-3">
-                                                <div className="flex-1 bg-red-50 dark:bg-red-900/10 p-3 rounded-xl border border-red-100 dark:border-red-900/20 text-center">
-                                                    <span className="block text-gray-500 text-[10px] font-bold mb-1">فروش حواله (تعداد)</span>
-                                                    <span className="text-lg font-black text-red-600 tracking-tight">{toPersianDigits(soldUnits)}</span>
-                                                </div>
-                                                {isLiq && (
-                                                    <div className="flex-1 bg-orange-50 dark:bg-orange-900/10 p-3 rounded-xl border border-orange-100 dark:border-orange-900/20 text-center">
-                                                        <span className="block text-gray-500 text-[10px] font-bold mb-1">فروش حواله (Kg)</span>
-                                                        <span className="text-lg font-black text-orange-600 tracking-tight">{toPersianDigits(soldKg)}</span>
+                                            {/* Only show sales box for Morvaridi farms */}
+                                            {!isMotefereghe && (
+                                                <div className="flex gap-3">
+                                                    <div className="flex-1 bg-red-50 dark:bg-red-900/10 p-3 rounded-xl border border-red-100 dark:border-red-900/20 text-center">
+                                                        <span className="block text-gray-500 text-sm font-bold mb-1">فروش حواله (تعداد)</span>
+                                                        <span className="text-xl font-black text-red-600 tracking-tight">{toPersianDigits(soldUnits)}</span>
                                                     </div>
-                                                )}
-                                            </div>
+                                                    {isLiq && (
+                                                        <div className="flex-1 bg-orange-50 dark:bg-orange-900/10 p-3 rounded-xl border border-orange-100 dark:border-orange-900/20 text-center">
+                                                            <span className="block text-gray-500 text-sm font-bold mb-1">فروش حواله (Kg)</span>
+                                                            <span className="text-xl font-black text-orange-600 tracking-tight">{toPersianDigits(soldKg)}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
 
                                             <div className={`space-y-5 ${isRegistered ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
                                                 <div className="space-y-3">
-                                                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                                    <h4 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
                                                         <span className="w-1.5 h-1.5 rounded-full bg-metro-orange"></span>
                                                         اطلاعات تعداد (کارتن)
                                                     </h4>
-                                                    <div className="grid grid-cols-2 gap-3">
+                                                    <div className={`grid gap-3 ${isMotefereghe ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                                                        
+                                                        {!isMotefereghe && (
+                                                            <div>
+                                                                <label className="block text-sm font-bold mb-1.5 text-gray-400 pr-1">موجودی قبل</label>
+                                                                <input type="tel" inputMode="numeric" value={vals.previousBalance} onChange={e => handleInputChange(pid, 'previousBalance', e.target.value)} className={inputClasses} placeholder="" />
+                                                            </div>
+                                                        )}
+                                                        
                                                         <div>
-                                                            <label className="block text-[10px] font-bold mb-1.5 text-gray-400 pr-1">موجودی قبل</label>
-                                                            <input type="tel" inputMode="numeric" value={vals.previousBalance} onChange={e => handleInputChange(pid, 'previousBalance', e.target.value)} className={inputClasses} placeholder="0" />
-                                                        </div>
-                                                        <div>
-                                                            <label className="block text-[10px] font-bold mb-1.5 text-gray-400 pr-1">تولید روز</label>
-                                                            <input type="tel" inputMode="numeric" value={vals.production} onChange={e => handleInputChange(pid, 'production', e.target.value)} className={inputClasses} placeholder="0" />
+                                                            <label className="block text-sm font-bold mb-1.5 text-gray-400 pr-1">
+                                                                {isMotefereghe ? 'موجودی اعلامی (روز)' : 'تولید روز'}
+                                                            </label>
+                                                            <input type="tel" inputMode="numeric" value={vals.production} onChange={e => handleInputChange(pid, 'production', e.target.value)} className={inputClasses} placeholder="" />
                                                         </div>
                                                     </div>
                                                 </div>
                                                 {isLiq && (
                                                     <div className="space-y-3 pt-3 border-t border-dashed border-gray-200">
-                                                        <h4 className="text-xs font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">
+                                                        <h4 className="text-sm font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">
                                                             <span className="w-1.5 h-1.5 rounded-full bg-metro-blue"></span>
                                                             اطلاعات وزن (کیلوگرم)
                                                         </h4>
-                                                        <div className="grid grid-cols-2 gap-3">
+                                                        <div className={`grid gap-3 ${isMotefereghe ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                                                            {!isMotefereghe && (
+                                                                <div>
+                                                                    <label className="block text-sm font-bold mb-1.5 text-gray-400 pr-1">وزن قبل</label>
+                                                                    <input type="tel" inputMode="decimal" value={vals.previousBalanceKg} onChange={e => handleInputChange(pid, 'previousBalanceKg', e.target.value)} className={`${inputClasses} border-blue-100 focus:border-metro-blue focus:ring-blue-100`} placeholder="" />
+                                                                </div>
+                                                            )}
                                                             <div>
-                                                                <label className="block text-[10px] font-bold mb-1.5 text-gray-400 pr-1">وزن قبل</label>
-                                                                <input type="tel" inputMode="decimal" value={vals.previousBalanceKg} onChange={e => handleInputChange(pid, 'previousBalanceKg', e.target.value)} className={`${inputClasses} border-blue-100 focus:border-metro-blue focus:ring-blue-100`} placeholder="0" />
-                                                            </div>
-                                                            <div>
-                                                                <label className="block text-[10px] font-bold mb-1.5 text-gray-400 pr-1">تولید روز</label>
-                                                                <input type="tel" inputMode="decimal" value={vals.productionKg} onChange={e => handleInputChange(pid, 'productionKg', e.target.value)} className={`${inputClasses} border-blue-100 focus:border-metro-blue focus:ring-blue-100`} placeholder="0" />
+                                                                <label className="block text-sm font-bold mb-1.5 text-gray-400 pr-1">
+                                                                    {isMotefereghe ? 'موجودی اعلامی (وزن)' : 'تولید روز (وزن)'}
+                                                                </label>
+                                                                <input type="tel" inputMode="decimal" value={vals.productionKg} onChange={e => handleInputChange(pid, 'productionKg', e.target.value)} className={`${inputClasses} border-blue-100 focus:border-metro-blue focus:ring-blue-100`} placeholder="" />
                                                             </div>
                                                         </div>
                                                     </div>
@@ -294,8 +352,8 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                                             </div>
                                             
                                             {isRegistered && (
-                                                <div className="flex items-center justify-center gap-2 text-green-700 text-sm font-black bg-green-50 p-3 rounded-xl border border-green-200">
-                                                    <Icons.Check className="w-5 h-5" /> اطلاعات ثبت شده است
+                                                <div className="flex items-center justify-center gap-2 text-green-700 text-base font-black bg-green-50 p-3 rounded-xl border border-green-200">
+                                                    <Icons.Check className="w-6 h-6" /> اطلاعات ثبت شده است
                                                 </div>
                                             )}
                                         </div>
@@ -308,8 +366,9 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
             </div>
 
             <div className="px-4 mt-8">
-                <Button onClick={handleFinalSubmit} isLoading={isSubmitting} className="w-full h-14 text-xl font-black bg-gradient-to-r from-metro-green to-emerald-600 hover:to-emerald-500 shadow-lg shadow-green-200 dark:shadow-none rounded-[20px] border-b-4 border-green-700 active:border-b-0 active:translate-y-1 transition-all">
-                    <Icons.Check className="ml-2 w-6 h-6" /> ثبت نهایی آمار
+                {/* Increased size from h-16/text-2xl to h-20/text-3xl */}
+                <Button onClick={handleFinalSubmit} isLoading={isSubmitting} className="w-full h-20 text-3xl font-black bg-gradient-to-r from-metro-green to-emerald-600 hover:to-emerald-500 shadow-lg shadow-green-200 dark:shadow-none rounded-[20px] border-b-4 border-green-700 active:border-b-0 active:translate-y-1 transition-all">
+                    <Icons.Check className="ml-2 w-10 h-10" /> ثبت نهایی آمار
                 </Button>
             </div>
         </div>

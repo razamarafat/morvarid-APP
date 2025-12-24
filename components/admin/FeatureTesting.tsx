@@ -9,13 +9,20 @@ import { Icons } from '../common/Icons';
 
 const FeatureTesting: React.FC = () => {
   const { addToast } = useToastStore();
-  const { sendAlert, triggerTestNotification } = useAlertStore();
+  const { sendAlert, triggerTestNotification, lastLog, addLog: addAlertLog } = useAlertStore();
   const { farms } = useFarmStore();
   const [isRunning, setIsRunning] = useState<string | null>(null);
   const [testLogs, setTestLogs] = useState<string[]>([]);
   const logBoxRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom of logs
+  // Sync with Alert Store logs
+  useEffect(() => {
+      if (lastLog) {
+          setTestLogs(prev => [...prev, lastLog]);
+      }
+  }, [lastLog]);
+
+  // Auto-scroll
   useEffect(() => {
     if (logBoxRef.current) {
         logBoxRef.current.scrollTop = logBoxRef.current.scrollHeight;
@@ -54,18 +61,15 @@ const FeatureTesting: React.FC = () => {
                 addLog('Initiating Supabase connection...', 'info');
                 const start = Date.now();
                 
-                // Technical query: Fetch minimal data to test connection
                 const { data, error, status, statusText } = await supabase.from('farms').select('*', { count: 'exact', head: true });
                 const duration = Date.now() - start;
 
                 if (error) {
                     addLog(`Database Error: ${error.message} (Code: ${error.code})`, 'error');
-                    addLog(`Details: ${JSON.stringify(error)}`, 'error');
                 } else {
                     success = (status >= 200 && status < 300);
                     addLog(`Response Status: ${status} ${statusText}`, success ? 'success' : 'warn');
                     addLog(`Latency: ${duration}ms`, 'info');
-                    addLog(`Data Integrity: Valid response received.`, 'success');
                 }
                 break;
 
@@ -82,9 +86,8 @@ const FeatureTesting: React.FC = () => {
                 const target = farms[0] || { id: 'test-farm', name: 'Test Farm' };
                 addLog(`Targeting channel for farm: ${target.name} (${target.id})`, 'info');
                 
-                const resp = await sendAlert(target.id, target.name, 'سیگنال تست مدیریت');
+                const resp = await sendAlert(target.id, target.name, 'تست فنی ارسال هشدار');
                 
-                addLog(`Payload Size: ${resp.bytes} bytes`, 'info');
                 if (resp.success) {
                     addLog(`Broadcast Result: ${resp.detail}`, 'success');
                     success = true;
@@ -96,12 +99,10 @@ const FeatureTesting: React.FC = () => {
             case 'pwa_environment':
                 addLog('Analyzing browser environment...', 'info');
                 const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
                 
                 addLog(`User Agent: ${navigator.userAgent}`, 'info');
                 addLog(`Display Mode: ${isStandalone ? 'Standalone (Installed)' : 'Browser Tab'}`, isStandalone ? 'success' : 'warn');
                 addLog(`Service Worker Support: ${'serviceWorker' in navigator ? 'Yes' : 'No'}`, 'info');
-                addLog(`Platform: ${isIOS ? 'iOS' : 'Other'}`, 'info');
                 
                 if ('serviceWorker' in navigator) {
                     const reg = await navigator.serviceWorker.getRegistration();
@@ -115,18 +116,17 @@ const FeatureTesting: React.FC = () => {
             case 'system_notification':
                 addLog('Initiating Notification & Service Worker Test...', 'info');
                 
-                // 1. Browser Support Check
+                const isGooglePreview = window.location.hostname.includes('googleusercontent') || window.location.hostname.includes('ai.studio');
+                if (isGooglePreview) {
+                    addLog('⚠️ Preview Environment Detected: Service Workers are disabled to prevent origin errors.', 'warn');
+                    break;
+                }
+
                 if (!("Notification" in window)) {
                     addLog('❌ Notification API not supported.', 'error');
                     break;
                 }
-                if (!("serviceWorker" in navigator)) {
-                    addLog('❌ Service Worker API not supported.', 'error');
-                    break;
-                }
 
-                // 2. Permission Check
-                addLog(`Current Permission: ${Notification.permission}`, 'info');
                 if (Notification.permission !== 'granted') {
                     addLog('Requesting permission...', 'info');
                     const permission = await Notification.requestPermission();
@@ -137,7 +137,6 @@ const FeatureTesting: React.FC = () => {
                     addLog('✅ Permission granted.', 'success');
                 }
 
-                // 3. Service Worker Readiness
                 try {
                     addLog('Waiting for Service Worker registration...', 'info');
                     const registration = await navigator.serviceWorker.ready;
@@ -145,14 +144,12 @@ const FeatureTesting: React.FC = () => {
                          addLog('❌ Service Worker not ready.', 'error');
                          break;
                     }
-                    addLog(`✅ Service Worker Active (Scope: ${registration.scope})`, 'success');
+                    addLog(`✅ Service Worker Active. Dispatching...`, 'success');
 
-                    // 4. Trigger Notification via SW
-                    addLog('Dispatching notification via Service Worker...', 'info');
                     await triggerTestNotification();
                     
-                    addLog('✅ Notification dispatched.', 'success');
-                    addLog('👉 Please check your system tray or notification center.', 'warn');
+                    addLog('✅ Notification Dispatched. Check status bar.', 'success');
+                    addLog('👉 NOTE: If app is minimized, this simulates background alert.', 'warn');
                     success = true;
 
                 } catch (e: any) {
@@ -208,7 +205,7 @@ const FeatureTesting: React.FC = () => {
         <div className="bg-white dark:bg-gray-800 p-5 flex justify-between items-center shadow-sm border border-gray-100 dark:border-gray-700 border-l-4 border-l-metro-orange">
             <div>
                 <h4 className="font-bold dark:text-white">تست اعلان سیستمی (Push)</h4>
-                <p className="text-xs text-gray-400">ارسال نوتیفیکیشن واقعی</p>
+                <p className="text-xs text-gray-400">شبیه‌سازی دریافت هشدار</p>
             </div>
             <Button size="sm" onClick={() => runTest('system_notification')} isLoading={isRunning === 'system_notification'}>ارسال اعلان</Button>
         </div>

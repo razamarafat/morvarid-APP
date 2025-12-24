@@ -238,7 +238,7 @@ const Reports: React.FC = () => {
                                 {reportTab === 'stats' ? <>
                                     <th className="p-5">تاریخ</th><th className="p-5">فارم</th><th className="p-5">محصول</th><th className="p-5 text-center">تولید</th><th className="p-5 text-center">فروش</th><th className="p-5 text-center">موجودی</th><th className="p-5">اطلاعات ثبت</th>{isAdmin && <th className="p-5 text-center">عملیات</th>}
                                 </> : <>
-                                    <th className="p-5">تاریخ</th><th className="p-5 text-center">رمز حواله</th><th className="p-5">فارم</th><th className="p-5">محصول</th><th className="p-5 text-center">تعداد</th><th className="p-5 text-center">وزن</th><th className="p-5">شماره تماس</th><th className="p-5">اطلاعات ثبت</th>{isAdmin && <th className="p-5 text-center">عملیات</th>}
+                                    <th className="p-5">تاریخ</th><th className="p-5 text-center">رمز حواله</th><th className="p-5">فارم</th><th className="p-5">نوع محصول</th><th className="p-5 text-center">تعداد</th><th className="p-5 text-center">وزن</th><th className="p-5">شماره تماس</th><th className="p-5">اطلاعات ثبت</th>{isAdmin && <th className="p-5 text-center">عملیات</th>}
                                 </>}
                             </tr>
                         </thead>
@@ -279,7 +279,7 @@ const Reports: React.FC = () => {
                                         <td className="p-5 font-mono font-bold text-lg">{toPersianDigits(row.date)}</td>
                                         <td className="p-5 text-center font-black text-xl lg:text-2xl tracking-widest text-metro-orange">{toPersianDigits(row.invoiceNumber)}</td>
                                         <td className="p-5 font-bold text-gray-800 dark:text-white">{farms.find(f => f.id === row.farmId)?.name}</td>
-                                        <td className="p-5 text-sm text-gray-500 font-bold">{prod?.name}</td>
+                                        <td className="p-5 font-bold text-gray-600 dark:text-gray-300">{prod?.name || '-'}</td>
                                         <td className="p-5 text-center font-black text-xl lg:text-2xl">{toPersianDigits(row.totalCartons || 0)}</td>
                                         <td className="p-5 text-center text-blue-600 font-black text-xl lg:text-2xl">{toPersianDigits(row.totalWeight || 0)}</td>
                                         <td className="p-5 font-mono font-bold text-sm">{toPersianDigits(row.driverPhone || '-')}</td>
@@ -309,7 +309,6 @@ const Reports: React.FC = () => {
                 </div>
             </div>
             
-            {/* Modal codes remain same but inputs step/decimal are checked in openStatEdit handlers */}
             <Modal isOpen={!!editingStat} onClose={() => setEditingStat(null)} title="اصلاح مدیریتی آمار">
                 <div className="space-y-6">
                     <div className="grid grid-cols-2 gap-4">

@@ -21,7 +21,8 @@ const MobileNav: React.FC<MobileNavProps> = ({ onNavigate, currentView }) => {
       <div className={`p-1.5 rounded-full transition-colors ${isActive ? 'bg-metro-blue/10 dark:bg-metro-blue/20' : ''}`}>
          <Icon className={`w-6 h-6 ${isActive ? 'fill-current' : ''}`} />
       </div>
-      <span className={`text-[10px] font-bold ${isActive ? 'opacity-100' : 'opacity-80'}`}>{label}</span>
+      {/* Changed text-[10px] to text-xs for better readability */}
+      <span className={`text-xs font-bold ${isActive ? 'opacity-100' : 'opacity-80'}`}>{label}</span>
     </button>
   );
 

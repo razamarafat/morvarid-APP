@@ -10,8 +10,8 @@ import Modal from '../common/Modal';
 import Button from '../common/Button';
 import { useConfirm } from '../../hooks/useConfirm';
 
-// Strict Persian Regex (including spaces)
-const persianRegex = /^[\u0600-\u06FF\s]+$/;
+// Strict Persian Regex (No numbers allowed)
+const persianLettersOnlyRegex = /^[\u0600-\u06FF\s]+$/;
 // Username: Latin letters, numbers, underscore, hyphen
 const usernameRegex = /^[a-zA-Z0-9_-]+$/;
 // Password: Minimum 6 chars
@@ -20,7 +20,7 @@ const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/;
 const userSchema = z.object({
   fullName: z.string()
     .min(1, 'نام کامل الزامی است')
-    .regex(persianRegex, 'نام کامل باید فقط شامل حروف فارسی باشد (از نوشتن نام لاتین خودداری کنید)'),
+    .regex(persianLettersOnlyRegex, 'نام کامل باید فقط شامل حروف فارسی باشد (از نوشتن اعداد یا حروف لاتین خودداری کنید)'),
   username: z.string()
     .min(4, 'نام کاربری باید حداقل ۴ کاراکتر باشد')
     .regex(usernameRegex, 'نام کاربری فقط باید شامل حروف لاتین، اعداد، خط تیره یا زیرخط باشد'),
@@ -147,8 +147,17 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" autoComplete="off">
         
         <div>
-          <label className="block text-sm font-bold mb-1 dark:text-gray-300">نام کامل (فارسی)</label>
-          <input {...register('fullName')} className={inputClass} placeholder="مثال: علی محمدی" autoComplete="off" />
+          <label className="block text-sm font-bold mb-1 dark:text-gray-300">نام کامل (فارسی - بدون عدد)</label>
+          <input 
+            {...register('fullName')} 
+            className={inputClass} 
+            placeholder="" 
+            autoComplete="off" 
+            onInput={(e) => {
+               // Prevent numbers visually
+               e.currentTarget.value = e.currentTarget.value.replace(/[0-9]/g, '');
+            }}
+          />
           {errors.fullName && <p className="text-red-500 text-xs mt-1 font-bold">{errors.fullName.message}</p>}
         </div>
 
@@ -159,7 +168,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
                     dir="ltr" 
                     {...register('username')} 
                     className={inputClass}
-                    placeholder="ali_mohammadi" 
+                    placeholder="" 
                     autoComplete="new-username"
                 />
                 <p className="text-[10px] text-gray-400 mt-1">تغییر نام کاربری ممکن است بر ورود کاربر تاثیر بگذارد.</p>
@@ -172,7 +181,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
                     type="password" 
                     {...register('password')} 
                     className={inputClass}
-                    placeholder={user ? 'تغییر رمز (اختیاری)' : '******'} 
+                    placeholder="" 
                     autoComplete="new-password"
                 />
                 {errors.password && <p className="text-red-500 text-xs mt-1 font-bold">{errors.password.message}</p>}
@@ -181,7 +190,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
 
         <div>
             <label className="block text-sm font-bold mb-1 dark:text-gray-300">شماره تماس</label>
-            <input dir="ltr" {...register('phoneNumber')} className={inputClass} placeholder="0912..." />
+            <input dir="ltr" {...register('phoneNumber')} className={inputClass} placeholder="" />
         </div>
 
         <div>

@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { User, UserRole } from '../types';
+import { useToastStore } from './toastStore';
 
 const mapLegacyProductId = (id: string): string => {
     if (id === '1') return '11111111-1111-1111-1111-111111111111';
@@ -12,8 +13,13 @@ const mapLegacyProductId = (id: string): string => {
 const DEFAULT_PROD_1 = '11111111-1111-1111-1111-111111111111';
 const DEFAULT_PROD_2 = '22222222-2222-2222-2222-222222222222';
 
-// 2 Hours in milliseconds
-const SESSION_DURATION = 2 * 60 * 60 * 1000; 
+// 1 Hour in milliseconds
+const SESSION_TIMEOUT = 60 * 60 * 1000; 
+
+const STORAGE_KEYS = {
+    ACTIVITY: 'morvarid_last_activity',
+    USERNAME: 'morvarid_saved_username'
+};
 
 interface AuthState {
   user: User | null;
@@ -22,11 +28,13 @@ interface AuthState {
   blockUntil: number | null;
   savedUsername: string; 
   login: (username: string, password: string, rememberMe: boolean) => Promise<{ success: boolean; error?: string }>;
-  logout: () => Promise<void>;
+  logout: (isTimeout?: boolean) => Promise<void>;
   checkSession: () => Promise<void>;
   recordFailedAttempt: () => void;
   resetAttempts: () => void;
   loadSavedUsername: () => void;
+  updateActivity: () => void;
+  checkInactivity: () => boolean;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -37,24 +45,41 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   savedUsername: '',
 
   loadSavedUsername: () => {
-      const saved = localStorage.getItem('morvarid_saved_username');
+      const saved = localStorage.getItem(STORAGE_KEYS.USERNAME);
       if (saved) set({ savedUsername: saved });
+  },
+
+  updateActivity: () => {
+      // Only update if user is logged in
+      if (get().user) {
+          localStorage.setItem(STORAGE_KEYS.ACTIVITY, Date.now().toString());
+      }
+  },
+
+  checkInactivity: () => {
+      const { user, logout } = get();
+      if (!user) return false;
+
+      const lastActivityStr = localStorage.getItem(STORAGE_KEYS.ACTIVITY);
+      if (lastActivityStr) {
+          const lastActivity = parseInt(lastActivityStr);
+          const now = Date.now();
+          
+          if (now - lastActivity > SESSION_TIMEOUT) {
+              console.log('Session expired due to inactivity.');
+              logout(true); // True indicates it's a timeout logout
+              return true;
+          }
+      }
+      return false;
   },
 
   checkSession: async () => {
     try {
-      // 1. Check Custom 2-Hour Expiration Logic
-      const lastLoginStr = localStorage.getItem('morvarid_last_login_time');
-      if (lastLoginStr) {
-          const lastLoginTime = parseInt(lastLoginStr);
-          const now = Date.now();
-          
-          if (now - lastLoginTime > SESSION_DURATION) {
-              // Session Expired
-              console.log('Session expired (2 hours limit). Logging out...');
-              await get().logout(); 
-              return; // Stop execution
-          }
+      // 1. Check Inactivity First
+      if (get().checkInactivity()) {
+          set({ isLoading: false });
+          return;
       }
 
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -119,6 +144,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               },
               isLoading: false
           });
+          
+          // Refresh activity timestamp on successful session check
+          get().updateActivity();
       }
     } catch (error: any) {
       console.error('Unexpected Auth Error:', error);
@@ -171,15 +199,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         
         // --- Remember Me Logic ---
         if (rememberMe) {
-            localStorage.setItem('morvarid_saved_username', username);
+            localStorage.setItem(STORAGE_KEYS.USERNAME, username);
             set({ savedUsername: username });
         } else {
-            localStorage.removeItem('morvarid_saved_username');
+            localStorage.removeItem(STORAGE_KEYS.USERNAME);
             set({ savedUsername: '' });
         }
 
-        // --- 2 Hour Session Timer Start ---
-        localStorage.setItem('morvarid_last_login_time', Date.now().toString());
+        // --- Start Session Timer ---
+        localStorage.setItem(STORAGE_KEYS.ACTIVITY, Date.now().toString());
 
         await get().checkSession();
         const currentUser = get().user;
@@ -192,11 +220,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return { success: false, error: 'خطای ناشناخته' };
   },
 
-  logout: async () => {
+  logout: async (isTimeout = false) => {
     await supabase.auth.signOut();
-    // Do NOT remove 'morvarid_saved_username' here so it persists for the login page
-    localStorage.removeItem('morvarid_last_login_time');
+    // Clear activity, but KEEP saved username
+    localStorage.removeItem(STORAGE_KEYS.ACTIVITY);
     set({ user: null });
+    
+    if (isTimeout) {
+        useToastStore.getState().addToast('مدت زمان نشست شما به پایان رسیده است. لطفا مجددا وارد شوید.', 'warning');
+    }
   },
 
   recordFailedAttempt: () => set((state) => {

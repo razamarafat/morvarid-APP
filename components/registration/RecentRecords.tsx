@@ -4,7 +4,7 @@ import { useStatisticsStore, DailyStatistic } from '../../store/statisticsStore'
 import { useInvoiceStore } from '../../store/invoiceStore';
 import { useFarmStore } from '../../store/farmStore';
 import { useAuthStore } from '../../store/authStore';
-import { UserRole } from '../../types';
+import { UserRole, FarmType } from '../../types';
 import { Icons } from '../common/Icons';
 import { useConfirm } from '../../hooks/useConfirm';
 import Modal from '../common/Modal';
@@ -36,7 +36,7 @@ const StatCard: React.FC<StatCardProps> = ({ stat, getProductName, getProductUni
             <div className="flex justify-between items-start mb-4">
                 <div>
                     <h4 className="font-black text-xl text-gray-800 dark:text-gray-100">{getProductName(stat.productId)}</h4>
-                    <span className="text-xs text-gray-400 font-bold bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">{getProductUnit(stat.productId)}</span>
+                    <span className="text-sm text-gray-400 font-bold bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">{getProductUnit(stat.productId)}</span>
                 </div>
                 
                 <div className="flex gap-2">
@@ -59,28 +59,28 @@ const StatCard: React.FC<StatCardProps> = ({ stat, getProductName, getProductUni
 
             <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-4">
                 <div className="flex flex-col items-center flex-1 border-l border-gray-200 dark:border-gray-700">
-                    <span className="text-xs font-bold text-gray-500 mb-1">تولید</span>
+                    <span className="text-sm font-bold text-gray-500 mb-1">تولید</span>
                     {isLiquid ? (
                         <div className="flex flex-col items-center">
-                            {stat.production > 0 && <span className="text-lg font-black text-green-600">+{toPersianDigits(stat.production)} <small className="text-[10px]">Crt</small></span>}
-                            {stat.productionKg ? <span className="text-lg font-black text-metro-blue">{toPersianDigits(stat.productionKg)} <small className="text-[10px]">Kg</small></span> : null}
+                            {stat.production > 0 && <span className="text-xl font-black text-green-600">+{toPersianDigits(stat.production)} <small className="text-xs">Crt</small></span>}
+                            {stat.productionKg ? <span className="text-xl font-black text-metro-blue">{toPersianDigits(stat.productionKg)} <small className="text-xs">Kg</small></span> : null}
                         </div>
                     ) : (
-                        <span className="text-2xl font-black text-green-600">+{toPersianDigits(stat.production)}</span>
+                        <span className="text-3xl font-black text-green-600">+{toPersianDigits(stat.production)}</span>
                     )}
                 </div>
                 <div className="flex flex-col items-center flex-1 border-l border-gray-200 dark:border-gray-700">
-                    <span className="text-xs font-bold text-gray-500 mb-1">فروش</span>
-                    <span className="text-xl font-black text-red-500">-{toPersianDigits(isLiquid ? (stat.salesKg || 0) : (stat.sales || 0))}</span>
+                    <span className="text-sm font-bold text-gray-500 mb-1">فروش</span>
+                    <span className="text-2xl font-black text-red-500">-{toPersianDigits(isLiquid ? (stat.salesKg || 0) : (stat.sales || 0))}</span>
                 </div>
                 <div className="flex flex-col items-center flex-1">
-                    <span className="text-xs font-bold text-gray-500 mb-1">موجودی</span>
-                    <span className="text-2xl font-black text-metro-blue">{toPersianDigits(isLiquid ? (stat.currentInventoryKg || 0) : (stat.currentInventory || 0))}</span>
+                    <span className="text-sm font-bold text-gray-500 mb-1">موجودی</span>
+                    <span className="text-3xl font-black text-metro-blue">{toPersianDigits(isLiquid ? (stat.currentInventoryKg || 0) : (stat.currentInventory || 0))}</span>
                 </div>
             </div>
             
             {stat.updatedAt && (
-                <div className="absolute bottom-2 left-4 text-[10px] text-amber-600 font-bold bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full">
+                <div className="absolute bottom-2 left-4 text-xs text-amber-600 font-bold bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full">
                     ویرایش شده
                 </div>
             )}
@@ -107,8 +107,8 @@ const InvoiceCard: React.FC<InvoiceCardProps> = ({ inv, getProductName, isEditab
                         <Icons.FileText className="w-6 h-6" />
                     </div>
                     <div>
-                        <span className="block text-xs font-bold text-gray-400">رمز حواله</span>
-                        <span className="font-mono text-2xl font-black tracking-widest text-gray-800 dark:text-gray-100">{toPersianDigits(inv.invoiceNumber)}</span>
+                        <span className="block text-sm font-bold text-gray-400">رمز حواله</span>
+                        <span className="font-mono text-3xl font-black tracking-widest text-gray-800 dark:text-gray-100">{toPersianDigits(inv.invoiceNumber)}</span>
                     </div>
                 </div>
                 
@@ -131,12 +131,12 @@ const InvoiceCard: React.FC<InvoiceCardProps> = ({ inv, getProductName, isEditab
             </div>
 
             <div className="mb-5">
-                <h4 className="font-bold text-lg text-gray-700 dark:text-gray-200">{getProductName(inv.productId || '')}</h4>
+                <h4 className="font-bold text-xl text-gray-700 dark:text-gray-200">{getProductName(inv.productId || '')}</h4>
                 <div className="flex flex-col gap-1 mt-2">
-                    {inv.driverName && <p className="text-sm text-gray-500 flex items-center gap-2">
+                    {inv.driverName && <p className="text-base text-gray-500 flex items-center gap-2">
                         <Icons.User className="w-4 h-4" /> {inv.driverName} 
                     </p>}
-                    {inv.plateNumber && <p className="text-xs font-mono text-gray-400 flex items-center gap-2">
+                    {inv.plateNumber && <p className="text-sm font-mono text-gray-400 flex items-center gap-2">
                         <Icons.HardDrive className="w-4 h-4" /> {toPersianDigits(inv.plateNumber)}
                     </p>}
                 </div>
@@ -144,12 +144,12 @@ const InvoiceCard: React.FC<InvoiceCardProps> = ({ inv, getProductName, isEditab
 
             <div className="flex items-center gap-3">
                 <div className={`flex-1 rounded-2xl p-3 text-center bg-white border`}>
-                    <span className="block text-[10px] font-bold text-gray-500 mb-1">تعداد</span>
-                    <span className="font-black text-xl text-gray-800 dark:text-white">{toPersianDigits(inv.totalCartons || 0)}</span>
+                    <span className="block text-sm font-bold text-gray-500 mb-1">تعداد</span>
+                    <span className="font-black text-2xl text-gray-800 dark:text-white">{toPersianDigits(inv.totalCartons || 0)}</span>
                 </div>
                 <div className={`flex-1 rounded-2xl p-3 text-center bg-white border ${isLiquid ? 'ring-2 ring-blue-500/20' : ''}`}>
-                    <span className={`block text-[10px] font-bold mb-1 ${isLiquid ? 'text-blue-600' : 'text-gray-500'}`}>وزن (Kg)</span>
-                    <span className={`font-black text-xl ${isLiquid ? 'text-blue-700 dark:text-blue-400' : 'text-metro-blue'}`}>{toPersianDigits(inv.totalWeight)}</span>
+                    <span className={`block text-sm font-bold mb-1 ${isLiquid ? 'text-blue-600' : 'text-gray-500'}`}>وزن (Kg)</span>
+                    <span className={`font-black text-2xl ${isLiquid ? 'text-blue-700 dark:text-blue-400' : 'text-metro-blue'}`}>{toPersianDigits(inv.totalWeight)}</span>
                 </div>
             </div>
         </div>
@@ -182,6 +182,9 @@ const RecentRecords: React.FC = () => {
     const [showLetterPicker, setShowLetterPicker] = useState(false);
 
     const farmId = user?.assignedFarms?.[0]?.id;
+    const farmType = user?.assignedFarms?.[0]?.type;
+    const isMotefereghe = farmType === FarmType.MOTEFEREGHE;
+
     const today = normalizeDate(getTodayJalali());
 
     const getProductName = (id: string) => products.find(p => p.id === id)?.name || 'محصول حذف شده';
@@ -223,9 +226,11 @@ const RecentRecords: React.FC = () => {
     const handleSaveStat = async () => {
         if (!editStat) return;
         const prod = Number(statValues.prod);
-        const prev = Number(statValues.prev);
+        // Force 0 for Motefereghe
+        const prev = isMotefereghe ? 0 : Number(statValues.prev); 
         const prodKg = Number(statValues.prodKg);
-        const prevKg = Number(statValues.prevKg);
+        // Force 0 for Motefereghe
+        const prevKg = isMotefereghe ? 0 : Number(statValues.prevKg); 
 
         const result = await updateStatistic(editStat.id, {
             production: prod,
@@ -297,17 +302,17 @@ const RecentRecords: React.FC = () => {
     return (
         <div className="pb-24">
             <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-full mb-8 mx-auto max-w-md sticky top-6 z-20 shadow-md border border-gray-200 dark:border-gray-700">
-                <button onClick={() => setActiveTab('stats')} className={`flex-1 py-3 rounded-full text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'stats' ? 'bg-white dark:bg-gray-700 text-metro-blue shadow-sm' : 'text-gray-500'}`}>
+                <button onClick={() => setActiveTab('stats')} className={`flex-1 py-3 rounded-full text-base font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'stats' ? 'bg-white dark:bg-gray-700 text-metro-blue shadow-sm' : 'text-gray-500'}`}>
                     <Icons.BarChart className="w-5 h-5" /> آمار تولید
                 </button>
-                <button onClick={() => setActiveTab('invoices')} className={`flex-1 py-3 rounded-full text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'invoices' ? 'bg-white dark:bg-gray-700 text-metro-orange shadow-sm' : 'text-gray-500'}`}>
+                <button onClick={() => setActiveTab('invoices')} className={`flex-1 py-3 rounded-full text-base font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'invoices' ? 'bg-white dark:bg-gray-700 text-metro-orange shadow-sm' : 'text-gray-500'}`}>
                     <Icons.FileText className="w-5 h-5" /> حواله‌ها
                 </button>
             </div>
 
             <div className="max-w-4xl mx-auto space-y-10 px-2">
                 <div className="space-y-4">
-                    <h3 className="font-black text-2xl px-2 text-gray-800 dark:text-white">امروز ({toPersianDigits(today)})</h3>
+                    <h3 className="font-black text-3xl px-2 text-gray-800 dark:text-white">امروز ({toPersianDigits(today)})</h3>
                     <div className="grid gap-6 md:grid-cols-2">
                         {activeTab === 'stats' ? (
                             todayStats.length > 0 ? todayStats.map(stat => <StatCard key={stat.id} stat={stat} getProductName={getProductName} getProductUnit={(id)=>products.find(p=>p.id===id)?.unit==='CARTON'?'کارتن':'واحد'} isEditable={isEditable} onEdit={handleEditStatOpen} onDelete={(id)=>deleteStatistic(id)} />) : <div className="col-span-full p-10 text-center text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-[24px]">هنوز آماری ثبت نشده است.</div>
@@ -321,22 +326,32 @@ const RecentRecords: React.FC = () => {
             <Modal isOpen={!!editStat} onClose={handleCancelStat} title="ویرایش آمار روزانه">
                 <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1">
                     <div className="p-4 bg-white rounded-2xl border-2 border-blue-100 flex flex-col gap-2 shadow-sm">
-                        <span className="text-xs font-bold text-blue-600">اطلاعات تعداد (کارتن)</span>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div><label className="block text-[10px] font-black mb-1 opacity-60">تولید (تعداد)</label><input type="tel" inputMode="numeric" className={inputClasses} value={statValues.prod} onChange={(e) => setStatValues({ ...statValues, prod: e.target.value })} /></div>
-                            <div><label className="block text-[10px] font-black mb-1 opacity-60">موجودی قبل (تعداد)</label><input type="tel" inputMode="numeric" className={inputClasses} value={statValues.prev} onChange={(e) => setStatValues({ ...statValues, prev: e.target.value })} /></div>
+                        <span className="text-sm font-bold text-blue-600">اطلاعات تعداد (کارتن)</span>
+                        <div className={`grid gap-4 ${isMotefereghe ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                            <div>
+                                <label className="block text-sm font-black mb-1 opacity-60">{isMotefereghe ? 'موجودی اعلامی' : 'تولید'}</label>
+                                <input type="tel" inputMode="numeric" className={inputClasses} value={statValues.prod} onChange={(e) => setStatValues({ ...statValues, prod: e.target.value })} />
+                            </div>
+                            {!isMotefereghe && (
+                                <div>
+                                    <label className="block text-sm font-black mb-1 opacity-60">موجودی قبل</label>
+                                    <input type="tel" inputMode="numeric" className={inputClasses} value={statValues.prev} onChange={(e) => setStatValues({ ...statValues, prev: e.target.value })} />
+                                </div>
+                            )}
                         </div>
                     </div>
                     {editStat && isLiquid(editStat.productId) && (
                         <div className="p-4 bg-white rounded-2xl border-2 border-indigo-100 flex flex-col gap-2 shadow-sm">
-                            <span className="text-xs font-bold text-indigo-600">اطلاعات وزن (کیلوگرم)</span>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div><label className="block text-[10px] font-black mb-1 opacity-60">تولید (Kg)</label><input type="tel" inputMode="decimal" className={inputClasses} value={statValues.prodKg} onChange={(e) => setStatValues({ ...statValues, prodKg: e.target.value })} /></div>
-                                <div><label className="block text-[10px] font-black mb-1 opacity-60">موجودی قبل (Kg)</label><input type="tel" inputMode="decimal" className={inputClasses} value={statValues.prevKg} onChange={(e) => setStatValues({ ...statValues, prevKg: e.target.value })} /></div>
+                            <span className="text-sm font-bold text-indigo-600">اطلاعات وزن (کیلوگرم)</span>
+                            <div className={`grid gap-4 ${isMotefereghe ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                                <div><label className="block text-sm font-black mb-1 opacity-60">{isMotefereghe ? 'موجودی اعلامی (Kg)' : 'تولید (Kg)'}</label><input type="tel" inputMode="decimal" className={inputClasses} value={statValues.prodKg} onChange={(e) => setStatValues({ ...statValues, prodKg: e.target.value })} /></div>
+                                {!isMotefereghe && (
+                                    <div><label className="block text-sm font-black mb-1 opacity-60">موجودی قبل (Kg)</label><input type="tel" inputMode="decimal" className={inputClasses} value={statValues.prevKg} onChange={(e) => setStatValues({ ...statValues, prevKg: e.target.value })} /></div>
+                                )}
                             </div>
                         </div>
                     )}
-                    <p className="text-[10px] text-gray-400 text-center">توجه: مقدار فروش به صورت خودکار بر اساس حواله‌ها محاسبه می‌شود.</p>
+                    <p className="text-xs text-gray-400 text-center">توجه: مقدار فروش به صورت خودکار بر اساس حواله‌ها محاسبه می‌شود.</p>
                     <div className="flex justify-end gap-3 pt-4 border-t"><Button variant="secondary" onClick={handleCancelStat}>انصراف</Button><Button onClick={handleSaveStat}>بروزرسانی آمار</Button></div>
                 </div>
             </Modal>
@@ -344,45 +359,40 @@ const RecentRecords: React.FC = () => {
             <Modal isOpen={!!editInvoice} onClose={handleCancelInvoice} title="ویرایش حواله خروج">
                 <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1 custom-scrollbar">
                     <div className="bg-white p-4 rounded-2xl border border-orange-200">
-                        <label className="block text-xs font-bold mb-2 text-orange-700">رمز حواله</label>
+                        <label className="block text-sm font-bold mb-2 text-orange-700">رمز حواله</label>
                         <input type="tel" inputMode="numeric" dir="ltr" className="w-full p-4 border-2 border-orange-100 rounded-xl text-center font-black text-3xl tracking-widest bg-white focus:border-metro-orange outline-none" value={invoiceValues.invoiceNumber} onChange={(e) => setInvoiceValues({ ...invoiceValues, invoiceNumber: e.target.value })} />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                        <div><label className="block text-xs font-bold mb-2">تعداد کارتن</label><input type="tel" inputMode="numeric" className={inputClasses} value={invoiceValues.cartons} onChange={(e) => setInvoiceValues({ ...invoiceValues, cartons: e.target.value })} /></div>
-                        <div><label className="block text-xs font-bold mb-2 text-blue-600">وزن واقعی (Kg)</label><input type="tel" inputMode="decimal" className={`${inputClasses} border-blue-100`} value={invoiceValues.weight} onChange={(e) => setInvoiceValues({ ...invoiceValues, weight: e.target.value })} /></div>
+                        <div><label className="block text-sm font-bold mb-2">تعداد کارتن</label><input type="tel" inputMode="numeric" className={inputClasses} value={invoiceValues.cartons} onChange={(e) => setInvoiceValues({ ...invoiceValues, cartons: e.target.value })} /></div>
+                        <div><label className="block text-sm font-bold mb-2 text-blue-600">وزن واقعی (Kg)</label><input type="tel" inputMode="decimal" className={`${inputClasses} border-blue-100`} value={invoiceValues.weight} onChange={(e) => setInvoiceValues({ ...invoiceValues, weight: e.target.value })} /></div>
                     </div>
                     <div className="space-y-4 pt-4 border-t">
-                        <h4 className="font-bold text-gray-400 text-sm">مشخصات راننده و پلاک</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div><label className="block text-xs font-bold mb-1">نام راننده</label><input type="text" className="w-full p-4 bg-white border-2 border-gray-100 rounded-xl font-bold" value={invoiceValues.driverName} onChange={(e) => setInvoiceValues({ ...invoiceValues, driverName: e.target.value })} /></div>
-                            <div><label className="block text-xs font-bold mb-1">شماره تماس</label><input type="tel" inputMode="numeric" dir="ltr" className="w-full p-4 bg-white border-2 border-gray-100 rounded-xl text-center font-mono font-bold" value={invoiceValues.driverPhone} onChange={(e) => setInvoiceValues({ ...invoiceValues, driverPhone: e.target.value })} /></div>
+                        <h4 className="font-bold text-gray-400 text-base">مشخصات راننده</h4>
+                        <input type="text" placeholder="نام راننده" className="w-full p-3 bg-gray-50 rounded-xl text-right font-bold outline-none border focus:border-gray-300" value={invoiceValues.driverName} onChange={(e) => setInvoiceValues({ ...invoiceValues, driverName: e.target.value })} />
+                        <input type="tel" placeholder="شماره تماس" dir="ltr" className="w-full p-3 bg-gray-50 rounded-xl text-left font-mono font-bold outline-none border focus:border-gray-300" value={invoiceValues.driverPhone} onChange={(e) => setInvoiceValues({ ...invoiceValues, driverPhone: e.target.value })} />
+                        
+                        <div className="bg-gray-100 p-3 rounded-xl flex items-center justify-center gap-1" dir="ltr">
+                             <input type="tel" maxLength={2} value={plateParts.part1} onChange={e => setPlateParts({...plateParts, part1: e.target.value})} className="w-10 h-10 text-center font-black text-xl bg-white rounded-lg outline-none" />
+                             <button type="button" onClick={() => setShowLetterPicker(!showLetterPicker)} className="w-10 h-10 bg-white rounded-lg font-black text-red-600 relative">
+                                {plateParts.letter || 'الف'}
+                                {showLetterPicker && (
+                                    <div className="absolute bottom-full left-0 mb-1 w-48 h-40 bg-white shadow-xl rounded-lg overflow-y-auto grid grid-cols-4 gap-1 p-1 z-50">
+                                        {PERSIAN_LETTERS.map(l => (
+                                            <button key={l} type="button" onClick={(e) => { e.stopPropagation(); setPlateParts({...plateParts, letter: l}); setShowLetterPicker(false); }} className="p-1 hover:bg-gray-100 rounded">{l}</button>
+                                        ))}
+                                    </div>
+                                )}
+                             </button>
+                             <input type="tel" maxLength={3} value={plateParts.part3} onChange={e => setPlateParts({...plateParts, part3: e.target.value})} className="w-14 h-10 text-center font-black text-xl bg-white rounded-lg outline-none" />
+                             <div className="w-10 h-10 bg-white rounded-lg flex flex-col items-center justify-center border-l-2 border-black">
+                                <span className="text-[6px] font-bold">ایران</span>
+                                <input type="tel" maxLength={2} value={plateParts.part4} onChange={e => setPlateParts({...plateParts, part4: e.target.value})} className="w-full text-center font-black text-sm outline-none bg-transparent" />
+                             </div>
                         </div>
-                        <div>
-                            <label className="block text-xs font-bold mb-2 text-gray-500">شماره پلاک</label>
-                            <div className="flex flex-row gap-2 items-center" dir="ltr">
-                                <input type="tel" maxLength={2} value={plateParts.part1} onChange={e => setPlateParts(p => ({...p, part1: e.target.value.replace(/\D/g, '')}))} className="w-14 h-16 border-2 rounded-xl text-center font-black text-xl bg-white focus:border-metro-blue outline-none" placeholder="11" />
-                                <div className="relative">
-                                    <button type="button" onClick={() => setShowLetterPicker(!showLetterPicker)} className="w-16 h-16 border-2 rounded-xl font-black text-xl bg-white text-blue-600 border-blue-100 flex items-center justify-center">{plateParts.letter || 'حرف'}</button>
-                                    <AnimatePresence>
-                                        {showLetterPicker && (
-                                            <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute bottom-full left-0 right-0 mb-2 bg-white border-2 border-blue-200 shadow-2xl rounded-2xl p-1 z-[100] flex flex-col gap-1 max-h-56 overflow-y-auto custom-scrollbar">
-                                                {PERSIAN_LETTERS.map(l => (
-                                                    <button key={l} type="button" onClick={() => { setPlateParts(p => ({...p, letter: l})); setShowLetterPicker(false); }} className="w-full p-4 hover:bg-metro-blue hover:text-white rounded-xl font-black text-center transition-colors border-b last:border-0 border-gray-100">{l}</button>
-                                                ))}
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-                                </div>
-                                <input type="tel" maxLength={3} value={plateParts.part3} onChange={e => setPlateParts(p => ({...p, part3: e.target.value.replace(/\D/g, '')}))} className="w-24 h-16 border-2 rounded-xl text-center font-black text-xl bg-white focus:border-metro-blue outline-none" placeholder="365" />
-                                <div className="relative">
-                                    <input type="tel" maxLength={2} value={plateParts.part4} onChange={e => setPlateParts(p => ({...p, part4: e.target.value.replace(/\D/g, '')}))} className="w-14 h-16 border-2 rounded-xl text-center font-black text-xl bg-white focus:border-metro-blue outline-none" placeholder="15" />
-                                    <span className="absolute -top-3 left-0 right-0 text-center text-[8px] font-bold text-gray-400">ایران</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div><label className="block text-xs font-bold mb-1">توضیحات</label><textarea className="w-full p-4 bg-white border-2 border-gray-100 rounded-xl h-20" value={invoiceValues.description} onChange={(e) => setInvoiceValues({ ...invoiceValues, description: e.target.value })} /></div>
+
+                        <textarea placeholder="توضیحات اصلاحیه" className="w-full p-3 bg-gray-50 rounded-xl text-right outline-none border focus:border-gray-300 h-20" value={invoiceValues.description} onChange={(e) => setInvoiceValues({ ...invoiceValues, description: e.target.value })}></textarea>
                     </div>
-                    <div className="flex justify-end gap-3 pt-4 border-t"><Button variant="secondary" onClick={handleCancelInvoice}>انصراف</Button><Button onClick={handleSaveInvoice}>ذخیره تغییرات</Button></div>
+                    <div className="flex justify-end gap-3 pt-4 border-t"><Button variant="secondary" onClick={handleCancelInvoice}>انصراف</Button><Button onClick={handleSaveInvoice}>ثبت تغییرات</Button></div>
                 </div>
             </Modal>
         </div>
