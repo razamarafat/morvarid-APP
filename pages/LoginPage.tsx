@@ -97,8 +97,12 @@ const LoginPage: React.FC = () => {
   return (
     <div className="min-h-[100dvh] bg-[#004E98] dark:bg-[#0f172a] relative overflow-hidden flex flex-col md:flex-row transition-colors duration-300 font-sans">
       
-      {/* Background Patterns - Louder and Animated */}
-      <div className="absolute inset-0 opacity-20 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] z-0 animate-bg-pan bg-[length:400px_400px]"></div>
+      {/* Background Patterns - Connected Cubes (Zoomed Out & Pulsing) */}
+      {/* Wrapper Div handles the Soft Pulse (Light up/down) */}
+      <div className="absolute inset-0 z-0 pointer-events-none animate-[pulse_6s_ease-in-out_infinite]">
+          {/* Inner Div handles the Movement (Bg Pan) */}
+          <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] animate-bg-pan bg-[length:100px_100px]"></div>
+      </div>
       
       {/* Additional ambient glows */}
       <div className="absolute top-[-20%] left-[-10%] w-[800px] h-[800px] bg-white/10 rounded-full blur-[120px] pointer-events-none animate-pulse"></div>
