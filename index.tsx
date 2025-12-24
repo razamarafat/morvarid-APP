@@ -37,7 +37,9 @@ if ('serviceWorker' in navigator) {
     const isBlob = window.location.protocol === 'blob:' || window.location.href.startsWith('blob:');
     
     // Exclude AI Studio / Google User Content preview environments which cause origin mismatch errors
-    const isGooglePreview = window.location.hostname.includes('googleusercontent') || window.location.hostname.includes('ai.studio');
+    const isGooglePreview = window.location.hostname.includes('googleusercontent') || 
+                            window.location.hostname.includes('ai.studio') || 
+                            window.location.hostname.includes('usercontent.goog');
 
     if (isBlob || isGooglePreview) {
         console.warn('[PWA Warning] Service Worker registration skipped in preview environment to prevent origin mismatch errors.');

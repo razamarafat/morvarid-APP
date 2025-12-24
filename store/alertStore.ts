@@ -54,7 +54,10 @@ const showSystemNotification = async (title: string, body: string) => {
     console.log('[Notif System] Requesting System Notification:', { title, body });
     
     // Check for preview environments
-    const isGooglePreview = window.location.hostname.includes('googleusercontent') || window.location.hostname.includes('ai.studio');
+    const isGooglePreview = window.location.hostname.includes('googleusercontent') || 
+                            window.location.hostname.includes('ai.studio') || 
+                            window.location.hostname.includes('usercontent.goog');
+
     if (isGooglePreview) {
         console.warn('[Notif System] System notifications skipped in preview environment.');
         return false;

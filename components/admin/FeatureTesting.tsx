@@ -116,7 +116,10 @@ const FeatureTesting: React.FC = () => {
             case 'system_notification':
                 addLog('Initiating Notification & Service Worker Test...', 'info');
                 
-                const isGooglePreview = window.location.hostname.includes('googleusercontent') || window.location.hostname.includes('ai.studio');
+                const isGooglePreview = window.location.hostname.includes('googleusercontent') || 
+                                        window.location.hostname.includes('ai.studio') ||
+                                        window.location.hostname.includes('usercontent.goog');
+
                 if (isGooglePreview) {
                     addLog('⚠️ Preview Environment Detected: Service Workers are disabled to prevent origin errors.', 'warn');
                     break;
