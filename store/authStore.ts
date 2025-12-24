@@ -27,7 +27,6 @@ interface AuthState {
   recordFailedAttempt: () => void;
   resetAttempts: () => void;
   loadSavedUsername: () => void;
-  registerBiometric: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -198,10 +197,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // Do NOT remove 'morvarid_saved_username' here so it persists for the login page
     localStorage.removeItem('morvarid_last_login_time');
     set({ user: null });
-  },
-
-  registerBiometric: () => {
-      // Placeholder for biometric implementation
   },
 
   recordFailedAttempt: () => set((state) => {
