@@ -26,9 +26,10 @@ interface StatCardProps {
     isEditable: (createdAt?: number) => boolean;
     onEdit: (stat: DailyStatistic) => void;
     onDelete: (id: string) => void;
+    isMotefereghe: boolean;
 }
 
-const StatCard: React.FC<StatCardProps> = ({ stat, getProductName, getProductUnit, isEditable, onEdit, onDelete }) => {
+const StatCard: React.FC<StatCardProps> = ({ stat, getProductName, getProductUnit, isEditable, onEdit, onDelete, isMotefereghe }) => {
     const isLiquid = getProductName(stat.productId).includes('مایع');
     
     return (
@@ -57,25 +58,44 @@ const StatCard: React.FC<StatCardProps> = ({ stat, getProductName, getProductUni
                 </div>
             </div>
 
-            <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-4">
-                <div className="flex flex-col items-center flex-1 border-l border-gray-200 dark:border-gray-700">
-                    <span className="text-sm font-bold text-gray-500 mb-1">تولید</span>
+            {/* Content Grid: 2 cols on mobile for Morvaridi (4 items), 3 cols for Motefereghe (3 items) */}
+            <div className={`grid gap-4 bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-4 items-center text-center ${!isMotefereghe ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-3'}`}>
+                
+                {/* Previous Balance - Only for Morvaridi */}
+                {!isMotefereghe && (
+                    <div className="flex flex-col items-center justify-center border-l border-gray-200 dark:border-gray-700 md:col-span-1 col-span-1">
+                        <span className="text-xs lg:text-sm font-bold text-gray-400 mb-1">موجودی قبل</span>
+                        {isLiquid ? (
+                            <div className="flex flex-col items-center">
+                                <span className="text-lg lg:text-xl font-black text-gray-600 dark:text-gray-300">{toPersianDigits(stat.previousBalance)}</span>
+                                {stat.previousBalanceKg ? <span className="text-xs font-bold text-gray-500">{toPersianDigits(stat.previousBalanceKg)} <small>Kg</small></span> : null}
+                            </div>
+                        ) : (
+                            <span className="text-2xl lg:text-3xl font-black text-gray-600 dark:text-gray-300">{toPersianDigits(stat.previousBalance)}</span>
+                        )}
+                    </div>
+                )}
+
+                <div className={`flex flex-col items-center justify-center ${!isMotefereghe ? 'border-l border-gray-200 dark:border-gray-700' : 'border-l border-gray-200 dark:border-gray-700'} md:col-span-1 col-span-1`}>
+                    <span className="text-xs lg:text-sm font-bold text-gray-500 mb-1">تولید</span>
                     {isLiquid ? (
                         <div className="flex flex-col items-center">
-                            {stat.production > 0 && <span className="text-xl font-black text-green-600">+{toPersianDigits(stat.production)} <small className="text-xs">Crt</small></span>}
-                            {stat.productionKg ? <span className="text-xl font-black text-metro-blue">{toPersianDigits(stat.productionKg)} <small className="text-xs">Kg</small></span> : null}
+                            {stat.production > 0 && <span className="text-lg lg:text-xl font-black text-green-600">+{toPersianDigits(stat.production)} <small className="text-xs">Crt</small></span>}
+                            {stat.productionKg ? <span className="text-lg lg:text-xl font-black text-metro-blue">{toPersianDigits(stat.productionKg)} <small className="text-xs">Kg</small></span> : null}
                         </div>
                     ) : (
-                        <span className="text-3xl font-black text-green-600">+{toPersianDigits(stat.production)}</span>
+                        <span className="text-2xl lg:text-3xl font-black text-green-600">+{toPersianDigits(stat.production)}</span>
                     )}
                 </div>
-                <div className="flex flex-col items-center flex-1 border-l border-gray-200 dark:border-gray-700">
-                    <span className="text-sm font-bold text-gray-500 mb-1">فروش</span>
-                    <span className="text-2xl font-black text-red-500">-{toPersianDigits(isLiquid ? (stat.salesKg || 0) : (stat.sales || 0))}</span>
+
+                <div className="flex flex-col items-center justify-center border-l border-gray-200 dark:border-gray-700 md:col-span-1 col-span-1">
+                    <span className="text-xs lg:text-sm font-bold text-gray-500 mb-1">فروش</span>
+                    <span className="text-xl lg:text-2xl font-black text-red-500">-{toPersianDigits(isLiquid ? (stat.salesKg || 0) : (stat.sales || 0))}</span>
                 </div>
-                <div className="flex flex-col items-center flex-1">
-                    <span className="text-sm font-bold text-gray-500 mb-1">موجودی</span>
-                    <span className="text-3xl font-black text-metro-blue">{toPersianDigits(isLiquid ? (stat.currentInventoryKg || 0) : (stat.currentInventory || 0))}</span>
+
+                <div className="flex flex-col items-center justify-center md:col-span-1 col-span-1">
+                    <span className="text-xs lg:text-sm font-bold text-gray-500 mb-1">موجودی</span>
+                    <span className="text-2xl lg:text-3xl font-black text-metro-blue">{toPersianDigits(isLiquid ? (stat.currentInventoryKg || 0) : (stat.currentInventory || 0))}</span>
                 </div>
             </div>
             
@@ -326,7 +346,7 @@ const RecentRecords: React.FC = () => {
                     <h3 className="font-black text-3xl px-2 text-gray-800 dark:text-white">امروز ({toPersianDigits(today)})</h3>
                     <div className="grid gap-6 md:grid-cols-2">
                         {activeTab === 'stats' ? (
-                            todayStats.length > 0 ? todayStats.map(stat => <StatCard key={stat.id} stat={stat} getProductName={getProductName} getProductUnit={(id)=>products.find(p=>p.id===id)?.unit==='CARTON'?'کارتن':'واحد'} isEditable={isEditable} onEdit={handleEditStatOpen} onDelete={(id)=>deleteStatistic(id)} />) : <div className="col-span-full p-10 text-center text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-[24px]">هنوز آماری ثبت نشده است.</div>
+                            todayStats.length > 0 ? todayStats.map(stat => <StatCard key={stat.id} stat={stat} getProductName={getProductName} getProductUnit={(id)=>products.find(p=>p.id===id)?.unit==='CARTON'?'کارتن':'واحد'} isEditable={isEditable} onEdit={handleEditStatOpen} onDelete={(id)=>deleteStatistic(id)} isMotefereghe={isMotefereghe} />) : <div className="col-span-full p-10 text-center text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-[24px]">هنوز آماری ثبت نشده است.</div>
                         ) : (
                             todayInvoices.length > 0 ? todayInvoices.map(inv => <InvoiceCard key={inv.id} inv={inv} getProductName={getProductName} isEditable={isEditable} onEdit={handleEditInvoiceOpen} onDelete={(id)=>deleteInvoice(id)} />) : <div className="col-span-full p-10 text-center text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-[24px]">هنوز حواله‌ای ثبت نشده است.</div>
                         )}
