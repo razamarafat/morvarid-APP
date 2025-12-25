@@ -17,22 +17,25 @@ export const toPersianDigits = (str: string | number): string => {
 export const normalizeDate = (dateStr: string): string => {
   if (!dateStr) return '';
   
-  // 1. Convert everything to English digits first
+  // 1. Convert to English Digits
   let english = toEnglishDigits(dateStr);
   
-  // 2. Remove anything that is not a digit or a separator (/ or -)
+  // 2. Remove invisible control characters (LTR/RTL marks, zero-width spaces)
+  english = english.replace(/[\u200B-\u200D\uFEFF]/g, '');
+
+  // 3. Remove anything that is not a digit or a separator
   english = english.replace(/[^\d/\\-]/g, '');
   
-  // 3. Normalize separators to forward slash
+  // 4. Normalize separators to forward slash
   english = english.replace(/[-|\\]/g, '/').trim();
 
-  // 4. Pad Month and Day with zeros (e.g., 9 -> 09)
+  // 5. Pad Month and Day with zeros (e.g., 1403/5/1 -> 1403/05/01)
   const parts = english.split('/');
   if (parts.length === 3) {
       const y = parts[0];
       const m = parts[1].padStart(2, '0');
       const d = parts[2].padStart(2, '0');
-      return `${y}/${m}/${d}`; // Always returns YYYY/MM/DD
+      return `${y}/${m}/${d}`; 
   }
   
   return english;

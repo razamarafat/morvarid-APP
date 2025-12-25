@@ -1,7 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
 import { FixedSizeList as List, areEqual } from 'react-window';
-import AutoSizer from 'react-virtualized-auto-sizer';
 import { useStatisticsStore, DailyStatistic } from '../../store/statisticsStore';
 import { useInvoiceStore } from '../../store/invoiceStore';
 import { useFarmStore } from '../../store/farmStore';
@@ -16,6 +15,7 @@ import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange } from '.
 import { Invoice } from '../../types';
 import { SkeletonCard } from '../common/Skeleton';
 import JalaliDatePicker from '../common/JalaliDatePicker';
+import { useElementSize } from '../../hooks/useElementSize';
 
 const PERSIAN_LETTERS = [
     'الف', 'ب', 'پ', 'ت', 'ث', 'ج', 'چ', 'ح', 'خ', 'د', 'ذ', 'ر', 'ز', 'ژ', 
@@ -228,6 +228,9 @@ const RecentRecords: React.FC = () => {
     const { addToast } = useToastStore();
     const { confirm } = useConfirm();
     
+    // Replacement for AutoSizer
+    const { ref: sizerRef, width, height } = useElementSize();
+
     const [activeTab, setActiveTab] = useState<'stats' | 'invoices'>('stats');
     const [editStat, setEditStat] = useState<DailyStatistic | null>(null);
     const [editInvoice, setEditInvoice] = useState<Invoice | null>(null);
@@ -500,42 +503,34 @@ const RecentRecords: React.FC = () => {
                         </div>
                     </div>
                     
-                    <div className="flex-1 min-h-[500px]">
+                    <div className="flex-1 min-h-[500px]" ref={sizerRef}>
                         {(statsLoading || invLoading) ? (
                             <div className="grid gap-4 md:grid-cols-2">
                                 <SkeletonCard />
                                 <SkeletonCard />
                             </div>
                         ) : activeTab === 'stats' ? (
-                            filteredStats.length > 0 ? (
-                                <AutoSizer>
-                                    {({ height, width }) => {
-                                        const itemsPerRow = getItemsPerRow(width);
-                                        const rowCount = Math.ceil(filteredStats.length / itemsPerRow);
-                                        return (
-                                            <List
-                                                height={height}
-                                                itemCount={rowCount}
-                                                itemSize={220} 
-                                                width={width}
-                                                itemData={{ 
-                                                    items: filteredStats, 
-                                                    itemsPerRow, 
-                                                    type: 'stats',
-                                                    getProductName,
-                                                    products,
-                                                    isEditable,
-                                                    handleEditStatOpen,
-                                                    handleDeleteRecord,
-                                                    isMotefereghe
-                                                }}
-                                                className="custom-scrollbar !overflow-y-auto"
-                                            >
-                                                {Row}
-                                            </List>
-                                        );
+                            filteredStats.length > 0 && width > 0 && height > 0 ? (
+                                <List
+                                    height={height}
+                                    itemCount={Math.ceil(filteredStats.length / getItemsPerRow(width))}
+                                    itemSize={220} 
+                                    width={width}
+                                    itemData={{ 
+                                        items: filteredStats, 
+                                        itemsPerRow: getItemsPerRow(width), 
+                                        type: 'stats',
+                                        getProductName,
+                                        products,
+                                        isEditable,
+                                        handleEditStatOpen,
+                                        handleDeleteRecord,
+                                        isMotefereghe
                                     }}
-                                </AutoSizer>
+                                    className="custom-scrollbar !overflow-y-auto"
+                                >
+                                    {Row}
+                                </List>
                             ) : (
                                 <div className="flex flex-col items-center justify-center h-64 text-center text-gray-400">
                                     <Icons.BarChart className="w-12 h-12 mb-2 opacity-20" />
@@ -543,33 +538,25 @@ const RecentRecords: React.FC = () => {
                                 </div>
                             )
                         ) : (
-                            filteredInvoices.length > 0 ? (
-                                <AutoSizer>
-                                    {({ height, width }) => {
-                                        const itemsPerRow = getItemsPerRow(width);
-                                        const rowCount = Math.ceil(filteredInvoices.length / itemsPerRow);
-                                        return (
-                                            <List
-                                                height={height}
-                                                itemCount={rowCount}
-                                                itemSize={180} 
-                                                width={width}
-                                                itemData={{ 
-                                                    items: filteredInvoices, 
-                                                    itemsPerRow, 
-                                                    type: 'invoices',
-                                                    getProductName,
-                                                    isEditable,
-                                                    handleEditInvoiceOpen,
-                                                    handleDeleteRecord
-                                                }}
-                                                className="custom-scrollbar !overflow-y-auto"
-                                            >
-                                                {Row}
-                                            </List>
-                                        );
+                            filteredInvoices.length > 0 && width > 0 && height > 0 ? (
+                                <List
+                                    height={height}
+                                    itemCount={Math.ceil(filteredInvoices.length / getItemsPerRow(width))}
+                                    itemSize={180} 
+                                    width={width}
+                                    itemData={{ 
+                                        items: filteredInvoices, 
+                                        itemsPerRow: getItemsPerRow(width), 
+                                        type: 'invoices',
+                                        getProductName,
+                                        isEditable,
+                                        handleEditInvoiceOpen,
+                                        handleDeleteRecord
                                     }}
-                                </AutoSizer>
+                                    className="custom-scrollbar !overflow-y-auto"
+                                >
+                                    {Row}
+                                </List>
                             ) : (
                                 <div className="flex flex-col items-center justify-center h-64 text-center text-gray-400">
                                     <Icons.FileText className="w-12 h-12 mb-2 opacity-20" />

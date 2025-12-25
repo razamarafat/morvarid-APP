@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { FixedSizeList as List } from 'react-window';
-import AutoSizer from 'react-virtualized-auto-sizer';
 import DashboardLayout from '../layout/DashboardLayout';
 import { Icons } from '../common/Icons';
 import Reports from '../admin/Reports';
@@ -18,16 +17,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FarmType } from '../../types';
 import JalaliDatePicker from '../common/JalaliDatePicker';
 import { SkeletonTile, SkeletonRow } from '../common/Skeleton';
-
-// --- DEBUG HELPER ---
-const logOnce = (key: string, message: string, data?: any) => {
-    // @ts-ignore
-    if (!window[`_log_${key}`]) {
-        console.log(`[DEBUG] ${message}`, data);
-        // @ts-ignore
-        window[`_log_${key}`] = true;
-    }
-};
+import { useElementSize } from '../../hooks/useElementSize';
 
 const sortProducts = (products: any[], aId: string, bId: string) => {
     const pA = products.find(p => p.id === aId);
@@ -267,16 +257,14 @@ const FarmStatistics = () => {
 
 // Robust Invoice Row Component with Internal Error Handling
 const InvoiceRow = ({ index, style, data }: { index: number; style: React.CSSProperties; data: any }) => {
+    // CRITICAL FIX: React 19 strict compatibility
+    // Always render a div, even if data is missing, to maintain VirtualList integrity
+    if (!data || !data.invoices || !data.invoices[index]) {
+        return <div style={style} />; 
+    }
+
     try {
-        if (!data || !data.invoices) {
-            return <div style={style}></div>;
-        }
-
         const invoice = data.invoices[index];
-        if (!invoice) {
-            return <div style={style} />; 
-        }
-
         const { farms, products, renderInvoiceNumber } = data;
         const productName = products.find((p: any) => p.id === invoice.productId)?.name || '-';
         
@@ -296,7 +284,8 @@ const InvoiceRow = ({ index, style, data }: { index: number; style: React.CSSPro
             </div>
         );
     } catch (e) {
-        return <div style={style} className="text-red-500 text-xs">Error rendering row</div>;
+        // Fallback for row rendering error to prevent entire list crash
+        return <div style={style} className="text-red-500 text-xs flex items-center justify-center">Error</div>;
     }
 };
 
@@ -306,6 +295,9 @@ const InvoiceList = () => {
     const { addToast } = useToastStore();
     const [selectedFarmId, setSelectedFarmId] = useState<string>('all');
     const [isRefreshing, setIsRefreshing] = useState(false);
+    
+    // Replacement for AutoSizer - Fixes the invisible list issue
+    const { ref: sizerRef, width, height } = useElementSize();
     
     const [filterDate, setFilterDate] = useState(getTodayJalali());
     const normalizedFilterDate = normalizeDate(filterDate);
@@ -317,13 +309,14 @@ const InvoiceList = () => {
     const filteredInvoices = useMemo(() => {
         const results = invoices
             .filter(i => {
-                const dateMatch = normalizeDate(i.date) === normalizedFilterDate;
+                // Strict normalization to fix "It's in reports but not here"
+                const itemDate = normalizeDate(i.date);
+                const targetDate = normalizedFilterDate;
+                const dateMatch = itemDate === targetDate;
                 const farmMatch = selectedFarmId === 'all' || i.farmId === selectedFarmId;
                 return dateMatch && farmMatch;
             })
             .sort((a, b) => b.createdAt - a.createdAt);
-        
-        logOnce('filtered_invoices', `Filtered Invoices Count: ${results.length}`);
         return results;
     }, [invoices, normalizedFilterDate, selectedFarmId]);
 
@@ -414,31 +407,21 @@ const InvoiceList = () => {
                                     <div className="w-[80px] lg:w-auto lg:flex-[1] px-2">وزن (Kg)</div>
                                     <div className="w-[80px] lg:w-auto lg:flex-[1] px-2">وضعیت</div>
                                 </div>
-                                <div className="flex-1 w-full h-full">
-                                    <AutoSizer>
-                                        {({ height, width }) => {
-                                            // DIAGNOSTIC LOGGING FOR AUTOSIZER
-                                            if (!height || !width || height < 1 || width < 1) {
-                                                logOnce('autosizer_zero', 'AutoSizer detected 0 dimensions', { height, width });
-                                                // Return a valid element to prevent #525
-                                                return <div style={{ height: height || '100%', width: width || '100%' }} />;
-                                            }
-                                            
-                                            return (
-                                                <List
-                                                    height={height}
-                                                    itemCount={filteredInvoices.length}
-                                                    itemSize={80} 
-                                                    width={Math.max(width, 900)}
-                                                    itemData={itemData}
-                                                    className="custom-scrollbar"
-                                                    style={{ direction: 'rtl' }}
-                                                >
-                                                    {InvoiceRow}
-                                                </List>
-                                            );
-                                        }}
-                                    </AutoSizer>
+                                {/* Replacing AutoSizer with custom hook ref */}
+                                <div className="flex-1 w-full h-full" ref={sizerRef}>
+                                    {height > 0 && width > 0 && (
+                                        <List
+                                            height={height}
+                                            itemCount={filteredInvoices.length}
+                                            itemSize={80} 
+                                            width={Math.max(width, 900)}
+                                            itemData={itemData}
+                                            className="custom-scrollbar"
+                                            style={{ direction: 'rtl' }}
+                                        >
+                                            {InvoiceRow}
+                                        </List>
+                                    )}
                                 </div>
                             </div>
                         </div>
