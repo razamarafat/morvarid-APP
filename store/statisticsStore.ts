@@ -175,6 +175,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
   },
 
   bulkUpsertStatistics: async (stats, isSyncing = false) => {
+      // 1. Offline Check
       if (!isSyncing && !navigator.onLine) {
           stats.forEach(s => useSyncStore.getState().addToQueue('STAT', s));
           return { success: true, error: 'ذخیره در صف آفلاین' };
@@ -184,19 +185,54 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) return { success: false, error: "کاربر احراز هویت نشده است." };
           
-          const dbPayloads = stats.map(stat => ({
-              farm_id: stat.farmId,
-              date: normalizeDate(stat.date),
-              product_id: mapLegacyProductId(stat.productId),
-              previous_balance: Number(stat.previousBalance) || 0,
-              production: Number(stat.production) || 0,
-              sales: Number(stat.sales) || 0,
-              current_inventory: Number(stat.currentInventory) || 0,
-              created_by: user.id
-          }));
+          // 2. Strict Check-then-Update Logic (to prevent duplicates)
+          for (const stat of stats) {
+              const normalizedDate = normalizeDate(stat.date);
+              const mappedProductId = mapLegacyProductId(stat.productId);
 
-          const { error } = await supabase.from('daily_statistics').upsert(dbPayloads);
-          if (error) throw error;
+              // Step A: Check if record exists in DB
+              const { data: existing, error: fetchError } = await supabase
+                  .from('daily_statistics')
+                  .select('id')
+                  .eq('farm_id', stat.farmId)
+                  .eq('date', normalizedDate)
+                  .eq('product_id', mappedProductId)
+                  .single(); // Assuming only one should exist
+
+              const commonPayload = {
+                  farm_id: stat.farmId,
+                  date: normalizedDate,
+                  product_id: mappedProductId,
+                  previous_balance: Number(stat.previousBalance) || 0,
+                  production: Number(stat.production) || 0,
+                  sales: Number(stat.sales) || 0,
+                  current_inventory: Number(stat.currentInventory) || 0,
+                  production_kg: Number(stat.productionKg) || 0,
+                  sales_kg: Number(stat.salesKg) || 0,
+                  previous_balance_kg: Number(stat.previousBalanceKg) || 0,
+                  current_inventory_kg: Number(stat.currentInventoryKg) || 0,
+                  created_by: user.id
+              };
+
+              if (existing) {
+                  // Step B: Update existing record
+                  console.log(`[Stats] Updating existing record ${existing.id}`);
+                  const { error: updateError } = await supabase
+                      .from('daily_statistics')
+                      .update(commonPayload)
+                      .eq('id', existing.id);
+                  
+                  if (updateError) throw updateError;
+              } else {
+                  // Step C: Insert new record
+                  console.log(`[Stats] Inserting new record`);
+                  const { error: insertError } = await supabase
+                      .from('daily_statistics')
+                      .insert(commonPayload);
+                  
+                  if (insertError) throw insertError;
+              }
+          }
           
           await get().fetchStatistics();
           return { success: true };

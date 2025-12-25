@@ -28,20 +28,35 @@ interface AlertState {
 
 const playNotificationSound = () => {
     try {
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (!AudioContextClass) return;
+
+        const audioContext = new AudioContextClass();
+        
+        // Create oscillator for beep
         const oscillator = audioContext.createOscillator();
         const gainNode = audioContext.createGain();
+        
         oscillator.connect(gainNode);
         gainNode.connect(audioContext.destination);
+        
         oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(880, audioContext.currentTime); 
-        oscillator.frequency.exponentialRampToValueAtTime(440, audioContext.currentTime + 0.5);
+        oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A5
+        oscillator.frequency.exponentialRampToValueAtTime(440, audioContext.currentTime + 0.1); // Drop to A4
+        
+        // Volume Envelope
         gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+        
         oscillator.start();
-        oscillator.stop(audioContext.currentTime + 0.5);
+        oscillator.stop(audioContext.currentTime + 0.6);
+
+        // Resume context if suspended (browser policy)
+        if (audioContext.state === 'suspended') {
+            audioContext.resume();
+        }
     } catch (e) {
-        console.error('Audio play failed', e);
+        console.error('[Audio] Play failed', e);
     }
 };
 
@@ -63,10 +78,11 @@ const showSystemNotification = async (title: string, body: string) => {
                     body: body,
                     icon: '/icons/icon-192x192.png',
                     badge: '/icons/icon-192x192.png',
-                    vibrate: [200, 100, 200],
+                    vibrate: [200, 100, 200, 100, 200], // Vibration pattern
                     tag: 'morvarid-alert-' + Date.now(),
                     renotify: true,
-                    requireInteraction: true, // Key for persistent alerts
+                    requireInteraction: true,
+                    silent: false, // Ensure sound is enabled
                     data: { url: window.location.href }
                 } as any);
                 return true;
@@ -81,7 +97,8 @@ const showSystemNotification = async (title: string, body: string) => {
         new Notification(title, {
             body: body,
             icon: '/icons/icon-192x192.png',
-            requireInteraction: true
+            requireInteraction: true,
+            silent: false
         });
         return true;
     } catch (e) {
@@ -119,6 +136,8 @@ export const useAlertStore = create<AlertState>((set, get) => ({
 
     triggerTestNotification: async () => {
         const hasPermission = await get().checkAndRequestPermission();
+        playNotificationSound(); // Force play sound immediately for test
+        
         if (hasPermission) {
              const result = await showSystemNotification("تست سامانه مروارید", "سیستم اعلان‌ها فعال است و به درستی کار می‌کند.");
              if (result) get().addLog('اعلان تست با موفقیت ارسال شد.');
