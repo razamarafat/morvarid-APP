@@ -73,7 +73,6 @@ const FarmStatistics = () => {
         e.stopPropagation(); 
         setAlertLoading(farmId);
         
-        // 1. Play Send Sound
         try {
             const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
             if (AudioContextClass) {
@@ -106,7 +105,6 @@ const FarmStatistics = () => {
         setExpandedFarmId(expandedFarmId === farmId ? null : farmId);
     };
 
-    // --- Helper to Deduplicate Stats for Display ---
     const getDeduplicatedStats = (farmId: string) => {
         const farmStats = statistics.filter(s => s.farmId === farmId && normalizeDate(s.date) === normalizedSelectedDate);
         const uniqueMap = new Map<string, DailyStatistic>();
@@ -219,10 +217,8 @@ const FarmStatistics = () => {
                                                         </div>
                                                     </div>
                                                     
-                                                    {/* Colored Cells Grid */}
                                                     <div className={`grid gap-2 ${isMotefereghe ? 'grid-cols-3' : 'grid-cols-2 md:grid-cols-4'}`}>
                                                         
-                                                        {/* Previous Balance: Hidden for Motefereghe */}
                                                         {!isMotefereghe && (
                                                             <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-slate-500/10 border border-slate-200 dark:border-slate-700 shadow-sm">
                                                                 <span className="text-xs font-bold text-slate-500 mb-1">موجودی قبل</span>
@@ -264,7 +260,6 @@ const InvoiceRow = ({ index, style, data }: any) => {
     const { farms, products, renderInvoiceNumber } = data;
     const productName = products.find((p: any) => p.id === invoice.productId)?.name || '-';
     
-    // Improved row layout for mobile
     return (
         <div style={style} className="flex items-center text-right border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors text-gray-800 dark:text-gray-200 text-sm lg:text-lg overflow-hidden">
             <div className="w-[100px] lg:w-auto lg:flex-[1] px-2 font-black whitespace-nowrap tracking-tighter shrink-0">{toPersianDigits(invoice.date)}</div>
@@ -292,14 +287,14 @@ const InvoiceList = () => {
     const [filterDate, setFilterDate] = useState(getTodayJalali());
     const normalizedFilterDate = normalizeDate(filterDate);
 
-    // FIX: Fetch invoices on mount to ensure data is fresh when switching tabs
     useEffect(() => {
         fetchInvoices();
     }, []);
 
     const filteredInvoices = invoices
         .filter(i => {
-            // FIX: Normalize the invoice date before comparing to fix mismatch bugs
+            // FIX: Normalize the invoice date AND filter date before comparing.
+            // This prevents mismatch issues where one date might have 0-padding and the other not.
             const dateMatch = normalizeDate(i.date) === normalizedFilterDate;
             const farmMatch = selectedFarmId === 'all' || i.farmId === selectedFarmId;
             return dateMatch && farmMatch;
@@ -359,7 +354,6 @@ const InvoiceList = () => {
                     </h3>
                 </div>
                 
-                {/* Horizontal Scroll wrapper for mobile table */}
                 <div className="overflow-x-auto w-full flex-1">
                     <div className="min-w-[800px] h-full flex flex-col">
                         <div className="flex bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 text-sm lg:text-lg font-bold p-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
@@ -367,7 +361,7 @@ const InvoiceList = () => {
                             <div className="w-[120px] lg:w-auto lg:flex-[1] px-2 text-center">رمز حواله</div>
                             <div className="w-[120px] lg:w-auto lg:flex-[1] px-2">فارم</div>
                             <div className="w-[150px] lg:w-auto lg:flex-[1] px-2">نوع محصول</div>
-                            <div className="w-[80px] lg:w-auto lg:flex-[1] px-2 text-center">تعداد</div>
+                            <div className="w-[80px] lg:w-auto lg:flex-[1] px-2 text-center">تعداد (کارتن)</div>
                             <div className="w-[80px] lg:w-auto lg:flex-[1] px-2">وزن (Kg)</div>
                             <div className="w-[80px] lg:w-auto lg:flex-[1] px-2">وضعیت</div>
                         </div>
@@ -393,7 +387,7 @@ const InvoiceList = () => {
                                             height={height}
                                             itemCount={filteredInvoices.length}
                                             itemSize={80} 
-                                            width={width} // Uses full width from AutoSizer
+                                            width={width} 
                                             itemData={{ invoices: filteredInvoices, farms, products, renderInvoiceNumber }}
                                             className="custom-scrollbar"
                                         >
