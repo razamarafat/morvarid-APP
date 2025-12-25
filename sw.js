@@ -1,11 +1,11 @@
 
 /*
  * Morvarid PWA Service Worker
- * Optimized for Automatic Updates & Notifications
- * Version: 2.6.5
+ * Optimized for Automatic Updates, Notifications, Badging & Background Sync
+ * Version: 2.6.7
  */
 
-const CACHE_NAME = 'morvarid-pwa-v2.6.5'; 
+const CACHE_NAME = 'morvarid-pwa-v2.6.7'; 
 const ASSETS = [
   './',
   './index.html',
@@ -80,6 +80,12 @@ self.addEventListener('push', (event) => {
     }
   }
 
+  // Badging API: Set badge to 1 (indicating new notification)
+  if ('setAppBadge' in navigator) {
+      // @ts-ignore
+      navigator.setAppBadge(1).catch(e => console.warn('Badge failed', e));
+  }
+
   const options = {
     body: data.body,
     icon: data.icon || './icons/icon-192x192.png',
@@ -110,15 +116,19 @@ self.addEventListener('notificationclick', (event) => {
 
   notification.close();
 
+  // Clear Badge when notification is clicked
+  if ('clearAppBadge' in navigator) {
+      // @ts-ignore
+      navigator.clearAppBadge().catch(() => {});
+  }
+
   if (action === 'close') return;
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       // 1. Check if a window is already open
       for (const client of clientList) {
-        // Match origin
         if (client.url.startsWith(self.location.origin) && 'focus' in client) {
-          // If update notification, reload
           if (notification.tag === 'system-update') {
               client.postMessage({ type: 'FORCE_RELOAD' });
           }
@@ -133,7 +143,22 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// --- MESSAGE LISTENER (For Skip Waiting etc) ---
+// --- BACKGROUND SYNC HANDLER ---
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'sync-queue') {
+    console.log('[SW] Background Sync Triggered!');
+    event.waitUntil(
+        // Notify all clients to process queue
+        clients.matchAll({ type: 'window' }).then(clientList => {
+            clientList.forEach(client => {
+                client.postMessage({ type: 'PROCESS_QUEUE_BACKGROUND' });
+            });
+        })
+    );
+  }
+});
+
+// --- MESSAGE LISTENER ---
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();

@@ -108,7 +108,13 @@ export const useAlertStore = create<AlertState>((set, get) => ({
         // 2. Play Sound
         playNotificationSound();
 
-        // 3. Service Worker Strategy (Priority)
+        // 3. Badging API (New Improvement)
+        if ('setAppBadge' in navigator) {
+            // @ts-ignore
+            navigator.setAppBadge(1).catch(() => {});
+        }
+
+        // 4. Service Worker Strategy (Priority)
         if ('serviceWorker' in navigator) {
             try {
                 const registration = await navigator.serviceWorker.ready;
@@ -130,7 +136,7 @@ export const useAlertStore = create<AlertState>((set, get) => ({
             }
         }
 
-        // 4. Fallback Strategy
+        // 5. Fallback Strategy
         try {
             new Notification(title, {
                 body: body,

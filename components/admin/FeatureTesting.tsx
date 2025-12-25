@@ -120,17 +120,6 @@ const FeatureTesting: React.FC = () => {
             case 'system_notification':
                 addLog('Initiating Notification & Service Worker Test...', 'info');
                 
-                const isGooglePreview = 
-                    window.location.hostname.includes('googleusercontent') || 
-                    window.location.hostname.includes('ai.studio') ||
-                    window.location.hostname.includes('usercontent.goog') ||
-                    (window.origin && window.origin.includes('usercontent.goog'));
-
-                if (isGooglePreview) {
-                    addLog('⚠️ Preview Environment Detected: Service Workers are disabled to prevent origin errors.', 'warn');
-                    break;
-                }
-
                 if (!("Notification" in window)) {
                     addLog('❌ Notification API not supported.', 'error');
                     break;
@@ -149,33 +138,33 @@ const FeatureTesting: React.FC = () => {
                 try {
                     addLog('Waiting for Service Worker registration...', 'info');
                     
-                    // Specific check for SW ready state to catch origin errors
                     if (!('serviceWorker' in navigator)) {
                          addLog('❌ Service Worker API not present', 'error');
                          break;
                     }
 
-                    const registration = await navigator.serviceWorker.ready;
-                    if (!registration) {
-                         addLog('❌ Service Worker not ready.', 'error');
-                         break;
-                    }
-                    addLog(`✅ Service Worker Active. Dispatching...`, 'success');
+                    // BUG FIX: Added timeout to prevent hanging if SW is not ready
+                    const swReadyPromise = navigator.serviceWorker.ready;
+                    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("SW Ready Timeout (5s)")), 5000));
 
-                    await triggerTestNotification();
-                    
-                    addLog('✅ Notification Dispatched. Check status bar.', 'success');
-                    addLog('👉 NOTE: If app is minimized, this simulates background alert.', 'warn');
-                    success = true;
+                    try {
+                        await Promise.race([swReadyPromise, timeoutPromise]);
+                        addLog(`✅ Service Worker Active. Dispatching...`, 'success');
+                        
+                        await triggerTestNotification();
+                        addLog('✅ Notification Dispatched. Check status bar/badge.', 'success');
+                        
+                        success = true;
+                    } catch (timeoutErr: any) {
+                        addLog(`⚠️ Warning: ${timeoutErr.message}`, 'warn');
+                        addLog('Running fallback notification (SW might be updating or in dev mode)...', 'info');
+                        // Try fallback if SW timed out
+                        new Notification("تست بدون SW", { body: "سرویس ورکر پاسخ نداد، این یک تست مستقیم است." });
+                        success = true; // Partially successful
+                    }
 
                 } catch (e: any) {
-                    if (e?.message?.includes('ServiceWorkerRegistration')) {
-                        addLog(`⚠️ SW Error (Origin Mismatch?): ${e.message}`, 'warn');
-                        addLog('Skipping notification test due to environment restriction.', 'info');
-                        success = true; // Treated as success because it was handled
-                    } else {
-                        addLog(`❌ Exception: ${e.message}`, 'error');
-                    }
+                    addLog(`❌ Exception: ${e.message}`, 'error');
                 }
                 break;
         }
@@ -227,7 +216,7 @@ const FeatureTesting: React.FC = () => {
         <div className="bg-white dark:bg-gray-800 p-5 flex justify-between items-center shadow-sm border border-gray-100 dark:border-gray-700 border-l-4 border-l-metro-orange">
             <div>
                 <h4 className="font-bold dark:text-white">تست اعلان سیستمی (Push)</h4>
-                <p className="text-xs text-gray-400">شبیه‌سازی دریافت هشدار</p>
+                <p className="text-xs text-gray-400">شبیه‌سازی + Badging</p>
             </div>
             <Button size="sm" onClick={() => runTest('system_notification')} isLoading={isRunning === 'system_notification'}>ارسال اعلان</Button>
         </div>

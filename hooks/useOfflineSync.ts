@@ -24,6 +24,32 @@ export const useOfflineSync = () => {
     // Prevent double execution in React Strict Mode
     const processingRef = useRef(false);
 
+    // Register Background Sync when queue changes and we are offline
+    useEffect(() => {
+        if (queue.length > 0 && 'serviceWorker' in navigator && 'SyncManager' in window) {
+            navigator.serviceWorker.ready.then(registration => {
+                // @ts-ignore
+                return registration.sync.register('sync-queue');
+            }).then(() => {
+                console.log('[Sync] Background sync registered');
+            }).catch(err => {
+                console.warn('[Sync] Background sync registration failed:', err);
+            });
+        }
+    }, [queue.length]);
+
+    // Handle incoming messages from SW (triggered by sync event)
+    useEffect(() => {
+        const handleMessage = (event: MessageEvent) => {
+            if (event.data && event.data.type === 'PROCESS_QUEUE_BACKGROUND') {
+                console.log('[Sync] Triggered by SW Background Sync');
+                processQueue();
+            }
+        };
+        navigator.serviceWorker?.addEventListener('message', handleMessage);
+        return () => navigator.serviceWorker?.removeEventListener('message', handleMessage);
+    }, []);
+
     useEffect(() => {
         const handleOnline = () => {
             if (queue.length > 0) {
