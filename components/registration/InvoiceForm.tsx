@@ -26,7 +26,7 @@ const invoiceGlobalSchema = z.object({
     contactPhone: z.string()
         .min(1, 'شماره تماس الزامی است')
         .regex(mobileRegex, 'شماره همراه باید ۱۱ رقم و با ۰۹ شروع شود'),
-    driverName: z.string().optional(), // Changed to optional
+    driverName: z.string().optional(),
     description: z.string().optional()
         .refine(val => !val || persianLettersRegex.test(val.replace(/[0-9]/g, '')), 'توضیحات باید فارسی باشد'),
 });
@@ -106,10 +106,8 @@ export const InvoiceForm: React.FC = () => {
     const handleItemChange = (pid: string, field: 'cartons' | 'weight', val: string) => {
         let cleanVal = '';
         if (field === 'cartons') {
-            // Integers only for cartons
             cleanVal = val.replace(/[^0-9]/g, '');
         } else {
-            // Decimals allowed for weight
             cleanVal = val.replace(/[^0-9.]/g, '');
         }
         
@@ -195,7 +193,14 @@ export const InvoiceForm: React.FC = () => {
         setIsSubmitting(false);
 
         if (errorsList.length > 0) {
-            addToast(`خطا در ثبت: ${errorsList[0]}`, 'error');
+            // Check for specific duplication error to give better feedback
+            if (errorsList.some(e => e.includes('تکراری') || e.includes('Duplicate'))) {
+                addToast('این شماره حواله قبلاً برای این محصول ثبت شده است.', 'error');
+            } else if (errorsList.some(e => e.includes('فارم دیگر'))) {
+                addToast('این شماره حواله متعلق به فارم دیگری است.', 'error');
+            } else {
+                addToast(`خطا در ثبت: ${errorsList[0]}`, 'error');
+            }
         } 
         
         if (successCount > 0) {
@@ -242,7 +247,7 @@ export const InvoiceForm: React.FC = () => {
 
             <form onSubmit={handleSubmit(handleFinalSubmit)} className="px-4 space-y-8">
                 
-                {/* Invoice Code Section - Removed overflow-hidden, using border-r instead of absolute div */}
+                {/* Invoice Code Section */}
                 <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 relative border-r-[8px] border-r-metro-orange">
                     <h3 className="font-black text-xl mb-6 text-gray-800 dark:text-white flex items-center gap-2">
                         <Icons.FileText className="w-6 h-6 text-metro-orange" />
@@ -272,7 +277,7 @@ export const InvoiceForm: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Product Selection - Using border-r */}
+                {/* Product Selection */}
                 <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 relative border-r-[8px] border-r-metro-blue">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="font-black text-xl text-gray-800 dark:text-white flex items-center gap-2">
@@ -338,7 +343,7 @@ export const InvoiceForm: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Driver Info - Using border-r */}
+                {/* Driver Info */}
                 <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 relative border-r-[8px] border-r-metro-green">
                     <h3 className="font-black text-xl mb-6 text-gray-800 dark:text-white flex items-center gap-2">
                         <Icons.User className="w-6 h-6 text-metro-green" />
@@ -369,43 +374,42 @@ export const InvoiceForm: React.FC = () => {
 
                         <div>
                             <label className={labelClass}>شماره پلاک</label>
-                            {/* Updated Order: Part1(2 digits) - Letter - Part3(3 digits) - Part4(Iran/2 digits) */}
-                            {/* FIXED: Force light background and dark text for license plate even in dark mode to mimic real plate */}
-                            <div className="flex flex-row gap-2 items-center justify-center bg-gray-100 dark:bg-gray-200 p-4 rounded-2xl border-2 border-gray-300" dir="ltr">
+                            {/* Improved Plate UI for Mobile - Grid Layout */}
+                            <div className="grid grid-cols-[1.2fr_auto_1.5fr_auto] gap-2 items-center bg-gray-100 dark:bg-gray-200 p-3 rounded-2xl border-2 border-gray-300 w-full" dir="ltr">
                                 
-                                <input type="tel" maxLength={2} value={plateParts.part1} onChange={e => setPlateParts(p => ({...p, part1: e.target.value.replace(/\D/g, '')}))} className="w-12 h-16 bg-transparent text-center font-black text-2xl outline-none text-black dark:text-black placeholder-gray-400" placeholder="22" />
+                                {/* Part 1: 2 Digits */}
+                                <input type="tel" maxLength={2} value={plateParts.part1} onChange={e => setPlateParts(p => ({...p, part1: e.target.value.replace(/\D/g, '')}))} className="h-14 bg-white/50 dark:bg-white/50 rounded-lg text-center font-black text-2xl outline-none text-black placeholder-gray-400 w-full min-w-0" placeholder="22" />
                                 
-                                <div className="relative">
-                                    <button type="button" onClick={() => setShowLetterPicker(!showLetterPicker)} className="w-12 h-16 font-black text-2xl flex items-center justify-center text-red-600">
+                                {/* Letter */}
+                                <div className="relative h-14">
+                                    <button type="button" onClick={() => setShowLetterPicker(!showLetterPicker)} className="h-full px-3 bg-white rounded-lg font-black text-xl flex items-center justify-center text-red-600 border border-gray-200 shadow-sm min-w-[3.5rem]">
                                         {plateParts.letter || 'الف'}
                                     </button>
                                     <AnimatePresence>
                                         {showLetterPicker && (
-                                            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="absolute bottom-full mb-2 bg-white shadow-xl rounded-xl p-2 grid grid-cols-4 gap-2 w-64 z-50 h-48 overflow-y-auto border border-gray-200">
+                                            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white shadow-xl rounded-xl p-2 grid grid-cols-4 gap-1 w-56 z-50 h-48 overflow-y-auto border border-gray-200">
                                                 {PERSIAN_LETTERS.map(l => (
-                                                    <button key={l} type="button" onClick={() => { setPlateParts(p => ({...p, letter: l})); setShowLetterPicker(false); }} className="p-2 hover:bg-gray-100 rounded font-bold text-black">{l}</button>
+                                                    <button key={l} type="button" onClick={() => { setPlateParts(p => ({...p, letter: l})); setShowLetterPicker(false); }} className="p-2 hover:bg-gray-100 rounded font-bold text-black text-lg">{l}</button>
                                                 ))}
                                             </motion.div>
                                         )}
                                     </AnimatePresence>
                                 </div>
 
-                                <input type="tel" maxLength={3} value={plateParts.part3} onChange={e => setPlateParts(p => ({...p, part3: e.target.value.replace(/\D/g, '')}))} className="w-16 h-16 bg-transparent text-center font-black text-2xl outline-none text-black dark:text-black placeholder-gray-400" placeholder="365" />
+                                {/* Part 3: 3 Digits */}
+                                <input type="tel" maxLength={3} value={plateParts.part3} onChange={e => setPlateParts(p => ({...p, part3: e.target.value.replace(/\D/g, '')}))} className="h-14 bg-white/50 dark:bg-white/50 rounded-lg text-center font-black text-2xl outline-none text-black placeholder-gray-400 w-full min-w-0" placeholder="365" />
 
-                                {/* IRAN CODE - Increased width for better mobile visibility */}
-                                <div className="flex flex-col items-center justify-center w-14 h-16 border-l-2 border-black pl-0 p-0">
-                                    <span className="text-[10px] font-black text-black dark:text-black">ایران</span>
+                                {/* Part 4: Iran Code - Fixed Width Container */}
+                                <div className="flex flex-col items-center justify-center w-14 h-14 bg-white border border-black/10 rounded-lg shadow-sm">
+                                    <span className="text-[8px] font-black text-black">ایران</span>
                                     <input 
                                         type="tel" 
                                         maxLength={2} 
                                         value={plateParts.part4} 
                                         onChange={e => setPlateParts(p => ({...p, part4: e.target.value.replace(/\D/g, '')}))} 
-                                        className="w-full h-full bg-transparent text-center font-black text-xl outline-none text-black dark:text-black placeholder-gray-400 p-0" 
+                                        className="w-full h-full bg-transparent text-center font-black text-xl outline-none text-black placeholder-gray-400 p-0 -mt-1" 
                                         placeholder="11" 
                                     />
-                                </div>
-                                <div className="flex flex-col h-full justify-between pr-2">
-                                    <div className="w-4 h-full bg-blue-700"></div>
                                 </div>
                             </div>
                         </div>
@@ -418,7 +422,6 @@ export const InvoiceForm: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Increased size from h-16/text-xl to h-20/text-2xl */}
                 <Button type="submit" isLoading={isSubmitting} className="w-full h-20 text-2xl font-black bg-gradient-to-r from-metro-blue to-indigo-600 hover:to-indigo-500 shadow-xl shadow-blue-200 dark:shadow-none rounded-[24px] border-b-4 border-blue-800 active:border-b-0 active:translate-y-1 transition-all mt-8">
                     ثبت نهایی حواله
                 </Button>

@@ -97,16 +97,17 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
     <header className={`${themeColors.surface} ${themeColors.text} sticky top-0 z-30 transition-colors duration-300 border-b border-gray-200 dark:border-gray-800 shadow-sm`}>
       <div className="container mx-auto px-4 h-16 flex justify-between items-center max-w-full">
         
-        <div className="flex items-center gap-2 md:gap-4">
+        <div className="flex items-center gap-2 md:gap-4 flex-1 overflow-hidden">
           <button 
             onClick={onMenuClick} 
-            className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors active:scale-95 lg:hidden"
+            className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors active:scale-95 lg:hidden shrink-0"
             aria-label="Menu"
           >
             <Icons.Menu className="w-6 h-6" />
           </button>
 
-          <h1 className="text-lg md:text-2xl font-bold tracking-tight truncate max-w-[180px] sm:max-w-none ml-4">
+          {/* Fixed: Allow text wrap/shrink on mobile */}
+          <h1 className="text-sm sm:text-lg md:text-2xl font-bold tracking-tight ml-2 sm:ml-4 leading-tight line-clamp-2">
             {title}
           </h1>
 
@@ -116,7 +117,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           
           <OnlineStatusBadge />
 

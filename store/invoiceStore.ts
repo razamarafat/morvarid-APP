@@ -18,7 +18,7 @@ const translateError = (error: any): string => {
     const code = error.code || '';
     const status = String(error.status || '');
     if (status === '400' || code === 'PGRST204' || code === '42703') return 'خطای ساختار دیتابیس (ستون یافت نشد). پیلود اصلاح و تلاش مجدد شد.';
-    if (code === '23505') return 'شماره حواله تکراری است.';
+    if (code === '23505') return 'شماره حواله تکراری است (این محصول قبلاً برای این حواله ثبت شده است).';
     return `خطای سیستم: ${error.message || code}`;
 };
 
@@ -83,7 +83,35 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
   },
 
   bulkAddInvoices: async (invoicesList, isSyncing = false) => {
-      // 1. Explicit Offline Check
+      // 1. Strict Unique Logic Check (Client Side Optimization)
+      // Check if invoice number exists globally in loaded store
+      // If it exists:
+      // - Must be SAME Farm (Different farm -> Error: Duplicate globally)
+      // - Must be DIFFERENT Product (Same product -> Error: Duplicate line)
+      if (!isSyncing) {
+          const existingInvoices = get().invoices;
+          for (const inv of invoicesList) {
+              const duplicates = existingInvoices.filter(ex => ex.invoiceNumber === inv.invoiceNumber);
+              
+              if (duplicates.length > 0) {
+                  // Check Farm mismatch
+                  const otherFarm = duplicates.find(ex => ex.farmId !== inv.farmId);
+                  if (otherFarm) {
+                      return { success: false, error: `شماره حواله ${inv.invoiceNumber} تکراری است و قبلاً برای فارم دیگری ثبت شده است.` };
+                  }
+
+                  // Check Product duplicate
+                  const sameProduct = duplicates.find(ex => ex.productId === inv.productId);
+                  if (sameProduct) {
+                      return { success: false, error: `شماره حواله ${inv.invoiceNumber} قبلاً برای این محصول ثبت شده است. لطفاً رکورد موجود را ویرایش کنید.` };
+                  }
+                  
+                  // If same farm, different product -> Allow (Adding line item)
+              }
+          }
+      }
+
+      // 2. Explicit Offline Check
       if (!isSyncing && !navigator.onLine) {
           invoicesList.forEach(inv => useSyncStore.getState().addToQueue('INVOICE', inv));
           return { success: true, error: 'ذخیره در صف آفلاین' };
@@ -93,6 +121,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) return { success: false, error: "کاربر لاگین نیست." };
 
+          // 3. Payload Sanitization: Only include fields that exist in DB schema
           const dbInvoices = invoicesList.map(inv => ({
               farm_id: inv.farmId,
               date: inv.date,
@@ -106,6 +135,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
               description: inv.description,
               is_yesterday: inv.isYesterday,
               created_by: user.id
+              // Do NOT include id, createdAt, creatorName etc. here
           }));
 
           const { error } = await supabase.from('invoices').insert(dbInvoices);
@@ -127,7 +157,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           return { success: true };
 
       } catch (error: any) {
-          // 2. Fallback: Check if it was a network error
+          // 4. Fallback: Check if it was a network error
           if (!isSyncing && isNetworkError(error)) {
               invoicesList.forEach(inv => useSyncStore.getState().addToQueue('INVOICE', inv));
               return { success: true, error: 'ذخیره در صف آفلاین (عدم دسترسی به سرور)' };
@@ -144,8 +174,11 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
 
       try {
           const original = get().invoices.find(i => i.id === id);
+          
+          // Strict Payload construction to prevent "Column not found" errors during sync
           const fullPayload: any = {};
           
+          // Only add keys if they are defined in updates
           if (updates.totalCartons !== undefined) fullPayload.total_cartons = Math.floor(Number(updates.totalCartons)); 
           if (updates.totalWeight !== undefined) fullPayload.total_weight = Number(updates.totalWeight);
           if (updates.driverName !== undefined) fullPayload.driver_name = updates.driverName;
@@ -153,6 +186,8 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           if (updates.plateNumber !== undefined) fullPayload.plate_number = updates.plateNumber;
           if (updates.invoiceNumber !== undefined) fullPayload.invoice_number = updates.invoiceNumber;
           if (updates.description !== undefined) fullPayload.description = updates.description;
+          
+          // Always update timestamp
           fullPayload.updated_at = new Date().toISOString();
 
           let { error } = await supabase.from('invoices').update(fullPayload).eq('id', id);
@@ -160,6 +195,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           if (error) {
               // Retry Logic for Schema mismatches (handled inside try for safety)
               if (String((error as any).status) === '400' || error.code === 'PGRST204' || error.code === '42703') {
+                  // Fallback to core fields only if expanded fields fail
                   const corePayload: any = {
                       total_cartons: fullPayload.total_cartons,
                       total_weight: fullPayload.total_weight,

@@ -220,16 +220,13 @@ const RecentRecords: React.FC = () => {
     const [editStat, setEditStat] = useState<DailyStatistic | null>(null);
     const [editInvoice, setEditInvoice] = useState<Invoice | null>(null);
     
-    // --- Enhanced Filters ---
     const [startDate, setStartDate] = useState(getTodayJalali());
     const [endDate, setEndDate] = useState(getTodayJalali());
     const [searchTerm, setSearchTerm] = useState('');
     const [filterProduct, setFilterProduct] = useState<string>('all');
     
-    // UI State for Filters
     const [showFilters, setShowFilters] = useState(false);
 
-    // Edit Modal States
     const [statValues, setStatValues] = useState({ prod: '', prev: '', prodKg: '', prevKg: '' });
     const [invoiceValues, setInvoiceValues] = useState({ 
         invoiceNumber: '',
@@ -246,6 +243,9 @@ const RecentRecords: React.FC = () => {
     const farmId = user?.assignedFarms?.[0]?.id;
     const farmType = user?.assignedFarms?.[0]?.type;
     const isMotefereghe = farmType === FarmType.MOTEFEREGHE;
+    
+    // Privacy: If Motefereghe, only allow their assigned products
+    const allowedProductIds = user?.assignedFarms?.[0]?.productIds || [];
 
     const getProductName = (id: string) => products.find(p => p.id === id)?.name || 'محصول حذف شده';
     const isLiquid = (pid: string) => getProductName(pid).includes('مایع');
@@ -275,12 +275,13 @@ const RecentRecords: React.FC = () => {
         // 1. Statistics Filter
         const farmStats = statistics.filter(s => {
             if (s.farmId !== farmId) return false;
+            // Privacy Check for Motefereghe
+            if (isMotefereghe && !allowedProductIds.includes(s.productId)) return false;
+            
             if (!isDateInRange(s.date, start, end)) return false;
             
-            // Product Filter
             if (filterProduct !== 'all' && s.productId !== filterProduct) return false;
 
-            // Text Search
             if (term) {
                 const prodName = getProductName(s.productId).toLowerCase();
                 return prodName.includes(term);
@@ -291,12 +292,13 @@ const RecentRecords: React.FC = () => {
         // 2. Invoices Filter
         const farmInvoices = invoices.filter(i => {
             if (i.farmId !== farmId) return false;
+            // Privacy Check for Motefereghe
+            if (isMotefereghe && i.productId && !allowedProductIds.includes(i.productId)) return false;
+
             if (!isDateInRange(i.date, start, end)) return false;
 
-            // Product Filter
             if (filterProduct !== 'all' && i.productId !== filterProduct) return false;
 
-            // Text Search
             if (term) {
                 const prodName = getProductName(i.productId || '').toLowerCase();
                 const invNum = i.invoiceNumber.toLowerCase();
@@ -311,7 +313,7 @@ const RecentRecords: React.FC = () => {
             filteredStats: farmStats.sort((a,b) => b.createdAt - a.createdAt), 
             filteredInvoices: farmInvoices.sort((a,b) => b.createdAt - a.createdAt) 
         };
-    }, [statistics, invoices, farmId, startDate, endDate, searchTerm, filterProduct, products]);
+    }, [statistics, invoices, farmId, startDate, endDate, searchTerm, filterProduct, products, isMotefereghe, allowedProductIds]);
 
     const handleEditStatOpen = (stat: DailyStatistic) => {
         const fmt = (v: any) => (v === undefined || v === null) ? '' : String(v);
@@ -557,9 +559,11 @@ const RecentRecords: React.FC = () => {
                                             className={selectClasses}
                                         >
                                             <option value="all">همه محصولات</option>
-                                            {products.map(p => (
-                                                <option key={p.id} value={p.id}>{p.name}</option>
-                                            ))}
+                                            {products.map(p => {
+                                                // Motefereghe Filter Logic for Dropdown
+                                                if (isMotefereghe && !allowedProductIds.includes(p.id)) return null;
+                                                return <option key={p.id} value={p.id}>{p.name}</option>;
+                                            })}
                                         </select>
                                     </div>
                                 </div>
@@ -640,7 +644,8 @@ const RecentRecords: React.FC = () => {
                     </div>
                 </div>
             </div>
-
+            
+            {/* Edit Modals... (unchanged content below) */}
             <Modal isOpen={!!editStat} onClose={handleCancelStat} title="ویرایش آمار روزانه">
                 <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1">
                     <div className="p-4 bg-white dark:bg-gray-800 rounded-2xl border-2 border-blue-100 dark:border-blue-900 flex flex-col gap-2 shadow-sm">
