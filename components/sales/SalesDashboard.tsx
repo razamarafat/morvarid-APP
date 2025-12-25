@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import DashboardLayout from '../layout/DashboardLayout';
@@ -44,12 +44,12 @@ const sortProducts = (products: any[], aId: string, bId: string) => {
 const FarmStatistics = () => {
     const { statistics, fetchStatistics, subscribeToStatistics, isLoading } = useStatisticsStore();
     const { farms, products } = useFarmStore(); 
-    const { invoices, fetchInvoices } = useInvoiceStore();
+    const { fetchInvoices } = useInvoiceStore();
     const { addToast } = useToastStore();
     const { sendAlert } = useAlertStore();
     
     const todayJalali = getTodayJalali();
-    const [selectedDate, setSelectedDate] = useState(todayJalali);
+    const [selectedDate] = useState(todayJalali);
     const normalizedSelectedDate = normalizeDate(selectedDate);
     const [expandedFarmId, setExpandedFarmId] = useState<string | null>(null);
     const [alertLoading, setAlertLoading] = useState<string | null>(null);
@@ -105,7 +105,7 @@ const FarmStatistics = () => {
         setExpandedFarmId(expandedFarmId === farmId ? null : farmId);
     };
 
-    const getDeduplicatedStats = (farmId: string) => {
+    const getDeduplicatedStats = useCallback((farmId: string) => {
         const farmStats = statistics.filter(s => s.farmId === farmId && normalizeDate(s.date) === normalizedSelectedDate);
         const uniqueMap = new Map<string, DailyStatistic>();
         
@@ -123,7 +123,7 @@ const FarmStatistics = () => {
         });
         
         return Array.from(uniqueMap.values());
-    };
+    }, [statistics, normalizedSelectedDate]);
 
     if (isLoading && statistics.length === 0) {
         return (
@@ -255,8 +255,12 @@ const FarmStatistics = () => {
     );
 };
 
-const InvoiceRow = ({ index, style, data }: any) => {
+// Robust Invoice Row Component (No Memo to prevent React 19 strict mode conflicts)
+const InvoiceRow = ({ index, style, data }: { index: number; style: React.CSSProperties; data: any }) => {
     const invoice = data.invoices[index];
+    // CRITICAL FIX: Always return a valid element with style to maintain virtual list structure
+    if (!invoice) return <div style={style} />; 
+
     const { farms, products, renderInvoiceNumber } = data;
     const productName = products.find((p: any) => p.id === invoice.productId)?.name || '-';
     
@@ -264,8 +268,8 @@ const InvoiceRow = ({ index, style, data }: any) => {
         <div style={style} className="flex items-center text-right border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors text-gray-800 dark:text-gray-200 text-sm lg:text-lg overflow-hidden">
             <div className="w-[100px] lg:w-auto lg:flex-[1] px-2 font-black whitespace-nowrap tracking-tighter shrink-0">{toPersianDigits(invoice.date)}</div>
             <div className="w-[120px] lg:w-auto lg:flex-[1] px-2 text-center dir-ltr shrink-0">{renderInvoiceNumber(invoice.invoiceNumber)}</div>
-            <div className="w-[120px] lg:w-auto lg:flex-[1] px-2 whitespace-nowrap font-bold truncate">{farms.find((f: any) => f.id === invoice.farmId)?.name}</div>
-            <div className="w-[150px] lg:w-auto lg:flex-[1] px-2 font-bold text-gray-600 dark:text-gray-300 truncate">{productName}</div>
+            <div className="w-[120px] lg:w-auto lg:flex-[1] px-2 whitespace-nowrap font-bold truncate shrink-0">{farms.find((f: any) => f.id === invoice.farmId)?.name}</div>
+            <div className="w-[150px] lg:w-auto lg:flex-[1] px-2 font-bold text-gray-600 dark:text-gray-300 truncate shrink-0">{productName}</div>
             <div className="w-[80px] lg:w-auto lg:flex-[1] px-2 text-center font-black lg:text-xl shrink-0">{toPersianDigits(invoice.totalCartons)}</div>
             <div className="w-[80px] lg:w-auto lg:flex-[1] px-2 font-black text-metro-blue lg:text-xl shrink-0">{toPersianDigits(invoice.totalWeight)}</div>
             <div className="w-[80px] lg:w-auto lg:flex-[1] px-2 shrink-0">
@@ -291,15 +295,15 @@ const InvoiceList = () => {
         fetchInvoices();
     }, []);
 
-    const filteredInvoices = invoices
-        .filter(i => {
-            // FIX: Normalize the invoice date AND filter date before comparing.
-            // This prevents mismatch issues where one date might have 0-padding and the other not.
-            const dateMatch = normalizeDate(i.date) === normalizedFilterDate;
-            const farmMatch = selectedFarmId === 'all' || i.farmId === selectedFarmId;
-            return dateMatch && farmMatch;
-        })
-        .sort((a, b) => b.createdAt - a.createdAt);
+    const filteredInvoices = useMemo(() => {
+        return invoices
+            .filter(i => {
+                const dateMatch = normalizeDate(i.date) === normalizedFilterDate;
+                const farmMatch = selectedFarmId === 'all' || i.farmId === selectedFarmId;
+                return dateMatch && farmMatch;
+            })
+            .sort((a, b) => b.createdAt - a.createdAt);
+    }, [invoices, normalizedFilterDate, selectedFarmId]);
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
@@ -308,7 +312,7 @@ const InvoiceList = () => {
         addToast('لیست حواله‌ها بروزرسانی شد', 'info');
     };
 
-    const renderInvoiceNumber = (num: string) => {
+    const renderInvoiceNumber = useCallback((num: string) => {
         const strNum = toPersianDigits(num);
         if (strNum.length < 4) return <span className="text-gray-800 dark:text-gray-200 lg:text-xl">{strNum}</span>;
         const mainPart = strNum.slice(0, -4);
@@ -319,7 +323,14 @@ const InvoiceList = () => {
                 <span className="text-black dark:text-white font-black text-lg lg:text-2xl">{lastPart}</span>
             </div>
         );
-    };
+    }, []);
+
+    const itemData = useMemo(() => ({
+        invoices: filteredInvoices,
+        farms,
+        products,
+        renderInvoiceNumber
+    }), [filteredInvoices, farms, products, renderInvoiceNumber]);
 
     return (
         <div className="space-y-4 lg:space-y-6 flex flex-col h-full">
@@ -346,7 +357,7 @@ const InvoiceList = () => {
                 </Button>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 p-0 shadow-sm overflow-hidden border border-gray-100 dark:border-gray-700 rounded-xl flex-1 flex flex-col min-h-[500px]">
+            <div className="bg-white dark:bg-gray-800 p-0 shadow-sm overflow-hidden border border-gray-100 dark:border-gray-700 rounded-xl flex-1 flex flex-col h-[600px] md:h-auto min-h-[500px]">
                 <div className="p-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shrink-0">
                     <h3 className="font-black text-xl text-gray-800 dark:text-white flex items-center gap-2">
                         <Icons.FileText className="w-6 h-6 text-metro-orange" />
@@ -354,50 +365,56 @@ const InvoiceList = () => {
                     </h3>
                 </div>
                 
-                <div className="overflow-x-auto w-full flex-1">
-                    <div className="min-w-[800px] h-full flex flex-col">
-                        <div className="flex bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 text-sm lg:text-lg font-bold p-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
-                            <div className="w-[100px] lg:w-auto lg:flex-[1] px-2">تاریخ خروج</div>
-                            <div className="w-[120px] lg:w-auto lg:flex-[1] px-2 text-center">رمز حواله</div>
-                            <div className="w-[120px] lg:w-auto lg:flex-[1] px-2">فارم</div>
-                            <div className="w-[150px] lg:w-auto lg:flex-[1] px-2">نوع محصول</div>
-                            <div className="w-[80px] lg:w-auto lg:flex-[1] px-2 text-center">تعداد (کارتن)</div>
-                            <div className="w-[80px] lg:w-auto lg:flex-[1] px-2">وزن (Kg)</div>
-                            <div className="w-[80px] lg:w-auto lg:flex-[1] px-2">وضعیت</div>
+                <div className="flex-1 w-full relative">
+                    {isLoading ? (
+                        <div className="p-4">
+                            <SkeletonRow cols={7} />
+                            <SkeletonRow cols={7} />
+                            <SkeletonRow cols={7} />
                         </div>
-
-                        <div className="flex-1 w-full relative">
-                            {isLoading ? (
-                                <div className="p-4">
-                                    <SkeletonRow cols={7} />
-                                    <SkeletonRow cols={7} />
-                                    <SkeletonRow cols={7} />
-                                </div>
-                            ) : filteredInvoices.length === 0 ? (
-                                <div className="text-center py-20 text-gray-400 font-bold lg:text-lg">
-                                    <div className="flex flex-col items-center">
-                                        <Icons.FileText className="w-16 h-16 mb-2 opacity-30" />
-                                        <span>هیچ حواله‌ای برای تاریخ {toPersianDigits(normalizedFilterDate)} ثبت نشده است.</span>
-                                    </div>
-                                </div>
-                            ) : (
-                                <AutoSizer>
-                                    {({ height, width }) => (
-                                        <List
-                                            height={height}
-                                            itemCount={filteredInvoices.length}
-                                            itemSize={80} 
-                                            width={width} 
-                                            itemData={{ invoices: filteredInvoices, farms, products, renderInvoiceNumber }}
-                                            className="custom-scrollbar"
-                                        >
-                                            {InvoiceRow}
-                                        </List>
-                                    )}
-                                </AutoSizer>
-                            )}
+                    ) : filteredInvoices.length === 0 ? (
+                        <div className="text-center py-20 text-gray-400 font-bold lg:text-lg">
+                            <div className="flex flex-col items-center">
+                                <Icons.FileText className="w-16 h-16 mb-2 opacity-30" />
+                                <span>هیچ حواله‌ای برای تاریخ {toPersianDigits(normalizedFilterDate)} ثبت نشده است.</span>
+                            </div>
                         </div>
-                    </div>
+                    ) : (
+                        <div className="w-full h-full overflow-x-auto">
+                            <div className="min-w-[900px] h-full flex flex-col">
+                                 <div className="flex bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 text-sm lg:text-lg font-bold p-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
+                                    <div className="w-[100px] lg:w-auto lg:flex-[1] px-2">تاریخ خروج</div>
+                                    <div className="w-[120px] lg:w-auto lg:flex-[1] px-2 text-center">رمز حواله</div>
+                                    <div className="w-[120px] lg:w-auto lg:flex-[1] px-2">فارم</div>
+                                    <div className="w-[150px] lg:w-auto lg:flex-[1] px-2">نوع محصول</div>
+                                    <div className="w-[80px] lg:w-auto lg:flex-[1] px-2 text-center">تعداد (کارتن)</div>
+                                    <div className="w-[80px] lg:w-auto lg:flex-[1] px-2">وزن (Kg)</div>
+                                    <div className="w-[80px] lg:w-auto lg:flex-[1] px-2">وضعیت</div>
+                                </div>
+                                <div className="flex-1 w-full h-full">
+                                    <AutoSizer>
+                                        {({ height, width }) => {
+                                            // FIX: Prevent 0-dimension rendering crashes in React 19 by returning a placeholder
+                                            if (!height || !width) return <div style={{ height: height || 0, width: width || 0 }} />;
+                                            return (
+                                                <List
+                                                    height={height}
+                                                    itemCount={filteredInvoices.length}
+                                                    itemSize={80} 
+                                                    width={Math.max(width, 900)}
+                                                    itemData={itemData}
+                                                    className="custom-scrollbar"
+                                                    style={{ direction: 'rtl' }}
+                                                >
+                                                    {InvoiceRow}
+                                                </List>
+                                            );
+                                        }}
+                                    </AutoSizer>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

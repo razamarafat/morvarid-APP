@@ -29,6 +29,7 @@ interface ErrorBoundaryProps {
 
 interface ErrorBoundaryState {
   hasError: boolean;
+  error?: Error;
 }
 
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
@@ -41,12 +42,13 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError(_: Error): ErrorBoundaryState {
-    return { hasError: true };
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error("Uncaught error:", error, errorInfo);
+    console.error("Uncaught error:", error);
+    console.error("Component Stack:", errorInfo.componentStack);
   }
 
   handleHardReset = () => {
@@ -67,7 +69,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   };
 
   render(): ReactNode {
-    const { hasError } = this.state;
+    const { hasError, error } = this.state;
     const { children } = this.props;
 
     if (hasError) {
@@ -75,7 +77,11 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
         <div className="flex flex-col items-center justify-center h-screen bg-gray-100 dark:bg-gray-900 text-center p-6">
           <div className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-xl max-w-sm w-full border border-gray-200 dark:border-gray-700">
               <h1 className="text-2xl font-black text-red-600 mb-2">خطای سیستمی</h1>
-              <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm">متأسفانه برنامه با مشکل مواجه شده است. لطفاً صفحه را بارگذاری مجدد کنید.</p>
+              <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm">
+                  {error?.message?.includes('Minified React error') 
+                    ? 'خطای داخلی رابط کاربری رخ داده است (525). لطفا کنسول مرورگر را بررسی کنید.' 
+                    : 'متأسفانه برنامه با مشکل مواجه شده است.'}
+              </p>
               
               <div className="space-y-3">
                   <button onClick={() => window.location.reload()} className="w-full px-6 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-all active:scale-95">

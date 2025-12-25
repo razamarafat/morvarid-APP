@@ -1,23 +1,33 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { Icons } from '../components/common/Icons';
 import Reports from '../components/admin/Reports';
-import { useStatisticsStore } from '../store/statisticsStore';
-import { useInvoiceStore } from '../store/invoiceStore';
-import { useFarmStore } from '../store/farmStore';
-import { useToastStore } from '../store/toastStore';
-import { useAuthStore } from '../store/authStore';
-import { useAlertStore } from '../store/alertStore';
-import { getTodayJalali, normalizeDate, toPersianDigits } from '../utils/dateUtils';
+import { useStatisticsStore, DailyStatistic } from '../../store/statisticsStore';
+import { useInvoiceStore } from '../../store/invoiceStore';
+import { useFarmStore } from '../../store/farmStore';
+import { useToastStore } from '../../store/toastStore';
+import { useAuthStore } from '../../store/authStore';
+import { useAlertStore } from '../../store/alertStore';
+import { getTodayJalali, normalizeDate, toPersianDigits } from '../../utils/dateUtils';
 import Button from '../components/common/Button';
 import MetroTile from '../components/common/MetroTile';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FarmType } from '../types';
+import { FarmType } from '../../types';
 import JalaliDatePicker from '../components/common/JalaliDatePicker';
 import { SkeletonTile, SkeletonRow } from '../components/common/Skeleton';
+
+// --- DEBUG HELPER ---
+const logOnce = (key: string, message: string, data?: any) => {
+    // @ts-ignore
+    if (!window[`_log_${key}`]) {
+        console.log(`[DEBUG] ${message}`, data);
+        // @ts-ignore
+        window[`_log_${key}`] = true;
+    }
+};
 
 const sortProducts = (products: any[], aId: string, bId: string) => {
     const pA = products.find(p => p.id === aId);
@@ -25,38 +35,31 @@ const sortProducts = (products: any[], aId: string, bId: string) => {
     if (!pA || !pB) return 0;
     
     const getScore = (name: string) => {
-        // Priority 1: Shirink Products
         if (name.includes('شیرینگ') || name.includes('شیرینک')) {
-            if (name.includes('پرینتی')) return 1; // Highest Priority
-            return 2; // Shirink Sadeh
+            if (name.includes('پرینتی')) return 1; 
+            return 2; 
         }
-
-        // Priority 2: General Products (Carton/Bulk)
         if (name.includes('پرینتی')) return 3;
         if (name.includes('ساده')) return 4;
-
-        // Priority 3: Special Types
         if (name.includes('دوزرده')) return 5;
         if (name.includes('نوکی')) return 6;
         if (name.includes('کودی')) return 7;
         if (name.includes('مایع')) return 8;
-
-        return 9; // Others
+        return 9; 
     };
     
-    // Ascending sort (Lower number comes first)
     return getScore(pA.name) - getScore(pB.name);
 };
 
 const FarmStatistics = () => {
     const { statistics, fetchStatistics, subscribeToStatistics, isLoading } = useStatisticsStore();
     const { farms, products } = useFarmStore(); 
-    const { invoices, fetchInvoices } = useInvoiceStore();
+    const { fetchInvoices } = useInvoiceStore();
     const { addToast } = useToastStore();
     const { sendAlert } = useAlertStore();
     
     const todayJalali = getTodayJalali();
-    const [selectedDate, setSelectedDate] = useState(todayJalali);
+    const [selectedDate] = useState(todayJalali);
     const normalizedSelectedDate = normalizeDate(selectedDate);
     const [expandedFarmId, setExpandedFarmId] = useState<string | null>(null);
     const [alertLoading, setAlertLoading] = useState<string | null>(null);
@@ -79,16 +82,58 @@ const FarmStatistics = () => {
     const handleSendAlert = async (farmId: string, farmName: string, e: React.MouseEvent) => {
         e.stopPropagation(); 
         setAlertLoading(farmId);
+        
+        try {
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            if (AudioContextClass) {
+                const ctx = new AudioContextClass();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.setValueAtTime(440, ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(880, ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.3);
+            }
+        } catch(e) {}
+
         const message = `عدم ثبت آمار برای فارم ${farmName} در تاریخ ${normalizedSelectedDate}`;
-        const success = await sendAlert(farmId, farmName, message);
-        if (success) addToast(`هشدار آنی برای ${farmName} ارسال شد`, 'success');
-        else addToast('خطا در ارسال هشدار', 'error');
+        const result = await sendAlert(farmId, farmName, message);
+        
+        if (result.success) {
+            addToast(`هشدار آنی برای مسئول ${farmName} ارسال شد`, 'success');
+        } else {
+            addToast('خطا در ارسال هشدار', 'error');
+        }
         setAlertLoading(null);
     };
 
     const toggleFarm = (farmId: string) => {
         setExpandedFarmId(expandedFarmId === farmId ? null : farmId);
     };
+
+    const getDeduplicatedStats = useCallback((farmId: string) => {
+        const farmStats = statistics.filter(s => s.farmId === farmId && normalizeDate(s.date) === normalizedSelectedDate);
+        const uniqueMap = new Map<string, DailyStatistic>();
+        
+        farmStats.forEach(stat => {
+            if (uniqueMap.has(stat.productId)) {
+                const existing = uniqueMap.get(stat.productId)!;
+                const existingTime = new Date(existing.updatedAt || existing.createdAt).getTime();
+                const newTime = new Date(stat.updatedAt || stat.createdAt).getTime();
+                if (newTime > existingTime) {
+                    uniqueMap.set(stat.productId, stat);
+                }
+            } else {
+                uniqueMap.set(stat.productId, stat);
+            }
+        });
+        
+        return Array.from(uniqueMap.values());
+    }, [statistics, normalizedSelectedDate]);
 
     if (isLoading && statistics.length === 0) {
         return (
@@ -116,17 +161,18 @@ const FarmStatistics = () => {
 
             <div className="grid gap-4 lg:gap-6 animate-in slide-in-from-bottom-2 duration-500">
                 {farms.map(farm => {
-                    const farmStats = statistics.filter(s => s.farmId === farm.id && normalizeDate(s.date) === normalizedSelectedDate);
-                    const sortedFarmStats = [...farmStats].sort((a, b) => sortProducts(products, a.productId, b.productId));
-                    const hasStats = farmStats.length > 0;
+                    const dedupedStats = getDeduplicatedStats(farm.id);
+                    const sortedFarmStats = [...dedupedStats].sort((a, b) => sortProducts(products, a.productId, b.productId));
+                    const hasStats = sortedFarmStats.length > 0;
                     const isExpanded = expandedFarmId === farm.id;
+                    const isMotefereghe = farm.type === FarmType.MOTEFEREGHE;
+
                     return (
                         <div key={farm.id} className="group shadow-sm hover:shadow-xl transition-all duration-300 rounded-[28px] overflow-hidden border border-gray-200 dark:border-gray-700">
                             <div onClick={() => toggleFarm(farm.id)} className={`p-5 lg:p-7 flex items-center justify-between cursor-pointer transition-colors border-r-[8px] ${hasStats ? 'bg-white dark:bg-gray-800 border-green-500 hover:bg-gray-50 dark:hover:bg-gray-700/50' : 'bg-white dark:bg-gray-800 border-red-500 hover:bg-red-50 dark:hover:bg-red-900/10'}`}>
                                 <div className="flex items-center gap-4 lg:gap-6">
                                     <div className={`p-4 rounded-[20px] shadow-sm text-white ${hasStats ? 'bg-gradient-to-br from-green-500 to-emerald-600' : 'bg-gradient-to-br from-red-500 to-rose-600'}`}><Icons.Home className="w-6 h-6 lg:w-8 lg:h-8" /></div>
                                     <div>
-                                        {/* Increased Font Size */}
                                         <h4 className="font-black text-2xl lg:text-3xl text-gray-800 dark:text-white mb-1">{farm.name}</h4>
                                         <span className={`text-base lg:text-lg font-bold px-2 py-0.5 rounded-full ${hasStats ? 'bg-green-100 text-green-700 dark:bg-green-900/30' : 'bg-red-100 text-red-700 dark:bg-red-900/30'}`}>{hasStats ? 'آمار ثبت شده' : 'منتظر ثبت'}</span>
                                     </div>
@@ -140,7 +186,7 @@ const FarmStatistics = () => {
                                             onClick={(e) => handleSendAlert(farm.id, farm.name, e)}
                                             className="lg:h-12 lg:px-6 shadow-md"
                                         >
-                                            <Icons.Bell className="w-5 h-5 lg:ml-2" />
+                                            <Icons.Bell className={`w-5 h-5 lg:ml-2 ${alertLoading === farm.id ? 'animate-bounce' : ''}`} />
                                             <span className="hidden lg:inline text-lg">ارسال هشدار</span>
                                         </Button>
                                     )}
@@ -153,13 +199,17 @@ const FarmStatistics = () => {
                                         <div className="grid grid-cols-1 gap-4">
                                             {sortedFarmStats.map(stat => {
                                                 const prod = products.find(p => p.id === stat.productId);
-                                                const isLiquid = prod?.name.includes('مایع') || prod?.hasKilogramUnit;
+                                                
+                                                const showCarton = stat.production > 0 || stat.sales > 0 || stat.previousBalance > 0 || stat.currentInventory > 0;
+                                                const showKg = stat.productionKg > 0 || stat.salesKg > 0 || stat.previousBalanceKg > 0 || stat.currentInventoryKg > 0;
 
-                                                const unitLabel = isLiquid ? 'Kg' : '';
-                                                const prodVal = isLiquid ? (stat.productionKg || 0) : (stat.production || 0);
-                                                const salesVal = isLiquid ? (stat.salesKg || 0) : (stat.sales || 0);
-                                                const prevVal = isLiquid ? (stat.previousBalanceKg || 0) : (stat.previousBalance || 0);
-                                                const currVal = isLiquid ? (stat.currentInventoryKg || 0) : (stat.currentInventory || 0);
+                                                const renderVal = (valC: number, valK: number, colorClass: string) => (
+                                                    <div className="flex flex-col items-center">
+                                                        {showCarton && <span className={`font-black text-xl lg:text-2xl ${colorClass}`}>{toPersianDigits(valC)} <small className="text-[10px] text-gray-500">کارتن</small></span>}
+                                                        {showKg && <span className={`font-black text-lg lg:text-xl text-metro-blue`}>{toPersianDigits(valK)} <small className="text-[10px] text-gray-500">کیلوگرم</small></span>}
+                                                        {!showCarton && !showKg && <span className="font-black text-xl text-gray-400">0</span>}
+                                                    </div>
+                                                );
 
                                                 return (
                                                 <div key={stat.id} className="bg-white dark:bg-gray-800 p-4 rounded-[24px] border border-gray-100 dark:border-gray-700 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow">
@@ -177,26 +227,28 @@ const FarmStatistics = () => {
                                                         </div>
                                                     </div>
                                                     
-                                                    {/* Colored Cells Grid */}
-                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                                                        <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-slate-500 text-white shadow-sm">
-                                                            <span className="text-xs font-bold opacity-80 mb-1">موجودی قبل</span>
-                                                            <span className="font-black text-xl lg:text-2xl">{toPersianDigits(prevVal)} <small className="text-[10px]">{unitLabel}</small></span>
-                                                        </div>
+                                                    <div className={`grid gap-2 ${isMotefereghe ? 'grid-cols-3' : 'grid-cols-2 md:grid-cols-4'}`}>
                                                         
-                                                        <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-emerald-600 text-white shadow-sm">
-                                                            <span className="text-xs font-bold opacity-80 mb-1">تولید روز</span>
-                                                            <span className="font-black text-xl lg:text-2xl">+{toPersianDigits(prodVal)} <small className="text-[10px]">{unitLabel}</small></span>
+                                                        {!isMotefereghe && (
+                                                            <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-slate-500/10 border border-slate-200 dark:border-slate-700 shadow-sm">
+                                                                <span className="text-xs font-bold text-slate-500 mb-1">موجودی قبل</span>
+                                                                {renderVal(stat.previousBalance, stat.previousBalanceKg || 0, 'text-slate-600 dark:text-slate-300')}
+                                                            </div>
+                                                        )}
+                                                        
+                                                        <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-green-500/10 border border-green-200 dark:border-green-800 shadow-sm">
+                                                            <span className="text-xs font-bold text-green-600 mb-1">{isMotefereghe ? 'موجودی اعلامی' : 'تولید روز'}</span>
+                                                            {renderVal(stat.production, stat.productionKg || 0, 'text-green-600')}
                                                         </div>
 
-                                                        <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-rose-600 text-white shadow-sm">
-                                                            <span className="text-xs font-bold opacity-80 mb-1">فروش</span>
-                                                            <span className="font-black text-xl lg:text-2xl">-{toPersianDigits(salesVal)} <small className="text-[10px]">{unitLabel}</small></span>
+                                                        <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-red-500/10 border border-red-200 dark:border-red-800 shadow-sm">
+                                                            <span className="text-xs font-bold text-red-600 mb-1">فروش</span>
+                                                            {renderVal(stat.sales, stat.salesKg || 0, 'text-red-500')}
                                                         </div>
 
-                                                        <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-blue-600 text-white shadow-sm">
-                                                            <span className="text-xs font-bold opacity-80 mb-1">مانده نهایی</span>
-                                                            <span className="font-black text-xl lg:text-2xl">{toPersianDigits(currVal)} <small className="text-[10px]">{unitLabel}</small></span>
+                                                        <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-blue-500/10 border border-blue-200 dark:border-blue-800 shadow-sm">
+                                                            <span className="text-xs font-bold text-blue-600 mb-1">مانده نهایی</span>
+                                                            {renderVal(stat.currentInventory, stat.currentInventoryKg || 0, 'text-blue-600')}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -213,27 +265,42 @@ const FarmStatistics = () => {
     );
 };
 
-// --- Virtualized Invoice Row ---
-const InvoiceRow = ({ index, style, data }: any) => {
-    const invoice = data.invoices[index];
-    const { farms, products, renderInvoiceNumber } = data;
-    const productName = products.find((p: any) => p.id === invoice.productId)?.name || '-';
-    
-    return (
-        <div style={style} className="flex items-center text-right border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors text-gray-800 dark:text-gray-200 text-base lg:text-lg">
-            <div className="flex-[1] px-2 font-black whitespace-nowrap tracking-tighter">{toPersianDigits(invoice.date)}</div>
-            <div className="flex-[1] px-2 text-center dir-ltr">{renderInvoiceNumber(invoice.invoiceNumber)}</div>
-            <div className="flex-[1] px-2 whitespace-nowrap font-bold text-lg lg:text-xl truncate">{farms.find((f: any) => f.id === invoice.farmId)?.name}</div>
-            <div className="flex-[1] px-2 font-bold text-gray-600 dark:text-gray-300 truncate">{productName}</div>
-            <div className="flex-[1] px-2 text-center font-black text-xl lg:text-2xl">{toPersianDigits(invoice.totalCartons)}</div>
-            <div className="flex-[1] px-2 font-black text-metro-blue text-xl lg:text-2xl">{toPersianDigits(invoice.totalWeight)}</div>
-            <div className="flex-[1] px-2">
-                <span className={`px-2 py-0.5 text-sm font-black text-white rounded ${invoice.isYesterday ? 'bg-metro-orange' : 'bg-metro-green'}`}>
-                    {invoice.isYesterday ? 'دیروزی' : 'عادی'}
-                </span>
+// Robust Invoice Row Component with Internal Error Handling
+const InvoiceRow = ({ index, style, data }: { index: number; style: React.CSSProperties; data: any }) => {
+    try {
+        if (!data || !data.invoices) {
+            logOnce('invoice_row_no_data', 'Missing data object in InvoiceRow', { index });
+            return <div style={style}></div>;
+        }
+
+        const invoice = data.invoices[index];
+        if (!invoice) {
+            // This is expected for virtual lists that overscan, but worth noting if index is vastly out of bounds
+            return <div style={style} />; 
+        }
+
+        const { farms, products, renderInvoiceNumber } = data;
+        const productName = products.find((p: any) => p.id === invoice.productId)?.name || '-';
+        
+        return (
+            <div style={style} className="flex items-center text-right border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors text-gray-800 dark:text-gray-200 text-sm lg:text-lg overflow-hidden">
+                <div className="flex-[1] px-2 font-black whitespace-nowrap tracking-tighter shrink-0">{toPersianDigits(invoice.date)}</div>
+                <div className="flex-[1] px-2 text-center dir-ltr shrink-0">{renderInvoiceNumber(invoice.invoiceNumber)}</div>
+                <div className="flex-[1] px-2 whitespace-nowrap font-bold truncate shrink-0">{farms.find((f: any) => f.id === invoice.farmId)?.name}</div>
+                <div className="flex-[1] px-2 font-bold text-gray-600 dark:text-gray-300 truncate shrink-0">{productName}</div>
+                <div className="flex-[1] px-2 text-center font-black lg:text-xl shrink-0">{toPersianDigits(invoice.totalCartons)}</div>
+                <div className="flex-[1] px-2 font-black text-metro-blue lg:text-xl shrink-0">{toPersianDigits(invoice.totalWeight)}</div>
+                <div className="flex-[1] px-2 shrink-0">
+                    <span className={`px-2 py-0.5 text-xs lg:text-sm font-black text-white rounded ${invoice.isYesterday ? 'bg-metro-orange' : 'bg-metro-green'}`}>
+                        {invoice.isYesterday ? 'دیروز' : 'عادی'}
+                    </span>
+                </div>
             </div>
-        </div>
-    );
+        );
+    } catch (e) {
+        console.error('Crash in InvoiceRow:', e);
+        return <div style={style} className="text-red-500 text-xs">Error rendering row</div>;
+    }
 };
 
 const InvoiceList = () => {
@@ -246,13 +313,22 @@ const InvoiceList = () => {
     const [filterDate, setFilterDate] = useState(getTodayJalali());
     const normalizedFilterDate = normalizeDate(filterDate);
 
-    const filteredInvoices = invoices
-        .filter(i => {
-            const dateMatch = i.date === normalizedFilterDate;
-            const farmMatch = selectedFarmId === 'all' || i.farmId === selectedFarmId;
-            return dateMatch && farmMatch;
-        })
-        .sort((a, b) => b.createdAt - a.createdAt);
+    useEffect(() => {
+        fetchInvoices();
+    }, []);
+
+    const filteredInvoices = useMemo(() => {
+        const results = invoices
+            .filter(i => {
+                const dateMatch = normalizeDate(i.date) === normalizedFilterDate;
+                const farmMatch = selectedFarmId === 'all' || i.farmId === selectedFarmId;
+                return dateMatch && farmMatch;
+            })
+            .sort((a, b) => b.createdAt - a.createdAt);
+        
+        logOnce('filtered_invoices', `Filtered Invoices Count: ${results.length}`);
+        return results;
+    }, [invoices, normalizedFilterDate, selectedFarmId]);
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
@@ -261,18 +337,25 @@ const InvoiceList = () => {
         addToast('لیست حواله‌ها بروزرسانی شد', 'info');
     };
 
-    const renderInvoiceNumber = (num: string) => {
+    const renderInvoiceNumber = useCallback((num: string) => {
         const strNum = toPersianDigits(num);
         if (strNum.length < 4) return <span className="text-gray-800 dark:text-gray-200 lg:text-xl">{strNum}</span>;
         const mainPart = strNum.slice(0, -4);
         const lastPart = strNum.slice(-4);
         return (
             <div className="flex justify-end items-center gap-0.5">
-                <span className="text-gray-500 dark:text-gray-400 font-bold text-lg lg:text-xl">{mainPart}</span>
-                <span className="text-black dark:text-white font-black text-xl lg:text-2xl">{lastPart}</span>
+                <span className="text-gray-500 dark:text-gray-400 font-bold text-base lg:text-xl">{mainPart}</span>
+                <span className="text-black dark:text-white font-black text-lg lg:text-2xl">{lastPart}</span>
             </div>
         );
-    };
+    }, []);
+
+    const itemData = useMemo(() => ({
+        invoices: filteredInvoices,
+        farms,
+        products,
+        renderInvoiceNumber
+    }), [filteredInvoices, farms, products, renderInvoiceNumber]);
 
     return (
         <div className="space-y-4 lg:space-y-6 flex flex-col h-full">
@@ -299,7 +382,7 @@ const InvoiceList = () => {
                 </Button>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 p-0 shadow-sm overflow-hidden border border-gray-100 dark:border-gray-700 rounded-xl flex-1 flex flex-col min-h-[500px]">
+            <div className="bg-white dark:bg-gray-800 p-0 shadow-sm overflow-hidden border border-gray-100 dark:border-gray-700 rounded-xl flex-1 flex flex-col h-[600px] md:h-auto min-h-[500px]">
                 <div className="p-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shrink-0">
                     <h3 className="font-black text-xl text-gray-800 dark:text-white flex items-center gap-2">
                         <Icons.FileText className="w-6 h-6 text-metro-orange" />
@@ -307,18 +390,8 @@ const InvoiceList = () => {
                     </h3>
                 </div>
                 
-                {/* Header Row (Flexbox to match virtual items) */}
-                <div className="flex bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 text-sm lg:text-lg font-bold p-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
-                    <div className="flex-[1] px-2">تاریخ خروج</div>
-                    <div className="flex-[1] px-2 text-center">رمز حواله</div>
-                    <div className="flex-[1] px-2">فارم</div>
-                    <div className="flex-[1] px-2">نوع محصول</div>
-                    <div className="flex-[1] px-2 text-center">تعداد (کارتن)</div>
-                    <div className="flex-[1] px-2">وزن (Kg)</div>
-                    <div className="flex-[1] px-2">وضعیت</div>
-                </div>
-
-                <div className="flex-1 w-full">
+                {/* Fixed height container to ensure AutoSizer works */}
+                <div className="flex-1 w-full relative" style={{ minHeight: '400px' }}>
                     {isLoading ? (
                         <div className="p-4">
                             <SkeletonRow cols={7} />
@@ -333,20 +406,45 @@ const InvoiceList = () => {
                             </div>
                         </div>
                     ) : (
-                        <AutoSizer>
-                            {({ height, width }) => (
-                                <List
-                                    height={height}
-                                    itemCount={filteredInvoices.length}
-                                    itemSize={80} // Height of each row
-                                    width={width}
-                                    itemData={{ invoices: filteredInvoices, farms, products, renderInvoiceNumber }}
-                                    className="custom-scrollbar"
-                                >
-                                    {InvoiceRow}
-                                </List>
-                            )}
-                        </AutoSizer>
+                        <div className="w-full h-full overflow-hidden">
+                            <div className="min-w-[900px] h-full flex flex-col">
+                                 <div className="flex bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 text-sm lg:text-lg font-bold p-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
+                                    <div className="flex-[1] px-2">تاریخ خروج</div>
+                                    <div className="flex-[1] px-2 text-center">رمز حواله</div>
+                                    <div className="flex-[1] px-2">فارم</div>
+                                    <div className="flex-[1] px-2">نوع محصول</div>
+                                    <div className="flex-[1] px-2 text-center">تعداد (کارتن)</div>
+                                    <div className="flex-[1] px-2">وزن (Kg)</div>
+                                    <div className="flex-[1] px-2">وضعیت</div>
+                                </div>
+                                <div className="flex-1 w-full h-full">
+                                    <AutoSizer>
+                                        {({ height, width }) => {
+                                            // DIAGNOSTIC LOGGING FOR AUTOSIZER
+                                            if (!height || !width || height === 0 || width === 0) {
+                                                logOnce('autosizer_zero', 'AutoSizer detected 0 dimensions', { height, width });
+                                                // Return a valid element to prevent #525
+                                                return <div style={{ height: '100%', width: '100%' }} />;
+                                            }
+                                            
+                                            return (
+                                                <List
+                                                    height={height}
+                                                    itemCount={filteredInvoices.length}
+                                                    itemSize={80} 
+                                                    width={Math.max(width, 900)}
+                                                    itemData={itemData}
+                                                    className="custom-scrollbar"
+                                                    style={{ direction: 'rtl' }}
+                                                >
+                                                    {InvoiceRow}
+                                                </List>
+                                            );
+                                        }}
+                                    </AutoSizer>
+                                </div>
+                            </div>
+                        </div>
                     )}
                 </div>
             </div>
@@ -413,7 +511,7 @@ const AnalyticsView = () => {
                         onChange={(e) => setSelectedFarmId(e.target.value)} 
                         className="p-2 lg:p-3 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white font-bold text-sm lg:text-lg w-full sm:w-40"
                     >
-                        <option value="all">همه فارم‌ها</option>
+                        <option value="all">همه فارم‌های</option>
                         {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                     </select>
                     <select 
