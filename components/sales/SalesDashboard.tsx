@@ -19,6 +19,16 @@ import { FarmType } from '../../types';
 import JalaliDatePicker from '../common/JalaliDatePicker';
 import { SkeletonTile, SkeletonRow } from '../common/Skeleton';
 
+// --- DEBUG HELPER ---
+const logOnce = (key: string, message: string, data?: any) => {
+    // @ts-ignore
+    if (!window[`_log_${key}`]) {
+        console.log(`[DEBUG] ${message}`, data);
+        // @ts-ignore
+        window[`_log_${key}`] = true;
+    }
+};
+
 const sortProducts = (products: any[], aId: string, bId: string) => {
     const pA = products.find(p => p.id === aId);
     const pB = products.find(p => p.id === bId);
@@ -255,30 +265,39 @@ const FarmStatistics = () => {
     );
 };
 
-// Robust Invoice Row Component (No Memo to prevent React 19 strict mode conflicts)
+// Robust Invoice Row Component with Internal Error Handling
 const InvoiceRow = ({ index, style, data }: { index: number; style: React.CSSProperties; data: any }) => {
-    const invoice = data.invoices[index];
-    // CRITICAL FIX: Always return a valid element with style to maintain virtual list structure
-    if (!invoice) return <div style={style} />; 
+    try {
+        if (!data || !data.invoices) {
+            return <div style={style}></div>;
+        }
 
-    const { farms, products, renderInvoiceNumber } = data;
-    const productName = products.find((p: any) => p.id === invoice.productId)?.name || '-';
-    
-    return (
-        <div style={style} className="flex items-center text-right border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors text-gray-800 dark:text-gray-200 text-sm lg:text-lg overflow-hidden">
-            <div className="w-[100px] lg:w-auto lg:flex-[1] px-2 font-black whitespace-nowrap tracking-tighter shrink-0">{toPersianDigits(invoice.date)}</div>
-            <div className="w-[120px] lg:w-auto lg:flex-[1] px-2 text-center dir-ltr shrink-0">{renderInvoiceNumber(invoice.invoiceNumber)}</div>
-            <div className="w-[120px] lg:w-auto lg:flex-[1] px-2 whitespace-nowrap font-bold truncate shrink-0">{farms.find((f: any) => f.id === invoice.farmId)?.name}</div>
-            <div className="w-[150px] lg:w-auto lg:flex-[1] px-2 font-bold text-gray-600 dark:text-gray-300 truncate shrink-0">{productName}</div>
-            <div className="w-[80px] lg:w-auto lg:flex-[1] px-2 text-center font-black lg:text-xl shrink-0">{toPersianDigits(invoice.totalCartons)}</div>
-            <div className="w-[80px] lg:w-auto lg:flex-[1] px-2 font-black text-metro-blue lg:text-xl shrink-0">{toPersianDigits(invoice.totalWeight)}</div>
-            <div className="w-[80px] lg:w-auto lg:flex-[1] px-2 shrink-0">
-                <span className={`px-2 py-0.5 text-xs lg:text-sm font-black text-white rounded ${invoice.isYesterday ? 'bg-metro-orange' : 'bg-metro-green'}`}>
-                    {invoice.isYesterday ? 'دیروز' : 'عادی'}
-                </span>
+        const invoice = data.invoices[index];
+        if (!invoice) {
+            return <div style={style} />; 
+        }
+
+        const { farms, products, renderInvoiceNumber } = data;
+        const productName = products.find((p: any) => p.id === invoice.productId)?.name || '-';
+        
+        return (
+            <div style={style} className="flex items-center text-right border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors text-gray-800 dark:text-gray-200 text-sm lg:text-lg overflow-hidden">
+                <div className="w-[100px] lg:w-auto lg:flex-[1] px-2 font-black whitespace-nowrap tracking-tighter shrink-0">{toPersianDigits(invoice.date)}</div>
+                <div className="w-[120px] lg:w-auto lg:flex-[1] px-2 text-center dir-ltr shrink-0">{renderInvoiceNumber(invoice.invoiceNumber)}</div>
+                <div className="w-[120px] lg:w-auto lg:flex-[1] px-2 whitespace-nowrap font-bold truncate shrink-0">{farms.find((f: any) => f.id === invoice.farmId)?.name}</div>
+                <div className="w-[150px] lg:w-auto lg:flex-[1] px-2 font-bold text-gray-600 dark:text-gray-300 truncate shrink-0">{productName}</div>
+                <div className="w-[80px] lg:w-auto lg:flex-[1] px-2 text-center font-black lg:text-xl shrink-0">{toPersianDigits(invoice.totalCartons)}</div>
+                <div className="w-[80px] lg:w-auto lg:flex-[1] px-2 font-black text-metro-blue lg:text-xl shrink-0">{toPersianDigits(invoice.totalWeight)}</div>
+                <div className="w-[80px] lg:w-auto lg:flex-[1] px-2 shrink-0">
+                    <span className={`px-2 py-0.5 text-xs lg:text-sm font-black text-white rounded ${invoice.isYesterday ? 'bg-metro-orange' : 'bg-metro-green'}`}>
+                        {invoice.isYesterday ? 'دیروز' : 'عادی'}
+                    </span>
+                </div>
             </div>
-        </div>
-    );
+        );
+    } catch (e) {
+        return <div style={style} className="text-red-500 text-xs">Error rendering row</div>;
+    }
 };
 
 const InvoiceList = () => {
@@ -296,13 +315,16 @@ const InvoiceList = () => {
     }, []);
 
     const filteredInvoices = useMemo(() => {
-        return invoices
+        const results = invoices
             .filter(i => {
                 const dateMatch = normalizeDate(i.date) === normalizedFilterDate;
                 const farmMatch = selectedFarmId === 'all' || i.farmId === selectedFarmId;
                 return dateMatch && farmMatch;
             })
             .sort((a, b) => b.createdAt - a.createdAt);
+        
+        logOnce('filtered_invoices', `Filtered Invoices Count: ${results.length}`);
+        return results;
     }, [invoices, normalizedFilterDate, selectedFarmId]);
 
     const handleRefresh = async () => {
@@ -365,7 +387,8 @@ const InvoiceList = () => {
                     </h3>
                 </div>
                 
-                <div className="flex-1 w-full relative">
+                {/* Fixed height container to ensure AutoSizer works */}
+                <div className="flex-1 w-full relative" style={{ minHeight: '400px' }}>
                     {isLoading ? (
                         <div className="p-4">
                             <SkeletonRow cols={7} />
@@ -380,7 +403,7 @@ const InvoiceList = () => {
                             </div>
                         </div>
                     ) : (
-                        <div className="w-full h-full overflow-x-auto">
+                        <div className="w-full h-full overflow-hidden">
                             <div className="min-w-[900px] h-full flex flex-col">
                                  <div className="flex bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 text-sm lg:text-lg font-bold p-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
                                     <div className="w-[100px] lg:w-auto lg:flex-[1] px-2">تاریخ خروج</div>
@@ -394,8 +417,13 @@ const InvoiceList = () => {
                                 <div className="flex-1 w-full h-full">
                                     <AutoSizer>
                                         {({ height, width }) => {
-                                            // FIX: Prevent 0-dimension rendering crashes in React 19 by returning a placeholder
-                                            if (!height || !width) return <div style={{ height: height || 0, width: width || 0 }} />;
+                                            // DIAGNOSTIC LOGGING FOR AUTOSIZER
+                                            if (!height || !width || height < 1 || width < 1) {
+                                                logOnce('autosizer_zero', 'AutoSizer detected 0 dimensions', { height, width });
+                                                // Return a valid element to prevent #525
+                                                return <div style={{ height: height || '100%', width: width || '100%' }} />;
+                                            }
+                                            
                                             return (
                                                 <List
                                                     height={height}

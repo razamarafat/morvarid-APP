@@ -5,17 +5,17 @@ import AutoSizer from 'react-virtualized-auto-sizer';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { Icons } from '../components/common/Icons';
 import Reports from '../components/admin/Reports';
-import { useStatisticsStore, DailyStatistic } from '../../store/statisticsStore';
-import { useInvoiceStore } from '../../store/invoiceStore';
-import { useFarmStore } from '../../store/farmStore';
-import { useToastStore } from '../../store/toastStore';
-import { useAuthStore } from '../../store/authStore';
-import { useAlertStore } from '../../store/alertStore';
-import { getTodayJalali, normalizeDate, toPersianDigits } from '../../utils/dateUtils';
+import { useStatisticsStore, DailyStatistic } from '../store/statisticsStore';
+import { useInvoiceStore } from '../store/invoiceStore';
+import { useFarmStore } from '../store/farmStore';
+import { useToastStore } from '../store/toastStore';
+import { useAuthStore } from '../store/authStore';
+import { useAlertStore } from '../store/alertStore';
+import { getTodayJalali, normalizeDate, toPersianDigits } from '../utils/dateUtils';
 import Button from '../components/common/Button';
 import MetroTile from '../components/common/MetroTile';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FarmType } from '../../types';
+import { FarmType } from '../types';
 import JalaliDatePicker from '../components/common/JalaliDatePicker';
 import { SkeletonTile, SkeletonRow } from '../components/common/Skeleton';
 
@@ -284,13 +284,13 @@ const InvoiceRow = ({ index, style, data }: { index: number; style: React.CSSPro
         
         return (
             <div style={style} className="flex items-center text-right border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors text-gray-800 dark:text-gray-200 text-sm lg:text-lg overflow-hidden">
-                <div className="flex-[1] px-2 font-black whitespace-nowrap tracking-tighter shrink-0">{toPersianDigits(invoice.date)}</div>
-                <div className="flex-[1] px-2 text-center dir-ltr shrink-0">{renderInvoiceNumber(invoice.invoiceNumber)}</div>
-                <div className="flex-[1] px-2 whitespace-nowrap font-bold truncate shrink-0">{farms.find((f: any) => f.id === invoice.farmId)?.name}</div>
-                <div className="flex-[1] px-2 font-bold text-gray-600 dark:text-gray-300 truncate shrink-0">{productName}</div>
-                <div className="flex-[1] px-2 text-center font-black lg:text-xl shrink-0">{toPersianDigits(invoice.totalCartons)}</div>
-                <div className="flex-[1] px-2 font-black text-metro-blue lg:text-xl shrink-0">{toPersianDigits(invoice.totalWeight)}</div>
-                <div className="flex-[1] px-2 shrink-0">
+                <div className="w-[100px] lg:w-auto lg:flex-[1] px-2 font-black whitespace-nowrap tracking-tighter shrink-0">{toPersianDigits(invoice.date)}</div>
+                <div className="w-[120px] lg:w-auto lg:flex-[1] px-2 text-center dir-ltr shrink-0">{renderInvoiceNumber(invoice.invoiceNumber)}</div>
+                <div className="w-[120px] lg:w-auto lg:flex-[1] px-2 whitespace-nowrap font-bold truncate shrink-0">{farms.find((f: any) => f.id === invoice.farmId)?.name}</div>
+                <div className="w-[150px] lg:w-auto lg:flex-[1] px-2 font-bold text-gray-600 dark:text-gray-300 truncate shrink-0">{productName}</div>
+                <div className="w-[80px] lg:w-auto lg:flex-[1] px-2 text-center font-black lg:text-xl shrink-0">{toPersianDigits(invoice.totalCartons)}</div>
+                <div className="w-[80px] lg:w-auto lg:flex-[1] px-2 font-black text-metro-blue lg:text-xl shrink-0">{toPersianDigits(invoice.totalWeight)}</div>
+                <div className="w-[80px] lg:w-auto lg:flex-[1] px-2 shrink-0">
                     <span className={`px-2 py-0.5 text-xs lg:text-sm font-black text-white rounded ${invoice.isYesterday ? 'bg-metro-orange' : 'bg-metro-green'}`}>
                         {invoice.isYesterday ? 'دیروز' : 'عادی'}
                     </span>
@@ -421,7 +421,7 @@ const InvoiceList = () => {
                                     <AutoSizer>
                                         {({ height, width }) => {
                                             // DIAGNOSTIC LOGGING FOR AUTOSIZER
-                                            if (!height || !width || height === 0 || width === 0) {
+                                            if (!height || !width || height < 1 || width < 1) {
                                                 logOnce('autosizer_zero', 'AutoSizer detected 0 dimensions', { height, width });
                                                 // Return a valid element to prevent #525
                                                 return <div style={{ height: '100%', width: '100%' }} />;
