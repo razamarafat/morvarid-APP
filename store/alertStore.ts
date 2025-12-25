@@ -7,7 +7,7 @@ import { useAuthStore } from './authStore';
 import { UserRole } from '../types';
 
 // IMPORTANT: REPLACE THIS WITH YOUR REAL VAPID PUBLIC KEY FROM vapidkeys.com
-const VAPID_PUBLIC_KEY = 'PLACEHOLDER_REPLACE_WITH_YOUR_REAL_VAPID_PUBLIC_KEY';
+const VAPID_PUBLIC_KEY = 'BGtIIDiEo0Um1xnVelucS4hq4gBnMIexj1OPsOwOiFrnW4W1QvdPrIWiRaqRALAIIxoDYqg_Kiv9A8OhNHhwX7U';
 
 interface AlertPayload {
     targetFarmId: string;
