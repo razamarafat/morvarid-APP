@@ -9,7 +9,7 @@ import { UserRole } from '../types';
 // IMPORTANT: YOU MUST REPLACE THIS WITH YOUR OWN GENERATED VAPID PUBLIC KEY
 // Generate from https://vapidkeys.com or `npx web-push generate-vapid-keys`
 // This key must match the Private Key set in your Edge Function Secrets
-const VAPID_PUBLIC_KEY = 'PLACEHOLDER_REPLACE_WITH_YOUR_REAL_VAPID_PUBLIC_KEY';
+const VAPID_PUBLIC_KEY = 'BGtIIDiEo0Um1xnVelucS4hq4gBnMIexj1OPsOwOiFrnW4W1QvdPrIWiRaqRALAIIxoDYqg_Kiv9A8OhNHhwX7U';
 
 interface AlertPayload {
     targetFarmId: string;
