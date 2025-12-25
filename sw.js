@@ -1,11 +1,10 @@
 
 /*
  * Morvarid PWA Service Worker
- * Optimized for Automatic Updates, Notifications, Badging & Background Sync
- * Version: 2.6.7
+ * Optimized for Performance & Stability (v2.7.0)
  */
 
-const CACHE_NAME = 'morvarid-pwa-v2.6.7'; 
+const CACHE_NAME = 'morvarid-pwa-v2.7.0'; 
 const ASSETS = [
   './',
   './index.html',
@@ -34,8 +33,13 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // OPTIMIZATION: Ignore non-GET requests immediately
+  if (event.request.method !== 'GET') return;
+
+  // Ignore cross-origin requests (like Supabase API) to ensure data freshness
   if (!event.request.url.startsWith(self.location.origin)) return;
 
+  // Version check bypass
   if (event.request.url.includes('version.json')) {
       event.respondWith(fetch(event.request, { 
           cache: 'no-store',
@@ -44,6 +48,7 @@ self.addEventListener('fetch', (event) => {
       return;
   }
 
+  // SPA Navigation Fallback
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() => caches.match('./index.html'))
@@ -51,6 +56,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Stale-While-Revalidate Strategy for Assets
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {
@@ -80,7 +86,6 @@ self.addEventListener('push', (event) => {
     }
   }
 
-  // Badging API: Set badge to 1 (indicating new notification)
   if ('setAppBadge' in navigator) {
       // @ts-ignore
       navigator.setAppBadge(1).catch(e => console.warn('Badge failed', e));
@@ -116,7 +121,6 @@ self.addEventListener('notificationclick', (event) => {
 
   notification.close();
 
-  // Clear Badge when notification is clicked
   if ('clearAppBadge' in navigator) {
       // @ts-ignore
       navigator.clearAppBadge().catch(() => {});
@@ -126,7 +130,6 @@ self.addEventListener('notificationclick', (event) => {
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // 1. Check if a window is already open
       for (const client of clientList) {
         if (client.url.startsWith(self.location.origin) && 'focus' in client) {
           if (notification.tag === 'system-update') {
@@ -135,7 +138,6 @@ self.addEventListener('notificationclick', (event) => {
           return client.focus();
         }
       }
-      // 2. If no window open, open new one
       if (clients.openWindow) {
         return clients.openWindow(urlToOpen);
       }
@@ -146,9 +148,7 @@ self.addEventListener('notificationclick', (event) => {
 // --- BACKGROUND SYNC HANDLER ---
 self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-queue') {
-    console.log('[SW] Background Sync Triggered!');
     event.waitUntil(
-        // Notify all clients to process queue
         clients.matchAll({ type: 'window' }).then(clientList => {
             clientList.forEach(client => {
                 client.postMessage({ type: 'PROCESS_QUEUE_BACKGROUND' });
@@ -158,7 +158,6 @@ self.addEventListener('sync', (event) => {
   }
 });
 
-// --- MESSAGE LISTENER ---
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();

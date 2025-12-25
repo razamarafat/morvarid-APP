@@ -1,3 +1,4 @@
+
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
@@ -14,7 +15,7 @@ const generateVersionFile = () => {
     writeBundle() {
       const versionInfo = {
         buildDate: Date.now(),
-        version: process.env.npm_package_version || '2.1.0'
+        version: process.env.npm_package_version || '2.7.0'
       };
       const filePath = path.resolve(__dirname, 'dist', 'version.json');
       // Ensure dist folder exists (it should after build)
@@ -48,6 +49,22 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
-    chunkSizeWarningLimit: 1600,
+    chunkSizeWarningLimit: 1000, // Reduced warning limit to encourage splitting
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Core React libraries
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          // State management & Utilities
+          'vendor-utils': ['zustand', 'date-fns', 'date-fns-jalali', 'uuid', 'zod', 'react-hook-form'],
+          // Heavy UI libraries
+          'vendor-ui': ['framer-motion', 'lucide-react', 'react-window', 'react-virtualized-auto-sizer'],
+          // Supabase (Large library)
+          'vendor-supabase': ['@supabase/supabase-js'],
+          // Excel processing (Very large, separate it)
+          'vendor-xlsx': ['xlsx'],
+        }
+      }
+    }
   },
 });

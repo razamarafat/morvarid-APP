@@ -31,9 +31,7 @@ interface ErrorBoundaryState {
   hasError: boolean;
 }
 
-// Fix: Explicitly using React.Component and a constructor ensures TypeScript correctly identifies 'props' and 'state' as inherited members.
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  // Explicitly declaring state and props members to satisfy the TypeScript compiler when inheritance inference fails.
   public state: ErrorBoundaryState;
   public props: ErrorBoundaryProps;
 
@@ -51,19 +49,43 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     console.error("Uncaught error:", error, errorInfo);
   }
 
+  handleHardReset = () => {
+      // Clear LocalStorage, SessionStorage, Caches, and SW
+      localStorage.clear();
+      sessionStorage.clear();
+      if ('caches' in window) {
+          caches.keys().then(names => {
+              for (let name of names) caches.delete(name);
+          });
+      }
+      if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(registrations => {
+              for(let registration of registrations) registration.unregister();
+          });
+      }
+      window.location.reload();
+  };
+
   render(): ReactNode {
-    // Accessing props and state from the instance with destructuring via 'this'
     const { hasError } = this.state;
     const { children } = this.props;
 
     if (hasError) {
       return (
-        <div className="flex flex-col items-center justify-center h-screen bg-gray-100 dark:bg-gray-900 text-center p-4">
-          <h1 className="text-2xl font-bold text-red-600 mb-2">خطای سیستمی رخ داده است</h1>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">لطفا صفحه را رفرش کنید.</p>
-          <button onClick={() => window.location.reload()} className="px-6 py-2 bg-metro-blue text-white rounded-full font-bold">
-            بارگذاری مجدد
-          </button>
+        <div className="flex flex-col items-center justify-center h-screen bg-gray-100 dark:bg-gray-900 text-center p-6">
+          <div className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-xl max-w-sm w-full border border-gray-200 dark:border-gray-700">
+              <h1 className="text-2xl font-black text-red-600 mb-2">خطای سیستمی</h1>
+              <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm">متأسفانه برنامه با مشکل مواجه شده است. لطفاً صفحه را بارگذاری مجدد کنید.</p>
+              
+              <div className="space-y-3">
+                  <button onClick={() => window.location.reload()} className="w-full px-6 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-all active:scale-95">
+                    تلاش مجدد
+                  </button>
+                  <button onClick={this.handleHardReset} className="w-full px-6 py-3 bg-red-100 text-red-600 border border-red-200 rounded-xl font-bold text-sm hover:bg-red-200 transition-all">
+                    بازنشانی کامل (رفع خرابی)
+                  </button>
+              </div>
+          </div>
         </div>
       );
     }
@@ -87,12 +109,9 @@ function App() {
   const { fetchInvoices } = useInvoiceStore();
   const { fetchUsers } = useUserStore();
   const { initListener, checkAndRequestPermission } = useAlertStore();
-  const { setIsInstalled, logEvent } = usePwaStore();
+  const { setIsInstalled } = usePwaStore();
   
-  // Enable Auto-Update Mechanism
   useAutoUpdate();
-  
-  // Enable Offline Sync Mechanism
   useOfflineSync();
 
   useEffect(() => {
@@ -100,7 +119,6 @@ function App() {
     document.documentElement.classList.add(theme);
   }, [theme]);
 
-  // Session & Activity Management
   useEffect(() => {
     const init = async () => {
         await checkSession();
@@ -109,14 +127,14 @@ function App() {
     };
     init();
 
-    // 1. Throttled Activity Listener
+    // OPTIMIZED: Throttle activity updates to 10s to reduce localStorage IO
     let activityTimeout: ReturnType<typeof setTimeout> | null = null;
     const handleUserActivity = () => {
         if (!activityTimeout) {
             activityTimeout = setTimeout(() => {
                 updateActivity();
                 activityTimeout = null;
-            }, 5000); // Update max once every 5 seconds to avoid performance hits
+            }, 10000); 
         }
     };
 
@@ -126,24 +144,17 @@ function App() {
     window.addEventListener('touchstart', handleUserActivity);
     window.addEventListener('scroll', handleUserActivity);
 
-    // 2. Periodic Inactivity Check (Every 1 minute)
-    // This catches cases where the user left the tab open and inactive
     const inactivityInterval = setInterval(() => {
         checkInactivity();
     }, 60 * 1000);
 
-    // 3. Visibility Change Listener (PWA Resume / Tab Switch)
-    // This runs immediately when the user comes back to the app, 
-    // ensuring we check timeout BEFORE they can interact.
     const handleVisibilityChange = () => {
         if (document.visibilityState === 'visible') {
-            console.log('[App] App resumed/visible. Checking session validity...');
             checkInactivity();
         }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // PWA Installation Handlers
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
     setIsInstalled(isStandalone);
 

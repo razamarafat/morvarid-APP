@@ -13,18 +13,18 @@ export const useAutoUpdate = () => {
 
   useEffect(() => {
     const checkVersion = async () => {
+      // OPTIMIZATION: Do not fetch if offline
+      if (!navigator.onLine) return;
+
       try {
-        // Robust check for AI Studio / Google User Content preview environments
         const isGooglePreview = 
             window.location.hostname.includes('googleusercontent') || 
             window.location.hostname.includes('ai.studio') || 
             window.location.hostname.includes('usercontent.goog') ||
             (window.origin && window.origin.includes('usercontent.goog'));
 
-        // Skip version check in preview environments
         if (isGooglePreview) return;
 
-        // Force bypass cache
         const response = await fetch(`./version.json?t=${Date.now()}&r=${Math.random()}`, {
           cache: 'no-store',
           headers: {
@@ -44,7 +44,6 @@ export const useAutoUpdate = () => {
         } else if (serverBuildDate !== initialBuildDate.current) {
           console.log('[AutoUpdate] New version detected! Forcing update...');
           
-          // Trigger System Notification via Service Worker
           sendLocalNotification(
               'بروزرسانی سیستم', 
               'نسخه جدیدی از سامانه مروارید موجود است. برنامه در حال بارگذاری مجدد است...', 
@@ -53,7 +52,6 @@ export const useAutoUpdate = () => {
 
           addToast('نسخه جدید شناسایی شد. در حال بروزرسانی...', 'info');
           
-          // 1. Unregister Service Workers
           if ('serviceWorker' in navigator && !isGooglePreview) {
             try {
                 const registrations = await navigator.serviceWorker.getRegistrations();
@@ -65,20 +63,18 @@ export const useAutoUpdate = () => {
             }
           }
 
-          // 2. Clear All Caches
           if ('caches' in window) {
              const keys = await caches.keys();
              await Promise.all(keys.map(key => caches.delete(key)));
           }
 
-          // 3. Force Reload
           setTimeout(() => {
               window.location.href = window.location.href.split('?')[0] + '?v=' + Date.now();
               window.location.reload();
           }, 2000);
         }
       } catch (error) {
-        console.error('[AutoUpdate] Failed to check version:', error);
+        // Silent fail is fine here
       }
     };
 

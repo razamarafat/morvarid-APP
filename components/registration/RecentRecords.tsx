@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { FixedSizeList as List } from 'react-window';
+import { FixedSizeList as List, areEqual } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import { useStatisticsStore, DailyStatistic } from '../../store/statisticsStore';
 import { useInvoiceStore } from '../../store/invoiceStore';
@@ -32,11 +32,10 @@ interface StatCardProps {
     isMotefereghe: boolean;
 }
 
-const StatCard: React.FC<StatCardProps> = ({ stat, getProductName, getProductUnit, isEditable, onEdit, onDelete, isMotefereghe }) => {
+// OPTIMIZATION: Memoized StatCard
+const StatCard = React.memo<StatCardProps>(({ stat, getProductName, getProductUnit, isEditable, onEdit, onDelete, isMotefereghe }) => {
     const isLiquid = getProductName(stat.productId).includes('مایع');
     const canEdit = isEditable(stat.createdAt);
-    
-    // Check if edited: if updatedAt exists and is significantly after createdAt (e.g. > 1 min difference)
     const isEdited = stat.updatedAt && (stat.updatedAt - stat.createdAt > 60000);
 
     return (
@@ -94,7 +93,6 @@ const StatCard: React.FC<StatCardProps> = ({ stat, getProductName, getProductUni
                 </div>
             </div>
 
-            {/* Change History Indicator */}
             {isEdited && (
                 <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 flex items-center justify-end gap-1">
                     <span className="text-[9px] font-bold text-orange-500">ویرایش شده در {new Date(stat.updatedAt!).toLocaleTimeString('fa-IR', {hour: '2-digit', minute:'2-digit'})}</span>
@@ -103,7 +101,7 @@ const StatCard: React.FC<StatCardProps> = ({ stat, getProductName, getProductUni
             )}
         </div>
     );
-};
+});
 
 interface InvoiceCardProps {
     inv: Invoice;
@@ -113,7 +111,8 @@ interface InvoiceCardProps {
     onDelete: (id: string) => void;
 }
 
-const InvoiceCard: React.FC<InvoiceCardProps> = ({ inv, getProductName, isEditable, onEdit, onDelete }) => {
+// OPTIMIZATION: Memoized InvoiceCard
+const InvoiceCard = React.memo<InvoiceCardProps>(({ inv, getProductName, isEditable, onEdit, onDelete }) => {
     const isLiquid = getProductName(inv.productId || '').includes('مایع');
     const canEdit = isEditable(inv.createdAt);
     const isEdited = inv.updatedAt && (inv.updatedAt - inv.createdAt > 60000);
@@ -172,7 +171,6 @@ const InvoiceCard: React.FC<InvoiceCardProps> = ({ inv, getProductName, isEditab
                 </div>
             </div>
 
-            {/* Change History Indicator */}
             {isEdited && (
                 <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 flex items-center justify-end gap-1">
                     <span className="text-[9px] font-bold text-orange-500">ویرایش شده در {new Date(inv.updatedAt!).toLocaleTimeString('fa-IR', {hour: '2-digit', minute:'2-digit'})}</span>
@@ -181,10 +179,48 @@ const InvoiceCard: React.FC<InvoiceCardProps> = ({ inv, getProductName, isEditab
             )}
         </div>
     );
-};
+});
+
+// OPTIMIZATION: Memoized Row component for React-Window to prevent re-renders of all rows on scroll/update
+const Row = React.memo(({ index, style, data }: any) => {
+    const { items, itemsPerRow, type, getProductName, products, isEditable, handleEditStatOpen, handleDeleteRecord, isMotefereghe, handleEditInvoiceOpen } = data;
+    const fromIndex = index * itemsPerRow;
+    const toIndex = Math.min(fromIndex + itemsPerRow, items.length);
+    const rowItems = items.slice(fromIndex, toIndex);
+
+    return (
+        <div style={style} className="flex gap-4 px-2">
+            {rowItems.map((item: any) => (
+                <div key={item.id} className="flex-1 min-w-0 h-full">
+                    {type === 'stats' ? (
+                        <StatCard 
+                            stat={item} 
+                            getProductName={getProductName} 
+                            getProductUnit={(id)=>products.find((p:any)=>p.id===id)?.unit==='CARTON'?'کارتن':'واحد'} 
+                            isEditable={isEditable} 
+                            onEdit={handleEditStatOpen} 
+                            onDelete={(id)=>handleDeleteRecord(id, 'stat')} 
+                            isMotefereghe={isMotefereghe} 
+                        />
+                    ) : (
+                        <InvoiceCard 
+                            inv={item} 
+                            getProductName={getProductName} 
+                            isEditable={isEditable} 
+                            onEdit={handleEditInvoiceOpen} 
+                            onDelete={(id)=>handleDeleteRecord(id, 'invoice')} 
+                        />
+                    )}
+                </div>
+            ))}
+            {rowItems.length < itemsPerRow && Array.from({ length: itemsPerRow - rowItems.length }).map((_, i) => (
+                <div key={`spacer-${i}`} className="flex-1 invisible" />
+            ))}
+        </div>
+    );
+}, areEqual);
 
 const RecentRecords: React.FC = () => {
-    // ... [Logic remains same] ...
     const { statistics, deleteStatistic, updateStatistic, isLoading: statsLoading } = useStatisticsStore();
     const { invoices, deleteInvoice, updateInvoice, isLoading: invLoading } = useInvoiceStore();
     const { user } = useAuthStore();
@@ -213,7 +249,6 @@ const RecentRecords: React.FC = () => {
     });
     
     const [plateParts, setPlateParts] = useState({ part1: '', letter: '', part3: '', part4: '' });
-    const [showLetterPicker, setShowLetterPicker] = useState(false);
 
     const farmId = user?.assignedFarms?.[0]?.id;
     const farmType = user?.assignedFarms?.[0]?.type;
@@ -224,13 +259,11 @@ const RecentRecords: React.FC = () => {
     const getProductName = (id: string) => products.find(p => p.id === id)?.name || 'محصول حذف شده';
     const isLiquid = (pid: string) => getProductName(pid).includes('مایع');
 
-    // STRICT 5-HOUR RULE
     const isEditable = (createdAt?: number) => {
         if (user?.role === UserRole.ADMIN) return true; 
         if (!createdAt) return true; 
         const now = Date.now();
         const diff = now - createdAt;
-        // 5 Hours = 5 * 60 * 60 * 1000 = 18,000,000 ms
         return diff < 18000000; 
     };
 
@@ -415,44 +448,6 @@ const RecentRecords: React.FC = () => {
         return width >= 768 ? 2 : 1; 
     };
 
-    const Row = ({ index, style, data }: any) => {
-        const { items, itemsPerRow, type } = data;
-        const fromIndex = index * itemsPerRow;
-        const toIndex = Math.min(fromIndex + itemsPerRow, items.length);
-        const rowItems = items.slice(fromIndex, toIndex);
-
-        return (
-            <div style={style} className="flex gap-4 px-2">
-                {rowItems.map((item: any) => (
-                    <div key={item.id} className="flex-1 min-w-0 h-full">
-                        {type === 'stats' ? (
-                            <StatCard 
-                                stat={item} 
-                                getProductName={getProductName} 
-                                getProductUnit={(id)=>products.find(p=>p.id===id)?.unit==='CARTON'?'کارتن':'واحد'} 
-                                isEditable={isEditable} 
-                                onEdit={handleEditStatOpen} 
-                                onDelete={(id)=>handleDeleteRecord(id, 'stat')} 
-                                isMotefereghe={isMotefereghe} 
-                            />
-                        ) : (
-                            <InvoiceCard 
-                                inv={item} 
-                                getProductName={getProductName} 
-                                isEditable={isEditable} 
-                                onEdit={handleEditInvoiceOpen} 
-                                onDelete={(id)=>handleDeleteRecord(id, 'invoice')} 
-                            />
-                        )}
-                    </div>
-                ))}
-                {rowItems.length < itemsPerRow && Array.from({ length: itemsPerRow - rowItems.length }).map((_, i) => (
-                    <div key={`spacer-${i}`} className="flex-1 invisible" />
-                ))}
-            </div>
-        );
-    };
-
     const inputClasses = "w-full p-4 border-2 rounded-xl text-center font-black text-2xl bg-white dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:border-metro-blue outline-none transition-all";
 
     return (
@@ -468,7 +463,6 @@ const RecentRecords: React.FC = () => {
 
             <div className="max-w-4xl mx-auto w-full px-2 flex-1 flex flex-col">
                 <div className="space-y-4 flex-1 flex flex-col">
-                    {/* Advanced Filter Toolbar - Simplified for better UX */}
                     <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border border-gray-200 dark:border-gray-700">
                         <div className="flex justify-between items-center">
                             <h3 className="font-black text-lg text-gray-800 dark:text-white shrink-0 flex items-center gap-2">
@@ -518,14 +512,23 @@ const RecentRecords: React.FC = () => {
                                     {({ height, width }) => {
                                         const itemsPerRow = getItemsPerRow(width);
                                         const rowCount = Math.ceil(filteredStats.length / itemsPerRow);
-                                        // Reduced item height for compact cards
                                         return (
                                             <List
                                                 height={height}
                                                 itemCount={rowCount}
                                                 itemSize={220} 
                                                 width={width}
-                                                itemData={{ items: filteredStats, itemsPerRow, type: 'stats' }}
+                                                itemData={{ 
+                                                    items: filteredStats, 
+                                                    itemsPerRow, 
+                                                    type: 'stats',
+                                                    getProductName,
+                                                    products,
+                                                    isEditable,
+                                                    handleEditStatOpen,
+                                                    handleDeleteRecord,
+                                                    isMotefereghe
+                                                }}
                                                 className="custom-scrollbar !overflow-y-auto"
                                             >
                                                 {Row}
@@ -545,14 +548,21 @@ const RecentRecords: React.FC = () => {
                                     {({ height, width }) => {
                                         const itemsPerRow = getItemsPerRow(width);
                                         const rowCount = Math.ceil(filteredInvoices.length / itemsPerRow);
-                                        // Reduced item height for compact cards
                                         return (
                                             <List
                                                 height={height}
                                                 itemCount={rowCount}
                                                 itemSize={180} 
                                                 width={width}
-                                                itemData={{ items: filteredInvoices, itemsPerRow, type: 'invoices' }}
+                                                itemData={{ 
+                                                    items: filteredInvoices, 
+                                                    itemsPerRow, 
+                                                    type: 'invoices',
+                                                    getProductName,
+                                                    isEditable,
+                                                    handleEditInvoiceOpen,
+                                                    handleDeleteRecord
+                                                }}
                                                 className="custom-scrollbar !overflow-y-auto"
                                             >
                                                 {Row}
@@ -571,7 +581,7 @@ const RecentRecords: React.FC = () => {
                 </div>
             </div>
             
-            {/* Edit Modals remain essentially the same, removed for brevity as logic handled above */}
+            {/* Modals are conditionally rendered to keep DOM light */}
             {!!editStat && (
                 <Modal isOpen={true} onClose={handleCancelStat} title="ویرایش آمار روزانه">
                     <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1">
@@ -608,7 +618,6 @@ const RecentRecords: React.FC = () => {
 
             {!!editInvoice && (
                 <Modal isOpen={true} onClose={handleCancelInvoice} title="ویرایش حواله خروج">
-                    {/* Invoice Edit Form (Keep existing) */}
                     <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1 custom-scrollbar">
                         <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-orange-200 dark:border-orange-800">
                             <label className="block text-sm font-bold mb-2 text-orange-700 dark:text-orange-400">رمز حواله</label>
@@ -619,7 +628,6 @@ const RecentRecords: React.FC = () => {
                             <div><label className="block text-sm font-bold mb-2 dark:text-gray-300">تعداد کارتن</label><input type="tel" inputMode="numeric" className={inputClasses} value={invoiceValues.cartons} onChange={(e) => setInvoiceValues({ ...invoiceValues, cartons: e.target.value })} /></div>
                             <div><label className="block text-sm font-bold mb-2 text-blue-600 dark:text-blue-400">وزن واقعی (Kg)</label><input type="tel" inputMode="decimal" className={`${inputClasses} border-blue-100 dark:border-blue-900`} value={invoiceValues.weight} onChange={(e) => setInvoiceValues({ ...invoiceValues, weight: e.target.value })} /></div>
                         </div>
-                        {/* Driver info & plate inputs... (Keep existing structure) */}
                         <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700"><Button variant="secondary" onClick={handleCancelInvoice}>انصراف</Button><Button onClick={handleSaveInvoice}>ثبت تغییرات</Button></div>
                     </div>
                 </Modal>

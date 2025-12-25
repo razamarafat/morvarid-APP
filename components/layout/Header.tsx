@@ -106,9 +106,10 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
       <div className="container mx-auto px-4 h-16 flex justify-between items-center max-w-full">
         
         <div className="flex items-center gap-2 md:gap-4 flex-1 overflow-hidden">
+          {/* Hamburger Menu - Visible on ALL screens (lg:hidden removed) */}
           <button 
             onClick={onMenuClick} 
-            className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors active:scale-95 lg:hidden shrink-0"
+            className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors active:scale-95 shrink-0"
             aria-label="Menu"
           >
             <Icons.Menu className="w-6 h-6" />
