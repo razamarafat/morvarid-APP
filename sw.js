@@ -1,11 +1,11 @@
 
 /*
  * Morvarid PWA Service Worker
- * Version: 2.8.0
+ * Version: 2.8.1
  * Features: High Priority Notifications, Persistent Caching, Background Sync
  */
 
-const CACHE_NAME = 'morvarid-core-v2.8.0';
+const CACHE_NAME = 'morvarid-core-v2.8.1';
 const ASSETS = [
   './',
   './index.html',
@@ -65,13 +65,15 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// --- ENHANCED PUSH HANDLER (Critical Alert Simulation) ---
+// --- ENHANCED PUSH HANDLER (Critical Alert) ---
 self.addEventListener('push', (event) => {
+  console.log('[SW] Push Received');
+  
   let data = { 
       title: 'سامانه مروارید', 
       body: 'پیام جدید دریافت شد', 
       url: self.location.origin,
-      tag: 'general-alert'
+      tag: 'farm-alert'
   };
 
   if (event.data) {
@@ -79,7 +81,8 @@ self.addEventListener('push', (event) => {
         const json = event.data.json();
         data = { ...data, ...json };
     } catch(e) {
-        data.body = event.data.text();
+        const text = event.data.text();
+        if (text) data.body = text;
     }
   }
 
@@ -88,32 +91,24 @@ self.addEventListener('push', (event) => {
       navigator.setAppBadge(1).catch(() => {});
   }
 
-  // Critical Alert Pattern: Long vibrations
-  // Note: True "Silent Mode Override" is reserved for Native Apps, 
-  // but this config maximizes visibility on Android.
+  // Configuration for System Notification
   const options = {
     body: data.body,
-    icon: '/icons/icon-192x192.png',
+    icon: '/icons/icon-192x192.png', // Must exist in public folder
     badge: '/icons/icon-192x192.png',
     dir: 'rtl',
     lang: 'fa-IR',
     tag: data.tag,
-    renotify: true, // Forces sound/vibration even if notification with same tag exists
-    requireInteraction: true, // Keeps notification on screen until user interacts
+    renotify: true, 
+    requireInteraction: true, 
     silent: false,
-    // SOS Pattern (...) --- (...)
-    vibrate: [
-        500, 200, 500, 200, 500, // Long pulses
-        500, 
-        200, 100, 200, 100, 200 // Short pulses
-    ],
+    vibrate: [500, 200, 500], // Vibration pattern for mobile
     data: {
       url: data.url,
       timestamp: Date.now()
     },
     actions: [
-        { action: 'open', title: '🔴 مشاهده فوری' },
-        { action: 'close', title: 'بستن' }
+        { action: 'open', title: 'مشاهده' }
     ]
   };
 
@@ -128,8 +123,6 @@ self.addEventListener('notificationclick', (event) => {
   
   notification.close();
 
-  if (action === 'close') return;
-
   if ('clearAppBadge' in navigator) {
       // @ts-ignore
       navigator.clearAppBadge().catch(() => {});
@@ -139,12 +132,14 @@ self.addEventListener('notificationclick', (event) => {
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      // Check if there is already a window/tab open with the target URL
       for (const client of windowClients) {
         if (client.url.startsWith(self.location.origin) && 'focus' in client) {
           client.postMessage({ type: 'NOTIFICATION_CLICK', payload: notification.data });
           return client.focus();
         }
       }
+      // If not, open a new window
       if (clients.openWindow) {
         return clients.openWindow(urlToOpen);
       }

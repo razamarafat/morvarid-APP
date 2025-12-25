@@ -6,10 +6,8 @@ import { useToastStore } from './toastStore';
 import { useAuthStore } from './authStore';
 import { UserRole } from '../types';
 
-// IMPORTANT: YOU MUST REPLACE THIS WITH YOUR OWN GENERATED VAPID PUBLIC KEY
-// Generate from https://vapidkeys.com or `npx web-push generate-vapid-keys`
-// This key must match the Private Key set in your Edge Function Secrets
-const VAPID_PUBLIC_KEY = 'BGtIIDiEo0Um1xnVelucS4hq4gBnMIexj1OPsOwOiFrnW4W1QvdPrIWiRaqRALAIIxoDYqg_Kiv9A8OhNHhwX7U';
+// IMPORTANT: REPLACE THIS WITH YOUR REAL VAPID PUBLIC KEY FROM vapidkeys.com
+const VAPID_PUBLIC_KEY = 'PLACEHOLDER_REPLACE_WITH_YOUR_REAL_VAPID_PUBLIC_KEY';
 
 interface AlertPayload {
     targetFarmId: string;
@@ -103,7 +101,6 @@ export const useAlertStore = create<AlertState>((set, get) => ({
 
         try {
             // Attempt to save subscription to 'push_subscriptions' table
-            // Table Schema required: id, user_id, subscription (jsonb), user_agent, created_at
             const { error } = await supabase.from('push_subscriptions').upsert({
                 user_id: user.id,
                 subscription: JSON.parse(JSON.stringify(sub)),
@@ -129,19 +126,17 @@ export const useAlertStore = create<AlertState>((set, get) => ({
         
         try {
             const registration = await navigator.serviceWorker.ready;
-            
             let sub = await registration.pushManager.getSubscription();
             
             if (!sub) {
-                const options: any = {
-                    userVisibleOnly: true,
-                };
+                const options: any = { userVisibleOnly: true };
                 
                 // Only use applicationServerKey if it's not the placeholder
                 if (VAPID_PUBLIC_KEY && !VAPID_PUBLIC_KEY.includes('PLACEHOLDER')) {
                     options.applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
                 } else {
-                    console.warn('[Alert] VAPID Public Key is missing. Push notifications might not work across origins.');
+                    console.warn('[Alert] VAPID Public Key is missing or invalid. Push notifications might fail.');
+                    get().addLog('هشدار: کلید VAPID تنظیم نشده است.');
                 }
 
                 sub = await registration.pushManager.subscribe(options);
@@ -161,7 +156,7 @@ export const useAlertStore = create<AlertState>((set, get) => ({
     triggerSystemNotification: async (title: string, body: string, tag = 'general') => {
         if (Notification.permission !== 'granted') return false;
 
-        // Play Sound
+        // 1. Play Sound (Browser Audio Context)
         try {
             const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
             if (AudioContextClass) {
@@ -175,16 +170,16 @@ export const useAlertStore = create<AlertState>((set, get) => ({
                 osc.frequency.setValueAtTime(500, ctx.currentTime);
                 osc.frequency.linearRampToValueAtTime(1000, ctx.currentTime + 0.1);
                 osc.frequency.linearRampToValueAtTime(500, ctx.currentTime + 0.2);
-                osc.frequency.linearRampToValueAtTime(1000, ctx.currentTime + 0.3);
                 
                 gain.gain.setValueAtTime(0.5, ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.8);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
                 
                 osc.start();
-                osc.stop(ctx.currentTime + 0.8);
+                osc.stop(ctx.currentTime + 0.5);
             }
         } catch (e) { console.error('Audio play error', e); }
 
+        // 2. Try Service Worker Notification (More reliable for mobile/pwa)
         if ('serviceWorker' in navigator) {
             try {
                 const reg = await navigator.serviceWorker.ready;
@@ -193,7 +188,7 @@ export const useAlertStore = create<AlertState>((set, get) => ({
                         body: body,
                         icon: '/icons/icon-192x192.png',
                         badge: '/icons/icon-192x192.png',
-                        vibrate: [200, 100, 200, 100, 400],
+                        vibrate: [200, 100, 200],
                         tag: tag,
                         renotify: true,
                         requireInteraction: true,
@@ -208,11 +203,13 @@ export const useAlertStore = create<AlertState>((set, get) => ({
             }
         }
 
+        // 3. Fallback to classic Notification API (Desktop)
         try {
             new Notification(title, { 
                 body, 
                 icon: '/icons/icon-192x192.png',
-                requireInteraction: true 
+                requireInteraction: true,
+                dir: 'rtl'
             });
             return true;
         } catch (e) {
@@ -242,8 +239,10 @@ export const useAlertStore = create<AlertState>((set, get) => ({
         get().checkAndRequestPermission();
         get().subscribeToPushNotifications(); 
 
+        // CRITICAL FIX: self: false ensures the sender DOES NOT receive their own broadcast message via socket.
+        // This solves the issue of the sender hearing the alert sound.
         const channel = supabase.channel('app_alerts', {
-            config: { broadcast: { self: true } }
+            config: { broadcast: { self: false } }
         });
 
         channel
@@ -256,7 +255,7 @@ export const useAlertStore = create<AlertState>((set, get) => ({
                     
                     if (!currentUser) return;
                     
-                    // BUG FIX: Strictly prevent sender from receiving their own alert
+                    // Double check, although 'self: false' should prevent this.
                     if (payload.senderId === currentUser.id) {
                         return;
                     }
@@ -265,8 +264,10 @@ export const useAlertStore = create<AlertState>((set, get) => ({
                     const isRelevant = currentUser.role === UserRole.ADMIN || assignedIds.includes(payload.targetFarmId);
 
                     if (isRelevant) {
+                        // 1. Show In-App Toast
                         useToastStore.getState().addToast(`پیام فوری: ${payload.message}`, 'error');
                         
+                        // 2. Trigger System Notification (Crucial for when app is open but not focused)
                         await get().triggerSystemNotification(
                             `⚠️ هشدار: ${payload.farmName}`, 
                             payload.message, 
@@ -300,15 +301,16 @@ export const useAlertStore = create<AlertState>((set, get) => ({
             targetFarmId: farmId, 
             farmName, 
             message, 
-            senderId: user.id, // Important for filtering on receiver side
+            senderId: user.id, 
             sentAt: Date.now(), 
             action: 'missing_stats' 
         };
         
-        // 1. Send via Realtime Broadcast (Socket) - Fast, Online devices only
+        // 1. Send via Realtime Broadcast (Socket) - For Online/Open Apps
         const socketResult = await channel?.send({ type: 'broadcast', event: 'farm_alert', payload });
         
-        // 2. Send via Edge Function (Push Notification) - Offline/Background devices
+        // 2. Send via Edge Function (Push Notification) - For Offline/Closed Apps
+        // This is what sends the notification to the System Tray when app is closed.
         try {
             const { error } = await supabase.functions.invoke('send-push', {
                 body: payload
@@ -316,6 +318,7 @@ export const useAlertStore = create<AlertState>((set, get) => ({
             
             if (error) {
                 console.warn('[Alert] Push Function Error:', error);
+                get().addLog('خطا در ارسال Push: ' + error.message);
             } else {
                 console.log('[Alert] Push Function invoked successfully.');
             }
