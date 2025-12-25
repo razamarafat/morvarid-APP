@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { Icons } from '../common/Icons';
@@ -9,6 +9,7 @@ import { useThemeStore } from '../../store/themeStore';
 import { THEMES } from '../../constants';
 import { useConfirm } from '../../hooks/useConfirm';
 import { usePwaStore } from '../../store/pwaStore';
+import { useAlertStore } from '../../store/alertStore'; // Import AlertStore
 import OnlineStatusBadge from '../common/OnlineStatusBadge';
 
 interface HeaderProps {
@@ -23,6 +24,13 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
   const theme = useThemeStore(state => state.theme);
   const { confirm } = useConfirm();
   const { deferredPrompt, setDeferredPrompt, isInstalled } = usePwaStore(); 
+  
+  // Use Alert Store for Permission
+  const { permissionStatus, requestPermissionManual, checkAndRequestPermission } = useAlertStore();
+
+  useEffect(() => {
+      checkAndRequestPermission();
+  }, []);
 
   const role = user?.role || UserRole.ADMIN;
   const themeColors = THEMES[theme][role];
@@ -106,12 +114,10 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
             <Icons.Menu className="w-6 h-6" />
           </button>
 
-          {/* Fixed: Allow text wrap/shrink on mobile */}
           <h1 className="text-sm sm:text-lg md:text-2xl font-bold tracking-tight ml-2 sm:ml-4 leading-tight line-clamp-2">
             {title}
           </h1>
 
-          {/* DESKTOP NAVIGATION LINKS */}
           <div className="hidden lg:flex items-center gap-1 mr-4 border-r pr-4 border-gray-300 dark:border-gray-600">
               {getDesktopNavItems()}
           </div>
@@ -120,6 +126,22 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
         <div className="flex items-center gap-2 shrink-0">
           
           <OnlineStatusBadge />
+
+          {/* Notification Permission Toggle */}
+          <button 
+            onClick={requestPermissionManual}
+            className={`p-2 rounded-full transition-colors ${permissionStatus === 'granted' ? 'text-metro-blue hover:bg-blue-50 dark:hover:bg-blue-900/20' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
+            title={permissionStatus === 'granted' ? 'اعلان‌ها فعال است' : 'فعال‌سازی اعلان‌ها'}
+          >
+             {permissionStatus === 'granted' ? (
+                 <Icons.Bell className="w-6 h-6 fill-current" />
+             ) : (
+                 <div className="relative">
+                     <Icons.Bell className="w-6 h-6" />
+                     <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-gray-800"></span>
+                 </div>
+             )}
+          </button>
 
           {/* PWA INSTALL BUTTON (Desktop Only) */}
           {deferredPrompt && !isInstalled && (

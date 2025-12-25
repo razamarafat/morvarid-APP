@@ -2,9 +2,10 @@
 /*
  * Morvarid PWA Service Worker
  * Optimized for Automatic Updates & Notifications
+ * Version: 2.6.5
  */
 
-const CACHE_NAME = 'morvarid-pwa-v4.1-notification-fix'; 
+const CACHE_NAME = 'morvarid-pwa-v2.6.5'; 
 const ASSETS = [
   './',
   './index.html',
@@ -66,14 +67,14 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
+// --- PUSH NOTIFICATION HANDLER ---
 self.addEventListener('push', (event) => {
-  // This listener handles Server-Sent Push Notifications (Web Push API)
-  // For local notifications triggered by client-side logic, see alertStore.ts
-  let data = { title: 'سامانه مروارید', body: 'پیام جدید', icon: './vite.svg' };
+  let data = { title: 'سامانه مروارید', body: 'پیام جدید', icon: './icons/icon-192x192.png', url: self.location.origin };
   
   if (event.data) {
     try {
-        data = event.data.json();
+        const json = event.data.json();
+        data = { ...data, ...json };
     } catch(e) {
         data.body = event.data.text();
     }
@@ -81,14 +82,19 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.body,
-    icon: './vite.svg',
-    badge: './vite.svg',
+    icon: data.icon || './icons/icon-192x192.png',
+    badge: './icons/icon-192x192.png',
     dir: 'rtl',
     lang: 'fa-IR',
-    vibrate: [200, 100, 200],
+    vibrate: [100, 50, 100],
     data: {
-      url: self.location.origin
-    }
+      url: data.url || self.location.origin,
+      timestamp: Date.now()
+    },
+    actions: [
+        { action: 'open', title: 'مشاهده' },
+        { action: 'close', title: 'بستن' }
+    ]
   };
 
   event.waitUntil(
@@ -96,23 +102,40 @@ self.addEventListener('push', (event) => {
   );
 });
 
+// --- NOTIFICATION CLICK HANDLER ---
 self.addEventListener('notificationclick', (event) => {
-  console.log('[SW] Notification clicked');
-  event.notification.close();
+  const notification = event.notification;
+  const action = event.action;
+  const urlToOpen = notification.data?.url || self.location.origin;
 
-  // Robust window focus logic
+  notification.close();
+
+  if (action === 'close') return;
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // 1. Try to find an open tab matching our origin
+      // 1. Check if a window is already open
       for (const client of clientList) {
-        if (client.url.includes(self.location.origin) && 'focus' in client) {
+        // Match origin
+        if (client.url.startsWith(self.location.origin) && 'focus' in client) {
+          // If update notification, reload
+          if (notification.tag === 'system-update') {
+              client.postMessage({ type: 'FORCE_RELOAD' });
+          }
           return client.focus();
         }
       }
-      // 2. If no tab open, open a new one
+      // 2. If no window open, open new one
       if (clients.openWindow) {
-        return clients.openWindow('./');
+        return clients.openWindow(urlToOpen);
       }
     })
   );
+});
+
+// --- MESSAGE LISTENER (For Skip Waiting etc) ---
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });

@@ -1,9 +1,11 @@
 
 import { useEffect, useRef } from 'react';
 import { useToastStore } from '../store/toastStore';
+import { useAlertStore } from '../store/alertStore';
 
 export const useAutoUpdate = () => {
   const { addToast } = useToastStore();
+  const { sendLocalNotification } = useAlertStore();
   const initialBuildDate = useRef<number | null>(null);
   
   // Check frequently (every 30 seconds)
@@ -19,10 +21,10 @@ export const useAutoUpdate = () => {
             window.location.hostname.includes('usercontent.goog') ||
             (window.origin && window.origin.includes('usercontent.goog'));
 
-        // Skip version check in preview environments to avoid "Failed to fetch" errors
+        // Skip version check in preview environments
         if (isGooglePreview) return;
 
-        // Force bypass cache with timestamp and random number
+        // Force bypass cache
         const response = await fetch(`./version.json?t=${Date.now()}&r=${Math.random()}`, {
           cache: 'no-store',
           headers: {
@@ -42,9 +44,16 @@ export const useAutoUpdate = () => {
         } else if (serverBuildDate !== initialBuildDate.current) {
           console.log('[AutoUpdate] New version detected! Forcing update...');
           
+          // Trigger System Notification via Service Worker
+          sendLocalNotification(
+              'بروزرسانی سیستم', 
+              'نسخه جدیدی از سامانه مروارید موجود است. برنامه در حال بارگذاری مجدد است...', 
+              'system-update'
+          );
+
           addToast('نسخه جدید شناسایی شد. در حال بروزرسانی...', 'info');
           
-          // 1. Unregister Service Workers (Skip in preview to avoid origin mismatch errors)
+          // 1. Unregister Service Workers
           if ('serviceWorker' in navigator && !isGooglePreview) {
             try {
                 const registrations = await navigator.serviceWorker.getRegistrations();
@@ -62,14 +71,11 @@ export const useAutoUpdate = () => {
              await Promise.all(keys.map(key => caches.delete(key)));
           }
 
-          // 3. Clear Local Storage flags related to updates (optional, keeping auth)
-          // We intentionally don't clear auth tokens here to keep user logged in.
-
-          // 4. Force Reload from Server (ignoring cache)
+          // 3. Force Reload
           setTimeout(() => {
               window.location.href = window.location.href.split('?')[0] + '?v=' + Date.now();
               window.location.reload();
-          }, 1000);
+          }, 2000);
         }
       } catch (error) {
         console.error('[AutoUpdate] Failed to check version:', error);
@@ -85,7 +91,6 @@ export const useAutoUpdate = () => {
         }
     };
     
-    // Also check on focus/click to ensure active users get it
     window.addEventListener('focus', checkVersion);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 

@@ -19,10 +19,13 @@ interface AlertState {
     isListening: boolean;
     channel: RealtimeChannel | null;
     lastLog: string;
+    permissionStatus: NotificationPermission;
     initListener: () => void;
     checkAndRequestPermission: () => Promise<boolean>;
+    requestPermissionManual: () => Promise<void>;
     sendAlert: (farmId: string, farmName: string, message: string) => Promise<{ success: boolean; detail: string; bytes: number }>;
     triggerTestNotification: () => Promise<void>;
+    sendLocalNotification: (title: string, body: string, tag?: string) => Promise<boolean>;
     addLog: (msg: string) => void;
 }
 
@@ -32,8 +35,6 @@ const playNotificationSound = () => {
         if (!AudioContextClass) return;
 
         const audioContext = new AudioContextClass();
-        
-        // Create oscillator for beep
         const oscillator = audioContext.createOscillator();
         const gainNode = audioContext.createGain();
         
@@ -42,16 +43,14 @@ const playNotificationSound = () => {
         
         oscillator.type = 'sine';
         oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A5
-        oscillator.frequency.exponentialRampToValueAtTime(440, audioContext.currentTime + 0.1); // Drop to A4
+        oscillator.frequency.exponentialRampToValueAtTime(440, audioContext.currentTime + 0.1); // Drop
         
-        // Volume Envelope
         gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
         
         oscillator.start();
         oscillator.stop(audioContext.currentTime + 0.6);
 
-        // Resume context if suspended (browser policy)
         if (audioContext.state === 'suspended') {
             audioContext.resume();
         }
@@ -60,57 +59,11 @@ const playNotificationSound = () => {
     }
 };
 
-const showSystemNotification = async (title: string, body: string) => {
-    console.log('[Notif System] Triggering System Notification:', { title, body });
-
-    // 1. Permission Check
-    if (Notification.permission !== 'granted') {
-        console.warn('[Notif System] Permission not granted.');
-        return false;
-    }
-
-    // 2. Service Worker Strategy (Best for Mobile/PWA)
-    if ('serviceWorker' in navigator) {
-        try {
-            const registration = await navigator.serviceWorker.ready;
-            if (registration) {
-                await registration.showNotification(title, {
-                    body: body,
-                    icon: '/icons/icon-192x192.png',
-                    badge: '/icons/icon-192x192.png',
-                    vibrate: [200, 100, 200, 100, 200], // Vibration pattern
-                    tag: 'morvarid-alert-' + Date.now(),
-                    renotify: true,
-                    requireInteraction: true,
-                    silent: false, // Ensure sound is enabled
-                    data: { url: window.location.href }
-                } as any);
-                return true;
-            }
-        } catch (e) {
-            console.error('[Notif System] SW Notification Failed:', e);
-        }
-    }
-
-    // 3. Fallback: Classic Web Notification API (Desktop)
-    try {
-        new Notification(title, {
-            body: body,
-            icon: '/icons/icon-192x192.png',
-            requireInteraction: true,
-            silent: false
-        });
-        return true;
-    } catch (e) {
-        console.error('[Notif System] Classic Notification Failed:', e);
-        return false;
-    }
-};
-
 export const useAlertStore = create<AlertState>((set, get) => ({
     isListening: false,
     channel: null,
     lastLog: '',
+    permissionStatus: 'default',
 
     addLog: (msg: string) => {
         const time = new Date().toLocaleTimeString('fa-IR');
@@ -120,37 +73,91 @@ export const useAlertStore = create<AlertState>((set, get) => ({
     },
 
     checkAndRequestPermission: async () => {
-        if (!("Notification" in window)) return false;
+        if (!("Notification" in window)) {
+            set({ permissionStatus: 'denied' });
+            return false;
+        }
         
+        set({ permissionStatus: Notification.permission });
+
         if (Notification.permission === 'granted') return true;
+        return false;
+    },
+
+    requestPermissionManual: async () => {
+        if (!("Notification" in window)) {
+            useToastStore.getState().addToast('مرورگر شما از اعلان پشتیبانی نمی‌کند.', 'error');
+            return;
+        }
+
+        const permission = await Notification.requestPermission();
+        set({ permissionStatus: permission });
         
-        if (Notification.permission !== 'denied') {
-            const permission = await Notification.requestPermission();
-            if (permission === 'granted') {
-                get().addLog('مجوز نوتیفیکیشن صادر شد.');
-                return true;
+        if (permission === 'granted') {
+            useToastStore.getState().addToast('اعلان‌ها فعال شدند.', 'success');
+            get().sendLocalNotification('مروارید', 'اعلان‌ها با موفقیت فعال شدند.');
+        } else {
+            useToastStore.getState().addToast('مجوز اعلان رد شد. لطفاً در تنظیمات مرورگر فعال کنید.', 'warning');
+        }
+    },
+
+    sendLocalNotification: async (title: string, body: string, tag = 'general') => {
+        // 1. Permission Check
+        if (Notification.permission !== 'granted') return false;
+
+        // 2. Play Sound
+        playNotificationSound();
+
+        // 3. Service Worker Strategy (Priority)
+        if ('serviceWorker' in navigator) {
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                if (registration) {
+                    await registration.showNotification(title, {
+                        body: body,
+                        icon: '/icons/icon-192x192.png',
+                        badge: '/icons/icon-192x192.png',
+                        vibrate: [200, 100, 200],
+                        tag: tag,
+                        renotify: true,
+                        requireInteraction: true,
+                        data: { url: window.location.href }
+                    } as any);
+                    return true;
+                }
+            } catch (e) {
+                console.error('[Alert] SW Notification failed, falling back to classic', e);
             }
         }
-        return false;
+
+        // 4. Fallback Strategy
+        try {
+            new Notification(title, {
+                body: body,
+                icon: '/icons/icon-192x192.png',
+                tag: tag
+            });
+            return true;
+        } catch (e) {
+            console.error('[Alert] Classic Notification failed', e);
+            return false;
+        }
     },
 
     triggerTestNotification: async () => {
         const hasPermission = await get().checkAndRequestPermission();
-        playNotificationSound(); // Force play sound immediately for test
-        
         if (hasPermission) {
-             const result = await showSystemNotification("تست سامانه مروارید", "سیستم اعلان‌ها فعال است و به درستی کار می‌کند.");
-             if (result) get().addLog('اعلان تست با موفقیت ارسال شد.');
-             else get().addLog('ارسال اعلان با خطا مواجه شد.');
+             const result = await get().sendLocalNotification("تست سامانه مروارید", "سیستم اعلان‌ها فعال است و به درستی کار می‌کند.");
+             if (result) get().addLog('اعلان تست ارسال شد.');
+             else get().addLog('خطا در ارسال اعلان.');
         } else {
-             useToastStore.getState().addToast('لطفا مجوز نوتیفیکیشن را در تنظیمات مرورگر فعال کنید.', 'warning');
+             useToastStore.getState().addToast('مجوز نوتیفیکیشن وجود ندارد.', 'warning');
         }
     },
 
     initListener: () => {
         if (get().isListening) return;
 
-        // Auto request permission on init
         get().checkAndRequestPermission();
 
         const channel = supabase.channel('app_alerts', {
@@ -165,31 +172,20 @@ export const useAlertStore = create<AlertState>((set, get) => ({
                     const payload = event.payload as AlertPayload;
                     const currentUser = useAuthStore.getState().user;
                     
-                    get().addLog(`سیگنال دریافت شد: ${payload.action}`);
-
                     if (!currentUser) return;
-                    if (payload.senderId === currentUser.id) return; // Don't notify sender
+                    if (payload.senderId === currentUser.id) return;
 
                     const assignedIds = currentUser.assignedFarms?.map(f => f.id) || [];
                     const isRelevant = currentUser.role === UserRole.ADMIN || assignedIds.includes(payload.targetFarmId);
 
                     if (isRelevant) {
-                        const title = "⚠️ هشدار مدیریتی";
-                        
-                        // Always play sound
-                        playNotificationSound();
-                        
-                        // Show internal Toast
                         useToastStore.getState().addToast(`پیام مدیریت: ${payload.message}`, 'error');
-
-                        // Try System Notification (Background/Foreground)
-                        await showSystemNotification(title, payload.message);
+                        await get().sendLocalNotification("⚠️ هشدار مدیریتی", payload.message, 'critical-alert');
                     }
                 }
             )
             .subscribe((status) => {
                 if (status === 'SUBSCRIBED') {
-                    get().addLog('اتصال به کانال هشدار برقرار شد.');
                     set({ isListening: true });
                 }
             });
@@ -204,7 +200,6 @@ export const useAlertStore = create<AlertState>((set, get) => ({
         let channel = get().channel;
         if (!channel) { get().initListener(); channel = get().channel; }
         
-        // Wait briefly for connection if needed
         if (channel?.state !== 'joined') {
              await new Promise(r => setTimeout(r, 1000));
         }
