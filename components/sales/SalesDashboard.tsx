@@ -259,7 +259,6 @@ const FarmStatistics = () => {
     );
 };
 
-// ... [Keep InvoiceRow, InvoiceList, AnalyticsView, DashboardHome, SalesDashboard unchanged] ...
 const InvoiceRow = ({ index, style, data }: any) => {
     const invoice = data.invoices[index];
     const { farms, products, renderInvoiceNumber } = data;
@@ -293,9 +292,15 @@ const InvoiceList = () => {
     const [filterDate, setFilterDate] = useState(getTodayJalali());
     const normalizedFilterDate = normalizeDate(filterDate);
 
+    // FIX: Fetch invoices on mount to ensure data is fresh when switching tabs
+    useEffect(() => {
+        fetchInvoices();
+    }, []);
+
     const filteredInvoices = invoices
         .filter(i => {
-            const dateMatch = i.date === normalizedFilterDate;
+            // FIX: Normalize the invoice date before comparing to fix mismatch bugs
+            const dateMatch = normalizeDate(i.date) === normalizedFilterDate;
             const farmMatch = selectedFarmId === 'all' || i.farmId === selectedFarmId;
             return dateMatch && farmMatch;
         })
@@ -464,7 +469,7 @@ const AnalyticsView = () => {
                         onChange={(e) => setSelectedFarmId(e.target.value)} 
                         className="p-2 lg:p-3 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white font-bold text-sm lg:text-lg w-full sm:w-40"
                     >
-                        <option value="all">همه فارم‌ها</option>
+                        <option value="all">همه فارم‌های</option>
                         {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                     </select>
                     <select 

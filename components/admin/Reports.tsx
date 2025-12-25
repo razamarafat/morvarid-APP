@@ -231,7 +231,7 @@ const Reports: React.FC = () => {
         const hasWeight = weight > 0;
         return (
             <div className={`flex flex-col items-center justify-center font-black text-lg ${colorClass}`}>
-                {hasUnits && <span>{toPersianDigits(units)} <small className="text-xs text-gray-400">Crt</small></span>}
+                {hasUnits && <span>{toPersianDigits(units)} <small className="text-xs text-gray-400">کارتن</small></span>}
                 {hasWeight && <span>{toPersianDigits(weight)} <small className="text-xs text-gray-400">Kg</small></span>}
                 {!hasUnits && !hasWeight && <span className="text-gray-300">0</span>}
             </div>
