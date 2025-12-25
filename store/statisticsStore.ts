@@ -86,7 +86,34 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
               }
           }
 
-          const mappedStats = statsData.map((s: any) => ({
+          // --- DEDUPLICATION LOGIC START ---
+          // Creates a unique map based on FarmID + Date + ProductID
+          // If duplicates exist, keeps the one with the latest UpdatedAt/CreatedAt
+          const uniqueStatsMap = new Map<string, any>();
+
+          statsData.forEach((s: any) => {
+              const normalizedDate = normalizeDate(s.date);
+              const pId = mapLegacyProductId(s.product_id);
+              const key = `${s.farm_id}_${normalizedDate}_${pId}`;
+
+              if (uniqueStatsMap.has(key)) {
+                  const existing = uniqueStatsMap.get(key);
+                  const existingTime = new Date(existing.updated_at || existing.created_at).getTime();
+                  const newItemTime = new Date(s.updated_at || s.created_at).getTime();
+                  
+                  // Keep the newer record
+                  if (newItemTime > existingTime) {
+                      uniqueStatsMap.set(key, s);
+                  }
+              } else {
+                  uniqueStatsMap.set(key, s);
+              }
+          });
+
+          const dedupedData = Array.from(uniqueStatsMap.values());
+          // --- DEDUPLICATION LOGIC END ---
+
+          const mappedStats = dedupedData.map((s: any) => ({
               id: s.id,
               farmId: s.farm_id,
               date: normalizeDate(s.date),
@@ -140,7 +167,6 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           
           fullPayload.updated_at = new Date().toISOString();
           
-          // Kg fields might cause error if DB schema is old
           if (updates.productionKg !== undefined) fullPayload.production_kg = Number(updates.productionKg);
           if (updates.salesKg !== undefined) fullPayload.sales_kg = Number(updates.salesKg);
           if (updates.previousBalanceKg !== undefined) fullPayload.previous_balance_kg = Number(updates.previousBalanceKg);
@@ -149,7 +175,6 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           let { error } = await supabase.from('daily_statistics').update(fullPayload).eq('id', id);
           
           if (error) {
-              // Retry without Kg fields if schema error
               if (String((error as any).status) === '400' || error.code === 'PGRST204' || error.code === '42703') {
                   const corePayload = {
                       production: fullPayload.production,
@@ -159,7 +184,6 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                       date: fullPayload.date,
                       updated_at: fullPayload.updated_at
                   };
-                  // Remove undefined keys
                   Object.keys(corePayload).forEach(key => (corePayload as any)[key] === undefined && delete (corePayload as any)[key]);
                   
                   const retry = await supabase.from('daily_statistics').update(corePayload).eq('id', id);
@@ -182,7 +206,6 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
   },
 
   bulkUpsertStatistics: async (stats, isSyncing = false) => {
-      // 1. Offline Check
       if (!isSyncing && !navigator.onLine) {
           stats.forEach(s => useSyncStore.getState().addToQueue('STAT', s));
           return { success: true, error: 'ذخیره در صف آفلاین' };
@@ -192,12 +215,10 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) return { success: false, error: "کاربر احراز هویت نشده است." };
           
-          // 2. Strict Check-then-Update Logic (to prevent duplicates)
           for (const stat of stats) {
               const normalizedDate = normalizeDate(stat.date);
               const mappedProductId = mapLegacyProductId(stat.productId);
 
-              // Step A: Check if record exists in DB
               const { data: existing } = await supabase
                   .from('daily_statistics')
                   .select('id')
@@ -206,7 +227,6 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                   .eq('product_id', mappedProductId)
                   .single();
 
-              // Define Full Payload (With Kg)
               const fullPayload = {
                   farm_id: stat.farmId,
                   date: normalizedDate,
@@ -222,7 +242,6 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                   created_by: user.id
               };
 
-              // Define Core Payload (Fallback without Kg for old schema)
               const corePayload = {
                   farm_id: stat.farmId,
                   date: normalizedDate,
@@ -235,16 +254,12 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
               };
 
               if (existing) {
-                  // Step B: Update existing record with RETRY
-                  console.log(`[Stats] Updating existing record ${existing.id}`);
                   let { error: updateError } = await supabase
                       .from('daily_statistics')
                       .update(fullPayload)
                       .eq('id', existing.id);
                   
-                  // RETRY IF SCHEMA ERROR
                   if (updateError && (updateError.code === '42703' || updateError.code === 'PGRST204' || String(updateError.code) === '400')) {
-                      console.warn('[Stats] Schema mismatch detected (Update). Retrying with core payload...');
                       const retry = await supabase.from('daily_statistics').update(corePayload).eq('id', existing.id);
                       if (retry.error) throw retry.error;
                   } else if (updateError) {
@@ -252,15 +267,11 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                   }
 
               } else {
-                  // Step C: Insert new record with RETRY
-                  console.log(`[Stats] Inserting new record`);
                   let { error: insertError } = await supabase
                       .from('daily_statistics')
                       .insert(fullPayload);
                   
-                  // RETRY IF SCHEMA ERROR
                   if (insertError && (insertError.code === '42703' || insertError.code === 'PGRST204' || String(insertError.code) === '400')) {
-                      console.warn('[Stats] Schema mismatch detected (Insert). Retrying with core payload...');
                       const retry = await supabase.from('daily_statistics').insert(corePayload);
                       if (retry.error) throw retry.error;
                   } else if (insertError) {

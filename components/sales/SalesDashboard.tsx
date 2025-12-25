@@ -5,7 +5,7 @@ import AutoSizer from 'react-virtualized-auto-sizer';
 import DashboardLayout from '../layout/DashboardLayout';
 import { Icons } from '../common/Icons';
 import Reports from '../admin/Reports';
-import { useStatisticsStore } from '../../store/statisticsStore';
+import { useStatisticsStore, DailyStatistic } from '../../store/statisticsStore';
 import { useInvoiceStore } from '../../store/invoiceStore';
 import { useFarmStore } from '../../store/farmStore';
 import { useToastStore } from '../../store/toastStore';
@@ -83,6 +83,29 @@ const FarmStatistics = () => {
         setExpandedFarmId(expandedFarmId === farmId ? null : farmId);
     };
 
+    // --- Helper to Deduplicate Stats for Display ---
+    // Even if store has duplicates, this ensures UI only shows one card per product
+    const getDeduplicatedStats = (farmId: string) => {
+        const farmStats = statistics.filter(s => s.farmId === farmId && normalizeDate(s.date) === normalizedSelectedDate);
+        const uniqueMap = new Map<string, DailyStatistic>();
+        
+        farmStats.forEach(stat => {
+            if (uniqueMap.has(stat.productId)) {
+                // If duplicate, pick the one with later updatedAt (or createAt)
+                const existing = uniqueMap.get(stat.productId)!;
+                const existingTime = new Date(existing.updatedAt || existing.createdAt).getTime();
+                const newTime = new Date(stat.updatedAt || stat.createdAt).getTime();
+                if (newTime > existingTime) {
+                    uniqueMap.set(stat.productId, stat);
+                }
+            } else {
+                uniqueMap.set(stat.productId, stat);
+            }
+        });
+        
+        return Array.from(uniqueMap.values());
+    };
+
     if (isLoading && statistics.length === 0) {
         return (
             <div className="space-y-4">
@@ -109,10 +132,9 @@ const FarmStatistics = () => {
 
             <div className="grid gap-4 lg:gap-6 animate-in slide-in-from-bottom-2 duration-500">
                 {farms.map(farm => {
-                    const farmStats = statistics.filter(s => s.farmId === farm.id && normalizeDate(s.date) === normalizedSelectedDate);
-                    // Applying sort to statistics
-                    const sortedFarmStats = [...farmStats].sort((a, b) => sortProducts(products, a.productId, b.productId));
-                    const hasStats = farmStats.length > 0;
+                    const dedupedStats = getDeduplicatedStats(farm.id);
+                    const sortedFarmStats = [...dedupedStats].sort((a, b) => sortProducts(products, a.productId, b.productId));
+                    const hasStats = sortedFarmStats.length > 0;
                     const isExpanded = expandedFarmId === farm.id;
                     const isMotefereghe = farm.type === FarmType.MOTEFEREGHE;
 
@@ -216,6 +238,7 @@ const FarmStatistics = () => {
     );
 };
 
+// ... [Keep InvoiceRow, InvoiceList, AnalyticsView, DashboardHome, SalesDashboard unchanged] ...
 const InvoiceRow = ({ index, style, data }: any) => {
     const invoice = data.invoices[index];
     const { farms, products, renderInvoiceNumber } = data;
@@ -540,7 +563,7 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
             <MetroTile title="پایش آمار فارم‌ها" icon={Icons.BarChart} color="bg-metro-blue" size="wide" onClick={() => onNavigate('farm-stats')} />
             <MetroTile title="لیست حواله‌های فروش" icon={Icons.FileText} color="bg-metro-orange" size="wide" onClick={() => onNavigate('invoices')} />
             <MetroTile title="تحلیل نموداری" icon={Icons.BarChart} color="bg-purple-600" size="medium" onClick={() => onNavigate('analytics')} />
-            <MetroTile title="گزارشات کلی" icon={Icons.FileText} color="bg-metro-green" size="medium" onClick={() => onNavigate('reports')} />
+            <MetroTile title="گزارشات اکسل جامع" icon={Icons.FileText} color="bg-metro-green" size="medium" onClick={() => onNavigate('reports')} />
         </div>
     );
 };
@@ -552,7 +575,7 @@ const SalesDashboard: React.FC = () => {
     const getTitle = () => {
         if(currentView === 'farm-stats') return 'پایش آمار لحظه‌ای';
         if(currentView === 'invoices') return 'جدول فروش روزانه';
-        if(currentView === 'reports') return 'گزارشات';
+        if(currentView === 'reports') return 'گزارشات فروش';
         if(currentView === 'analytics') return 'تحلیل نموداری تولید و فروش';
         return 'داشبورد فروش و توزیع';
     }
