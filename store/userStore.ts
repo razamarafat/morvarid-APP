@@ -70,11 +70,15 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   addUser: async (userData) => {
       const rawUsername = userData.username || '';
-      const sanitizedUsername = rawUsername.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+      // TASK FIX: Removed toLowerCase() and aggressive regex.
+      // Now allows uppercase and mixed case.
+      const sanitizedUsername = rawUsername.trim(); 
+      
       if (!sanitizedUsername || sanitizedUsername.length < 3) {
-          useToastStore.getState().addToast('نام کاربری باید شامل حداقل ۳ حرف لاتین یا عدد باشد', 'error');
+          useToastStore.getState().addToast('نام کاربری باید شامل حداقل ۳ کاراکتر باشد', 'error');
           return;
       }
+      
       const email = `${sanitizedUsername}@morvarid.com`; 
       const password = userData.password || 'Morvarid1234';
       set({ isLoading: true });
@@ -105,7 +109,7 @@ export const useUserStore = create<UserState>((set, get) => ({
           if (data.user) {
               const { error: profileError } = await supabase.from('profiles').insert({
                   id: data.user.id,
-                  username: sanitizedUsername,
+                  username: sanitizedUsername, // Store Exact Case
                   full_name: userData.fullName,
                   role: userData.role,
                   is_active: userData.isActive,
@@ -171,7 +175,6 @@ export const useUserStore = create<UserState>((set, get) => ({
   deleteUser: async (userId) => {
       set({ isLoading: true });
       try {
-          // Check for errors in sequential updates
           const { error: e1 } = await supabase.from('invoices').update({ created_by: null }).eq('created_by', userId);
           if (e1) console.error("Error unlinking invoices:", e1);
 

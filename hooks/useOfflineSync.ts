@@ -1,25 +1,35 @@
 
-import { useEffect, useState, useRef } from 'react';
-import { useSyncStore, SyncItem } from '../store/syncStore';
+import { useEffect, useRef } from 'react';
+import { useSyncStore } from '../store/syncStore';
 import { useInvoiceStore } from '../store/invoiceStore';
 import { useStatisticsStore } from '../store/statisticsStore';
 import { useToastStore } from '../store/toastStore';
 import { supabase } from '../lib/supabase';
 
 export const useOfflineSync = () => {
-    const { queue, removeFromQueue } = useSyncStore();
+    const { 
+        queue, 
+        removeFromQueue, 
+        incrementRetry, 
+        updateItemAttempt, 
+        addSyncLog, 
+        isProcessing, 
+        setIsProcessing 
+    } = useSyncStore();
+    
     const { bulkAddInvoices, updateInvoice, deleteInvoice } = useInvoiceStore();
     const { bulkUpsertStatistics, updateStatistic, deleteStatistic } = useStatisticsStore();
     const { addToast } = useToastStore();
-    const [isSyncing, setIsSyncing] = useState(false);
     
     // Prevent double execution in React Strict Mode
     const processingRef = useRef(false);
 
     useEffect(() => {
         const handleOnline = () => {
-            console.log('[Sync] Network connected. Processing queue...');
-            processQueue();
+            if (queue.length > 0) {
+                console.log('[Sync] Network connected. Processing queue...');
+                processQueue();
+            }
         };
 
         window.addEventListener('online', handleOnline);
@@ -44,7 +54,6 @@ export const useOfflineSync = () => {
 
             const serverTime = new Date(data.updated_at).getTime();
             // Conflict Rule: Server Wins (Last Write Wins Logic)
-            // If server was updated AFTER our offline action, we skip our stale update
             if (serverTime > offlineTime) {
                 console.warn(`[Sync] Conflict detected for ${table}:${id}. Server time: ${serverTime}, Offline time: ${offlineTime}. Skipping offline update.`);
                 return true; 
@@ -56,104 +65,120 @@ export const useOfflineSync = () => {
         }
     };
 
-    const processQueue = async () => {
-        if (isSyncing || processingRef.current || queue.length === 0) return;
+    const processQueue = async (force: boolean = false) => {
+        // Guard clauses
+        if (isProcessing || processingRef.current || queue.length === 0 || !navigator.onLine) return;
         
-        setIsSyncing(true);
-        processingRef.current = true;
+        try {
+            setIsProcessing(true);
+            processingRef.current = true;
 
-        const queueSnapshot = [...queue]; // Snapshot to avoid index shifting issues
-        let successCount = 0;
-        let conflictCount = 0;
+            const queueSnapshot = [...queue]; 
+            let successCount = 0;
+            let conflictCount = 0;
+            let failCount = 0;
 
-        addToast(`شروع همگام‌سازی ${queueSnapshot.length} آیتم آفلاین...`, 'info');
-
-        // --- STEP 1: BATCH PROCESSING FOR CREATES ---
-        
-        // 1.1 Process Stats (Batch Upsert)
-        const statsItems = queueSnapshot.filter(i => i.type === 'STAT');
-        if (statsItems.length > 0) {
-            const payloads = statsItems.map(i => i.payload);
-            const res = await bulkUpsertStatistics(payloads, true);
-            if (res.success) {
-                statsItems.forEach(i => removeFromQueue(i.id));
-                successCount += statsItems.length;
-            } else {
-                console.error('[Sync] Bulk Stat Failed:', res.error);
-            }
-        }
-
-        // 1.2 Process Invoices (Batch Insert)
-        const invoiceItems = queueSnapshot.filter(i => i.type === 'INVOICE');
-        if (invoiceItems.length > 0) {
-            const payloads = invoiceItems.map(i => i.payload);
-            const res = await bulkAddInvoices(payloads, true);
-            if (res.success) {
-                invoiceItems.forEach(i => removeFromQueue(i.id));
-                successCount += invoiceItems.length;
-            } else {
-                console.error('[Sync] Bulk Invoice Failed:', res.error);
-            }
-        }
-
-        // --- STEP 2: SEQUENTIAL PROCESSING FOR UPDATES/DELETES (With Conflict Resolution) ---
-        
-        const otherItems = queueSnapshot.filter(i => !['STAT', 'INVOICE'].includes(i.type));
-        
-        for (const item of otherItems) {
-            // Explicitly type result to allow optional error string
-            let result: { success: boolean; error?: string } = { success: false };
-            let isConflict = false;
-
-            try {
-                switch (item.type) {
-                    case 'UPDATE_INVOICE':
-                        isConflict = await checkConflict('invoices', item.payload.id, item.timestamp);
-                        if (!isConflict) {
-                            result = await updateInvoice(item.payload.id, item.payload.updates, true);
-                        }
-                        break;
-                    case 'UPDATE_STAT':
-                        isConflict = await checkConflict('daily_statistics', item.payload.id, item.timestamp);
-                        if (!isConflict) {
-                            result = await updateStatistic(item.payload.id, item.payload.updates, true);
-                        }
-                        break;
-                    case 'DELETE_INVOICE':
-                        // Deletes usually force through unless already deleted
-                        result = await deleteInvoice(item.payload.id, true);
-                        break;
-                    case 'DELETE_STAT':
-                        result = await deleteStatistic(item.payload.id, true);
-                        break;
+            for (const item of queueSnapshot) {
+                
+                // --- EXPONENTIAL BACKOFF LOGIC ---
+                // Skip backoff check if forced
+                if (!force && item.retryCount > 0 && item.lastAttempt) {
+                    const backoffDelay = 2000 * Math.pow(2, Math.min(item.retryCount, 6)); 
+                    const timeSinceLast = Date.now() - item.lastAttempt;
+                    
+                    if (timeSinceLast < backoffDelay) {
+                        continue; // Skip this item, still in cooldown
+                    }
                 }
 
-                if (isConflict) {
-                    removeFromQueue(item.id); // Remove conflicting item to unblock queue
-                    conflictCount++;
-                } else if (result.success) {
-                    removeFromQueue(item.id);
-                    successCount++;
-                } else {
-                    console.error(`[Sync] Failed item ${item.id}:`, result.error);
-                    // Keep in queue for retry? Or limit retries?
-                    // Currently keeping in queue indefinitely until next sync attempt
+                let result: { success: boolean; error?: string } = { success: false };
+                let isConflict = false;
+
+                // Syncing logic...
+                // Using try/catch specifically for the ITEM operation to not break the LOOP
+                try {
+                    switch (item.type) {
+                        case 'STAT':
+                            result = await bulkUpsertStatistics([item.payload], true);
+                            break;
+                        case 'INVOICE':
+                            result = await bulkAddInvoices([item.payload], true);
+                            break;
+                        case 'UPDATE_INVOICE':
+                            isConflict = await checkConflict('invoices', item.payload.id, item.timestamp);
+                            if (!isConflict) {
+                                result = await updateInvoice(item.payload.id, item.payload.updates, true);
+                            }
+                            break;
+                        case 'UPDATE_STAT':
+                            isConflict = await checkConflict('daily_statistics', item.payload.id, item.timestamp);
+                            if (!isConflict) {
+                                result = await updateStatistic(item.payload.id, item.payload.updates, true);
+                            }
+                            break;
+                        case 'DELETE_INVOICE':
+                            result = await deleteInvoice(item.payload.id, true);
+                            break;
+                        case 'DELETE_STAT':
+                            result = await deleteStatistic(item.payload.id, true);
+                            break;
+                    }
+
+                    if (isConflict) {
+                        removeFromQueue(item.id); 
+                        conflictCount++;
+                        addSyncLog({
+                            itemId: item.id,
+                            itemType: item.type,
+                            message: 'تضاد با سرور: این رکورد در سرور تغییر کرده است. تغییرات آفلاین نادیده گرفته شد.',
+                            timestamp: Date.now()
+                        });
+                    } else if (result.success) {
+                        removeFromQueue(item.id);
+                        successCount++;
+                    } else {
+                        // Operation Failed (Logic Error or Server Error)
+                        console.error(`[Sync] Failed item ${item.id}:`, result.error);
+                        incrementRetry(item.id);
+                        updateItemAttempt(item.id, Date.now());
+                        addSyncLog({
+                            itemId: item.id,
+                            itemType: item.type,
+                            message: result.error || 'خطای ناشناخته در همگام‌سازی',
+                            timestamp: Date.now()
+                        });
+                        failCount++;
+                    }
+                } catch (itemErr: any) {
+                    // Exception processing item
+                    console.error(`[Sync] Exception processing ${item.id}:`, itemErr);
+                    incrementRetry(item.id);
+                    updateItemAttempt(item.id, Date.now());
+                    addSyncLog({
+                        itemId: item.id,
+                        itemType: item.type,
+                        message: `خطای سیستمی: ${itemErr.message}`,
+                        timestamp: Date.now()
+                    });
+                    failCount++;
                 }
-            } catch (e) {
-                console.error(`[Sync] Exception processing ${item.id}:`, e);
             }
-        }
 
-        setIsSyncing(false);
-        processingRef.current = false;
+            if (successCount > 0) {
+                addToast(`${successCount} مورد با موفقیت همگام‌سازی شد.`, 'success');
+            }
+            if (conflictCount > 0) {
+                addToast(`${conflictCount} مورد به دلیل تضاد با سرور حذف شد.`, 'warning');
+            }
 
-        if (successCount > 0) {
-            addToast(`همگام‌سازی ${successCount} مورد با موفقیت انجام شد.`, 'success');
-        }
-        if (conflictCount > 0) {
-            addToast(`${conflictCount} مورد به دلیل تضاد با سرور نادیده گرفته شد.`, 'warning');
+        } catch (e) {
+            console.error('[Sync] Critical Loop Error:', e);
+        } finally {
+            // CRITICAL: Always reset flags even if the loop crashes
+            setIsProcessing(false);
+            processingRef.current = false;
         }
     };
 
-    return { isSyncing, pendingCount: queue.length };
+    return { isSyncing: isProcessing, processQueue };
 };

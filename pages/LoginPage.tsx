@@ -91,24 +91,20 @@ const LoginPage: React.FC = () => {
       }
   };
 
-  // Background color for the label "cut" effect matching the card background
   const labelBgColor = "bg-[#111827]"; 
 
   return (
     <div className="min-h-[100dvh] bg-[#004E98] dark:bg-[#0f172a] relative overflow-hidden flex flex-col md:flex-row transition-colors duration-300 font-sans">
       
-      {/* Background Patterns - Connected Cubes (Zoomed Out & Pulsing) */}
-      {/* Wrapper Div handles the Soft Pulse (Light up/down) */}
+      {/* Background Patterns */}
       <div className="absolute inset-0 z-0 pointer-events-none animate-[pulse_6s_ease-in-out_infinite]">
-          {/* Inner Div handles the Movement (Bg Pan) */}
           <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] animate-bg-pan bg-[length:100px_100px]"></div>
       </div>
       
-      {/* Additional ambient glows */}
       <div className="absolute top-[-20%] left-[-10%] w-[800px] h-[800px] bg-white/10 rounded-full blur-[120px] pointer-events-none animate-pulse"></div>
       <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-purple-500/15 rounded-full blur-[100px] pointer-events-none"></div>
 
-      {/* Left Side: Info Screen (Desktop Only) */}
+      {/* Left Side */}
       <div className="hidden md:flex flex-1 flex-col justify-center p-12 lg:p-24 text-white z-10 bg-gradient-to-r from-black/30 to-transparent backdrop-blur-[2px]">
           <div className="animate-in slide-in-from-left-8 duration-700">
               <h1 className="text-[6rem] lg:text-[7rem] font-black leading-none font-sans tabular-nums tracking-tighter drop-shadow-2xl">
@@ -129,19 +125,16 @@ const LoginPage: React.FC = () => {
           </div>
       </div>
 
-      {/* Right Side: Login Form - Optimized for Mobile Fit */}
+      {/* Right Side */}
       <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-12 z-20 h-[100dvh] md:h-auto overflow-y-auto md:overflow-visible">
         
-        {/* Mobile Header Date/Time (Compact for better fit) */}
         <div className="md:hidden w-full text-center text-white mb-6 z-20 animate-in slide-in-from-top-4 duration-700 shrink-0">
              <div className="font-sans tabular-nums font-black text-4xl tracking-tighter drop-shadow-lg">{currentDate}</div>
              <div className="text-lg mt-1 font-light opacity-90 font-sans tabular-nums">{currentTime}</div>
         </div>
 
-        {/* Login Card */}
         <div className={`w-full max-w-[400px] p-6 md:p-10 rounded-[28px] md:rounded-[32px] shadow-2xl border border-white/10 relative z-20 ${labelBgColor} backdrop-blur-xl animate-in zoom-in-95 duration-500`}>
             
-            {/* Header */}
             <div className="text-center mb-8">
                 <div className="w-16 h-16 bg-white/10 rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-inner border border-white/5">
                     <Icons.User className="w-8 h-8 text-white drop-shadow-md" />
@@ -152,8 +145,7 @@ const LoginPage: React.FC = () => {
 
             <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-6">
                 
-                {/* Username Input - M3 Outlined */}
-                {/* Fix: Added autofill specific styles to force dark background */}
+                {/* Username Input - Removed strict validation regex logic on input */}
                 <div className="relative group">
                     <input
                         type="text"
@@ -173,12 +165,10 @@ const LoginPage: React.FC = () => {
                                     peer-[:not(:placeholder-shown)]:top-0 peer-[:not(:placeholder-shown)]:scale-75 peer-[:not(:placeholder-shown)]:-translate-y-1/2
                                     pointer-events-none px-1 z-10 ${labelBgColor}`}
                     >
-                        نام کاربری
+                        نام کاربری (حساس به حروف)
                     </label>
                 </div>
 
-                {/* Password Input - M3 Outlined with Toggle */}
-                {/* Fix: Added autofill specific styles to force dark background */}
                 <div className="relative group">
                     <input
                         type={showPassword ? "text" : "password"}

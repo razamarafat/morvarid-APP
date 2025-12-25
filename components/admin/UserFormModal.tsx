@@ -12,7 +12,7 @@ import { useConfirm } from '../../hooks/useConfirm';
 
 // Strict Persian Regex (No numbers allowed)
 const persianLettersOnlyRegex = /^[\u0600-\u06FF\s]+$/;
-// Username: Latin letters, numbers, underscore, hyphen
+// Username: Latin letters (case sensitive), numbers, underscore, hyphen
 const usernameRegex = /^[a-zA-Z0-9_-]+$/;
 // Password: Minimum 6 chars
 const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/;
@@ -36,7 +36,6 @@ const userSchema = z.object({
   assignedFarmIds: z.array(z.string()).optional(),
   notificationsEnabled: z.boolean().optional(),
 }).superRefine((data, ctx) => {
-    // TASK: Enforce farm assignment ONLY for REGISTRATION role
     if (data.role === UserRole.REGISTRATION && (!data.assignedFarmIds || data.assignedFarmIds.length === 0)) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -108,13 +107,11 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
     });
 
     if (confirmed) {
-        // TASK: Only pass assignedFarms if role is REGISTRATION.
-        // For other roles, we send an empty array to clear any existing associations (if changing role).
         const finalAssignedIds = data.role === UserRole.REGISTRATION ? data.assignedFarmIds : [];
         const assignedFarms = finalAssignedIds?.map(id => farms.find(f => f.id === id)).filter(Boolean) as any[];
 
-        // Strict sanitization on submit to match UserStore logic
-        const cleanUsername = data.username.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+        // TASK FIX: Remove .toLowerCase()
+        const cleanUsername = data.username.trim();
 
         const userData: any = {
             fullName: data.fullName,
@@ -154,7 +151,6 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
             placeholder="" 
             autoComplete="off" 
             onInput={(e) => {
-               // Prevent numbers visually
                e.currentTarget.value = e.currentTarget.value.replace(/[0-9]/g, '');
             }}
           />
@@ -163,7 +159,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-                <label className="block text-sm font-bold mb-1 dark:text-gray-300">نام کاربری (لاتین)</label>
+                <label className="block text-sm font-bold mb-1 dark:text-gray-300">نام کاربری (حساس به حروف)</label>
                 <input 
                     dir="ltr" 
                     {...register('username')} 
@@ -202,7 +198,6 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
             </select>
         </div>
 
-        {/* TASK: ONLY Show farm assignment for REGISTRATION role */}
         {selectedRole === UserRole.REGISTRATION && (
             <div className={`border p-4 rounded-2xl ${errors.assignedFarmIds ? 'bg-red-50 border-red-200' : 'bg-gray-50 dark:bg-gray-900/10 border-gray-200 dark:border-gray-700'}`}>
                 <label className="block text-sm font-bold mb-3 dark:text-gray-300">

@@ -11,20 +11,37 @@ export interface SyncItem {
     payload: any;
     timestamp: number;
     retryCount: number;
+    lastAttempt?: number; // Added for exponential backoff
+}
+
+export interface SyncLog {
+    id: string;
+    itemId: string;
+    itemType: string;
+    message: string;
+    timestamp: number;
 }
 
 interface SyncState {
     queue: SyncItem[];
+    syncLogs: SyncLog[]; 
+    isProcessing: boolean; // New: Global processing flag
     addToQueue: (type: SyncItemType, payload: any) => void;
     removeFromQueue: (id: string) => void;
     clearQueue: () => void;
     incrementRetry: (id: string) => void;
+    updateItemAttempt: (id: string, timestamp: number) => void;
+    addSyncLog: (log: Omit<SyncLog, 'id'>) => void;
+    clearSyncLogs: () => void;
+    setIsProcessing: (status: boolean) => void; // New action
 }
 
 export const useSyncStore = create<SyncState>()(
     persist(
         (set, get) => ({
             queue: [],
+            syncLogs: [],
+            isProcessing: false,
             addToQueue: (type, payload) => {
                 const newItem: SyncItem = {
                     id: uuidv4(),
@@ -46,10 +63,26 @@ export const useSyncStore = create<SyncState>()(
                         item.id === id ? { ...item, retryCount: item.retryCount + 1 } : item
                     )
                 });
-            }
+            },
+            updateItemAttempt: (id, timestamp) => {
+                set({
+                    queue: get().queue.map(item => 
+                        item.id === id ? { ...item, lastAttempt: timestamp } : item
+                    )
+                });
+            },
+            addSyncLog: (log) => {
+                const newLog = { ...log, id: uuidv4() };
+                // Keep only last 50 logs to prevent storage bloat
+                set(state => ({ syncLogs: [newLog, ...state.syncLogs].slice(0, 50) }));
+            },
+            clearSyncLogs: () => set({ syncLogs: [] }),
+            setIsProcessing: (status) => set({ isProcessing: status })
         }),
         {
             name: 'morvarid-sync-queue',
+            // Do NOT persist isProcessing, it should always be false on load
+            partialize: (state) => ({ queue: state.queue, syncLogs: state.syncLogs }),
         }
     )
 );

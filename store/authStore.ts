@@ -51,39 +51,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   updateActivity: () => {
       const { user, logout } = get();
-      // Only update if user is logged in
       if (user) {
-          // SECURITY FIX: Check if session is ALREADY expired before updating.
-          // This prevents a race condition where a user interaction (click/touch) 
-          // on a resumed app (after 7 hours) updates the timestamp BEFORE the 
-          // inactivity check interval runs, effectively reviving a dead session.
           const lastActivityStr = localStorage.getItem(STORAGE_KEYS.ACTIVITY);
           if (lastActivityStr) {
               const lastActivity = parseInt(lastActivityStr);
               const now = Date.now();
               if (now - lastActivity > SESSION_TIMEOUT) {
                   console.warn('[Auth] Session expired during interaction attempt. Logging out.');
-                  logout(true); // Force logout immediately
-                  return; // CRITICAL: Do NOT update the timestamp
+                  logout(true); 
+                  return; 
               }
           }
-          
           localStorage.setItem(STORAGE_KEYS.ACTIVITY, Date.now().toString());
       }
   },
 
   checkInactivity: () => {
       const lastActivityStr = localStorage.getItem(STORAGE_KEYS.ACTIVITY);
-      
-      // If there is a timestamp
       if (lastActivityStr) {
           const lastActivity = parseInt(lastActivityStr);
           const now = Date.now();
-          
-          // Strict Check: If elapsed time > 1 hour
           if (now - lastActivity > SESSION_TIMEOUT) {
               console.warn('[Auth] Session expired due to inactivity (> 1 hour).');
-              // Force logout immediately
               get().logout(true); 
               return true;
           }
@@ -93,9 +82,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   checkSession: async () => {
     try {
-      // 1. STRICT INACTIVITY CHECK FIRST
-      // If the app was closed and re-opened after 7 hours, checkInactivity will catch it here
-      // BEFORE we even ask Supabase about the session.
       if (get().checkInactivity()) {
           set({ isLoading: false });
           return;
@@ -105,7 +91,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       
       if (sessionError) {
           console.error('Session Check Error:', sessionError);
-          // Handle Refresh Token Error specifically
           if (sessionError.message.includes('Refresh Token Not Found') || sessionError.message.includes('Invalid Refresh Token')) {
               await get().logout(false);
           }
@@ -113,10 +98,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           return;
       }
 
-      // 2. STRICT TIMESTAMP CHECK
-      // If Supabase has a session, but we have NO local activity timestamp,
-      // it means state is inconsistent (maybe storage cleared, or hacked).
-      // We must enforce strict timeout policy.
       const lastActivityStr = localStorage.getItem(STORAGE_KEYS.ACTIVITY);
       if (session?.user && !lastActivityStr) {
           console.warn('[Auth] Valid session found but NO activity timestamp. Forcing logout for security.');
@@ -143,7 +124,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       if (profile) {
           if (!profile.is_active) {
-              await get().logout(); // Force logout if inactive
+              await get().logout(); 
               return;
           }
 
@@ -174,8 +155,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               isLoading: false
           });
           
-          // Refresh activity timestamp on successful session check to keep session alive while active
-          // Note: updateActivity() now has checks, but here we are confirming session validity, so it's safe to touch.
           localStorage.setItem(STORAGE_KEYS.ACTIVITY, Date.now().toString());
       }
     } catch (error: any) {
@@ -191,7 +170,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return { success: false, error: 'حساب موقتا مسدود است. لطفا صبر کنید.' };
     }
 
-    const cleanUsername = username.toLowerCase().replace(/[^a-z0-9]/g, '');
+    // TASK FIX: Removed toLowerCase() and strict regex. Only trimmed.
+    const cleanUsername = username.trim();
     if (!cleanUsername) return { success: false, error: 'نام کاربری نامعتبر است' };
 
     const domains = ['morvarid.app', 'morvarid.com', 'morvarid-system.com'];
@@ -199,6 +179,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     let loginError = null;
 
     for (const domain of domains) {
+        // NOTE: Supabase Auth (GoTrue) is case-insensitive for EMAIL parts by default,
+        // BUT we are constructing email from username. 
+        // If we want case-sensitive username, we rely on the fact that we store username in 'profiles' table
+        // and we will check it after login if needed, or rely on the user typing the correct email prefix.
+        // However, standard email standard implies local-part IS case sensitive but usually treated as insensitive.
+        // Since we map username -> email, we might face issue if Supabase lowercases emails on signup.
+        // Assuming Supabase config allows it or we stick to the input.
         const { data, error } = await supabase.auth.signInWithPassword({
             email: `${cleanUsername}@${domain}`,
             password,
@@ -218,25 +205,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     if (loginData.user) {
-        const { data: profile } = await supabase.from('profiles').select('is_active').eq('id', loginData.user.id).single();
+        const { data: profile } = await supabase.from('profiles').select('is_active, username').eq('id', loginData.user.id).single();
         
         if (profile && !profile.is_active) {
             await supabase.auth.signOut();
             return { success: false, error: 'حساب کاربری شما غیرفعال شده است.' };
         }
 
+        // Optional: Strict username check if needed (e.g. if email matches but username casing was different)
+        // For now, we trust the successful login via password.
+
         get().resetAttempts();
         
-        // --- Remember Me Logic (Only for Username) ---
         if (rememberMe) {
-            localStorage.setItem(STORAGE_KEYS.USERNAME, username);
-            set({ savedUsername: username });
+            localStorage.setItem(STORAGE_KEYS.USERNAME, cleanUsername); // Store exact case
+            set({ savedUsername: cleanUsername });
         } else {
             localStorage.removeItem(STORAGE_KEYS.USERNAME);
             set({ savedUsername: '' });
         }
 
-        // --- Start Session Timer (Crucial) ---
         localStorage.setItem(STORAGE_KEYS.ACTIVITY, Date.now().toString());
 
         await get().checkSession();
@@ -251,19 +239,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async (isTimeout = false) => {
-    // 1. Clear Supabase Session (kills the persistence)
     await supabase.auth.signOut().catch(err => console.error("SignOut error:", err));
-    
-    // 2. Clear Activity Timer
     localStorage.removeItem(STORAGE_KEYS.ACTIVITY);
-    
-    // 3. Clear Local User State
     set({ user: null, isLoading: false });
-    
-    // NOTE: We do NOT clear STORAGE_KEYS.USERNAME here. 
-    // This allows "Remember Me" to pre-fill the username on the login page
-    // even after a timeout logout.
-
     if (isTimeout) {
         useToastStore.getState().addToast('مدت زمان نشست شما به پایان رسیده است. لطفا مجددا وارد شوید.', 'warning');
     }

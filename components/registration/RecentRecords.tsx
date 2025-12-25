@@ -12,10 +12,10 @@ import { useConfirm } from '../../hooks/useConfirm';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 import { useToastStore } from '../../store/toastStore';
-import { toPersianDigits, getTodayJalali, normalizeDate } from '../../utils/dateUtils';
+import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange } from '../../utils/dateUtils';
 import { Invoice } from '../../types';
-import { AnimatePresence, motion } from 'framer-motion';
 import { SkeletonCard } from '../common/Skeleton';
+import JalaliDatePicker from '../common/JalaliDatePicker';
 
 const PERSIAN_LETTERS = [
     'الف', 'ب', 'پ', 'ت', 'ث', 'ج', 'چ', 'ح', 'خ', 'د', 'ذ', 'ر', 'ز', 'ژ', 
@@ -61,10 +61,13 @@ const StatCard: React.FC<StatCardProps> = ({ stat, getProductName, getProductUni
                 </div>
             </div>
 
-            {/* Content Grid: 2 cols on mobile for Morvaridi (4 items), 3 cols for Motefereghe (3 items) */}
+            <div className="mb-2 text-center">
+                <span className="text-xs font-bold text-gray-400 bg-gray-100 dark:bg-gray-700/50 px-3 py-1 rounded-full">
+                    {toPersianDigits(stat.date)}
+                </span>
+            </div>
+
             <div className={`grid gap-4 bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-4 items-center text-center ${!isMotefereghe ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-3'}`}>
-                
-                {/* Previous Balance - Only for Morvaridi */}
                 {!isMotefereghe && (
                     <div className="flex flex-col items-center justify-center border-l border-gray-200 dark:border-gray-700 md:col-span-1 col-span-1">
                         <span className="text-xs lg:text-sm font-bold text-gray-400 mb-1">موجودی قبل</span>
@@ -103,7 +106,7 @@ const StatCard: React.FC<StatCardProps> = ({ stat, getProductName, getProductUni
             </div>
             
             {stat.updatedAt && (
-                <div className="absolute bottom-2 left-4 text-xs text-amber-600 font-bold bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full">
+                <div className="absolute bottom-2 left-4 text-[10px] text-amber-600 font-bold bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full border border-amber-100 dark:border-amber-900/30">
                     ویرایش شده
                 </div>
             )}
@@ -126,7 +129,6 @@ const InvoiceCard: React.FC<InvoiceCardProps> = ({ inv, getProductName, isEditab
         if (!plate || !plate.includes('-')) return plate || '-';
         const parts = plate.split('-');
         if (parts.length === 4) {
-            // Visual: 39 M 169 - 60
             return `${parts[0]} ${parts[1]} ${parts[2]} - ${parts[3]}`;
         }
         return plate;
@@ -163,8 +165,12 @@ const InvoiceCard: React.FC<InvoiceCardProps> = ({ inv, getProductName, isEditab
                 </div>
             </div>
 
+            <div className="mb-2 flex items-center justify-between">
+                <h4 className="font-bold text-xl text-gray-700 dark:text-gray-200 truncate max-w-[180px]">{getProductName(inv.productId || '')}</h4>
+                <span className="text-xs font-bold text-gray-400 bg-gray-100 dark:bg-gray-700/50 px-2 py-0.5 rounded-full">{toPersianDigits(inv.date)}</span>
+            </div>
+
             <div className="mb-5">
-                <h4 className="font-bold text-xl text-gray-700 dark:text-gray-200 truncate max-w-[200px]">{getProductName(inv.productId || '')}</h4>
                 <div className="flex flex-col gap-1 mt-2">
                     {inv.driverName && <p className="text-base text-gray-500 flex items-center gap-2">
                         <Icons.User className="w-4 h-4" /> {inv.driverName} 
@@ -185,6 +191,19 @@ const InvoiceCard: React.FC<InvoiceCardProps> = ({ inv, getProductName, isEditab
                     <span className={`font-black text-2xl ${isLiquid ? 'text-blue-700 dark:text-blue-400' : 'text-metro-blue'}`}>{toPersianDigits(inv.totalWeight)}</span>
                 </div>
             </div>
+
+            <div className="absolute bottom-2 left-4 flex gap-2">
+                {inv.updatedAt && (
+                    <span className="text-[10px] text-amber-600 font-bold bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full border border-amber-100 dark:border-amber-900/30">
+                        ویرایش شده
+                    </span>
+                )}
+                {inv.isYesterday && (
+                    <span className="text-[10px] text-purple-600 font-bold bg-purple-50 dark:bg-purple-900/20 px-2 py-0.5 rounded-full border border-purple-100 dark:border-purple-900/30">
+                        ثبت دیروز
+                    </span>
+                )}
+            </div>
         </div>
     );
 };
@@ -193,14 +212,24 @@ const RecentRecords: React.FC = () => {
     const { statistics, deleteStatistic, updateStatistic, isLoading: statsLoading } = useStatisticsStore();
     const { invoices, deleteInvoice, updateInvoice, isLoading: invLoading } = useInvoiceStore();
     const { user } = useAuthStore();
-    const { products, getProductById } = useFarmStore();
-    const { confirm } = useConfirm();
+    const { products } = useFarmStore();
     const { addToast } = useToastStore();
+    const { confirm } = useConfirm();
     
     const [activeTab, setActiveTab] = useState<'stats' | 'invoices'>('stats');
     const [editStat, setEditStat] = useState<DailyStatistic | null>(null);
     const [editInvoice, setEditInvoice] = useState<Invoice | null>(null);
     
+    // --- Enhanced Filters ---
+    const [startDate, setStartDate] = useState(getTodayJalali());
+    const [endDate, setEndDate] = useState(getTodayJalali());
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterProduct, setFilterProduct] = useState<string>('all');
+    
+    // UI State for Filters
+    const [showFilters, setShowFilters] = useState(false);
+
+    // Edit Modal States
     const [statValues, setStatValues] = useState({ prod: '', prev: '', prodKg: '', prevKg: '' });
     const [invoiceValues, setInvoiceValues] = useState({ 
         invoiceNumber: '',
@@ -218,8 +247,6 @@ const RecentRecords: React.FC = () => {
     const farmType = user?.assignedFarms?.[0]?.type;
     const isMotefereghe = farmType === FarmType.MOTEFEREGHE;
 
-    const today = normalizeDate(getTodayJalali());
-
     const getProductName = (id: string) => products.find(p => p.id === id)?.name || 'محصول حذف شده';
     const isLiquid = (pid: string) => getProductName(pid).includes('مایع');
 
@@ -231,14 +258,60 @@ const RecentRecords: React.FC = () => {
         return diff < 18000000; // 5 Hours
     };
 
-    const { todayStats, todayInvoices } = useMemo(() => {
-        const farmStats = statistics.filter(s => s.farmId === farmId && s.date === today);
-        const farmInvoices = invoices.filter(i => i.farmId === farmId && i.date === today);
+    const handleClearFilters = () => {
+        const today = getTodayJalali();
+        setStartDate(today);
+        setEndDate(today);
+        setSearchTerm('');
+        setFilterProduct('all');
+    };
+
+    // --- Optimized Filtering Logic ---
+    const { filteredStats, filteredInvoices } = useMemo(() => {
+        const start = normalizeDate(startDate);
+        const end = normalizeDate(endDate);
+        const term = searchTerm.toLowerCase().trim();
+
+        // 1. Statistics Filter
+        const farmStats = statistics.filter(s => {
+            if (s.farmId !== farmId) return false;
+            if (!isDateInRange(s.date, start, end)) return false;
+            
+            // Product Filter
+            if (filterProduct !== 'all' && s.productId !== filterProduct) return false;
+
+            // Text Search
+            if (term) {
+                const prodName = getProductName(s.productId).toLowerCase();
+                return prodName.includes(term);
+            }
+            return true;
+        });
+
+        // 2. Invoices Filter
+        const farmInvoices = invoices.filter(i => {
+            if (i.farmId !== farmId) return false;
+            if (!isDateInRange(i.date, start, end)) return false;
+
+            // Product Filter
+            if (filterProduct !== 'all' && i.productId !== filterProduct) return false;
+
+            // Text Search
+            if (term) {
+                const prodName = getProductName(i.productId || '').toLowerCase();
+                const invNum = i.invoiceNumber.toLowerCase();
+                const driver = (i.driverName || '').toLowerCase();
+                const plate = (i.plateNumber || '').toLowerCase();
+                return prodName.includes(term) || invNum.includes(term) || driver.includes(term) || plate.includes(term);
+            }
+            return true;
+        });
+
         return { 
-            todayStats: farmStats.sort((a,b) => b.createdAt - a.createdAt), 
-            todayInvoices: farmInvoices.sort((a,b) => b.createdAt - a.createdAt) 
+            filteredStats: farmStats.sort((a,b) => b.createdAt - a.createdAt), 
+            filteredInvoices: farmInvoices.sort((a,b) => b.createdAt - a.createdAt) 
         };
-    }, [statistics, invoices, farmId, today]);
+    }, [statistics, invoices, farmId, startDate, endDate, searchTerm, filterProduct, products]);
 
     const handleEditStatOpen = (stat: DailyStatistic) => {
         const fmt = (v: any) => (v === undefined || v === null) ? '' : String(v);
@@ -274,7 +347,14 @@ const RecentRecords: React.FC = () => {
             currentInventoryKg: prevKg + prodKg - (editStat.salesKg || 0)
         });
 
-        if (result.success) { setEditStat(null); addToast('آمار ویرایش شد', 'success'); }
+        if (result.success) { 
+            setEditStat(null); 
+            if (result.error && result.error.includes('آفلاین')) {
+                addToast('ویرایش در صف آفلاین ذخیره شد', 'info');
+            } else {
+                addToast('آمار ویرایش شد', 'success'); 
+            }
+        }
         else addToast('خطا در ویرایش: ' + result.error, 'error');
     };
 
@@ -326,16 +406,48 @@ const RecentRecords: React.FC = () => {
             description: invoiceValues.description
         });
 
-        if (result.success) { setEditInvoice(null); addToast('حواله ویرایش شد', 'success'); }
+        if (result.success) { 
+            setEditInvoice(null); 
+            if (result.error && result.error.includes('آفلاین')) {
+                addToast('ویرایش حواله در صف آفلاین ذخیره شد', 'info');
+            } else {
+                addToast('حواله ویرایش شد', 'success'); 
+            }
+        }
         else addToast('خطا در ویرایش: ' + result.error, 'error');
     };
 
+    const handleDeleteRecord = async (id: string, type: 'stat' | 'invoice') => {
+        const confirmed = await confirm({
+            title: 'حذف رکورد',
+            message: 'آیا از حذف این مورد اطمینان دارید؟',
+            confirmText: 'بله، حذف کن',
+            cancelText: 'انصراف',
+            type: 'danger'
+        });
+
+        if (confirmed) {
+            let result;
+            if (type === 'stat') {
+                result = await deleteStatistic(id);
+            } else {
+                result = await deleteInvoice(id);
+            }
+
+            if (result.success) {
+                if (result.error && result.error.includes('آفلاین')) {
+                    addToast('دستور حذف در صف آفلاین قرار گرفت', 'info');
+                } else {
+                    addToast('رکورد با موفقیت حذف شد', 'success');
+                }
+            } else {
+                addToast(result.error || 'خطا در حذف', 'error');
+            }
+        }
+    };
+
     // --- VIRTUALIZATION LOGIC ---
-    // Calculates how many items fit in a row based on container width
     const getItemsPerRow = (width: number) => {
-        // MD breakpoint is usually 768px.
-        // Below MD: 1 col
-        // MD and above: 2 cols
         return width >= 768 ? 2 : 1; 
     };
 
@@ -356,7 +468,7 @@ const RecentRecords: React.FC = () => {
                                 getProductUnit={(id)=>products.find(p=>p.id===id)?.unit==='CARTON'?'کارتن':'واحد'} 
                                 isEditable={isEditable} 
                                 onEdit={handleEditStatOpen} 
-                                onDelete={(id)=>deleteStatistic(id)} 
+                                onDelete={(id)=>handleDeleteRecord(id, 'stat')} 
                                 isMotefereghe={isMotefereghe} 
                             />
                         ) : (
@@ -365,7 +477,7 @@ const RecentRecords: React.FC = () => {
                                 getProductName={getProductName} 
                                 isEditable={isEditable} 
                                 onEdit={handleEditInvoiceOpen} 
-                                onDelete={(id)=>deleteInvoice(id)} 
+                                onDelete={(id)=>handleDeleteRecord(id, 'invoice')} 
                             />
                         )}
                     </div>
@@ -378,8 +490,8 @@ const RecentRecords: React.FC = () => {
         );
     };
 
-    // Updated styles for dark mode compatibility
     const inputClasses = "w-full p-4 border-2 rounded-xl text-center font-black text-2xl bg-white dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:border-metro-blue outline-none transition-all";
+    const selectClasses = "w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:border-metro-blue dark:text-white font-bold h-[50px]";
 
     return (
         <div className="pb-24 h-full flex flex-col">
@@ -394,7 +506,73 @@ const RecentRecords: React.FC = () => {
 
             <div className="max-w-4xl mx-auto w-full px-2 flex-1 flex flex-col">
                 <div className="space-y-4 flex-1 flex flex-col">
-                    <h3 className="font-black text-3xl px-2 text-gray-800 dark:text-white shrink-0">امروز ({toPersianDigits(today)})</h3>
+                    {/* Advanced Filter Toolbar */}
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border border-gray-200 dark:border-gray-700">
+                        <div className="flex justify-between items-center mb-2 lg:mb-0">
+                            <h3 className="font-black text-xl text-gray-800 dark:text-white shrink-0 flex items-center gap-2">
+                                <Icons.Refresh className="w-6 h-6 text-gray-400" />
+                                <span className="hidden sm:inline">سوابق ثبت شده</span>
+                                <span className="sm:hidden">سوابق</span>
+                                <span className="text-sm font-bold text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-lg">
+                                    {toPersianDigits(activeTab === 'stats' ? filteredStats.length : filteredInvoices.length)} مورد
+                                </span>
+                            </h3>
+                            <button onClick={() => setShowFilters(!showFilters)} className="lg:hidden p-2 bg-gray-100 dark:bg-gray-700 rounded-lg text-gray-600 dark:text-gray-300">
+                                {showFilters ? <Icons.ChevronDown className="w-5 h-5 rotate-180" /> : <Icons.Search className="w-5 h-5" />}
+                            </button>
+                        </div>
+
+                        <div className={`flex flex-col gap-3 transition-all overflow-hidden ${showFilters ? 'max-h-[500px] opacity-100 mt-3' : 'max-h-0 opacity-0 lg:max-h-full lg:opacity-100 lg:mt-0'}`}>
+                            
+                            {/* Row 1: Search & Dates */}
+                            <div className="flex flex-col lg:flex-row gap-3">
+                                <div className="w-full lg:flex-[2] relative">
+                                    <Icons.Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                    <input 
+                                        type="text" 
+                                        placeholder="جستجو (نام، پلاک، شماره حواله...)" 
+                                        className={selectClasses.replace('p-3', 'pl-3 pr-10')}
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                </div>
+                                <div className="flex gap-2 w-full lg:flex-[2]">
+                                    <div className="flex-1">
+                                        <JalaliDatePicker value={startDate} onChange={setStartDate} label="از تاریخ" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <JalaliDatePicker value={endDate} onChange={setEndDate} label="تا تاریخ" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Row 2: Dropdowns & Action */}
+                            <div className="flex flex-col lg:flex-row gap-3 items-end">
+                                <div className="flex gap-2 w-full lg:flex-[2]">
+                                    <div className="flex-1">
+                                        <label className="text-xs font-bold text-gray-400 mb-1 block mr-1">نوع محصول</label>
+                                        <select 
+                                            value={filterProduct} 
+                                            onChange={(e) => setFilterProduct(e.target.value)} 
+                                            className={selectClasses}
+                                        >
+                                            <option value="all">همه محصولات</option>
+                                            {products.map(p => (
+                                                <option key={p.id} value={p.id}>{p.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={handleClearFilters}
+                                    className="w-full lg:w-auto h-[50px] px-6 bg-red-50 text-red-500 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 rounded-xl flex items-center justify-center gap-2 transition-colors font-bold whitespace-nowrap"
+                                >
+                                    <Icons.Trash className="w-5 h-5" />
+                                    <span>پاکسازی</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                     
                     <div className="flex-1 min-h-[500px]">
                         {(statsLoading || invLoading) ? (
@@ -405,18 +583,18 @@ const RecentRecords: React.FC = () => {
                                 <SkeletonCard />
                             </div>
                         ) : activeTab === 'stats' ? (
-                            todayStats.length > 0 ? (
+                            filteredStats.length > 0 ? (
                                 <AutoSizer>
                                     {({ height, width }) => {
                                         const itemsPerRow = getItemsPerRow(width);
-                                        const rowCount = Math.ceil(todayStats.length / itemsPerRow);
+                                        const rowCount = Math.ceil(filteredStats.length / itemsPerRow);
                                         return (
                                             <List
                                                 height={height}
                                                 itemCount={rowCount}
-                                                itemSize={320} // Approximate height of card + gap
+                                                itemSize={360} 
                                                 width={width}
-                                                itemData={{ items: todayStats, itemsPerRow, type: 'stats' }}
+                                                itemData={{ items: filteredStats, itemsPerRow, type: 'stats' }}
                                                 className="custom-scrollbar !overflow-y-auto"
                                             >
                                                 {Row}
@@ -425,21 +603,25 @@ const RecentRecords: React.FC = () => {
                                     }}
                                 </AutoSizer>
                             ) : (
-                                <div className="p-10 text-center text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-[24px]">هنوز آماری ثبت نشده است.</div>
+                                <div className="flex flex-col items-center justify-center h-64 text-center text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-[24px] border-2 border-dashed border-gray-200 dark:border-gray-700">
+                                    <Icons.BarChart className="w-16 h-16 mb-2 opacity-20" />
+                                    <span className="font-bold text-lg">آمار تولیدی یافت نشد</span>
+                                    <button onClick={handleClearFilters} className="mt-2 text-blue-500 text-sm font-bold hover:underline">پاکسازی فیلترها</button>
+                                </div>
                             )
                         ) : (
-                            todayInvoices.length > 0 ? (
+                            filteredInvoices.length > 0 ? (
                                 <AutoSizer>
                                     {({ height, width }) => {
                                         const itemsPerRow = getItemsPerRow(width);
-                                        const rowCount = Math.ceil(todayInvoices.length / itemsPerRow);
+                                        const rowCount = Math.ceil(filteredInvoices.length / itemsPerRow);
                                         return (
                                             <List
                                                 height={height}
                                                 itemCount={rowCount}
-                                                itemSize={280} // Approximate height of invoice card + gap
+                                                itemSize={300} 
                                                 width={width}
-                                                itemData={{ items: todayInvoices, itemsPerRow, type: 'invoices' }}
+                                                itemData={{ items: filteredInvoices, itemsPerRow, type: 'invoices' }}
                                                 className="custom-scrollbar !overflow-y-auto"
                                             >
                                                 {Row}
@@ -448,7 +630,11 @@ const RecentRecords: React.FC = () => {
                                     }}
                                 </AutoSizer>
                             ) : (
-                                <div className="p-10 text-center text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-[24px]">هنوز حواله‌ای ثبت نشده است.</div>
+                                <div className="flex flex-col items-center justify-center h-64 text-center text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-[24px] border-2 border-dashed border-gray-200 dark:border-gray-700">
+                                    <Icons.FileText className="w-16 h-16 mb-2 opacity-20" />
+                                    <span className="font-bold text-lg">حواله‌ای یافت نشد</span>
+                                    <button onClick={handleClearFilters} className="mt-2 text-blue-500 text-sm font-bold hover:underline">پاکسازی فیلترها</button>
+                                </div>
                             )
                         )}
                     </div>
@@ -503,7 +689,6 @@ const RecentRecords: React.FC = () => {
                         <input type="text" placeholder="نام راننده" className="w-full p-3 bg-gray-50 dark:bg-gray-700 dark:text-white rounded-xl text-right font-bold outline-none border border-gray-200 dark:border-gray-600 focus:border-gray-300" value={invoiceValues.driverName} onChange={(e) => setInvoiceValues({ ...invoiceValues, driverName: e.target.value })} />
                         <input type="tel" placeholder="شماره تماس" dir="ltr" className="w-full p-3 bg-gray-50 dark:bg-gray-700 dark:text-white rounded-xl text-left font-mono font-bold outline-none border border-gray-200 dark:border-gray-600 focus:border-gray-300" value={invoiceValues.driverPhone} onChange={(e) => setInvoiceValues({ ...invoiceValues, driverPhone: e.target.value })} />
                         
-                        {/* FIXED: Force light background and black text for license plate even in dark mode */}
                         <div className="bg-gray-100 dark:bg-gray-200 p-3 rounded-xl flex items-center justify-center gap-1 border border-gray-300" dir="ltr">
                              <input type="tel" maxLength={2} value={plateParts.part1} onChange={e => setPlateParts({...plateParts, part1: e.target.value})} className="w-10 h-10 text-center font-black text-xl bg-white rounded-lg outline-none text-black dark:text-black placeholder-gray-400" />
                              <button type="button" onClick={() => setShowLetterPicker(!showLetterPicker)} className="w-10 h-10 bg-white rounded-lg font-black text-red-600 relative">

@@ -1,5 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { FixedSizeList as List } from 'react-window';
+import AutoSizer from 'react-virtualized-auto-sizer';
 import DashboardLayout from '../layout/DashboardLayout';
 import { Icons } from '../common/Icons';
 import Reports from '../admin/Reports';
@@ -15,6 +17,7 @@ import MetroTile from '../common/MetroTile';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FarmType } from '../../types';
 import JalaliDatePicker from '../common/JalaliDatePicker';
+import { SkeletonTile, SkeletonRow } from '../common/Skeleton';
 
 const sortProducts = (products: any[], aId: string, bId: string) => {
     const pA = products.find(p => p.id === aId);
@@ -22,26 +25,19 @@ const sortProducts = (products: any[], aId: string, bId: string) => {
     if (!pA || !pB) return 0;
     
     const getScore = (name: string) => {
-        // Priority 1: Shirink Products
         if (name.includes('شیرینگ') || name.includes('شیرینک')) {
-            if (name.includes('پرینتی')) return 1; // Highest Priority
-            return 2; // Shirink Sadeh
+            if (name.includes('پرینتی')) return 1; 
+            return 2; 
         }
-
-        // Priority 2: General Products (Carton/Bulk)
         if (name.includes('پرینتی')) return 3;
         if (name.includes('ساده')) return 4;
-
-        // Priority 3: Special Types
         if (name.includes('دوزرده')) return 5;
         if (name.includes('نوکی')) return 6;
         if (name.includes('کودی')) return 7;
         if (name.includes('مایع')) return 8;
-
-        return 9; // Others
+        return 9; 
     };
     
-    // Ascending sort (Lower number comes first)
     return getScore(pA.name) - getScore(pB.name);
 };
 
@@ -87,6 +83,16 @@ const FarmStatistics = () => {
         setExpandedFarmId(expandedFarmId === farmId ? null : farmId);
     };
 
+    if (isLoading && statistics.length === 0) {
+        return (
+            <div className="space-y-4">
+                <SkeletonRow height="h-24" />
+                <SkeletonRow height="h-24" />
+                <SkeletonRow height="h-24" />
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6 lg:space-y-8">
             <div className="bg-white dark:bg-gray-800 p-4 lg:p-6 shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col md:flex-row gap-4 lg:gap-6 items-center justify-between rounded-[28px]">
@@ -113,7 +119,6 @@ const FarmStatistics = () => {
                                 <div className="flex items-center gap-4 lg:gap-6">
                                     <div className={`p-4 rounded-[20px] shadow-sm text-white ${hasStats ? 'bg-gradient-to-br from-green-500 to-emerald-600' : 'bg-gradient-to-br from-red-500 to-rose-600'}`}><Icons.Home className="w-6 h-6 lg:w-8 lg:h-8" /></div>
                                     <div>
-                                        {/* Increased Font Size */}
                                         <h4 className="font-black text-2xl lg:text-3xl text-gray-800 dark:text-white mb-1">{farm.name}</h4>
                                         <span className={`text-base lg:text-lg font-bold px-2 py-0.5 rounded-full ${hasStats ? 'bg-green-100 text-green-700 dark:bg-green-900/30' : 'bg-red-100 text-red-700 dark:bg-red-900/30'}`}>{hasStats ? 'آمار ثبت شده' : 'منتظر ثبت'}</span>
                                     </div>
@@ -140,13 +145,18 @@ const FarmStatistics = () => {
                                         <div className="grid grid-cols-1 gap-4">
                                             {sortedFarmStats.map(stat => {
                                                 const prod = products.find(p => p.id === stat.productId);
-                                                const isLiquid = prod?.name.includes('مایع') || prod?.hasKilogramUnit;
+                                                
+                                                // TASK FIX: Show BOTH cartons and KG if available, regardless of product type
+                                                const showCarton = stat.production > 0 || stat.sales > 0 || stat.previousBalance > 0 || stat.currentInventory > 0;
+                                                const showKg = stat.productionKg > 0 || stat.salesKg > 0 || stat.previousBalanceKg > 0 || stat.currentInventoryKg > 0;
 
-                                                const unitLabel = isLiquid ? 'Kg' : '';
-                                                const prodVal = isLiquid ? (stat.productionKg || 0) : (stat.production || 0);
-                                                const salesVal = isLiquid ? (stat.salesKg || 0) : (stat.sales || 0);
-                                                const prevVal = isLiquid ? (stat.previousBalanceKg || 0) : (stat.previousBalance || 0);
-                                                const currVal = isLiquid ? (stat.currentInventoryKg || 0) : (stat.currentInventory || 0);
+                                                const renderVal = (valC: number, valK: number, colorClass: string) => (
+                                                    <div className="flex flex-col items-center">
+                                                        {showCarton && <span className={`font-black text-xl lg:text-2xl ${colorClass}`}>{toPersianDigits(valC)} <small className="text-[10px] text-gray-500">Crt</small></span>}
+                                                        {showKg && <span className={`font-black text-lg lg:text-xl text-metro-blue`}>{toPersianDigits(valK)} <small className="text-[10px] text-gray-500">Kg</small></span>}
+                                                        {!showCarton && !showKg && <span className="font-black text-xl text-gray-400">0</span>}
+                                                    </div>
+                                                );
 
                                                 return (
                                                 <div key={stat.id} className="bg-white dark:bg-gray-800 p-4 rounded-[24px] border border-gray-100 dark:border-gray-700 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow">
@@ -166,24 +176,24 @@ const FarmStatistics = () => {
                                                     
                                                     {/* Colored Cells Grid */}
                                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                                                        <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-slate-500 text-white shadow-sm">
-                                                            <span className="text-xs font-bold opacity-80 mb-1">موجودی قبل</span>
-                                                            <span className="font-black text-xl lg:text-2xl">{toPersianDigits(prevVal)} <small className="text-[10px]">{unitLabel}</small></span>
+                                                        <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-slate-500/10 border border-slate-200 dark:border-slate-700 shadow-sm">
+                                                            <span className="text-xs font-bold text-slate-500 mb-1">موجودی قبل</span>
+                                                            {renderVal(stat.previousBalance, stat.previousBalanceKg || 0, 'text-slate-600 dark:text-slate-300')}
                                                         </div>
                                                         
-                                                        <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-emerald-600 text-white shadow-sm">
-                                                            <span className="text-xs font-bold opacity-80 mb-1">تولید روز</span>
-                                                            <span className="font-black text-xl lg:text-2xl">+{toPersianDigits(prodVal)} <small className="text-[10px]">{unitLabel}</small></span>
+                                                        <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-green-500/10 border border-green-200 dark:border-green-800 shadow-sm">
+                                                            <span className="text-xs font-bold text-green-600 mb-1">تولید روز</span>
+                                                            {renderVal(stat.production, stat.productionKg || 0, 'text-green-600')}
                                                         </div>
 
-                                                        <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-rose-600 text-white shadow-sm">
-                                                            <span className="text-xs font-bold opacity-80 mb-1">فروش</span>
-                                                            <span className="font-black text-xl lg:text-2xl">-{toPersianDigits(salesVal)} <small className="text-[10px]">{unitLabel}</small></span>
+                                                        <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-red-500/10 border border-red-200 dark:border-red-800 shadow-sm">
+                                                            <span className="text-xs font-bold text-red-600 mb-1">فروش</span>
+                                                            {renderVal(stat.sales, stat.salesKg || 0, 'text-red-500')}
                                                         </div>
 
-                                                        <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-blue-600 text-white shadow-sm">
-                                                            <span className="text-xs font-bold opacity-80 mb-1">مانده نهایی</span>
-                                                            <span className="font-black text-xl lg:text-2xl">{toPersianDigits(currVal)} <small className="text-[10px]">{unitLabel}</small></span>
+                                                        <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-blue-500/10 border border-blue-200 dark:border-blue-800 shadow-sm">
+                                                            <span className="text-xs font-bold text-blue-600 mb-1">مانده نهایی</span>
+                                                            {renderVal(stat.currentInventory, stat.currentInventoryKg || 0, 'text-blue-600')}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -200,14 +210,35 @@ const FarmStatistics = () => {
     );
 };
 
+const InvoiceRow = ({ index, style, data }: any) => {
+    const invoice = data.invoices[index];
+    const { farms, products, renderInvoiceNumber } = data;
+    const productName = products.find((p: any) => p.id === invoice.productId)?.name || '-';
+    
+    return (
+        <div style={style} className="flex items-center text-right border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors text-gray-800 dark:text-gray-200 text-base lg:text-lg">
+            <div className="flex-[1] px-2 font-black whitespace-nowrap tracking-tighter">{toPersianDigits(invoice.date)}</div>
+            <div className="flex-[1] px-2 text-center dir-ltr">{renderInvoiceNumber(invoice.invoiceNumber)}</div>
+            <div className="flex-[1] px-2 whitespace-nowrap font-bold text-lg lg:text-xl truncate">{farms.find((f: any) => f.id === invoice.farmId)?.name}</div>
+            <div className="flex-[1] px-2 font-bold text-gray-600 dark:text-gray-300 truncate">{productName}</div>
+            <div className="flex-[1] px-2 text-center font-black text-xl lg:text-2xl">{toPersianDigits(invoice.totalCartons)}</div>
+            <div className="flex-[1] px-2 font-black text-metro-blue text-xl lg:text-2xl">{toPersianDigits(invoice.totalWeight)}</div>
+            <div className="flex-[1] px-2">
+                <span className={`px-2 py-0.5 text-sm font-black text-white rounded ${invoice.isYesterday ? 'bg-metro-orange' : 'bg-metro-green'}`}>
+                    {invoice.isYesterday ? 'دیروزی' : 'عادی'}
+                </span>
+            </div>
+        </div>
+    );
+};
+
 const InvoiceList = () => {
-    const { invoices, fetchInvoices } = useInvoiceStore();
+    const { invoices, fetchInvoices, isLoading } = useInvoiceStore();
     const { farms, products } = useFarmStore(); 
     const { addToast } = useToastStore();
     const [selectedFarmId, setSelectedFarmId] = useState<string>('all');
     const [isRefreshing, setIsRefreshing] = useState(false);
     
-    // Date Filter Defaulting to Today
     const [filterDate, setFilterDate] = useState(getTodayJalali());
     const normalizedFilterDate = normalizeDate(filterDate);
 
@@ -217,7 +248,7 @@ const InvoiceList = () => {
             const farmMatch = selectedFarmId === 'all' || i.farmId === selectedFarmId;
             return dateMatch && farmMatch;
         })
-        .sort((a, b) => b.createdAt - a.createdAt); // Sort by time created for daily view
+        .sort((a, b) => b.createdAt - a.createdAt);
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
@@ -239,19 +270,9 @@ const InvoiceList = () => {
         );
     };
 
-    const formatPlate = (plate?: string) => {
-        if (!plate || !plate.includes('-')) return plate || '-';
-        const parts = plate.split('-');
-        if (parts.length === 4) {
-            // Visual: 39 M 169 - 60
-            return `${parts[0]} ${parts[1]} ${parts[2]} - ${parts[3]}`;
-        }
-        return plate;
-    };
-
     return (
-        <div className="space-y-4 lg:space-y-6">
-             <div className="bg-white dark:bg-gray-800 p-4 lg:p-6 shadow-sm border-l-4 border-metro-orange flex flex-col md:flex-row gap-4 lg:gap-6 items-end rounded-xl">
+        <div className="space-y-4 lg:space-y-6 flex flex-col h-full">
+             <div className="bg-white dark:bg-gray-800 p-4 lg:p-6 shadow-sm border-l-4 border-metro-orange flex flex-col md:flex-row gap-4 lg:gap-6 items-end rounded-xl shrink-0">
                 <div className="w-full md:w-1/3">
                     <JalaliDatePicker value={filterDate} onChange={setFilterDate} label="نمایش حواله‌های تاریخ" />
                 </div>
@@ -274,64 +295,54 @@ const InvoiceList = () => {
                 </Button>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 p-0 shadow-sm overflow-hidden border border-gray-100 dark:border-gray-700 rounded-xl">
-                <div className="p-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+            <div className="bg-white dark:bg-gray-800 p-0 shadow-sm overflow-hidden border border-gray-100 dark:border-gray-700 rounded-xl flex-1 flex flex-col min-h-[500px]">
+                <div className="p-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shrink-0">
                     <h3 className="font-black text-xl text-gray-800 dark:text-white flex items-center gap-2">
                         <Icons.FileText className="w-6 h-6 text-metro-orange" />
                         جدول فروش روزانه
                     </h3>
                 </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-base lg:text-lg text-right border-collapse">
-                        <thead className="bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 whitespace-nowrap text-sm lg:text-lg font-bold">
-                            <tr>
-                                <th className="px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-200 dark:border-gray-700">تاریخ خروج</th>
-                                <th className="px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-200 dark:border-gray-700 text-center">رمز حواله</th>
-                                <th className="px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-200 dark:border-gray-700">فارم</th>
-                                <th className="px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-200 dark:border-gray-700">نوع محصول</th>
-                                <th className="px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-200 dark:border-gray-700 text-center">تعداد (کارتن)</th>
-                                <th className="px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-200 dark:border-gray-700">وزن (Kg)</th>
-                                <th className="px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-200 dark:border-gray-700">وضعیت</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-800 font-sans tabular-nums text-base lg:text-lg">
-                            {filteredInvoices.length === 0 ? (
-                                <tr>
-                                    <td colSpan={7} className="text-center py-10 lg:py-20 text-gray-400 font-bold lg:text-lg">
-                                        <div className="flex flex-col items-center">
-                                            <Icons.FileText className="w-10 h-10 lg:w-16 lg:h-16 mb-2 opacity-30" />
-                                            <span>هیچ حواله‌ای برای تاریخ {toPersianDigits(normalizedFilterDate)} ثبت نشده است.</span>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ) : (
-                                filteredInvoices.map(i => {
-                                    const productName = products.find(p => p.id === i.productId)?.name || '-';
-                                    return (
-                                    <tr key={i.id} className="hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors text-gray-800 dark:text-gray-200">
-                                        <td className="px-4 py-3 lg:px-6 lg:py-6 font-black whitespace-nowrap tracking-tighter text-lg lg:text-xl">{toPersianDigits(i.date)}</td>
-                                        <td className="px-4 py-3 lg:px-6 lg:py-6 text-center dir-ltr" dir="ltr">
-                                            {renderInvoiceNumber(i.invoiceNumber)}
-                                        </td>
-                                        <td className="px-4 py-3 lg:px-6 lg:py-6 whitespace-nowrap font-bold text-lg lg:text-xl">{farms.find(f => f.id === i.farmId)?.name}</td>
-                                        <td className="px-4 py-3 lg:px-6 lg:py-6 font-bold text-gray-600 dark:text-gray-300">{productName}</td>
-                                        <td className="px-4 py-3 lg:px-6 lg:py-6 text-center font-black text-xl lg:text-2xl">{toPersianDigits(i.totalCartons)}</td>
-                                        <td className="px-4 py-3 lg:px-6 lg:py-6 font-black text-metro-blue text-xl lg:text-2xl">{toPersianDigits(i.totalWeight)}</td>
-                                        <td className="px-4 py-3 lg:px-6 lg:py-6">
-                                            <div className="flex flex-col gap-1">
-                                                <span className={`px-2 lg:px-3 py-0.5 lg:py-1 text-sm lg:text-base font-black text-white w-fit rounded ${i.isYesterday ? 'bg-metro-orange' : 'bg-metro-green'}`}>
-                                                    {i.isYesterday ? 'دیروزی' : 'عادی'}
-                                                </span>
-                                                {i.updatedAt && (
-                                                    <span className="text-xs text-amber-600 dark:text-amber-400 font-bold">(اصلاح شده)</span>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                )})
+                
+                <div className="flex bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 text-sm lg:text-lg font-bold p-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
+                    <div className="flex-[1] px-2">تاریخ خروج</div>
+                    <div className="flex-[1] px-2 text-center">رمز حواله</div>
+                    <div className="flex-[1] px-2">فارم</div>
+                    <div className="flex-[1] px-2">نوع محصول</div>
+                    <div className="flex-[1] px-2 text-center">تعداد (کارتن)</div>
+                    <div className="flex-[1] px-2">وزن (Kg)</div>
+                    <div className="flex-[1] px-2">وضعیت</div>
+                </div>
+
+                <div className="flex-1 w-full">
+                    {isLoading ? (
+                        <div className="p-4">
+                            <SkeletonRow cols={7} />
+                            <SkeletonRow cols={7} />
+                            <SkeletonRow cols={7} />
+                        </div>
+                    ) : filteredInvoices.length === 0 ? (
+                        <div className="text-center py-20 text-gray-400 font-bold lg:text-lg">
+                            <div className="flex flex-col items-center">
+                                <Icons.FileText className="w-16 h-16 mb-2 opacity-30" />
+                                <span>هیچ حواله‌ای برای تاریخ {toPersianDigits(normalizedFilterDate)} ثبت نشده است.</span>
+                            </div>
+                        </div>
+                    ) : (
+                        <AutoSizer>
+                            {({ height, width }) => (
+                                <List
+                                    height={height}
+                                    itemCount={filteredInvoices.length}
+                                    itemSize={80} // Height of each row
+                                    width={width}
+                                    itemData={{ invoices: filteredInvoices, farms, products, renderInvoiceNumber }}
+                                    className="custom-scrollbar"
+                                >
+                                    {InvoiceRow}
+                                </List>
                             )}
-                        </tbody>
-                    </table>
+                        </AutoSizer>
+                    )}
                 </div>
             </div>
         </div>
@@ -524,6 +535,8 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
 
 const SalesDashboard: React.FC = () => {
     const [currentView, setCurrentView] = useState('dashboard');
+    const { isLoading } = useAuthStore();
+
     const getTitle = () => {
         if(currentView === 'farm-stats') return 'پایش آمار لحظه‌ای';
         if(currentView === 'invoices') return 'جدول فروش روزانه';
@@ -533,6 +546,17 @@ const SalesDashboard: React.FC = () => {
     }
 
     const renderContent = () => {
+        if (isLoading && currentView === 'dashboard') {
+            return (
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                    <SkeletonTile size="wide" />
+                    <SkeletonTile size="wide" />
+                    <SkeletonTile size="medium" />
+                    <SkeletonTile size="medium" />
+                </div>
+            );
+        }
+
         switch (currentView) {
             case 'farm-stats': return <FarmStatistics />;
             case 'invoices': return <InvoiceList />;

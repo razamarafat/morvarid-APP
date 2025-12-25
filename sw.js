@@ -1,11 +1,10 @@
 
 /*
  * Morvarid PWA Service Worker
- * Optimized for Automatic Updates & Immediate Claiming
+ * Optimized for Automatic Updates & Notifications
  */
 
-// Bumped to v4.0 to invalidate all previous caches
-const CACHE_NAME = 'morvarid-pwa-v4.0-force-update'; 
+const CACHE_NAME = 'morvarid-pwa-v4.1-notification-fix'; 
 const ASSETS = [
   './',
   './index.html',
@@ -13,9 +12,8 @@ const ASSETS = [
   './manifest.json'
 ];
 
-// 1. Install Event: Force waiting service worker to become active
 self.addEventListener('install', (event) => {
-  self.skipWaiting(); // CRITICAL: Forces this new SW to activate immediately
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(ASSETS);
@@ -23,7 +21,6 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// 2. Activate Event: Clean old caches and take control of all tabs immediately
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
@@ -32,15 +29,12 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
-  // CRITICAL: Tells the SW to take control of the page immediately, not after reload
   return self.clients.claim(); 
 });
 
-// 3. Fetch Event
 self.addEventListener('fetch', (event) => {
   if (!event.request.url.startsWith(self.location.origin)) return;
 
-  // Never cache version.json so the client always gets the latest
   if (event.request.url.includes('version.json')) {
       event.respondWith(fetch(event.request, { 
           cache: 'no-store',
@@ -49,18 +43,13 @@ self.addEventListener('fetch', (event) => {
       return;
   }
 
-  // SPA Navigation: Always serve index.html for navigation, but try network first to ensure freshness
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request)
-        .catch(() => {
-          return caches.match('./index.html');
-        })
+      fetch(event.request).catch(() => caches.match('./index.html'))
     );
     return;
   }
 
-  // Stale-While-Revalidate Strategy for other assets
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {
@@ -77,9 +66,10 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// 4. Push Event
 self.addEventListener('push', (event) => {
-  let data = { title: 'سامانه مروارید', body: 'پیام جدید دریافت شد', icon: './vite.svg' };
+  // This listener handles Server-Sent Push Notifications (Web Push API)
+  // For local notifications triggered by client-side logic, see alertStore.ts
+  let data = { title: 'سامانه مروارید', body: 'پیام جدید', icon: './vite.svg' };
   
   if (event.data) {
     try {
@@ -97,8 +87,6 @@ self.addEventListener('push', (event) => {
     lang: 'fa-IR',
     vibrate: [200, 100, 200],
     data: {
-      dateOfArrival: Date.now(),
-      primaryKey: 1,
       url: self.location.origin
     }
   };
@@ -108,19 +96,20 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// 5. Notification Click Handler
 self.addEventListener('notificationclick', (event) => {
   console.log('[SW] Notification clicked');
   event.notification.close();
 
+  // Robust window focus logic
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      for (let i = 0; i < clientList.length; i++) {
-        const client = clientList[i];
+      // 1. Try to find an open tab matching our origin
+      for (const client of clientList) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
           return client.focus();
         }
       }
+      // 2. If no tab open, open a new one
       if (clients.openWindow) {
         return clients.openWindow('./');
       }
