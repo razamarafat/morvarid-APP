@@ -35,7 +35,7 @@ const translateError = (error: any): string => {
     const code = error.code || '';
     const status = String(error.status || '');
     if (status === '400' || code === 'PGRST204' || code === '42703') return 'خطای ساختار دیتابیس شناسایی شد. پیلود اصلاح و مجدداً تلاش شد.';
-    if (code === '23505') return 'این رکورد قبلاً ثبت شده است.';
+    if (code === '23505') return 'این رکورد قبلاً ثبت شده است (تکراری).';
     return `خطای سیستم: ${error.message || code}`;
 };
 
@@ -86,11 +86,8 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
               }
           }
 
-          // --- DEDUPLICATION LOGIC START ---
-          // Creates a unique map based on FarmID + Date + ProductID
-          // If duplicates exist, keeps the one with the latest UpdatedAt/CreatedAt
+          // Deduplication Logic
           const uniqueStatsMap = new Map<string, any>();
-
           statsData.forEach((s: any) => {
               const normalizedDate = normalizeDate(s.date);
               const pId = mapLegacyProductId(s.product_id);
@@ -100,8 +97,6 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                   const existing = uniqueStatsMap.get(key);
                   const existingTime = new Date(existing.updated_at || existing.created_at).getTime();
                   const newItemTime = new Date(s.updated_at || s.created_at).getTime();
-                  
-                  // Keep the newer record
                   if (newItemTime > existingTime) {
                       uniqueStatsMap.set(key, s);
                   }
@@ -111,7 +106,6 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           });
 
           const dedupedData = Array.from(uniqueStatsMap.values());
-          // --- DEDUPLICATION LOGIC END ---
 
           const mappedStats = dedupedData.map((s: any) => ({
               id: s.id,
@@ -176,6 +170,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           
           if (error) {
               if (String((error as any).status) === '400' || error.code === 'PGRST204' || error.code === '42703') {
+                  // Fallback: update with core fields only
                   const corePayload = {
                       production: fullPayload.production,
                       sales: fullPayload.sales,
@@ -206,6 +201,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
   },
 
   bulkUpsertStatistics: async (stats, isSyncing = false) => {
+      // 1. Offline Check
       if (!isSyncing && !navigator.onLine) {
           stats.forEach(s => useSyncStore.getState().addToQueue('STAT', s));
           return { success: true, error: 'ذخیره در صف آفلاین' };
@@ -215,62 +211,104 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) return { success: false, error: "کاربر احراز هویت نشده است." };
           
-          for (const stat of stats) {
-              const normalizedDate = normalizeDate(stat.date);
-              const mappedProductId = mapLegacyProductId(stat.productId);
+          // Prepare DB-ready payload
+          const dbStats = stats.map(stat => ({
+              farm_id: stat.farmId,
+              date: normalizeDate(stat.date),
+              product_id: mapLegacyProductId(stat.productId),
+              previous_balance: Number(stat.previousBalance) || 0,
+              production: Number(stat.production) || 0,
+              sales: Number(stat.sales) || 0,
+              current_inventory: Number(stat.currentInventory) || 0,
+              production_kg: Number(stat.productionKg) || 0,
+              sales_kg: Number(stat.salesKg) || 0,
+              previous_balance_kg: Number(stat.previousBalanceKg) || 0,
+              current_inventory_kg: Number(stat.currentInventoryKg) || 0,
+              created_by: user.id,
+              updated_at: new Date().toISOString() // Ensure update time is set
+          }));
 
-              const { data: existing } = await supabase
+          // --- STRATEGY 1: Optimistic Native Upsert (Performance) ---
+          // Allows DB to handle uniqueness. Requires Unique Index on (farm_id, date, product_id).
+          try {
+              const { error } = await supabase
                   .from('daily_statistics')
-                  .select('id')
-                  .eq('farm_id', stat.farmId)
-                  .eq('date', normalizedDate)
-                  .eq('product_id', mappedProductId)
-                  .single();
+                  .upsert(dbStats, { 
+                      onConflict: 'farm_id,date,product_id', 
+                      ignoreDuplicates: false 
+                  });
 
-              const fullPayload = {
-                  farm_id: stat.farmId,
-                  date: normalizedDate,
-                  product_id: mappedProductId,
-                  previous_balance: Number(stat.previousBalance) || 0,
-                  production: Number(stat.production) || 0,
-                  sales: Number(stat.sales) || 0,
-                  current_inventory: Number(stat.currentInventory) || 0,
-                  production_kg: Number(stat.productionKg) || 0,
-                  sales_kg: Number(stat.salesKg) || 0,
-                  previous_balance_kg: Number(stat.previousBalanceKg) || 0,
-                  current_inventory_kg: Number(stat.currentInventoryKg) || 0,
-                  created_by: user.id
-              };
+              if (!error) {
+                  await get().fetchStatistics();
+                  return { success: true };
+              }
+              
+              // If error is NOT a constraint/schema issue, throw it
+              // 42703: Undefined Column (Schema mismatch)
+              // 409: Conflict (If DB is strict but our onConflict param was wrong)
+              // PGRST204: Columns not found
+              const code = error.code;
+              if (code !== '42703' && code !== 'PGRST204' && code !== '400') {
+                  console.warn('[Stats] Native upsert failed, falling back to manual check.', error);
+                  // Don't throw here, let it fall through to Strategy 2
+              } else {
+                  console.warn('[Stats] Schema mismatch during upsert. Falling back.', error);
+              }
 
-              const corePayload = {
-                  farm_id: stat.farmId,
-                  date: normalizedDate,
-                  product_id: mappedProductId,
-                  previous_balance: Number(stat.previousBalance) || 0,
-                  production: Number(stat.production) || 0,
-                  sales: Number(stat.sales) || 0,
-                  current_inventory: Number(stat.currentInventory) || 0,
-                  created_by: user.id
-              };
+          } catch (e) {
+              console.warn('[Stats] Upsert exception, using fallback.', e);
+          }
+
+          // --- STRATEGY 2: Optimized Check-and-Update (Fallback) ---
+          // Robust logic if DB constraint is missing or schema is outdated.
+          
+          // 2.1 Batch Read Existing Records to minimize queries
+          const farmIds = [...new Set(dbStats.map(s => s.farm_id))];
+          const dates = [...new Set(dbStats.map(s => s.date))];
+          
+          const { data: existingRecords } = await supabase
+              .from('daily_statistics')
+              .select('id, farm_id, date, product_id')
+              .in('farm_id', farmIds)
+              .in('date', dates);
+
+          // 2.2 Process Items Loop
+          for (const stat of dbStats) {
+              // Find matching record from batch fetch
+              const existing = existingRecords?.find(r => 
+                  r.farm_id === stat.farm_id && 
+                  r.date === stat.date && 
+                  r.product_id === stat.product_id
+              );
+
+              // Create fallback core payload (no kg) in case of schema error
+              const corePayload = { ...stat };
+              delete (corePayload as any).production_kg;
+              delete (corePayload as any).sales_kg;
+              delete (corePayload as any).previous_balance_kg;
+              delete (corePayload as any).current_inventory_kg;
 
               if (existing) {
+                  // Update
                   let { error: updateError } = await supabase
                       .from('daily_statistics')
-                      .update(fullPayload)
+                      .update(stat)
                       .eq('id', existing.id);
                   
+                  // Retry without KG if schema error
                   if (updateError && (updateError.code === '42703' || updateError.code === 'PGRST204' || String(updateError.code) === '400')) {
                       const retry = await supabase.from('daily_statistics').update(corePayload).eq('id', existing.id);
                       if (retry.error) throw retry.error;
                   } else if (updateError) {
                       throw updateError;
                   }
-
               } else {
+                  // Insert
                   let { error: insertError } = await supabase
                       .from('daily_statistics')
-                      .insert(fullPayload);
+                      .insert(stat);
                   
+                  // Retry without KG if schema error
                   if (insertError && (insertError.code === '42703' || insertError.code === 'PGRST204' || String(insertError.code) === '400')) {
                       const retry = await supabase.from('daily_statistics').insert(corePayload);
                       if (retry.error) throw retry.error;
@@ -282,6 +320,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           
           await get().fetchStatistics();
           return { success: true };
+
       } catch (err: any) {
           if (!isSyncing && isNetworkError(err)) {
               stats.forEach(s => useSyncStore.getState().addToQueue('STAT', s));

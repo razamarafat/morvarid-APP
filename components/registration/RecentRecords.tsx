@@ -36,6 +36,9 @@ const StatCard: React.FC<StatCardProps> = ({ stat, getProductName, getProductUni
     const isLiquid = getProductName(stat.productId).includes('مایع');
     const canEdit = isEditable(stat.createdAt);
     
+    // Check if edited: if updatedAt exists and is significantly after createdAt (e.g. > 1 min difference)
+    const isEdited = stat.updatedAt && (stat.updatedAt - stat.createdAt > 60000);
+
     return (
         <div className="bg-white dark:bg-gray-800 rounded-[16px] shadow-sm border border-gray-200 dark:border-gray-700 p-3 md:p-4 relative overflow-hidden group hover:shadow-md transition-all duration-300 h-full flex flex-col justify-between">
             <div className="flex justify-between items-start mb-2">
@@ -90,6 +93,14 @@ const StatCard: React.FC<StatCardProps> = ({ stat, getProductName, getProductUni
                     <span className="text-sm font-black text-metro-blue">{toPersianDigits(isLiquid ? (stat.currentInventoryKg || 0) : (stat.currentInventory || 0))}</span>
                 </div>
             </div>
+
+            {/* Change History Indicator */}
+            {isEdited && (
+                <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 flex items-center justify-end gap-1">
+                    <span className="text-[9px] font-bold text-orange-500">ویرایش شده در {new Date(stat.updatedAt!).toLocaleTimeString('fa-IR', {hour: '2-digit', minute:'2-digit'})}</span>
+                    <Icons.Edit className="w-3 h-3 text-orange-400" />
+                </div>
+            )}
         </div>
     );
 };
@@ -105,6 +116,7 @@ interface InvoiceCardProps {
 const InvoiceCard: React.FC<InvoiceCardProps> = ({ inv, getProductName, isEditable, onEdit, onDelete }) => {
     const isLiquid = getProductName(inv.productId || '').includes('مایع');
     const canEdit = isEditable(inv.createdAt);
+    const isEdited = inv.updatedAt && (inv.updatedAt - inv.createdAt > 60000);
 
     const formatPlate = (plate?: string) => {
         if (!plate || !plate.includes('-')) return plate || '-';
@@ -159,6 +171,14 @@ const InvoiceCard: React.FC<InvoiceCardProps> = ({ inv, getProductName, isEditab
                     <span className={`font-black text-sm ${isLiquid ? 'text-blue-700 dark:text-blue-400' : 'text-metro-blue'}`}>{toPersianDigits(inv.totalWeight)}</span>
                 </div>
             </div>
+
+            {/* Change History Indicator */}
+            {isEdited && (
+                <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 flex items-center justify-end gap-1">
+                    <span className="text-[9px] font-bold text-orange-500">ویرایش شده در {new Date(inv.updatedAt!).toLocaleTimeString('fa-IR', {hour: '2-digit', minute:'2-digit'})}</span>
+                    <Icons.Edit className="w-3 h-3 text-orange-400" />
+                </div>
+            )}
         </div>
     );
 };
