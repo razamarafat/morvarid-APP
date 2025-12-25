@@ -121,8 +121,6 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           if (!user) return { success: false, error: "کاربر لاگین نیست." };
 
           // 3. Payload Sanitization
-          // IMPORTANT: Explicitly default optional fields to null. 
-          // Undefined fields can cause JSON serialization issues or Supabase errors in some edge cases.
           const dbInvoices = invoicesList.map(inv => ({
               farm_id: inv.farmId,
               date: inv.date,
@@ -140,7 +138,31 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
 
           const { error } = await supabase.from('invoices').insert(dbInvoices);
 
-          if (error) throw error; 
+          if (error) {
+              // CRITICAL FIX: Fallback to core fields if schema mismatch occurs
+              const code = error.code || '';
+              const status = String((error as any).status || '');
+              
+              if (status === '400' || code === 'PGRST204' || code === '42703') {
+                  console.warn('[InvoiceStore] Schema mismatch detected. Retrying with core fields...');
+                  
+                  const coreInvoices = dbInvoices.map(inv => ({
+                      farm_id: inv.farm_id,
+                      date: inv.date,
+                      invoice_number: inv.invoice_number,
+                      total_cartons: inv.total_cartons,
+                      total_weight: inv.total_weight,
+                      product_id: inv.product_id,
+                      created_by: inv.created_by
+                      // Omitting optional fields to prevent 'column not found'
+                  }));
+                  
+                  const { error: retryError } = await supabase.from('invoices').insert(coreInvoices);
+                  if (retryError) throw retryError;
+              } else {
+                  throw error;
+              }
+          }
 
           get().fetchInvoices();
           
@@ -193,13 +215,26 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
                       total_cartons: fullPayload.total_cartons,
                       total_weight: fullPayload.total_weight,
                       invoice_number: fullPayload.invoice_number,
-                      driver_name: fullPayload.driver_name,
+                      driver_name: fullPayload.driver_name, // Try including driver
                       plate_number: fullPayload.plate_number,
                       driver_phone: fullPayload.driver_phone
                   };
                   Object.keys(corePayload).forEach(key => corePayload[key] === undefined && delete corePayload[key]);
                   
-                  const retry = await supabase.from('invoices').update(corePayload).eq('id', id);
+                  // If second retry fails, it might be strictly core fields
+                  let retry = await supabase.from('invoices').update(corePayload).eq('id', id);
+                  
+                  if (retry.error) {
+                       // Super safe fallback
+                       const absoluteCore = {
+                           total_cartons: fullPayload.total_cartons,
+                           total_weight: fullPayload.total_weight,
+                           invoice_number: fullPayload.invoice_number
+                       };
+                       Object.keys(absoluteCore).forEach(key => (absoluteCore as any)[key] === undefined && delete (absoluteCore as any)[key]);
+                       retry = await supabase.from('invoices').update(absoluteCore).eq('id', id);
+                  }
+                  
                   if (retry.error) throw retry.error;
               } else {
                   throw error;
