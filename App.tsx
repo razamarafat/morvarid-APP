@@ -132,6 +132,17 @@ function App() {
         checkInactivity();
     }, 60 * 1000);
 
+    // 3. Visibility Change Listener (PWA Resume / Tab Switch)
+    // This runs immediately when the user comes back to the app, 
+    // ensuring we check timeout BEFORE they can interact.
+    const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+            console.log('[App] App resumed/visible. Checking session validity...');
+            checkInactivity();
+        }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     // PWA Installation Handlers
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
     setIsInstalled(isStandalone);
@@ -148,6 +159,7 @@ function App() {
         window.removeEventListener('touchstart', handleUserActivity);
         window.removeEventListener('scroll', handleUserActivity);
         window.removeEventListener('appinstalled', handleAppInstalled);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
         clearInterval(inactivityInterval);
     };
   }, []);
