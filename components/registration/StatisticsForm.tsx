@@ -133,6 +133,19 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
             // Skip empty rows (Relaxed check for Motefereghe as they might only fill "Declared Inv")
             if (vals.production === '' && vals.productionKg === '' && vals.previousBalance === '' && vals.previousBalanceKg === '') continue;
 
+            // --- VALIDATION FOR UNNATURAL NUMBERS ---
+            const prodName = getProductById(pid)?.name || 'محصول';
+            
+            if (inputVal > 10000) {
+                addToast(`خطا: عدد وارد شده برای ${isMotefereghe ? 'موجودی' : 'تولید'} محصول "${prodName}" (${toPersianDigits(inputVal)}) غیرمتعارف است.`, 'error');
+                return;
+            }
+            if (inputValKg > 150000) { // Approx 150 tons seems unlikely for daily single farm stat
+                 addToast(`خطا: وزن وارد شده برای محصول "${prodName}" (${toPersianDigits(inputValKg)}) غیرمتعارف است.`, 'error');
+                 return;
+            }
+            // ----------------------------------------
+
             // Calculate sales from invoices
             const relevantInvoices = invoices.filter(inv => inv.farmId === selectedFarmId && inv.date === normalizedDate && inv.productId === pid);
             const totalSales = relevantInvoices.reduce((sum, inv) => sum + (inv.totalCartons || 0), 0);

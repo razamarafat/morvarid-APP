@@ -132,12 +132,25 @@ export const InvoiceForm: React.FC = () => {
             const product = getProductById(pid);
             const name = product?.name || 'محصول';
             
-            if (!item.weight || Number(item.weight) <= 0) {
+            const weightVal = Number(item.weight);
+            const cartonsVal = Number(item.cartons);
+
+            if (!item.weight || weightVal <= 0) {
                 addToast(`وزن برای "${name}" وارد نشده است.`, 'error');
                 return;
             }
-            if (!item.cartons || Number(item.cartons) <= 0) {
+            if (!item.cartons || cartonsVal <= 0) {
                 addToast(`تعداد کارتن برای "${name}" وارد نشده است.`, 'error');
+                return;
+            }
+
+            // --- UNNATURAL VALUE CHECKS ---
+            if (weightVal > 6000) {
+                addToast(`خطا: وزن ثبت شده برای "${name}" (${toPersianDigits(weightVal)} Kg) غیرمتعارف و بالاتر از ۶۰۰۰ کیلوگرم است.`, 'error');
+                return;
+            }
+            if (cartonsVal > 2000) {
+                addToast(`خطا: تعداد کارتن ثبت شده برای "${name}" (${toPersianDigits(cartonsVal)}) غیرمتعارف است.`, 'error');
                 return;
             }
 
@@ -148,7 +161,7 @@ export const InvoiceForm: React.FC = () => {
                 return;
             }
             
-            if (statRecord.currentInventory < Number(item.cartons)) {
+            if (statRecord.currentInventory < cartonsVal) {
                 addToast(`خطا: موجودی "${name}" کافی نیست. (موجود: ${statRecord.currentInventory})`, 'error');
                 return;
             }

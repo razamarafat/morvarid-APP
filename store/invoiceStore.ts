@@ -121,18 +121,20 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           if (!user) return { success: false, error: "کاربر لاگین نیست." };
 
           // 3. Payload Sanitization
+          // IMPORTANT: Explicitly default optional fields to null. 
+          // Undefined fields can cause JSON serialization issues or Supabase errors in some edge cases.
           const dbInvoices = invoicesList.map(inv => ({
               farm_id: inv.farmId,
               date: inv.date,
               invoice_number: inv.invoiceNumber,
-              total_cartons: Math.floor(Number(inv.totalCartons)), 
-              total_weight: Number(inv.totalWeight),
+              total_cartons: Math.floor(Number(inv.totalCartons)) || 0, 
+              total_weight: Number(inv.totalWeight) || 0,
               product_id: inv.productId,
-              driver_name: inv.driverName,
-              driver_phone: inv.driverPhone,
-              plate_number: inv.plateNumber,
-              description: inv.description,
-              is_yesterday: inv.isYesterday,
+              driver_name: inv.driverName || null,
+              driver_phone: inv.driverPhone || null,
+              plate_number: inv.plateNumber || null,
+              description: inv.description || null,
+              is_yesterday: inv.isYesterday || false,
               created_by: user.id
           }));
 
