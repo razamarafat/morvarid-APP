@@ -6,6 +6,10 @@ import { useToastStore } from './toastStore';
 import { useAuthStore } from './authStore';
 import { UserRole } from '../types';
 
+// IMPORTANT: Replace this with your generated VAPID PUBLIC KEY from "npx web-push generate-vapid-keys"
+// Must match the one set in Supabase Edge Function secrets.
+const VAPID_PUBLIC_KEY = 'BJ_Xy...PLACEHOLDER_KEY...Replace_With_Your_Own_VAPID_Public_Key';
+
 interface AlertPayload {
     targetFarmId: string;
     farmName: string;
@@ -20,43 +24,30 @@ interface AlertState {
     channel: RealtimeChannel | null;
     lastLog: string;
     permissionStatus: NotificationPermission;
+    pushSubscription: PushSubscription | null;
+    
     initListener: () => void;
     checkAndRequestPermission: () => Promise<boolean>;
     requestPermissionManual: () => Promise<void>;
-    sendAlert: (farmId: string, farmName: string, message: string) => Promise<{ success: boolean; detail: string; bytes: number }>;
+    sendAlert: (farmId: string, farmName: string, message: string) => Promise<{ success: boolean; detail: string }>;
     triggerTestNotification: () => Promise<void>;
-    sendLocalNotification: (title: string, body: string, tag?: string) => Promise<boolean>;
+    
+    triggerSystemNotification: (title: string, body: string, tag?: string) => Promise<boolean>;
+    
+    subscribeToPushNotifications: () => Promise<void>;
+    saveSubscriptionToDb: (sub: PushSubscription) => Promise<void>;
     addLog: (msg: string) => void;
 }
 
-const playNotificationSound = () => {
-    try {
-        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-        if (!AudioContextClass) return;
-
-        const audioContext = new AudioContextClass();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A5
-        oscillator.frequency.exponentialRampToValueAtTime(440, audioContext.currentTime + 0.1); // Drop
-        
-        gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-        
-        oscillator.start();
-        oscillator.stop(audioContext.currentTime + 0.6);
-
-        if (audioContext.state === 'suspended') {
-            audioContext.resume();
-        }
-    } catch (e) {
-        console.error('[Audio] Play failed', e);
-    }
+const urlBase64ToUint8Array = (base64String: string) => {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
 };
 
 export const useAlertStore = create<AlertState>((set, get) => ({
@@ -64,6 +55,7 @@ export const useAlertStore = create<AlertState>((set, get) => ({
     channel: null,
     lastLog: '',
     permissionStatus: 'default',
+    pushSubscription: null,
 
     addLog: (msg: string) => {
         const time = new Date().toLocaleTimeString('fa-IR');
@@ -77,11 +69,8 @@ export const useAlertStore = create<AlertState>((set, get) => ({
             set({ permissionStatus: 'denied' });
             return false;
         }
-        
         set({ permissionStatus: Notification.permission });
-
-        if (Notification.permission === 'granted') return true;
-        return false;
+        return Notification.permission === 'granted';
     },
 
     requestPermissionManual: async () => {
@@ -90,72 +79,149 @@ export const useAlertStore = create<AlertState>((set, get) => ({
             return;
         }
 
-        const permission = await Notification.requestPermission();
-        set({ permissionStatus: permission });
-        
-        if (permission === 'granted') {
-            useToastStore.getState().addToast('اعلان‌ها فعال شدند.', 'success');
-            get().sendLocalNotification('مروارید', 'اعلان‌ها با موفقیت فعال شدند.');
-        } else {
-            useToastStore.getState().addToast('مجوز اعلان رد شد. لطفاً در تنظیمات مرورگر فعال کنید.', 'warning');
+        try {
+            const permission = await Notification.requestPermission();
+            set({ permissionStatus: permission });
+            
+            if (permission === 'granted') {
+                useToastStore.getState().addToast('اعلان‌ها فعال شدند.', 'success');
+                await get().triggerSystemNotification('سامانه مروارید', 'سیستم اعلان‌ها فعال شد. از این پس پیام‌ها را دریافت خواهید کرد.');
+                await get().subscribeToPushNotifications(); 
+            } else {
+                useToastStore.getState().addToast('مجوز اعلان رد شد.', 'warning');
+            }
+        } catch (e) {
+            console.error('Permission Request Error:', e);
         }
     },
 
-    sendLocalNotification: async (title: string, body: string, tag = 'general') => {
-        // 1. Permission Check
+    saveSubscriptionToDb: async (sub: PushSubscription) => {
+        const { user } = useAuthStore.getState();
+        if (!user) return;
+
+        try {
+            // Using UPSERT to avoid duplicates based on the unique subscription JSON
+            // Requires unique constraint on 'subscription' column in DB
+            const { error } = await supabase.from('push_subscriptions').upsert({
+                user_id: user.id,
+                subscription: JSON.parse(JSON.stringify(sub)),
+                user_agent: navigator.userAgent
+            }, { onConflict: 'subscription' });
+
+            if (error) {
+                console.error('[Alert] DB Save Error:', error);
+            } else {
+                console.log('[Alert] Subscription saved to DB.');
+                get().addLog('دستگاه در سرور ثبت شد.');
+            }
+        } catch (e) {
+            console.error('[Alert] DB Save Exception:', e);
+        }
+    },
+
+    subscribeToPushNotifications: async () => {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+        
+        try {
+            const registration = await navigator.serviceWorker.ready;
+            
+            // Check if already subscribed
+            let sub = await registration.pushManager.getSubscription();
+            
+            if (!sub) {
+                // If VAPID_PUBLIC_KEY is still placeholder, this will fail or work with default FCM (if configured in manifest)
+                // For production, you MUST replace VAPID_PUBLIC_KEY.
+                const options: any = {
+                    userVisibleOnly: true,
+                };
+                
+                // Only add applicationServerKey if it's a valid VAPID key
+                if (!VAPID_PUBLIC_KEY.includes('PLACEHOLDER')) {
+                    options.applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+                }
+
+                sub = await registration.pushManager.subscribe(options);
+            }
+            
+            set({ pushSubscription: sub });
+            if (sub) {
+                await get().saveSubscriptionToDb(sub);
+            }
+            
+        } catch (e) {
+            console.warn('[Alert] Push Subscription failed:', e);
+            get().addLog(`خطا در اشتراک Push: ${e}`);
+        }
+    },
+
+    triggerSystemNotification: async (title: string, body: string, tag = 'general') => {
         if (Notification.permission !== 'granted') return false;
 
-        // 2. Play Sound
-        playNotificationSound();
+        // Audio Feedback
+        try {
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            if (AudioContextClass) {
+                const ctx = new AudioContextClass();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(500, ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(1000, ctx.currentTime + 0.1);
+                osc.frequency.linearRampToValueAtTime(500, ctx.currentTime + 0.2);
+                osc.frequency.linearRampToValueAtTime(1000, ctx.currentTime + 0.3);
+                
+                gain.gain.setValueAtTime(0.5, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.8);
+                
+                osc.start();
+                osc.stop(ctx.currentTime + 0.8);
+            }
+        } catch (e) { console.error('Audio play error', e); }
 
-        // 3. Badging API (New Improvement)
-        if ('setAppBadge' in navigator) {
-            // @ts-ignore
-            navigator.setAppBadge(1).catch(() => {});
-        }
-
-        // 4. Service Worker Strategy (Priority)
         if ('serviceWorker' in navigator) {
             try {
-                const registration = await navigator.serviceWorker.ready;
-                if (registration) {
-                    await registration.showNotification(title, {
+                const reg = await navigator.serviceWorker.ready;
+                if (reg) {
+                    await reg.showNotification(title, {
                         body: body,
                         icon: '/icons/icon-192x192.png',
                         badge: '/icons/icon-192x192.png',
-                        vibrate: [200, 100, 200],
+                        vibrate: [200, 100, 200, 100, 400],
                         tag: tag,
                         renotify: true,
                         requireInteraction: true,
+                        dir: 'rtl',
+                        lang: 'fa-IR',
                         data: { url: window.location.href }
                     } as any);
                     return true;
                 }
-            } catch (e) {
-                console.error('[Alert] SW Notification failed, falling back to classic', e);
+            } catch (swError) {
+                console.error('[Alert] SW Notification failed:', swError);
             }
         }
 
-        // 5. Fallback Strategy
         try {
-            new Notification(title, {
-                body: body,
+            new Notification(title, { 
+                body, 
                 icon: '/icons/icon-192x192.png',
-                tag: tag
+                requireInteraction: true 
             });
             return true;
         } catch (e) {
-            console.error('[Alert] Classic Notification failed', e);
+            console.error('[Alert] Fallback Notification failed:', e);
             return false;
         }
     },
 
     triggerTestNotification: async () => {
-        const hasPermission = await get().checkAndRequestPermission();
-        if (hasPermission) {
-             const result = await get().sendLocalNotification("تست سامانه مروارید", "سیستم اعلان‌ها فعال است و به درستی کار می‌کند.");
-             if (result) get().addLog('اعلان تست ارسال شد.');
-             else get().addLog('خطا در ارسال اعلان.');
+        const hasPerm = await get().checkAndRequestPermission();
+        if (hasPerm) {
+             await get().triggerSystemNotification("تست سامانه مروارید", "این یک پیام آزمایشی سیستمی است که باید در نوار وضعیت نمایش داده شود.");
+             get().addLog('تست ارسال شد.');
         } else {
              useToastStore.getState().addToast('مجوز نوتیفیکیشن وجود ندارد.', 'warning');
         }
@@ -165,6 +231,7 @@ export const useAlertStore = create<AlertState>((set, get) => ({
         if (get().isListening) return;
 
         get().checkAndRequestPermission();
+        get().subscribeToPushNotifications(); // Ensure token is synced
 
         const channel = supabase.channel('app_alerts', {
             config: { broadcast: { self: true } }
@@ -179,20 +246,26 @@ export const useAlertStore = create<AlertState>((set, get) => ({
                     const currentUser = useAuthStore.getState().user;
                     
                     if (!currentUser) return;
-                    if (payload.senderId === currentUser.id) return;
+                    if (payload.senderId === currentUser.id) return; 
 
                     const assignedIds = currentUser.assignedFarms?.map(f => f.id) || [];
                     const isRelevant = currentUser.role === UserRole.ADMIN || assignedIds.includes(payload.targetFarmId);
 
                     if (isRelevant) {
-                        useToastStore.getState().addToast(`پیام مدیریت: ${payload.message}`, 'error');
-                        await get().sendLocalNotification("⚠️ هشدار مدیریتی", payload.message, 'critical-alert');
+                        useToastStore.getState().addToast(`پیام فوری: ${payload.message}`, 'error');
+                        
+                        await get().triggerSystemNotification(
+                            `⚠️ هشدار: ${payload.farmName}`, 
+                            payload.message, 
+                            'critical-alert'
+                        );
                     }
                 }
             )
             .subscribe((status) => {
                 if (status === 'SUBSCRIBED') {
                     set({ isListening: true });
+                    console.log('[Alert] Listening for broadcasts...');
                 }
             });
             
@@ -201,19 +274,44 @@ export const useAlertStore = create<AlertState>((set, get) => ({
 
     sendAlert: async (farmId, farmName, message) => {
         const { user } = useAuthStore.getState();
-        if (!user) return { success: false, detail: 'Auth Required', bytes: 0 };
+        if (!user) return { success: false, detail: 'Auth Required' };
 
+        // 1. Send via Realtime (Socket) - Fast, for open apps
         let channel = get().channel;
         if (!channel) { get().initListener(); channel = get().channel; }
         
         if (channel?.state !== 'joined') {
-             await new Promise(r => setTimeout(r, 1000));
+             await new Promise(r => setTimeout(r, 1500));
         }
 
-        const payload = { targetFarmId: farmId, farmName, message, senderId: user.id, sentAt: Date.now(), action: 'missing_stats' };
+        const payload = { 
+            targetFarmId: farmId, 
+            farmName, 
+            message, 
+            senderId: user.id, 
+            sentAt: Date.now(), 
+            action: 'missing_stats' 
+        };
         
-        const result = await channel?.send({ type: 'broadcast', event: 'farm_alert', payload });
+        const socketResult = await channel?.send({ type: 'broadcast', event: 'farm_alert', payload });
         
-        return { success: result === 'ok', detail: result as string, bytes: JSON.stringify(payload).length };
+        // 2. Send via Edge Function (Push) - Guaranteed, for closed apps
+        // Calls the 'send-push' function deployed on Supabase
+        try {
+            const { error } = await supabase.functions.invoke('send-push', {
+                body: payload
+            });
+            
+            if (error) {
+                console.warn('[Alert] Push Function Error:', error);
+                // We don't return false here because Realtime might have worked
+            } else {
+                console.log('[Alert] Push Function invoked successfully.');
+            }
+        } catch (e) {
+            console.error('[Alert] Push Invocation Failed:', e);
+        }
+
+        return { success: socketResult === 'ok', detail: socketResult as string };
     }
 }));

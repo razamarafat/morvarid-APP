@@ -72,10 +72,33 @@ const FarmStatistics = () => {
     const handleSendAlert = async (farmId: string, farmName: string, e: React.MouseEvent) => {
         e.stopPropagation(); 
         setAlertLoading(farmId);
+        
+        // 1. Play Send Sound
+        try {
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            if (AudioContextClass) {
+                const ctx = new AudioContextClass();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.setValueAtTime(440, ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(880, ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.3);
+            }
+        } catch(e) {}
+
         const message = `عدم ثبت آمار برای فارم ${farmName} در تاریخ ${normalizedSelectedDate}`;
-        const success = await sendAlert(farmId, farmName, message);
-        if (success) addToast(`هشدار آنی برای ${farmName} ارسال شد`, 'success');
-        else addToast('خطا در ارسال هشدار', 'error');
+        const result = await sendAlert(farmId, farmName, message);
+        
+        if (result.success) {
+            addToast(`هشدار آنی برای مسئول ${farmName} ارسال شد`, 'success');
+        } else {
+            addToast('خطا در ارسال هشدار', 'error');
+        }
         setAlertLoading(null);
     };
 
@@ -84,14 +107,12 @@ const FarmStatistics = () => {
     };
 
     // --- Helper to Deduplicate Stats for Display ---
-    // Even if store has duplicates, this ensures UI only shows one card per product
     const getDeduplicatedStats = (farmId: string) => {
         const farmStats = statistics.filter(s => s.farmId === farmId && normalizeDate(s.date) === normalizedSelectedDate);
         const uniqueMap = new Map<string, DailyStatistic>();
         
         farmStats.forEach(stat => {
             if (uniqueMap.has(stat.productId)) {
-                // If duplicate, pick the one with later updatedAt (or createAt)
                 const existing = uniqueMap.get(stat.productId)!;
                 const existingTime = new Date(existing.updatedAt || existing.createdAt).getTime();
                 const newTime = new Date(stat.updatedAt || stat.createdAt).getTime();
@@ -157,7 +178,7 @@ const FarmStatistics = () => {
                                             onClick={(e) => handleSendAlert(farm.id, farm.name, e)}
                                             className="lg:h-12 lg:px-6 shadow-md"
                                         >
-                                            <Icons.Bell className="w-5 h-5 lg:ml-2" />
+                                            <Icons.Bell className={`w-5 h-5 lg:ml-2 ${alertLoading === farm.id ? 'animate-bounce' : ''}`} />
                                             <span className="hidden lg:inline text-lg">ارسال هشدار</span>
                                         </Button>
                                     )}

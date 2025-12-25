@@ -6,6 +6,7 @@ import FarmManagement from '../components/admin/FarmManagement';
 import UserManagement from '../components/admin/UserManagement';
 import FeatureTesting from '../components/admin/FeatureTesting';
 import Reports from '../components/admin/Reports';
+import DeviceManagement from '../components/admin/DeviceManagement'; // Imported
 import MetroTile from '../components/common/MetroTile';
 import { usePwaStore } from '../store/pwaStore';
 import { useToastStore } from '../store/toastStore';
@@ -69,6 +70,7 @@ const AdminDashboard: React.FC = () => {
             case 'farms': return <FarmManagement />;
             case 'users': return <UserManagement />;
             case 'reports': return <Reports />;
+            case 'devices': return <DeviceManagement />; // New Tab
             case 'testing': return <FeatureTesting />;
             default: return <DashboardHome onNavigate={setCurrentView} />;
         }
@@ -79,6 +81,7 @@ const AdminDashboard: React.FC = () => {
             case 'farms': return 'مدیریت فارم‌ها';
             case 'users': return 'مدیریت کاربران';
             case 'reports': return 'گزارشات';
+            case 'devices': return 'دستگاه‌های متصل';
             case 'testing': return 'سنجش ویژگی‌ها';
             default: return 'داشبورد مدیریت';
         }
@@ -126,6 +129,8 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
             <MetroTile title="مدیریت فارم‌ها" icon={Icons.Home} color="bg-metro-green" size="wide" onClick={() => onNavigate('farms')} />
             <MetroTile title="مدیریت کاربران" icon={Icons.Users} color="bg-metro-purple" size="wide" onClick={() => onNavigate('users')} />
             <MetroTile title="گزارشات" icon={Icons.FileText} color="bg-metro-blue" size="medium" onClick={() => onNavigate('reports')} />
+            {/* Added Device Manager Tile */}
+            <MetroTile title="دستگاه‌ها" icon={Icons.Globe} color="bg-indigo-600" size="medium" onClick={() => onNavigate('devices')} />
             <MetroTile title="سنجش فنی" icon={Icons.TestTube} color="bg-metro-teal" size="medium" onClick={() => onNavigate('testing')} />
             <MetroTile title={pwaConfig.title} icon={pwaConfig.icon} color={pwaConfig.color} size="medium" count={pwaConfig.count} onClick={pwaConfig.click} className={!isInstalled && !deferredPrompt ? "opacity-80 grayscale-[0.3]" : ""} />
             <div className="col-span-1 h-32 sm:h-40 bg-gray-700 p-4 flex items-end justify-center relative overflow-hidden">

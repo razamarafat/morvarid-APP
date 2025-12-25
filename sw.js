@@ -1,15 +1,18 @@
 
 /*
  * Morvarid PWA Service Worker
- * Optimized for Performance & Stability (v2.7.0)
+ * Version: 2.8.0
+ * Features: High Priority Notifications, Persistent Caching, Background Sync
  */
 
-const CACHE_NAME = 'morvarid-pwa-v2.7.0'; 
+const CACHE_NAME = 'morvarid-core-v2.8.0';
 const ASSETS = [
   './',
   './index.html',
   './vite.svg',
-  './manifest.json'
+  './manifest.json',
+  '/icons/icon-192x192.png',
+  '/icons/icon-512x512.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -29,54 +32,48 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
-  return self.clients.claim(); 
+  return self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
-  // OPTIMIZATION: Ignore non-GET requests immediately
   if (event.request.method !== 'GET') return;
-
-  // Ignore cross-origin requests (like Supabase API) to ensure data freshness
   if (!event.request.url.startsWith(self.location.origin)) return;
 
-  // Version check bypass
   if (event.request.url.includes('version.json')) {
-      event.respondWith(fetch(event.request, { 
-          cache: 'no-store',
-          headers: { 'Cache-Control': 'no-cache' }
-      }));
+      event.respondWith(fetch(event.request, { cache: 'no-store' }));
       return;
   }
 
-  // SPA Navigation Fallback
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match('./index.html'))
+      fetch(event.request)
+        .catch(() => caches.match('./index.html'))
     );
     return;
   }
 
-  // Stale-While-Revalidate Strategy for Assets
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request).then((networkResponse) => {
-        if(networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-             const responseToCache = networkResponse.clone();
-             caches.open(CACHE_NAME).then((cache) => {
-                 cache.put(event.request, responseToCache);
-             });
-        }
-        return networkResponse;
+    caches.match(event.request).then((cached) => {
+      return cached || fetch(event.request).then(response => {
+          if(response.status === 200) {
+              const clone = response.clone();
+              caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+          }
+          return response;
       });
-      return cachedResponse || fetchPromise;
     })
   );
 });
 
-// --- PUSH NOTIFICATION HANDLER ---
+// --- ENHANCED PUSH HANDLER (Critical Alert Simulation) ---
 self.addEventListener('push', (event) => {
-  let data = { title: 'سامانه مروارید', body: 'پیام جدید', icon: './icons/icon-192x192.png', url: self.location.origin };
-  
+  let data = { 
+      title: 'سامانه مروارید', 
+      body: 'پیام جدید دریافت شد', 
+      url: self.location.origin,
+      tag: 'general-alert'
+  };
+
   if (event.data) {
     try {
         const json = event.data.json();
@@ -88,22 +85,34 @@ self.addEventListener('push', (event) => {
 
   if ('setAppBadge' in navigator) {
       // @ts-ignore
-      navigator.setAppBadge(1).catch(e => console.warn('Badge failed', e));
+      navigator.setAppBadge(1).catch(() => {});
   }
 
+  // Critical Alert Pattern: Long vibrations
+  // Note: True "Silent Mode Override" is reserved for Native Apps, 
+  // but this config maximizes visibility on Android.
   const options = {
     body: data.body,
-    icon: data.icon || './icons/icon-192x192.png',
-    badge: './icons/icon-192x192.png',
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-192x192.png',
     dir: 'rtl',
     lang: 'fa-IR',
-    vibrate: [100, 50, 100],
+    tag: data.tag,
+    renotify: true, // Forces sound/vibration even if notification with same tag exists
+    requireInteraction: true, // Keeps notification on screen until user interacts
+    silent: false,
+    // SOS Pattern (...) --- (...)
+    vibrate: [
+        500, 200, 500, 200, 500, // Long pulses
+        500, 
+        200, 100, 200, 100, 200 // Short pulses
+    ],
     data: {
-      url: data.url || self.location.origin,
+      url: data.url,
       timestamp: Date.now()
     },
     actions: [
-        { action: 'open', title: 'مشاهده' },
+        { action: 'open', title: '🔴 مشاهده فوری' },
         { action: 'close', title: 'بستن' }
     ]
   };
@@ -113,28 +122,26 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// --- NOTIFICATION CLICK HANDLER ---
 self.addEventListener('notificationclick', (event) => {
   const notification = event.notification;
   const action = event.action;
-  const urlToOpen = notification.data?.url || self.location.origin;
-
+  
   notification.close();
+
+  if (action === 'close') return;
 
   if ('clearAppBadge' in navigator) {
       // @ts-ignore
       navigator.clearAppBadge().catch(() => {});
   }
 
-  if (action === 'close') return;
+  const urlToOpen = new URL(notification.data?.url || '/', self.location.origin).href;
 
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
         if (client.url.startsWith(self.location.origin) && 'focus' in client) {
-          if (notification.tag === 'system-update') {
-              client.postMessage({ type: 'FORCE_RELOAD' });
-          }
+          client.postMessage({ type: 'NOTIFICATION_CLICK', payload: notification.data });
           return client.focus();
         }
       }
@@ -145,7 +152,6 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// --- BACKGROUND SYNC HANDLER ---
 self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-queue') {
     event.waitUntil(
@@ -161,5 +167,10 @@ self.addEventListener('sync', (event) => {
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
+  }
+  
+  if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
+      const { title, options } = event.data.payload;
+      self.registration.showNotification(title, options);
   }
 });
