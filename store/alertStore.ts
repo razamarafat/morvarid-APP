@@ -33,6 +33,8 @@ interface AlertState {
     triggerTestNotification: () => Promise<void>;
     
     triggerSystemNotification: (title: string, body: string, tag?: string) => Promise<boolean>;
+    // Added alias method to fix build error in useAutoUpdate
+    sendLocalNotification: (title: string, body: string, tag?: string) => Promise<boolean>;
     
     subscribeToPushNotifications: () => Promise<void>;
     saveSubscriptionToDb: (sub: PushSubscription) => Promise<void>;
@@ -100,8 +102,6 @@ export const useAlertStore = create<AlertState>((set, get) => ({
         if (!user) return;
 
         try {
-            // Using UPSERT to avoid duplicates based on the unique subscription JSON
-            // Requires unique constraint on 'subscription' column in DB
             const { error } = await supabase.from('push_subscriptions').upsert({
                 user_id: user.id,
                 subscription: JSON.parse(JSON.stringify(sub)),
@@ -125,17 +125,13 @@ export const useAlertStore = create<AlertState>((set, get) => ({
         try {
             const registration = await navigator.serviceWorker.ready;
             
-            // Check if already subscribed
             let sub = await registration.pushManager.getSubscription();
             
             if (!sub) {
-                // If VAPID_PUBLIC_KEY is still placeholder, this will fail or work with default FCM (if configured in manifest)
-                // For production, you MUST replace VAPID_PUBLIC_KEY.
                 const options: any = {
                     userVisibleOnly: true,
                 };
                 
-                // Only add applicationServerKey if it's a valid VAPID key
                 if (!VAPID_PUBLIC_KEY.includes('PLACEHOLDER')) {
                     options.applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
                 }
@@ -157,7 +153,6 @@ export const useAlertStore = create<AlertState>((set, get) => ({
     triggerSystemNotification: async (title: string, body: string, tag = 'general') => {
         if (Notification.permission !== 'granted') return false;
 
-        // Audio Feedback
         try {
             const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
             if (AudioContextClass) {
@@ -217,6 +212,11 @@ export const useAlertStore = create<AlertState>((set, get) => ({
         }
     },
 
+    // Alias for compatibility
+    sendLocalNotification: async (title: string, body: string, tag?: string) => {
+        return await get().triggerSystemNotification(title, body, tag);
+    },
+
     triggerTestNotification: async () => {
         const hasPerm = await get().checkAndRequestPermission();
         if (hasPerm) {
@@ -231,7 +231,7 @@ export const useAlertStore = create<AlertState>((set, get) => ({
         if (get().isListening) return;
 
         get().checkAndRequestPermission();
-        get().subscribeToPushNotifications(); // Ensure token is synced
+        get().subscribeToPushNotifications(); 
 
         const channel = supabase.channel('app_alerts', {
             config: { broadcast: { self: true } }
@@ -276,7 +276,6 @@ export const useAlertStore = create<AlertState>((set, get) => ({
         const { user } = useAuthStore.getState();
         if (!user) return { success: false, detail: 'Auth Required' };
 
-        // 1. Send via Realtime (Socket) - Fast, for open apps
         let channel = get().channel;
         if (!channel) { get().initListener(); channel = get().channel; }
         
@@ -295,8 +294,6 @@ export const useAlertStore = create<AlertState>((set, get) => ({
         
         const socketResult = await channel?.send({ type: 'broadcast', event: 'farm_alert', payload });
         
-        // 2. Send via Edge Function (Push) - Guaranteed, for closed apps
-        // Calls the 'send-push' function deployed on Supabase
         try {
             const { error } = await supabase.functions.invoke('send-push', {
                 body: payload
@@ -304,7 +301,6 @@ export const useAlertStore = create<AlertState>((set, get) => ({
             
             if (error) {
                 console.warn('[Alert] Push Function Error:', error);
-                // We don't return false here because Realtime might have worked
             } else {
                 console.log('[Alert] Push Function invoked successfully.');
             }
