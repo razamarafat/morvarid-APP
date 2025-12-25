@@ -6,9 +6,10 @@ import { useToastStore } from './toastStore';
 import { useAuthStore } from './authStore';
 import { UserRole } from '../types';
 
-// IMPORTANT: Replace this with your generated VAPID PUBLIC KEY from "npx web-push generate-vapid-keys"
-// Must match the one set in Supabase Edge Function secrets.
-const VAPID_PUBLIC_KEY = 'BJ_Xy...PLACEHOLDER_KEY...Replace_With_Your_Own_VAPID_Public_Key';
+// IMPORTANT: YOU MUST REPLACE THIS WITH YOUR OWN GENERATED VAPID PUBLIC KEY
+// Generate from https://vapidkeys.com or `npx web-push generate-vapid-keys`
+// This key must match the Private Key set in your Edge Function Secrets
+const VAPID_PUBLIC_KEY = 'PLACEHOLDER_REPLACE_WITH_YOUR_REAL_VAPID_PUBLIC_KEY';
 
 interface AlertPayload {
     targetFarmId: string;
@@ -33,7 +34,6 @@ interface AlertState {
     triggerTestNotification: () => Promise<void>;
     
     triggerSystemNotification: (title: string, body: string, tag?: string) => Promise<boolean>;
-    // Added alias method to fix build error in useAutoUpdate
     sendLocalNotification: (title: string, body: string, tag?: string) => Promise<boolean>;
     
     subscribeToPushNotifications: () => Promise<void>;
@@ -102,14 +102,19 @@ export const useAlertStore = create<AlertState>((set, get) => ({
         if (!user) return;
 
         try {
+            // Attempt to save subscription to 'push_subscriptions' table
+            // Table Schema required: id, user_id, subscription (jsonb), user_agent, created_at
             const { error } = await supabase.from('push_subscriptions').upsert({
                 user_id: user.id,
                 subscription: JSON.parse(JSON.stringify(sub)),
                 user_agent: navigator.userAgent
-            }, { onConflict: 'subscription' });
+            }, { onConflict: 'user_id, user_agent' });
 
             if (error) {
                 console.error('[Alert] DB Save Error:', error);
+                if (error.code === '42P01') {
+                    console.warn('Table push_subscriptions does not exist. Please run the SQL setup script.');
+                }
             } else {
                 console.log('[Alert] Subscription saved to DB.');
                 get().addLog('دستگاه در سرور ثبت شد.');
@@ -132,8 +137,11 @@ export const useAlertStore = create<AlertState>((set, get) => ({
                     userVisibleOnly: true,
                 };
                 
-                if (!VAPID_PUBLIC_KEY.includes('PLACEHOLDER')) {
+                // Only use applicationServerKey if it's not the placeholder
+                if (VAPID_PUBLIC_KEY && !VAPID_PUBLIC_KEY.includes('PLACEHOLDER')) {
                     options.applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+                } else {
+                    console.warn('[Alert] VAPID Public Key is missing. Push notifications might not work across origins.');
                 }
 
                 sub = await registration.pushManager.subscribe(options);
@@ -153,6 +161,7 @@ export const useAlertStore = create<AlertState>((set, get) => ({
     triggerSystemNotification: async (title: string, body: string, tag = 'general') => {
         if (Notification.permission !== 'granted') return false;
 
+        // Play Sound
         try {
             const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
             if (AudioContextClass) {
@@ -246,7 +255,11 @@ export const useAlertStore = create<AlertState>((set, get) => ({
                     const currentUser = useAuthStore.getState().user;
                     
                     if (!currentUser) return;
-                    if (payload.senderId === currentUser.id) return; 
+                    
+                    // BUG FIX: Strictly prevent sender from receiving their own alert
+                    if (payload.senderId === currentUser.id) {
+                        return;
+                    }
 
                     const assignedIds = currentUser.assignedFarms?.map(f => f.id) || [];
                     const isRelevant = currentUser.role === UserRole.ADMIN || assignedIds.includes(payload.targetFarmId);
@@ -287,13 +300,15 @@ export const useAlertStore = create<AlertState>((set, get) => ({
             targetFarmId: farmId, 
             farmName, 
             message, 
-            senderId: user.id, 
+            senderId: user.id, // Important for filtering on receiver side
             sentAt: Date.now(), 
             action: 'missing_stats' 
         };
         
+        // 1. Send via Realtime Broadcast (Socket) - Fast, Online devices only
         const socketResult = await channel?.send({ type: 'broadcast', event: 'farm_alert', payload });
         
+        // 2. Send via Edge Function (Push Notification) - Offline/Background devices
         try {
             const { error } = await supabase.functions.invoke('send-push', {
                 body: payload

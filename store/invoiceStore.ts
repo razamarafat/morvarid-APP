@@ -57,7 +57,8 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           const mapped = data.map((i: any) => ({
               id: i.id,
               farmId: i.farm_id,
-              date: i.date,
+              // CRITICAL FIX: Normalize date from DB to ensure it matches UI filters
+              date: normalizeDate(i.date),
               invoiceNumber: i.invoice_number,
               totalCartons: i.total_cartons,
               totalWeight: i.total_weight,
@@ -123,7 +124,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           // 3. Payload Sanitization
           const dbInvoices = invoicesList.map(inv => ({
               farm_id: inv.farmId,
-              date: inv.date,
+              date: normalizeDate(inv.date), // Ensure normalized date on insert
               invoice_number: inv.invoiceNumber,
               total_cartons: Math.floor(Number(inv.totalCartons)) || 0, 
               total_weight: Number(inv.totalWeight) || 0,
@@ -204,6 +205,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           if (updates.plateNumber !== undefined) fullPayload.plate_number = updates.plateNumber;
           if (updates.invoiceNumber !== undefined) fullPayload.invoice_number = updates.invoiceNumber;
           if (updates.description !== undefined) fullPayload.description = updates.description;
+          if (updates.date !== undefined) fullPayload.date = normalizeDate(updates.date);
           
           fullPayload.updated_at = new Date().toISOString();
 

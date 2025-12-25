@@ -1,7 +1,6 @@
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { FixedSizeList as List } from 'react-window';
-import AutoSizer from 'react-virtualized-auto-sizer';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+// REMOVED: react-window and useElementSize dependencies for this component to ensure stability
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { Icons } from '../components/common/Icons';
 import Reports from '../components/admin/Reports';
@@ -15,19 +14,9 @@ import { getTodayJalali, normalizeDate, toPersianDigits } from '../utils/dateUti
 import Button from '../components/common/Button';
 import MetroTile from '../components/common/MetroTile';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FarmType } from '../types';
+import { FarmType, Invoice } from '../types';
 import JalaliDatePicker from '../components/common/JalaliDatePicker';
 import { SkeletonTile, SkeletonRow } from '../components/common/Skeleton';
-
-// --- DEBUG HELPER ---
-const logOnce = (key: string, message: string, data?: any) => {
-    // @ts-ignore
-    if (!window[`_log_${key}`]) {
-        console.log(`[DEBUG] ${message}`, data);
-        // @ts-ignore
-        window[`_log_${key}`] = true;
-    }
-};
 
 const sortProducts = (products: any[], aId: string, bId: string) => {
     const pA = products.find(p => p.id === aId);
@@ -83,22 +72,9 @@ const FarmStatistics = () => {
         e.stopPropagation(); 
         setAlertLoading(farmId);
         
-        try {
-            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-            if (AudioContextClass) {
-                const ctx = new AudioContextClass();
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.frequency.setValueAtTime(440, ctx.currentTime);
-                osc.frequency.linearRampToValueAtTime(880, ctx.currentTime + 0.1);
-                gain.gain.setValueAtTime(0.1, ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-                osc.start();
-                osc.stop(ctx.currentTime + 0.3);
-            }
-        } catch(e) {}
+        // BUG FIX: Removed local AudioContext sound playback.
+        // The sender should not hear the alert sound, only the recipient.
+        // The Toast below provides sufficient feedback to the sender.
 
         const message = `عدم ثبت آمار برای فارم ${farmName} در تاریخ ${normalizedSelectedDate}`;
         const result = await sendAlert(farmId, farmName, message);
@@ -265,43 +241,58 @@ const FarmStatistics = () => {
     );
 };
 
-// Robust Invoice Row Component with Internal Error Handling
-const InvoiceRow = ({ index, style, data }: { index: number; style: React.CSSProperties; data: any }) => {
-    try {
-        if (!data || !data.invoices) {
-            logOnce('invoice_row_no_data', 'Missing data object in InvoiceRow', { index });
-            return <div style={style}></div>;
-        }
+// Strict Grid Configuration to ensure alignment
+// 9 cols: Date, Invoice#, Farm, Product, Count, Weight, Registrar, Time, Status
+const GRID_TEMPLATE = "grid grid-cols-[90px_140px_110px_minmax(200px,1fr)_90px_90px_130px_80px_90px] gap-4 items-center";
 
-        const invoice = data.invoices[index];
-        if (!invoice) {
-            // This is expected for virtual lists that overscan, but worth noting if index is vastly out of bounds
-            return <div style={style} />; 
-        }
-
-        const { farms, products, renderInvoiceNumber } = data;
-        const productName = products.find((p: any) => p.id === invoice.productId)?.name || '-';
-        
-        return (
-            <div style={style} className="flex items-center text-right border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors text-gray-800 dark:text-gray-200 text-sm lg:text-lg overflow-hidden">
-                <div className="w-[100px] lg:w-auto lg:flex-[1] px-2 font-black whitespace-nowrap tracking-tighter shrink-0">{toPersianDigits(invoice.date)}</div>
-                <div className="w-[120px] lg:w-auto lg:flex-[1] px-2 text-center dir-ltr shrink-0">{renderInvoiceNumber(invoice.invoiceNumber)}</div>
-                <div className="w-[120px] lg:w-auto lg:flex-[1] px-2 whitespace-nowrap font-bold truncate shrink-0">{farms.find((f: any) => f.id === invoice.farmId)?.name}</div>
-                <div className="w-[150px] lg:w-auto lg:flex-[1] px-2 font-bold text-gray-600 dark:text-gray-300 truncate shrink-0">{productName}</div>
-                <div className="w-[80px] lg:w-auto lg:flex-[1] px-2 text-center font-black lg:text-xl shrink-0">{toPersianDigits(invoice.totalCartons)}</div>
-                <div className="w-[80px] lg:w-auto lg:flex-[1] px-2 font-black text-metro-blue lg:text-xl shrink-0">{toPersianDigits(invoice.totalWeight)}</div>
-                <div className="w-[80px] lg:w-auto lg:flex-[1] px-2 shrink-0">
-                    <span className={`px-2 py-0.5 text-xs lg:text-sm font-black text-white rounded ${invoice.isYesterday ? 'bg-metro-orange' : 'bg-metro-green'}`}>
-                        {invoice.isYesterday ? 'دیروز' : 'عادی'}
-                    </span>
-                </div>
+// STANDARD Invoice Row Component (No React-Window style injection)
+// WRAPPED IN MEMO FOR PERFORMANCE (Task 3)
+const StandardInvoiceRow = React.memo(({ invoice, farms, products, renderInvoiceNumber }: { invoice: Invoice, farms: any[], products: any[], renderInvoiceNumber: (num: string) => any }) => {
+    const productName = products.find((p: any) => p.id === invoice.productId)?.name || '-';
+    const time = new Date(invoice.createdAt).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+    
+    // UPDATED CLASSNAME for Zebra Striping (Task 1) and Monospace font logic (Task 2)
+    return (
+        <div className={`${GRID_TEMPLATE} text-right border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors text-gray-800 dark:text-gray-200 text-sm py-4 px-2 min-w-[1100px] odd:bg-white even:bg-gray-50 dark:odd:bg-gray-800 dark:even:bg-gray-900/30`}>
+            {/* 1. Date */}
+            <div className="font-black whitespace-nowrap tracking-tighter shrink-0">{toPersianDigits(invoice.date)}</div>
+            
+            {/* 2. Invoice Num (LTR ENFORCED) */}
+            <div className="text-center shrink-0 font-mono">
+                {renderInvoiceNumber(invoice.invoiceNumber)}
             </div>
-        );
-    } catch (e) {
-        console.error('Crash in InvoiceRow:', e);
-        return <div style={style} className="text-red-500 text-xs">Error rendering row</div>;
-    }
-};
+            
+            {/* 3. Farm */}
+            <div className="whitespace-nowrap font-bold truncate shrink-0">{farms.find((f: any) => f.id === invoice.farmId)?.name}</div>
+            
+            {/* 4. Product (Wrapping Allowed) */}
+            <div className="font-bold text-gray-600 dark:text-gray-300 text-sm leading-tight whitespace-normal break-words">{productName}</div>
+            
+            {/* 5. Count */}
+            <div className="text-center font-black text-lg shrink-0">{toPersianDigits(invoice.totalCartons)}</div>
+            
+            {/* 6. Weight */}
+            <div className="font-black text-metro-blue text-lg text-center shrink-0">{toPersianDigits(invoice.totalWeight)}</div>
+            
+            {/* 7. Registrar (NEW) */}
+            <div className="text-center shrink-0">
+                <span className="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded-md text-xs font-bold truncate block max-w-full">
+                    {invoice.creatorName || 'ناشناس'}
+                </span>
+            </div>
+
+            {/* 8. Time (NEW) */}
+            <div className="text-center font-mono text-xs font-bold text-gray-500 shrink-0 dir-ltr">{time}</div>
+
+            {/* 9. Status */}
+            <div className="text-center shrink-0">
+                <span className={`px-2 py-1 text-xs font-black text-white rounded-lg shadow-sm ${invoice.isYesterday ? 'bg-metro-orange' : 'bg-metro-green'}`}>
+                    {invoice.isYesterday ? 'دیروز' : 'عادی'}
+                </span>
+            </div>
+        </div>
+    );
+});
 
 const InvoiceList = () => {
     const { invoices, fetchInvoices, isLoading } = useInvoiceStore();
@@ -310,7 +301,10 @@ const InvoiceList = () => {
     const [selectedFarmId, setSelectedFarmId] = useState<string>('all');
     const [isRefreshing, setIsRefreshing] = useState(false);
     
+    // Strict Filter State
     const [filterDate, setFilterDate] = useState(getTodayJalali());
+    const [ignoreDate, setIgnoreDate] = useState(false); // New: Allow viewing all
+    
     const normalizedFilterDate = normalizeDate(filterDate);
 
     useEffect(() => {
@@ -320,15 +314,24 @@ const InvoiceList = () => {
     const filteredInvoices = useMemo(() => {
         const results = invoices
             .filter(i => {
-                const dateMatch = normalizeDate(i.date) === normalizedFilterDate;
+                const itemDate = normalizeDate(i.date);
+                // IF ignoreDate is true, we show all. Else we match date.
+                const dateMatch = ignoreDate ? true : itemDate === normalizedFilterDate;
                 const farmMatch = selectedFarmId === 'all' || i.farmId === selectedFarmId;
                 return dateMatch && farmMatch;
             })
             .sort((a, b) => b.createdAt - a.createdAt);
         
-        logOnce('filtered_invoices', `Filtered Invoices Count: ${results.length}`);
         return results;
-    }, [invoices, normalizedFilterDate, selectedFarmId]);
+    }, [invoices, normalizedFilterDate, selectedFarmId, ignoreDate]);
+
+    // Calculate totals for footer
+    const totals = useMemo(() => {
+        return filteredInvoices.reduce((acc, curr) => ({
+            cartons: acc.cartons + (curr.totalCartons || 0),
+            weight: acc.weight + (curr.totalWeight || 0)
+        }), { cartons: 0, weight: 0 });
+    }, [filteredInvoices]);
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
@@ -339,29 +342,33 @@ const InvoiceList = () => {
 
     const renderInvoiceNumber = useCallback((num: string) => {
         const strNum = toPersianDigits(num);
-        if (strNum.length < 4) return <span className="text-gray-800 dark:text-gray-200 lg:text-xl">{strNum}</span>;
+        if (strNum.length < 4) return <span className="text-gray-800 dark:text-gray-200 text-lg font-mono" dir="ltr">{strNum}</span>;
         const mainPart = strNum.slice(0, -4);
         const lastPart = strNum.slice(-4);
+        // Force LTR direction for the container to prevent digit swapping visually
         return (
-            <div className="flex justify-end items-center gap-0.5">
-                <span className="text-gray-500 dark:text-gray-400 font-bold text-base lg:text-xl">{mainPart}</span>
-                <span className="text-black dark:text-white font-black text-lg lg:text-2xl">{lastPart}</span>
+            <div className="flex justify-center items-center gap-0.5" dir="ltr">
+                <span className="text-gray-500 dark:text-gray-400 font-bold text-base font-mono">{mainPart}</span>
+                <span className="text-black dark:text-white font-black text-lg font-mono">{lastPart}</span>
             </div>
         );
     }, []);
 
-    const itemData = useMemo(() => ({
-        invoices: filteredInvoices,
-        farms,
-        products,
-        renderInvoiceNumber
-    }), [filteredInvoices, farms, products, renderInvoiceNumber]);
-
     return (
         <div className="space-y-4 lg:space-y-6 flex flex-col h-full">
              <div className="bg-white dark:bg-gray-800 p-4 lg:p-6 shadow-sm border-l-4 border-metro-orange flex flex-col md:flex-row gap-4 lg:gap-6 items-end rounded-xl shrink-0">
-                <div className="w-full md:w-1/3">
-                    <JalaliDatePicker value={filterDate} onChange={setFilterDate} label="نمایش حواله‌های تاریخ" />
+                <div className="w-full md:w-1/3 flex items-end gap-2">
+                    <div className="flex-1">
+                        <JalaliDatePicker value={filterDate} onChange={setFilterDate} label="نمایش حواله‌های تاریخ" />
+                    </div>
+                    {/* Toggle to ignore date */}
+                    <button 
+                        onClick={() => setIgnoreDate(!ignoreDate)}
+                        className={`mb-1 p-3 rounded-xl border-2 transition-all ${ignoreDate ? 'bg-metro-blue text-white border-metro-blue' : 'bg-white dark:bg-gray-700 text-gray-400 border-gray-200 dark:border-gray-600'}`}
+                        title={ignoreDate ? "فیلتر تاریخ غیرفعال است (نمایش همه)" : "فیلتر تاریخ فعال است"}
+                    >
+                        <Icons.List className="w-6 h-6" />
+                    </button>
                 </div>
                 
                 <div className="w-full md:w-1/3">
@@ -382,70 +389,87 @@ const InvoiceList = () => {
                 </Button>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 p-0 shadow-sm overflow-hidden border border-gray-100 dark:border-gray-700 rounded-xl flex-1 flex flex-col h-[600px] md:h-auto min-h-[500px]">
-                <div className="p-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shrink-0">
+            <div className="bg-white dark:bg-gray-800 p-0 shadow-sm overflow-hidden border border-gray-100 dark:border-gray-700 rounded-xl flex-1 flex flex-col min-h-[500px]">
+                <div className="p-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shrink-0 flex justify-between items-center">
                     <h3 className="font-black text-xl text-gray-800 dark:text-white flex items-center gap-2">
                         <Icons.FileText className="w-6 h-6 text-metro-orange" />
                         جدول فروش روزانه
                     </h3>
+                    <span className="text-xs font-bold text-gray-400">
+                        {toPersianDigits(filteredInvoices.length)} مورد یافت شد
+                    </span>
                 </div>
                 
-                {/* Fixed height container to ensure AutoSizer works */}
-                <div className="flex-1 w-full relative" style={{ minHeight: '400px' }}>
-                    {isLoading ? (
-                        <div className="p-4">
-                            <SkeletonRow cols={7} />
-                            <SkeletonRow cols={7} />
-                            <SkeletonRow cols={7} />
-                        </div>
-                    ) : filteredInvoices.length === 0 ? (
-                        <div className="text-center py-20 text-gray-400 font-bold lg:text-lg">
-                            <div className="flex flex-col items-center">
-                                <Icons.FileText className="w-16 h-16 mb-2 opacity-30" />
-                                <span>هیچ حواله‌ای برای تاریخ {toPersianDigits(normalizedFilterDate)} ثبت نشده است.</span>
+                {/* Standard Scrolling Container - Replaces Virtual List */}
+                <div className="w-full h-full overflow-hidden flex flex-col">
+                    <div className="flex-1 w-full overflow-x-auto">
+                        <div className="min-w-[1100px] h-full flex flex-col">
+                             {/* Header Row - Using Grid for alignment */}
+                             <div className={`${GRID_TEMPLATE} bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 text-sm lg:text-base font-bold p-4 border-b border-gray-200 dark:border-gray-700 shrink-0 sticky top-0 z-10 pr-4`}>
+                                <div>تاریخ خروج</div>
+                                <div className="text-center">رمز حواله</div>
+                                <div>فارم</div>
+                                <div>نوع محصول</div>
+                                <div className="text-center">تعداد (کارتن)</div>
+                                <div className="text-center">وزن (Kg)</div>
+                                <div className="text-center">ثبت کننده</div>
+                                <div className="text-center">ساعت</div>
+                                <div className="text-center">وضعیت</div>
                             </div>
-                        </div>
-                    ) : (
-                        <div className="w-full h-full overflow-hidden">
-                            <div className="min-w-[900px] h-full flex flex-col">
-                                 <div className="flex bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 text-sm lg:text-lg font-bold p-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
-                                    <div className="flex-[1] px-2">تاریخ خروج</div>
-                                    <div className="flex-[1] px-2 text-center">رمز حواله</div>
-                                    <div className="flex-[1] px-2">فارم</div>
-                                    <div className="flex-[1] px-2">نوع محصول</div>
-                                    <div className="flex-[1] px-2 text-center">تعداد (کارتن)</div>
-                                    <div className="flex-[1] px-2">وزن (Kg)</div>
-                                    <div className="flex-[1] px-2">وضعیت</div>
-                                </div>
-                                <div className="flex-1 w-full h-full">
-                                    <AutoSizer>
-                                        {({ height, width }) => {
-                                            // DIAGNOSTIC LOGGING FOR AUTOSIZER
-                                            if (!height || !width || height < 1 || width < 1) {
-                                                logOnce('autosizer_zero', 'AutoSizer detected 0 dimensions', { height, width });
-                                                // Return a valid element to prevent #525
-                                                return <div style={{ height: '100%', width: '100%' }} />;
-                                            }
-                                            
-                                            return (
-                                                <List
-                                                    height={height}
-                                                    itemCount={filteredInvoices.length}
-                                                    itemSize={80} 
-                                                    width={Math.max(width, 900)}
-                                                    itemData={itemData}
-                                                    className="custom-scrollbar"
-                                                    style={{ direction: 'rtl' }}
-                                                >
-                                                    {InvoiceRow}
-                                                </List>
-                                            );
-                                        }}
-                                    </AutoSizer>
-                                </div>
+                            
+                            {/* Scrollable Content */}
+                            <div className="flex-1 overflow-y-auto custom-scrollbar">
+                                {isLoading ? (
+                                    <div className="p-4 space-y-4">
+                                        <SkeletonRow cols={9} />
+                                        <SkeletonRow cols={9} />
+                                        <SkeletonRow cols={9} />
+                                    </div>
+                                ) : filteredInvoices.length === 0 ? (
+                                    <div className="text-center py-20 text-gray-400 font-bold lg:text-lg">
+                                        <div className="flex flex-col items-center">
+                                            <Icons.FileText className="w-16 h-16 mb-2 opacity-30" />
+                                            <span>
+                                                {ignoreDate 
+                                                    ? 'هیچ حواله‌ای با این مشخصات یافت نشد.' 
+                                                    : `هیچ حواله‌ای برای تاریخ ${toPersianDigits(normalizedFilterDate)} یافت نشد.`}
+                                            </span>
+                                            {!ignoreDate && (
+                                                <button onClick={() => setIgnoreDate(true)} className="mt-2 text-metro-blue underline text-sm">
+                                                    نمایش همه تاریخ‌ها
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    filteredInvoices.map(invoice => (
+                                        <StandardInvoiceRow 
+                                            key={invoice.id} 
+                                            invoice={invoice} 
+                                            farms={farms} 
+                                            products={products} 
+                                            renderInvoiceNumber={renderInvoiceNumber} 
+                                        />
+                                    ))
+                                )}
                             </div>
+                            
+                            {/* Footer Summary */}
+                            {filteredInvoices.length > 0 && (
+                                <div className="bg-gray-100 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-4 flex justify-end items-center gap-6 shrink-0">
+                                    <div className="text-sm font-bold text-gray-600 dark:text-gray-400">جمع کل:</div>
+                                    <div className="flex items-center gap-2 bg-white dark:bg-gray-800 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+                                        <span className="text-gray-500 text-xs font-bold">کارتن:</span>
+                                        <span className="font-black text-lg text-gray-800 dark:text-white">{toPersianDigits(totals.cartons)}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 bg-white dark:bg-gray-800 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+                                        <span className="text-gray-500 text-xs font-bold">وزن:</span>
+                                        <span className="font-black text-lg text-metro-blue">{toPersianDigits(totals.weight)}</span>
+                                    </div>
+                                </div>
+                            )}
                         </div>
-                    )}
+                    </div>
                 </div>
             </div>
         </div>

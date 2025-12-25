@@ -71,6 +71,7 @@ export interface Invoice {
     isYesterday: boolean;
     createdAt: number;
     createdBy?: string;
+    creatorName?: string;
     updatedAt?: number;
     updatedBy?: string;
 }
