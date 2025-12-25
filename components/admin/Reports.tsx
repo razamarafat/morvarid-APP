@@ -69,11 +69,6 @@ const Reports: React.FC = () => {
         }, 100);
     };
 
-    // ... (Keep existing edit/delete handlers identical to previous version) ...
-    // NOTE: I am abbreviating this part for brevity as it is identical to previous file, 
-    // but in a real response I would include the full code. 
-    // For this strict output, I will include the full functional handlers below.
-
     const handleDeleteStat = async (id: string) => {
         const yes = await confirm({ title: 'حذف آمار', message: 'مدیر گرامی، آیا از حذف دائمی این رکورد اطمینان دارید؟', type: 'danger' });
         if (yes) {
@@ -159,7 +154,7 @@ const Reports: React.FC = () => {
         return plate;
     };
 
-    // TASK FIX: Updated logic to show formatted string with both units if available
+    // FIXED: Better string formatting for excel/display to avoid 0s when value exists
     const getDualValueString = (units: number, weight: number) => {
         const parts = [];
         if (units > 0) parts.push(`${units}`);
@@ -187,9 +182,10 @@ const Reports: React.FC = () => {
                     cell(item.date),
                     cell(farms.find(f => f.id === item.farmId)?.name || '-'),
                     cell(prod?.name || '-'),
-                    cell(getDualValueString(item.production, item.productionKg)),
-                    cell(getDualValueString(item.sales, item.salesKg)),
-                    cell(getDualValueString(item.currentInventory, item.currentInventoryKg)),
+                    // FIX: Ensure correct property access for Excel export
+                    cell(getDualValueString(item.production || 0, item.productionKg || 0)),
+                    cell(getDualValueString(item.sales || 0, item.salesKg || 0)),
+                    cell(getDualValueString(item.currentInventory || 0, item.currentInventoryKg || 0)),
                     cell(item.creatorName || '-'),
                     cell(new Date(item.createdAt).toLocaleTimeString('fa-IR')),
                     cell(item.updatedAt ? new Date(item.updatedAt).toLocaleString('fa-IR') : '-')
@@ -197,7 +193,6 @@ const Reports: React.FC = () => {
             });
             wsData = [headerRow, ...rows];
         } else {
-            // Invoice Logic Remains Same
             const headers = ['تاریخ', 'رمز حواله', 'فارم', 'نوع محصول', 'تعداد', 'وزن', 'شماره تماس', 'راننده', 'پلاک', 'مسئول ثبت', 'ساعت ثبت', 'آخرین ویرایش'];
             const headerRow = headers.map(h => cell(h, headerStyle));
             const rows = previewData.map(item => {
@@ -223,7 +218,6 @@ const Reports: React.FC = () => {
         ws['!dir'] = 'rtl';
         ws['!views'] = [{ rightToLeft: true }];
         
-        // Adjust column widths roughly
         ws['!cols'] = Array(10).fill({ wch: 25 });
 
         const wb = XLSX.utils.book_new();
@@ -251,7 +245,6 @@ const Reports: React.FC = () => {
                 <button onClick={() => setReportTab('stats')} className={`flex-1 py-3 rounded-full font-bold transition-all ${reportTab === 'stats' ? 'bg-white dark:bg-gray-700 text-metro-blue shadow-md' : 'text-gray-500'}`}>آمار تولید</button>
             </div>
 
-            {/* Filter Section (Simplified for brevity, assuming existing structure) */}
             <div className={`bg-white dark:bg-gray-800 p-6 rounded-[28px] shadow-sm border-l-[12px] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-end ${reportTab === 'invoices' ? 'border-metro-orange' : 'border-metro-blue'}`}>
                 <div>
                     <label className="text-sm font-bold text-gray-400 mb-2 block px-1">فارم</label>
@@ -297,13 +290,13 @@ const Reports: React.FC = () => {
                                         <td className="p-5 font-bold text-gray-800 dark:text-white">{farms.find(f => f.id === row.farmId)?.name}</td>
                                         <td className="p-5 text-sm text-gray-500 font-bold">{prod?.name}</td>
                                         <td className="p-5 text-center">
-                                            {renderDualCell(row.production, row.productionKg, 'text-green-600')}
+                                            {renderDualCell(row.production || 0, row.productionKg || 0, 'text-green-600')}
                                         </td>
                                         <td className="p-5 text-center">
-                                            {renderDualCell(row.sales, row.salesKg, 'text-red-500')}
+                                            {renderDualCell(row.sales || 0, row.salesKg || 0, 'text-red-500')}
                                         </td>
                                         <td className="p-5 text-center">
-                                            {renderDualCell(row.currentInventory, row.currentInventoryKg, 'text-metro-blue')}
+                                            {renderDualCell(row.currentInventory || 0, row.currentInventoryKg || 0, 'text-metro-blue')}
                                         </td>
                                         <td className="p-5">
                                             <div className="flex flex-col gap-1">
@@ -314,7 +307,6 @@ const Reports: React.FC = () => {
                                             </div>
                                         </td>
                                     </> : <>
-                                        {/* Invoice Row Rendering (Standard) */}
                                         <td className="p-5 font-mono font-bold text-lg">{toPersianDigits(row.date)}</td>
                                         <td className="p-5 text-center font-black text-xl lg:text-2xl tracking-widest text-metro-orange">{toPersianDigits(row.invoiceNumber)}</td>
                                         <td className="p-5 font-bold text-gray-800 dark:text-white">{farms.find(f => f.id === row.farmId)?.name}</td>
@@ -358,7 +350,6 @@ const Reports: React.FC = () => {
                     <div className="flex justify-end gap-3 pt-6 border-t border-gray-100 dark:border-gray-700"><Button variant="secondary" onClick={() => setEditingStat(null)}>انصراف</Button><Button onClick={saveStatEdit}>ذخیره تغییرات مدیریت</Button></div>
                 </div>
             </Modal>
-            {/* Invoice Modal (Omitted for brevity but assumed present) */}
         </div>
     );
 };

@@ -70,8 +70,6 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   addUser: async (userData) => {
       const rawUsername = userData.username || '';
-      // TASK FIX: Removed toLowerCase() and aggressive regex.
-      // Now allows uppercase and mixed case.
       const sanitizedUsername = rawUsername.trim(); 
       
       if (!sanitizedUsername || sanitizedUsername.length < 3) {
@@ -109,7 +107,7 @@ export const useUserStore = create<UserState>((set, get) => ({
           if (data.user) {
               const { error: profileError } = await supabase.from('profiles').insert({
                   id: data.user.id,
-                  username: sanitizedUsername, // Store Exact Case
+                  username: sanitizedUsername, 
                   full_name: userData.fullName,
                   role: userData.role,
                   is_active: userData.isActive,
@@ -175,17 +173,12 @@ export const useUserStore = create<UserState>((set, get) => ({
   deleteUser: async (userId) => {
       set({ isLoading: true });
       try {
-          const { error: e1 } = await supabase.from('invoices').update({ created_by: null }).eq('created_by', userId);
-          if (e1) console.error("Error unlinking invoices:", e1);
-
-          const { error: e2 } = await supabase.from('daily_statistics').update({ created_by: null }).eq('created_by', userId);
-          if (e2) console.error("Error unlinking statistics:", e2);
-
-          await supabase.from('user_farms').delete().eq('user_id', userId);
-          const { error: profileError } = await supabase.from('profiles').delete().eq('id', userId);
+          // Soft Delete: Mark as inactive to preserve data history
+          // DO NOT delete from 'profiles' or 'user_farms' or 'auth'
+          const { error: profileError } = await supabase.from('profiles').update({ is_active: false }).eq('id', userId);
           
           if (profileError) throw profileError;
-          useToastStore.getState().addToast('کاربر از سیستم حذف شد.', 'success');
+          useToastStore.getState().addToast('کاربر غیرفعال شد (اطلاعات حفظ گردید).', 'success');
       } catch (error: any) {
           console.error('User Delete Failed:', error);
           useToastStore.getState().addToast(`خطا در حذف کاربر: ${error.message}`, 'error');

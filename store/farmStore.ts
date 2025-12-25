@@ -33,6 +33,7 @@ export const useFarmStore = create<FarmState>((set, get) => ({
 
   fetchFarms: async () => {
     set({ isLoading: true });
+    // Fetch ALL farms, even inactive ones if you want to show them in reports
     const { data, error } = await supabase.from('farms').select('*');
     if (error) {
         console.error('Fetch Farms Failed:', error);
@@ -43,7 +44,7 @@ export const useFarmStore = create<FarmState>((set, get) => ({
       const mappedFarms = data.map((f: any) => {
           let pIds = (f.product_ids || []).map(mapLegacyProductId);
           if (f.type === 'MOTEFEREGHE' && pIds.length === 0) {
-              pIds = [DEFAULT_PROD_2, DEFAULT_PROD_1]; // Default order handled in UI, but IDs ensure existence
+              pIds = [DEFAULT_PROD_2, DEFAULT_PROD_1]; 
           }
           return { id: f.id, name: f.name, type: f.type, isActive: f.is_active, productIds: pIds };
       });
@@ -73,7 +74,6 @@ export const useFarmStore = create<FarmState>((set, get) => ({
           }));
       }
 
-      // Exact names as requested
       const defaultProducts: Product[] = [
           { id: DEFAULT_PROD_2, name: 'شیرینگ پک ۶ شانه پرینتی', description: 'مخصوص فارم‌های متفرقه', unit: ProductUnit.CARTON, hasKilogramUnit: false, isDefault: true, isCustom: false },
           { id: DEFAULT_PROD_1, name: 'شیرینگ پک ۶ شانه ساده', description: 'مخصوص فارم‌های متفرقه', unit: ProductUnit.CARTON, hasKilogramUnit: false, isDefault: true, isCustom: false }
@@ -108,7 +108,8 @@ export const useFarmStore = create<FarmState>((set, get) => ({
   },
 
   deleteFarm: async (farmId) => {
-    const { error } = await supabase.from('farms').delete().eq('id', farmId);
+    // Soft Delete: Just mark as inactive to preserve data relations
+    const { error } = await supabase.from('farms').update({ is_active: false }).eq('id', farmId);
     if (error) return { success: false, error: error.message };
     get().fetchFarms();
     return { success: true };

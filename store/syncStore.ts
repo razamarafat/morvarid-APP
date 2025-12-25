@@ -26,7 +26,7 @@ interface SyncState {
     queue: SyncItem[];
     syncLogs: SyncLog[]; 
     isProcessing: boolean; // New: Global processing flag
-    addToQueue: (type: SyncItemType, payload: any) => void;
+    addToQueue: (type: SyncItemType, payload: any) => boolean; // Changed return type
     removeFromQueue: (id: string) => void;
     clearQueue: () => void;
     incrementRetry: (id: string) => void;
@@ -43,6 +43,34 @@ export const useSyncStore = create<SyncState>()(
             syncLogs: [],
             isProcessing: false,
             addToQueue: (type, payload) => {
+                const currentQueue = get().queue;
+                
+                // Duplicate Prevention Logic
+                if (type === 'INVOICE') {
+                    const exists = currentQueue.some(item => 
+                        item.type === 'INVOICE' && 
+                        item.payload.invoiceNumber === payload.invoiceNumber &&
+                        item.payload.productId === payload.productId
+                    );
+                    if (exists) {
+                        console.warn('[Sync] Duplicate invoice prevented in offline queue');
+                        return false;
+                    }
+                }
+
+                if (type === 'STAT') {
+                    const exists = currentQueue.some(item => 
+                        item.type === 'STAT' && 
+                        item.payload.farmId === payload.farmId &&
+                        item.payload.date === payload.date &&
+                        item.payload.productId === payload.productId
+                    );
+                    if (exists) {
+                        console.warn('[Sync] Duplicate stat prevented in offline queue');
+                        return false;
+                    }
+                }
+
                 const newItem: SyncItem = {
                     id: uuidv4(),
                     type,
@@ -50,8 +78,9 @@ export const useSyncStore = create<SyncState>()(
                     timestamp: Date.now(),
                     retryCount: 0
                 };
-                set({ queue: [...get().queue, newItem] });
+                set({ queue: [...currentQueue, newItem] });
                 console.log(`[Sync] Item added to queue: ${type}`, payload);
+                return true;
             },
             removeFromQueue: (id) => {
                 set({ queue: get().queue.filter(item => item.id !== id) });

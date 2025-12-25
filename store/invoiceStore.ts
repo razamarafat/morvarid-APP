@@ -84,36 +84,35 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
 
   bulkAddInvoices: async (invoicesList, isSyncing = false) => {
       // 1. Strict Unique Logic Check (Client Side Optimization)
-      // Check if invoice number exists globally in loaded store
-      // If it exists:
-      // - Must be SAME Farm (Different farm -> Error: Duplicate globally)
-      // - Must be DIFFERENT Product (Same product -> Error: Duplicate line)
       if (!isSyncing) {
           const existingInvoices = get().invoices;
+          const offlineQueue = useSyncStore.getState().queue.filter(q => q.type === 'INVOICE').map(q => q.payload);
+          
+          const allToCheck = [...existingInvoices, ...offlineQueue];
+
           for (const inv of invoicesList) {
-              const duplicates = existingInvoices.filter(ex => ex.invoiceNumber === inv.invoiceNumber);
+              // Strict Rule: Invoice Number cannot be reused in "Add Invoice" mode.
+              // To add a product to an existing invoice, user MUST use "Edit" in Recent Records.
+              const duplicates = allToCheck.filter(ex => ex.invoiceNumber === inv.invoiceNumber);
               
               if (duplicates.length > 0) {
-                  // Check Farm mismatch
-                  const otherFarm = duplicates.find(ex => ex.farmId !== inv.farmId);
-                  if (otherFarm) {
-                      return { success: false, error: `شماره حواله ${inv.invoiceNumber} تکراری است و قبلاً برای فارم دیگری ثبت شده است.` };
-                  }
-
-                  // Check Product duplicate
-                  const sameProduct = duplicates.find(ex => ex.productId === inv.productId);
-                  if (sameProduct) {
-                      return { success: false, error: `شماره حواله ${inv.invoiceNumber} قبلاً برای این محصول ثبت شده است. لطفاً رکورد موجود را ویرایش کنید.` };
-                  }
-                  
-                  // If same farm, different product -> Allow (Adding line item)
+                  return { 
+                      success: false, 
+                      error: `شماره حواله ${inv.invoiceNumber} قبلاً ثبت شده است. برای افزودن محصول به این حواله، لطفاً به بخش سوابق مراجعه و حواله مورد نظر را ویرایش کنید.` 
+                  };
               }
           }
       }
 
       // 2. Explicit Offline Check
       if (!isSyncing && !navigator.onLine) {
-          invoicesList.forEach(inv => useSyncStore.getState().addToQueue('INVOICE', inv));
+          let hasError = false;
+          invoicesList.forEach(inv => {
+              const added = useSyncStore.getState().addToQueue('INVOICE', inv);
+              if (!added) hasError = true;
+          });
+          
+          if (hasError) return { success: false, error: 'این محصول قبلاً در صف ارسال وجود دارد.' };
           return { success: true, error: 'ذخیره در صف آفلاین' };
       }
 
@@ -121,7 +120,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) return { success: false, error: "کاربر لاگین نیست." };
 
-          // 3. Payload Sanitization: Only include fields that exist in DB schema
+          // 3. Payload Sanitization
           const dbInvoices = invoicesList.map(inv => ({
               farm_id: inv.farmId,
               date: inv.date,
@@ -135,12 +134,11 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
               description: inv.description,
               is_yesterday: inv.isYesterday,
               created_by: user.id
-              // Do NOT include id, createdAt, creatorName etc. here
           }));
 
           const { error } = await supabase.from('invoices').insert(dbInvoices);
 
-          if (error) throw error; // Throw to catch block
+          if (error) throw error; 
 
           get().fetchInvoices();
           
@@ -157,7 +155,6 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           return { success: true };
 
       } catch (error: any) {
-          // 4. Fallback: Check if it was a network error
           if (!isSyncing && isNetworkError(error)) {
               invoicesList.forEach(inv => useSyncStore.getState().addToQueue('INVOICE', inv));
               return { success: true, error: 'ذخیره در صف آفلاین (عدم دسترسی به سرور)' };
@@ -175,10 +172,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
       try {
           const original = get().invoices.find(i => i.id === id);
           
-          // Strict Payload construction to prevent "Column not found" errors during sync
           const fullPayload: any = {};
-          
-          // Only add keys if they are defined in updates
           if (updates.totalCartons !== undefined) fullPayload.total_cartons = Math.floor(Number(updates.totalCartons)); 
           if (updates.totalWeight !== undefined) fullPayload.total_weight = Number(updates.totalWeight);
           if (updates.driverName !== undefined) fullPayload.driver_name = updates.driverName;
@@ -187,15 +181,12 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           if (updates.invoiceNumber !== undefined) fullPayload.invoice_number = updates.invoiceNumber;
           if (updates.description !== undefined) fullPayload.description = updates.description;
           
-          // Always update timestamp
           fullPayload.updated_at = new Date().toISOString();
 
           let { error } = await supabase.from('invoices').update(fullPayload).eq('id', id);
 
           if (error) {
-              // Retry Logic for Schema mismatches (handled inside try for safety)
               if (String((error as any).status) === '400' || error.code === 'PGRST204' || error.code === '42703') {
-                  // Fallback to core fields only if expanded fields fail
                   const corePayload: any = {
                       total_cartons: fullPayload.total_cartons,
                       total_weight: fullPayload.total_weight,
