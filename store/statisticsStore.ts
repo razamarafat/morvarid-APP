@@ -139,6 +139,8 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           if (updates.date) fullPayload.date = normalizeDate(updates.date);
           
           fullPayload.updated_at = new Date().toISOString();
+          
+          // Kg fields might cause error if DB schema is old
           if (updates.productionKg !== undefined) fullPayload.production_kg = Number(updates.productionKg);
           if (updates.salesKg !== undefined) fullPayload.sales_kg = Number(updates.salesKg);
           if (updates.previousBalanceKg !== undefined) fullPayload.previous_balance_kg = Number(updates.previousBalanceKg);
@@ -147,14 +149,19 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           let { error } = await supabase.from('daily_statistics').update(fullPayload).eq('id', id);
           
           if (error) {
+              // Retry without Kg fields if schema error
               if (String((error as any).status) === '400' || error.code === 'PGRST204' || error.code === '42703') {
                   const corePayload = {
                       production: fullPayload.production,
                       sales: fullPayload.sales,
                       previous_balance: fullPayload.previous_balance,
-                      current_inventory: fullPayload.current_inventory
+                      current_inventory: fullPayload.current_inventory,
+                      date: fullPayload.date,
+                      updated_at: fullPayload.updated_at
                   };
+                  // Remove undefined keys
                   Object.keys(corePayload).forEach(key => (corePayload as any)[key] === undefined && delete (corePayload as any)[key]);
+                  
                   const retry = await supabase.from('daily_statistics').update(corePayload).eq('id', id);
                   if (retry.error) throw retry.error;
               } else {
@@ -191,15 +198,16 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
               const mappedProductId = mapLegacyProductId(stat.productId);
 
               // Step A: Check if record exists in DB
-              const { data: existing, error: fetchError } = await supabase
+              const { data: existing } = await supabase
                   .from('daily_statistics')
                   .select('id')
                   .eq('farm_id', stat.farmId)
                   .eq('date', normalizedDate)
                   .eq('product_id', mappedProductId)
-                  .single(); // Assuming only one should exist
+                  .single();
 
-              const commonPayload = {
+              // Define Full Payload (With Kg)
+              const fullPayload = {
                   farm_id: stat.farmId,
                   date: normalizedDate,
                   product_id: mappedProductId,
@@ -214,23 +222,50 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                   created_by: user.id
               };
 
+              // Define Core Payload (Fallback without Kg for old schema)
+              const corePayload = {
+                  farm_id: stat.farmId,
+                  date: normalizedDate,
+                  product_id: mappedProductId,
+                  previous_balance: Number(stat.previousBalance) || 0,
+                  production: Number(stat.production) || 0,
+                  sales: Number(stat.sales) || 0,
+                  current_inventory: Number(stat.currentInventory) || 0,
+                  created_by: user.id
+              };
+
               if (existing) {
-                  // Step B: Update existing record
+                  // Step B: Update existing record with RETRY
                   console.log(`[Stats] Updating existing record ${existing.id}`);
-                  const { error: updateError } = await supabase
+                  let { error: updateError } = await supabase
                       .from('daily_statistics')
-                      .update(commonPayload)
+                      .update(fullPayload)
                       .eq('id', existing.id);
                   
-                  if (updateError) throw updateError;
+                  // RETRY IF SCHEMA ERROR
+                  if (updateError && (updateError.code === '42703' || updateError.code === 'PGRST204' || String(updateError.code) === '400')) {
+                      console.warn('[Stats] Schema mismatch detected (Update). Retrying with core payload...');
+                      const retry = await supabase.from('daily_statistics').update(corePayload).eq('id', existing.id);
+                      if (retry.error) throw retry.error;
+                  } else if (updateError) {
+                      throw updateError;
+                  }
+
               } else {
-                  // Step C: Insert new record
+                  // Step C: Insert new record with RETRY
                   console.log(`[Stats] Inserting new record`);
-                  const { error: insertError } = await supabase
+                  let { error: insertError } = await supabase
                       .from('daily_statistics')
-                      .insert(commonPayload);
+                      .insert(fullPayload);
                   
-                  if (insertError) throw insertError;
+                  // RETRY IF SCHEMA ERROR
+                  if (insertError && (insertError.code === '42703' || insertError.code === 'PGRST204' || String(insertError.code) === '400')) {
+                      console.warn('[Stats] Schema mismatch detected (Insert). Retrying with core payload...');
+                      const retry = await supabase.from('daily_statistics').insert(corePayload);
+                      if (retry.error) throw retry.error;
+                  } else if (insertError) {
+                      throw insertError;
+                  }
               }
           }
           
