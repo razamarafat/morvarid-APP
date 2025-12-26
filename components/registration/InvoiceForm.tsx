@@ -16,6 +16,8 @@ import JalaliDatePicker from '../common/JalaliDatePicker';
 import { motion, AnimatePresence } from 'framer-motion';
 import PersianNumberInput from '../common/PersianNumberInput';
 import PlateInput from '../common/PlateInput';
+import { useSMS, ParsedSMS } from '../../hooks/useSMS';
+import { v4 as uuidv4 } from 'uuid';
 
 const persianLettersRegex = /^[\u0600-\u06FF\s]+$/;
 const mobileRegex = /^09\d{9}$/;
@@ -36,6 +38,11 @@ const invoiceGlobalSchema = z.object({
 
 type GlobalValues = z.infer<typeof invoiceGlobalSchema>;
 
+// Extended Draft Interface
+interface SMSDraft extends ParsedSMS {
+    id: string;
+}
+
 export const InvoiceForm: React.FC = () => {
     const { user } = useAuthStore();
     const { getProductById } = useFarmStore();
@@ -43,6 +50,7 @@ export const InvoiceForm: React.FC = () => {
     const { statistics } = useStatisticsStore(); 
     const { addToast } = useToastStore();
     const { confirm } = useConfirm();
+    const { readFromClipboard } = useSMS();
     
     const todayJalali = getTodayJalali();
     const todayDayName = getTodayDayName();
@@ -62,6 +70,11 @@ export const InvoiceForm: React.FC = () => {
     const [isProductSelectorOpen, setIsProductSelectorOpen] = useState(false);
     const [plateError, setPlateError] = useState<string | null>(null);
 
+    // SMS Feature State
+    const [smsDrafts, setSmsDrafts] = useState<SMSDraft[]>([]);
+    const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
+    const [pendingDraftData, setPendingDraftData] = useState<{cartons: number, weight: number} | null>(null);
+
     const { register, handleSubmit, setValue, control, formState: { errors } } = useForm<GlobalValues>({
         resolver: zodResolver(invoiceGlobalSchema),
         defaultValues: { description: '' }
@@ -75,6 +88,83 @@ export const InvoiceForm: React.FC = () => {
         const timer = setInterval(() => setCurrentTime(getCurrentTime(false)), 30000);
         return () => clearInterval(timer);
     }, []);
+
+    // Apply pending draft data to newly selected products
+    useEffect(() => {
+        if (pendingDraftData && selectedProductIds.length > 0) {
+            setItemsState(prev => {
+                const newState = { ...prev };
+                selectedProductIds.forEach(pid => {
+                    // Only overwrite if empty to avoid accidental data loss
+                    if (!newState[pid]?.cartons && !newState[pid]?.weight) {
+                        newState[pid] = {
+                            cartons: String(pendingDraftData.cartons),
+                            weight: String(pendingDraftData.weight)
+                        };
+                    }
+                });
+                return newState;
+            });
+        }
+    }, [selectedProductIds, pendingDraftData]);
+
+    const handleReadSMS = async () => {
+        const confirmed = await confirm({
+            title: 'خواندن از پیامک',
+            message: 'کاربر گرامی برای استفاده از این ویژگی ابتدا باید پیامک‌های ارسال شده با محتوای رمز حواله را کپی کرده باشید. آیا مطمئن هستید؟',
+            confirmText: 'تأیید',
+            cancelText: 'انصراف',
+            type: 'info'
+        });
+
+        if (confirmed) {
+            const parsed = await readFromClipboard();
+            if (parsed.length > 0) {
+                const newDrafts = parsed.map(p => ({ ...p, id: uuidv4() }));
+                setSmsDrafts(prev => [...prev, ...newDrafts]); // Append new drafts
+                addToast(`${toPersianDigits(parsed.length)} حواله شناسایی شد.`, 'success');
+            } else {
+                addToast('هیچ اطلاعات معتبری در حافظه یافت نشد.', 'warning');
+            }
+        }
+    };
+
+    const applyDraft = (draft: SMSDraft) => {
+        setValue('invoiceNumber', draft.invoiceNumber);
+        if (draft.date) {
+            setReferenceDate(normalizeDate(draft.date));
+        }
+        
+        // Save payload to apply to products
+        setPendingDraftData({ cartons: draft.cartons, weight: draft.weight });
+        setActiveDraftId(draft.id);
+
+        // If products are already selected, apply immediately
+        if (selectedProductIds.length > 0) {
+            setItemsState(prev => {
+                const newState = { ...prev };
+                selectedProductIds.forEach(pid => {
+                    newState[pid] = {
+                        cartons: String(draft.cartons),
+                        weight: String(draft.weight)
+                    };
+                });
+                return newState;
+            });
+            addToast('اطلاعات حواله در فرم جایگذاری شد.', 'success');
+        } else {
+            addToast('اطلاعات پایه پر شد. لطفاً اکنون محصول را انتخاب کنید.', 'info');
+            setIsProductSelectorOpen(true);
+        }
+    };
+
+    const removeDraft = (id: string) => {
+        setSmsDrafts(prev => prev.filter(d => d.id !== id));
+        if (activeDraftId === id) {
+            setActiveDraftId(null);
+            setPendingDraftData(null);
+        }
+    };
 
     const handleProductToggle = (pid: string) => {
         const statRecord = statistics.find(s => s.farmId === selectedFarmId && s.date === referenceDate && s.productId === pid);
@@ -203,6 +293,12 @@ export const InvoiceForm: React.FC = () => {
         
         if (successCount > 0) {
             addToast(`${toPersianDigits(successCount)} آیتم با موفقیت ثبت شد.`, 'success');
+            
+            // Remove the active draft if successful
+            if (activeDraftId) {
+                removeDraft(activeDraftId);
+            }
+
             setSelectedProductIds([]);
             setItemsState({});
             setValue('invoiceNumber', '');
@@ -210,6 +306,8 @@ export const InvoiceForm: React.FC = () => {
             setValue('driverName', '');
             setValue('description', '');
             setValue('plateNumber', '');
+            setPendingDraftData(null);
+            setActiveDraftId(null);
         }
     };
 
@@ -239,8 +337,74 @@ export const InvoiceForm: React.FC = () => {
                      <div className="mt-3 text-white font-black tracking-wide text-lg border-b-2 border-white/20 pb-1">
                         ثبت حواله فروش
                      </div>
+                     <button 
+                        onClick={handleReadSMS}
+                        className="mt-3 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 backdrop-blur-sm transition-all border border-white/20 active:scale-95"
+                     >
+                         <Icons.Download className="w-4 h-4" />
+                         خواندن از پیامک
+                     </button>
                  </div>
             </div>
+
+            {/* SMS Staging Area */}
+            <AnimatePresence>
+                {smsDrafts.length > 0 && (
+                    <motion.div 
+                        initial={{ opacity: 0, height: 0 }} 
+                        animate={{ opacity: 1, height: 'auto' }} 
+                        exit={{ opacity: 0, height: 0 }}
+                        className="px-4"
+                    >
+                        <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-2xl p-4">
+                            <h4 className="text-sm font-bold text-blue-800 dark:text-blue-200 mb-3 flex items-center gap-2">
+                                <Icons.Download className="w-4 h-4" />
+                                حواله‌های شناسایی شده ({toPersianDigits(smsDrafts.length)})
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {smsDrafts.map(draft => (
+                                    <div key={draft.id} className={`p-3 rounded-xl bg-white dark:bg-gray-800 border-2 transition-all relative ${activeDraftId === draft.id ? 'border-metro-orange shadow-md scale-[1.02]' : 'border-gray-100 dark:border-gray-700'}`}>
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div>
+                                                <span className="text-xs text-gray-400 block">رمز حواله</span>
+                                                <span className="font-black text-lg text-gray-800 dark:text-white tracking-widest">{toPersianDigits(draft.invoiceNumber)}</span>
+                                            </div>
+                                            <div className="text-left">
+                                                <span className="text-xs text-gray-400 block">تاریخ</span>
+                                                <span className="font-bold text-sm text-gray-700 dark:text-gray-300">{toPersianDigits(draft.date || referenceDate)}</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-4 mb-3">
+                                            <div>
+                                                <span className="text-[10px] text-gray-400 block">کارتن</span>
+                                                <span className="font-black text-metro-blue">{toPersianDigits(draft.cartons)}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-[10px] text-gray-400 block">وزن</span>
+                                                <span className="font-black text-metro-blue">{toPersianDigits(draft.weight)}</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button 
+                                                onClick={() => applyDraft(draft)}
+                                                className="flex-1 bg-metro-blue text-white py-1.5 rounded-lg text-xs font-bold hover:bg-metro-cobalt transition-colors"
+                                            >
+                                                انتقال به فرم
+                                            </button>
+                                            <button 
+                                                onClick={() => removeDraft(draft.id)}
+                                                className="px-3 bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-300 rounded-lg hover:bg-red-200 transition-colors"
+                                            >
+                                                <Icons.Trash className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             <form onSubmit={handleSubmit(handleFinalSubmit)} className="px-4 space-y-8">
                 {/* Invoice Code Section */}
