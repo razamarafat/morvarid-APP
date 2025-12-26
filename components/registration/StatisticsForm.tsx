@@ -231,7 +231,14 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
             <div className="px-4 space-y-4">
                 {sortedProductIds.map((pid) => {
                     const product = getProductById(pid);
-                    const isLiq = product?.name.includes('مایع');
+                    
+                    // --- GHOST PRODUCT FIX ---
+                    // If the product doesn't exist in the store (but id exists in farm.productIds),
+                    // skip rendering this card completely.
+                    if (!product) return null;
+                    // -------------------------
+
+                    const isLiq = product.name.includes('مایع');
                     const statRecord = statistics.find(s => s.farmId === selectedFarmId && s.date === normalizedDate && s.productId === pid);
                     const isRegistered = !!statRecord;
                     const vals = formsState[pid] || { production: '', productionKg: '', previousBalance: '', previousBalanceKg: '' };
@@ -253,7 +260,7 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                                     </div>
 
                                     <div>
-                                        <h3 className="text-xl font-black text-gray-800 dark:text-gray-100 leading-tight">{product?.name}</h3>
+                                        <h3 className="text-xl font-black text-gray-800 dark:text-gray-100 leading-tight">{product.name}</h3>
                                         <span className={`text-xs font-bold px-2 py-0.5 rounded-md mt-1 inline-block ${isRegistered ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
                                             {isRegistered ? 'ثبت شده' : 'ثبت نشده'}
                                         </span>

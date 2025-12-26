@@ -218,6 +218,11 @@ const LoginPage: React.FC = () => {
       if (firstError?.message) addToast(firstError.message as string, 'error');
   };
 
+  // Custom CSS for autofill to prevent white background in dark mode
+  const inputStyle = {
+      boxShadow: '0 0 0 30px transparent inset',
+  };
+
   return (
     // Fixed height 100dvh prevents scrolling. Overflow hidden crucial.
     <div className="h-[100dvh] w-full flex flex-col relative overflow-hidden bg-[#FFF8F0] dark:bg-[#0f172a] font-sans transition-colors duration-500">
@@ -315,8 +320,8 @@ const LoginPage: React.FC = () => {
                                       dir="ltr"
                                       disabled={isBlocked}
                                       {...register('username')}
-                                      className="block w-full h-12 md:h-14 pr-10 pl-4 rounded-xl bg-white/50 dark:bg-black/50 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-base placeholder-gray-500 dark:placeholder-gray-400 focus:border-orange-500 focus:bg-white/80 dark:focus:bg-black/70 focus:outline-none transition-all font-bold text-left shadow-sm group-hover:border-gray-300 dark:group-hover:border-gray-500 backdrop-blur-sm"
-                                      placeholder="Username"
+                                      className="block w-full h-12 md:h-14 pr-10 pl-4 rounded-xl bg-white/50 dark:bg-black/50 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-base placeholder-gray-500 dark:placeholder-gray-400 focus:border-orange-500 focus:bg-white/80 dark:focus:bg-black/70 focus:outline-none transition-all font-bold text-left shadow-sm group-hover:border-gray-300 dark:group-hover:border-gray-500 backdrop-blur-sm [&:-webkit-autofill]:shadow-[0_0_0_1000px_rgba(255,255,255,0.5)_inset_!important] dark:[&:-webkit-autofill]:shadow-[0_0_0_1000px_rgba(0,0,0,0.5)_inset_!important] [&:-webkit-autofill]:text-fill-color-black dark:[&:-webkit-autofill]:text-fill-color-white"
+                                      placeholder="نام کاربری"
                                       autoComplete="username"
                                   />
                               </div>
@@ -332,7 +337,7 @@ const LoginPage: React.FC = () => {
                                       dir="ltr"
                                       disabled={isBlocked}
                                       {...register('password')}
-                                      className="block w-full h-12 md:h-14 pr-10 pl-10 rounded-xl bg-white/50 dark:bg-black/50 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-base tracking-widest placeholder-gray-500 dark:placeholder-gray-400 focus:border-orange-500 focus:bg-white/80 dark:focus:bg-black/70 focus:outline-none transition-all font-mono text-left shadow-sm group-hover:border-gray-300 dark:group-hover:border-gray-500 backdrop-blur-sm"
+                                      className="block w-full h-12 md:h-14 pr-10 pl-10 rounded-xl bg-white/50 dark:bg-black/50 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-base tracking-widest placeholder-gray-500 dark:placeholder-gray-400 focus:border-orange-500 focus:bg-white/80 dark:focus:bg-black/70 focus:outline-none transition-all font-mono text-left shadow-sm group-hover:border-gray-300 dark:group-hover:border-gray-500 backdrop-blur-sm [&:-webkit-autofill]:shadow-[0_0_0_1000px_rgba(255,255,255,0.5)_inset_!important] dark:[&:-webkit-autofill]:shadow-[0_0_0_1000px_rgba(0,0,0,0.5)_inset_!important] [&:-webkit-autofill]:text-fill-color-black dark:[&:-webkit-autofill]:text-fill-color-white"
                                       placeholder="••••••"
                                       autoComplete="current-password"
                                   />

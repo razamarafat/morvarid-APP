@@ -1,239 +1,40 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { FixedSizeList as List, areEqual } from 'react-window';
+import React, { useState, useMemo } from 'react';
 import { useStatisticsStore, DailyStatistic } from '../../store/statisticsStore';
 import { useInvoiceStore } from '../../store/invoiceStore';
 import { useFarmStore } from '../../store/farmStore';
 import { useAuthStore } from '../../store/authStore';
-import { UserRole, FarmType } from '../../types';
+import { UserRole, FarmType, Invoice } from '../../types';
 import { Icons } from '../common/Icons';
 import { useConfirm } from '../../hooks/useConfirm';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 import { useToastStore } from '../../store/toastStore';
 import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange } from '../../utils/dateUtils';
-import { Invoice } from '../../types';
-import { SkeletonCard } from '../common/Skeleton';
 import JalaliDatePicker from '../common/JalaliDatePicker';
-import { useElementSize } from '../../hooks/useElementSize';
 import PersianNumberInput from '../common/PersianNumberInput';
 import PlateInput from '../common/PlateInput';
-
-interface StatCardProps {
-    stat: DailyStatistic;
-    getProductName: (id: string) => string;
-    getProductUnit: (id: string) => string;
-    isEditable: (createdAt?: number) => boolean;
-    onEdit: (stat: DailyStatistic) => void;
-    onDelete: (id: string) => void;
-    isMotefereghe: boolean;
-}
-
-const StatCard = React.memo<StatCardProps>(({ stat, getProductName, getProductUnit, isEditable, onEdit, onDelete, isMotefereghe }) => {
-    const isLiquid = getProductName(stat.productId).includes('مایع');
-    const canEdit = isEditable(stat.createdAt);
-    const isEdited = stat.updatedAt && (stat.updatedAt - stat.createdAt > 60000);
-
-    return (
-        <div className="bg-white dark:bg-gray-800 rounded-[16px] shadow-sm border border-gray-200 dark:border-gray-700 p-3 md:p-4 relative overflow-hidden group hover:shadow-md transition-all duration-300 h-full flex flex-col justify-between">
-            <div className="flex justify-between items-start mb-2">
-                <div className="overflow-hidden">
-                    <h4 className="font-bold text-base text-gray-800 dark:text-gray-100 truncate">{getProductName(stat.productId)}</h4>
-                    <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] text-gray-400 font-bold bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">{getProductUnit(stat.productId)}</span>
-                        <span className="text-[10px] font-bold text-gray-400 bg-gray-100 dark:bg-gray-700/50 px-2 py-0.5 rounded-full">
-                            {toPersianDigits(stat.date)}
-                        </span>
-                    </div>
-                </div>
-                
-                <div className="flex gap-1 shrink-0">
-                    {canEdit ? (
-                        <>
-                            <button onClick={() => onEdit(stat)} className="p-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors">
-                                <Icons.Edit className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => onDelete(stat.id)} className="p-1.5 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors">
-                                <Icons.Trash className="w-4 h-4" />
-                            </button>
-                        </>
-                    ) : (
-                        <div className="p-1.5 bg-gray-50 dark:bg-gray-700 rounded-lg" title="زمان ویرایش تمام شده">
-                             <Icons.Lock className="w-4 h-4 text-gray-300" />
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            <div className={`grid gap-2 bg-gray-50 dark:bg-gray-900/50 rounded-xl p-2 items-center text-center ${!isMotefereghe ? 'grid-cols-4' : 'grid-cols-3'}`}>
-                {!isMotefereghe && (
-                    <div className="flex flex-col items-center justify-center border-l border-gray-200 dark:border-gray-700">
-                        <span className="text-[9px] font-bold text-gray-400 mb-0.5">قبل</span>
-                        <span className="text-sm font-black text-gray-600 dark:text-gray-300">{toPersianDigits(stat.previousBalance)}</span>
-                    </div>
-                )}
-
-                <div className="flex flex-col items-center justify-center border-l border-gray-200 dark:border-gray-700">
-                    <span className="text-[9px] font-bold text-gray-500 mb-0.5">تولید</span>
-                    <span className="text-sm font-black text-green-600">+{toPersianDigits(stat.production)}</span>
-                </div>
-
-                <div className="flex flex-col items-center justify-center border-l border-gray-200 dark:border-gray-700">
-                    <span className="text-[9px] font-bold text-gray-500 mb-0.5">فروش</span>
-                    <span className="text-sm font-black text-red-500">-{toPersianDigits(isLiquid ? (stat.salesKg || 0) : (stat.sales || 0))}</span>
-                </div>
-
-                <div className="flex flex-col items-center justify-center">
-                    <span className="text-[9px] font-bold text-gray-500 mb-0.5">مانده</span>
-                    <span className="text-sm font-black text-metro-blue">{toPersianDigits(isLiquid ? (stat.currentInventoryKg || 0) : (stat.currentInventory || 0))}</span>
-                </div>
-            </div>
-
-            {isEdited && (
-                <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 flex items-center justify-end gap-1">
-                    <span className="text-[9px] font-bold text-orange-500">ویرایش شده در {toPersianDigits(new Date(stat.updatedAt!).toLocaleTimeString('fa-IR', {hour: '2-digit', minute:'2-digit'}))}</span>
-                    <Icons.Edit className="w-3 h-3 text-orange-400" />
-                </div>
-            )}
-        </div>
-    );
-});
-
-interface InvoiceCardProps {
-    inv: Invoice;
-    getProductName: (id: string) => string;
-    isEditable: (createdAt?: number) => boolean;
-    onEdit: (inv: Invoice) => void;
-    onDelete: (id: string) => void;
-}
-
-const InvoiceCard = React.memo<InvoiceCardProps>(({ inv, getProductName, isEditable, onEdit, onDelete }) => {
-    const isLiquid = getProductName(inv.productId || '').includes('مایع');
-    const canEdit = isEditable(inv.createdAt);
-    const isEdited = inv.updatedAt && (inv.updatedAt - inv.createdAt > 60000);
-
-    const formatPlate = (plate?: string) => {
-        if (!plate || !plate.includes('-')) return plate || '-';
-        const parts = plate.split('-');
-        if (parts.length === 4) {
-            return `${toPersianDigits(parts[3])} - ${toPersianDigits(parts[2])} ${parts[1]} ${toPersianDigits(parts[0])}`;
-        }
-        return plate;
-    };
-
-    return (
-        <div className="bg-white dark:bg-gray-800 rounded-[16px] shadow-sm border-l-[4px] border-metro-orange p-3 md:p-4 relative group hover:shadow-md transition-all duration-300 h-full flex flex-col justify-between">
-            <div className="flex justify-between items-start mb-2">
-                <div className="flex flex-col">
-                    <span className="block text-[10px] font-bold text-gray-400">رمز حواله</span>
-                    <span className="font-mono text-lg font-black tracking-widest text-gray-800 dark:text-gray-100">{toPersianDigits(inv.invoiceNumber)}</span>
-                </div>
-                
-                <div className="flex gap-1">
-                    {canEdit ? (
-                        <>
-                            <button onClick={() => onEdit(inv)} className="p-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors">
-                                <Icons.Edit className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => onDelete(inv.id)} className="p-1.5 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors">
-                                <Icons.Trash className="w-4 h-4" />
-                            </button>
-                        </>
-                    ) : (
-                        <div className="p-1.5 bg-gray-50 dark:bg-gray-700 rounded-lg" title="زمان ویرایش تمام شده">
-                            <Icons.Lock className="w-4 h-4 text-gray-300" />
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            <div className="mb-2">
-                <h4 className="font-bold text-sm text-gray-700 dark:text-gray-200 truncate">{getProductName(inv.productId || '')}</h4>
-                <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] font-bold text-gray-400 bg-gray-100 dark:bg-gray-700/50 px-2 py-0.5 rounded-full">{toPersianDigits(inv.date)}</span>
-                    {inv.plateNumber && <span className="text-[10px] font-bold text-gray-400" dir="ltr">{formatPlate(inv.plateNumber)}</span>}
-                </div>
-            </div>
-
-            <div className="flex items-center gap-2 mt-auto">
-                <div className={`flex-1 rounded-lg p-2 text-center bg-gray-50 dark:bg-gray-700/50 border dark:border-gray-600`}>
-                    <span className="block text-[9px] font-bold text-gray-500 dark:text-gray-400">کارتن</span>
-                    <span className="font-black text-sm text-gray-800 dark:text-white">{toPersianDigits(inv.totalCartons || 0)}</span>
-                </div>
-                <div className={`flex-1 rounded-lg p-2 text-center bg-gray-50 dark:bg-gray-700/50 border dark:border-gray-600 ${isLiquid ? 'ring-1 ring-blue-500/20' : ''}`}>
-                    <span className={`block text-[9px] font-bold ${isLiquid ? 'text-blue-600' : 'text-gray-500 dark:text-gray-400'}`}>وزن</span>
-                    <span className={`font-black text-sm ${isLiquid ? 'text-blue-700 dark:text-blue-400' : 'text-metro-blue'}`}>{toPersianDigits(inv.totalWeight)}</span>
-                </div>
-            </div>
-
-            {isEdited && (
-                <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 flex items-center justify-end gap-1">
-                    <span className="text-[9px] font-bold text-orange-500">ویرایش شده در {toPersianDigits(new Date(inv.updatedAt!).toLocaleTimeString('fa-IR', {hour: '2-digit', minute:'2-digit'}))}</span>
-                    <Icons.Edit className="w-3 h-3 text-orange-400" />
-                </div>
-            )}
-        </div>
-    );
-});
-
-const Row = React.memo(({ index, style, data }: any) => {
-    const { items, itemsPerRow, type, getProductName, products, isEditable, handleEditStatOpen, handleDeleteRecord, isMotefereghe, handleEditInvoiceOpen } = data;
-    const fromIndex = index * itemsPerRow;
-    const toIndex = Math.min(fromIndex + itemsPerRow, items.length);
-    const rowItems = items.slice(fromIndex, toIndex);
-
-    return (
-        <div style={style} className="flex gap-4 px-2 pb-4">
-            {rowItems.map((item: any) => (
-                <div key={item.id} className="flex-1 min-w-0 h-full">
-                    {type === 'stats' ? (
-                        <StatCard 
-                            stat={item} 
-                            getProductName={getProductName} 
-                            getProductUnit={(id)=>products.find((p:any)=>p.id===id)?.unit==='CARTON'?'کارتن':'واحد'} 
-                            isEditable={isEditable} 
-                            onEdit={handleEditStatOpen} 
-                            onDelete={(id)=>handleDeleteRecord(id, 'stat')} 
-                            isMotefereghe={isMotefereghe} 
-                        />
-                    ) : (
-                        <InvoiceCard 
-                            inv={item} 
-                            getProductName={getProductName} 
-                            isEditable={isEditable} 
-                            onEdit={handleEditInvoiceOpen} 
-                            onDelete={(id)=>handleDeleteRecord(id, 'invoice')} 
-                        />
-                    )}
-                </div>
-            ))}
-            {rowItems.length < itemsPerRow && Array.from({ length: itemsPerRow - rowItems.length }).map((_, i) => (
-                <div key={`spacer-${i}`} className="flex-1 invisible" />
-            ))}
-        </div>
-    );
-}, areEqual);
 
 const RecentRecords: React.FC = () => {
     const { statistics, deleteStatistic, updateStatistic, isLoading: statsLoading } = useStatisticsStore();
     const { invoices, deleteInvoice, updateInvoice, isLoading: invLoading } = useInvoiceStore();
     const { user } = useAuthStore();
-    const { products } = useFarmStore();
+    const { products, getProductById } = useFarmStore();
     const { addToast } = useToastStore();
     const { confirm } = useConfirm();
     
-    const { ref: sizerRef, width, height } = useElementSize();
+    // UI State
+    const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+    const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+    const [showEditStatModal, setShowEditStatModal] = useState(false);
+    const [showEditInvoiceModal, setShowEditInvoiceModal] = useState(false);
 
-    const [activeTab, setActiveTab] = useState<'stats' | 'invoices'>('stats');
-    const [editStat, setEditStat] = useState<DailyStatistic | null>(null);
-    const [editInvoice, setEditInvoice] = useState<Invoice | null>(null);
-    
+    // Filters
     const [startDate, setStartDate] = useState(getTodayJalali());
     const [endDate, setEndDate] = useState(getTodayJalali());
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filterProduct, setFilterProduct] = useState<string>('all');
-    const [showFilters, setShowFilters] = useState(false);
+    const [activeTab, setActiveTab] = useState<'stats' | 'invoices'>('stats');
 
+    // Forms
     const [statValues, setStatValues] = useState({ prod: '', prev: '', prodKg: '', prevKg: '' });
     const [invoiceValues, setInvoiceValues] = useState({ 
         invoiceNumber: '',
@@ -244,171 +45,187 @@ const RecentRecords: React.FC = () => {
         description: '',
         plateNumber: ''
     });
-    
-    const [initialStatValues, setInitialStatValues] = useState<any>(null);
-    const [initialInvoiceValues, setInitialInvoiceValues] = useState<any>(null);
 
     const farmId = user?.assignedFarms?.[0]?.id;
     const farmType = user?.assignedFarms?.[0]?.type;
     const isMotefereghe = farmType === FarmType.MOTEFEREGHE;
-    
     const allowedProductIds = user?.assignedFarms?.[0]?.productIds || [];
 
-    const getProductName = (id: string) => products.find(p => p.id === id)?.name || 'محصول حذف شده';
+    // --- Sort Products by Priority ---
+    const sortedProductIds = useMemo(() => {
+        if (!allowedProductIds.length) return [];
+        return [...allowedProductIds].sort((aId, bId) => {
+            const pA = getProductById(aId);
+            const pB = getProductById(bId);
+            if (!pA || !pB) return 0;
+            
+            const getScore = (name: string) => {
+                if (name.includes('شیرینگ') || name.includes('شیرینک')) {
+                    if (name.includes('پرینتی')) return 1; 
+                    return 2; 
+                }
+                if (name.includes('پرینتی')) return 3;
+                if (name.includes('ساده')) return 4;
+                if (name.includes('دوزرده')) return 5;
+                if (name.includes('نوکی')) return 6;
+                if (name.includes('کودی')) return 7;
+                if (name.includes('مایع')) return 8;
+                return 9; 
+            };
+            return getScore(pA.name) - getScore(pB.name);
+        });
+    }, [allowedProductIds, getProductById]);
+
+    // --- Helpers ---
+    const getProductName = (id: string) => products.find(p => p.id === id)?.name || 'محصول نامشخص';
     const isLiquid = (pid: string) => getProductName(pid).includes('مایع');
 
     const isEditable = (createdAt?: number) => {
         if (user?.role === UserRole.ADMIN) return true; 
         if (!createdAt) return true; 
         const now = Date.now();
-        const diff = now - createdAt;
-        return diff < 18000000; 
+        return (now - createdAt) < 18000000; // 5 Hours
     };
 
-    const handleClearFilters = () => {
-        const today = getTodayJalali();
-        setStartDate(today);
-        setEndDate(today);
-        setSearchTerm('');
-        setFilterProduct('all');
-    };
-
-    const { filteredStats, filteredInvoices } = useMemo(() => {
+    // --- Filtering Data ---
+    const filteredStats = useMemo(() => {
         const start = normalizeDate(startDate);
         const end = normalizeDate(endDate);
-        const term = searchTerm.toLowerCase().trim();
-
-        const farmStats = statistics.filter(s => {
+        
+        return statistics.filter(s => {
             if (s.farmId !== farmId) return false;
-            if (isMotefereghe && !allowedProductIds.includes(s.productId)) return false;
             if (!isDateInRange(s.date, start, end)) return false;
-            if (filterProduct !== 'all' && s.productId !== filterProduct) return false;
-            if (term) {
-                const prodName = getProductName(s.productId).toLowerCase();
-                return prodName.includes(term);
-            }
+            if (isMotefereghe && !allowedProductIds.includes(s.productId)) return false;
             return true;
         });
+    }, [statistics, farmId, startDate, endDate, isMotefereghe, allowedProductIds]);
 
-        const farmInvoices = invoices.filter(i => {
+    const filteredInvoices = useMemo(() => {
+        const start = normalizeDate(startDate);
+        const end = normalizeDate(endDate);
+        
+        return invoices.filter(i => {
             if (i.farmId !== farmId) return false;
-            if (isMotefereghe && i.productId && !allowedProductIds.includes(i.productId)) return false;
             if (!isDateInRange(i.date, start, end)) return false;
-            if (filterProduct !== 'all' && i.productId !== filterProduct) return false;
-            if (term) {
-                const prodName = getProductName(i.productId || '').toLowerCase();
-                const invNum = i.invoiceNumber.toLowerCase();
-                const driver = (i.driverName || '').toLowerCase();
-                const plate = (i.plateNumber || '').toLowerCase();
-                return prodName.includes(term) || invNum.includes(term) || driver.includes(term) || plate.includes(term);
-            }
+            if (isMotefereghe && i.productId && !allowedProductIds.includes(i.productId)) return false;
             return true;
         });
+    }, [invoices, farmId, startDate, endDate, isMotefereghe, allowedProductIds]);
 
-        return { 
-            filteredStats: farmStats.sort((a,b) => b.createdAt - a.createdAt), 
-            filteredInvoices: farmInvoices.sort((a,b) => b.createdAt - a.createdAt) 
-        };
-    }, [statistics, invoices, farmId, startDate, endDate, searchTerm, filterProduct, products, isMotefereghe, allowedProductIds]);
+    // --- Actions ---
+    const handleProductClick = (pid: string) => {
+        // Find existing stat record for this product in the selected date range
+        // For simplicity in this view, we focus on the LATEST record within range or show a list if multiple dates selected
+        // Given the request is "edit statistics", we assume daily operations.
+        // If range > 1 day, we might have multiple records. 
+        // Logic: Set selected product ID, then show a modal with list of records for that product.
+        setSelectedProductId(pid);
+    };
 
-    const handleEditStatOpen = (stat: DailyStatistic) => {
+    const handleDeleteStat = async (stat: DailyStatistic) => {
+        const confirmed = await confirm({
+            title: 'حذف آمار',
+            message: `آیا از حذف آمار ${getProductName(stat.productId)} اطمینان دارید؟`,
+            confirmText: 'بله، حذف کن',
+            type: 'danger'
+        });
+        if (confirmed) {
+            const result = await deleteStatistic(stat.id);
+            if (result.success) addToast('رکورد حذف شد', 'success');
+            else addToast('خطا در حذف', 'error');
+        }
+    };
+
+    const handleEditStat = (stat: DailyStatistic) => {
         const fmt = (v: any) => (v === undefined || v === null) ? '' : String(v);
-        setEditStat(stat);
-        const vals = { 
-            prod: fmt(stat.production), 
+        setStatValues({
+            prod: fmt(stat.production),
             prev: fmt(stat.previousBalance),
             prodKg: fmt(stat.productionKg),
             prevKg: fmt(stat.previousBalanceKg)
-        };
-        setStatValues(vals);
-        setInitialStatValues(vals);
+        });
+        setShowEditStatModal(true);
     };
 
-    const handleCancelStat = async () => {
-        if (JSON.stringify(statValues) !== JSON.stringify(initialStatValues)) {
-            const confirmed = await confirm({
-                title: 'لغو تغییرات',
-                message: 'آیا مطمئن هستید؟ تغییرات ذخیره نشده از دست خواهند رفت.',
-                confirmText: 'بله، لغو کن',
-                cancelText: 'بازگشت',
-                type: 'warning'
-            });
-            if (!confirmed) return;
-        }
-        setEditStat(null);
-        setStatValues({ prod: '', prev: '', prodKg: '', prevKg: '' });
+    const submitStatEdit = async () => {
+        const statToEdit = filteredStats.find(s => s.productId === selectedProductId); // Get current one from context
+        // NOTE: If date range has multiple, we need to know WHICH one. 
+        // For now, let's assume we pass the specific stat object to `handleEditStat`.
+        // Wait, `selectedProductId` just opens the list. We need a specific stat to edit.
+        // We will store `selectedStat` in state.
     };
+    
+    // New State for specific editing
+    const [targetStat, setTargetStat] = useState<DailyStatistic | null>(null);
 
-    const handleSaveStat = async () => {
-        if (!editStat) return;
+    const onEditStatClick = (stat: DailyStatistic) => {
+        setTargetStat(stat);
+        const fmt = (v: any) => (v === undefined || v === null) ? '' : String(v);
+        setStatValues({
+            prod: fmt(stat.production),
+            prev: fmt(stat.previousBalance),
+            prodKg: fmt(stat.productionKg),
+            prevKg: fmt(stat.previousBalanceKg)
+        });
+        setShowEditStatModal(true);
+    }
+
+    const saveStatChanges = async () => {
+        if (!targetStat) return;
         const prod = Number(statValues.prod);
-        const prev = isMotefereghe ? 0 : Number(statValues.prev); 
+        const prev = isMotefereghe ? 0 : Number(statValues.prev);
         const prodKg = Number(statValues.prodKg);
-        const prevKg = isMotefereghe ? 0 : Number(statValues.prevKg); 
+        const prevKg = isMotefereghe ? 0 : Number(statValues.prevKg);
 
-        const result = await updateStatistic(editStat.id, {
+        const result = await updateStatistic(targetStat.id, {
             production: prod,
             previousBalance: prev,
-            currentInventory: prev + prod - (editStat.sales || 0),
+            currentInventory: prev + prod - (targetStat.sales || 0),
             productionKg: prodKg,
             previousBalanceKg: prevKg,
-            currentInventoryKg: prevKg + prodKg - (editStat.salesKg || 0)
+            currentInventoryKg: prevKg + prodKg - (targetStat.salesKg || 0)
         });
 
-        if (result.success) { 
-            setEditStat(null); 
-            if (result.error && result.error.includes('آفلاین')) {
-                addToast('ویرایش در صف آفلاین ذخیره شد', 'info');
-            } else {
-                addToast('آمار ویرایش شد', 'success'); 
-            }
+        if (result.success) {
+            setShowEditStatModal(false);
+            setTargetStat(null);
+            addToast('آمار ویرایش شد', 'success');
+        } else {
+            addToast(result.error || 'خطا', 'error');
         }
-        else addToast('خطا در ویرایش: ' + result.error, 'error');
     };
 
-    const handleEditInvoiceOpen = (inv: Invoice) => {
+    const handleDeleteInvoice = async (inv: Invoice) => {
+        const confirmed = await confirm({
+            title: 'حذف حواله',
+            message: `آیا از حذف حواله شماره ${inv.invoiceNumber} اطمینان دارید؟`,
+            confirmText: 'حذف',
+            type: 'danger'
+        });
+        if (confirmed) {
+            await deleteInvoice(inv.id);
+            addToast('حواله حذف شد', 'success');
+        }
+    };
+
+    const handleEditInvoice = (inv: Invoice) => {
+        setSelectedInvoice(inv);
         const fmt = (v: any) => (v === undefined || v === null) ? '' : String(v);
-        setEditInvoice(inv);
-        const vals = { 
+        setInvoiceValues({
             invoiceNumber: inv.invoiceNumber,
-            cartons: fmt(inv.totalCartons), 
+            cartons: fmt(inv.totalCartons),
             weight: fmt(inv.totalWeight),
             driverName: inv.driverName || '',
             driverPhone: inv.driverPhone || '',
             description: inv.description || '',
             plateNumber: inv.plateNumber || ''
-        };
-        setInvoiceValues(vals);
-        setInitialInvoiceValues(vals);
-    };
-
-    const handleCancelInvoice = async () => {
-        if (JSON.stringify(invoiceValues) !== JSON.stringify(initialInvoiceValues)) {
-            const confirmed = await confirm({
-                title: 'لغو تغییرات',
-                message: 'آیا مطمئن هستید؟ تغییرات ذخیره نشده از دست خواهند رفت.',
-                confirmText: 'بله، لغو کن',
-                cancelText: 'بازگشت',
-                type: 'warning'
-            });
-            if (!confirmed) return;
-        }
-        setEditInvoice(null);
-        setInvoiceValues({ 
-            invoiceNumber: '',
-            cartons: '', 
-            weight: '',
-            driverName: '',
-            driverPhone: '',
-            description: '',
-            plateNumber: ''
         });
+        setShowEditInvoiceModal(true);
     };
 
-    const handleSaveInvoice = async () => {
-        if (!editInvoice) return;
-        
-        const result = await updateInvoice(editInvoice.id, {
+    const saveInvoiceChanges = async () => {
+        if (!selectedInvoice) return;
+        const result = await updateInvoice(selectedInvoice.id, {
             invoiceNumber: invoiceValues.invoiceNumber,
             totalCartons: Number(invoiceValues.cartons),
             totalWeight: Number(invoiceValues.weight),
@@ -417,244 +234,198 @@ const RecentRecords: React.FC = () => {
             driverPhone: invoiceValues.driverPhone,
             description: invoiceValues.description
         });
-
-        if (result.success) { 
-            setEditInvoice(null); 
-            if (result.error && result.error.includes('آفلاین')) {
-                addToast('ویرایش حواله در صف آفلاین ذخیره شد', 'info');
-            } else {
-                addToast('حواله ویرایش شد', 'success'); 
-            }
-        }
-        else addToast('خطا در ویرایش: ' + result.error, 'error');
-    };
-
-    const handleDeleteRecord = async (id: string, type: 'stat' | 'invoice') => {
-        const confirmed = await confirm({
-            title: 'حذف رکورد',
-            message: 'آیا از حذف این مورد اطمینان دارید؟',
-            confirmText: 'بله، حذف کن',
-            cancelText: 'انصراف',
-            type: 'danger'
-        });
-
-        if (confirmed) {
-            let result;
-            if (type === 'stat') {
-                result = await deleteStatistic(id);
-            } else {
-                result = await deleteInvoice(id);
-            }
-
-            if (result.success) {
-                if (result.error && result.error.includes('آفلاین')) {
-                    addToast('دستور حذف در صف آفلاین قرار گرفت', 'info');
-                } else {
-                    addToast('رکورد با موفقیت حذف شد', 'success');
-                }
-            } else {
-                addToast(result.error || 'خطا در حذف', 'error');
-            }
+        if (result.success) {
+            setShowEditInvoiceModal(false);
+            setSelectedInvoice(null);
+            addToast('حواله ویرایش شد', 'success');
+        } else {
+            addToast(result.error || 'خطا', 'error');
         }
     };
 
-    const getItemsPerRow = (width: number) => {
-        return width >= 768 ? 2 : 1; 
-    };
-
-    const inputClasses = "w-full p-4 border-2 rounded-xl text-center font-black text-2xl bg-white dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:border-metro-blue outline-none transition-all";
+    const inputClasses = "w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl text-center font-black text-xl bg-white dark:bg-gray-700 dark:text-white focus:border-metro-blue outline-none transition-all";
 
     return (
         <div className="pb-24 h-full flex flex-col">
-            <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-full mb-4 mx-auto max-w-md w-full sticky top-0 z-20 shadow-md border border-gray-200 dark:border-gray-700">
-                <button onClick={() => setActiveTab('stats')} className={`flex-1 py-3 rounded-full text-base font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'stats' ? 'bg-white dark:bg-gray-700 text-metro-blue shadow-sm' : 'text-gray-500'}`}>
-                    <Icons.BarChart className="w-5 h-5" /> آمار تولید
-                </button>
-                <button onClick={() => setActiveTab('invoices')} className={`flex-1 py-3 rounded-full text-base font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'invoices' ? 'bg-white dark:bg-gray-700 text-metro-orange shadow-sm' : 'text-gray-500'}`}>
-                    <Icons.FileText className="w-5 h-5" /> حواله‌ها
-                </button>
-            </div>
-
-            <div className="max-w-4xl mx-auto w-full px-2 flex-1 flex flex-col">
-                <div className="space-y-4 flex-1 flex flex-col">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border border-gray-200 dark:border-gray-700">
-                        <div className="flex justify-between items-center">
-                            <h3 className="font-black text-lg text-gray-800 dark:text-white shrink-0 flex items-center gap-2">
-                                <span className="text-sm font-bold text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-lg">
-                                    {toPersianDigits(activeTab === 'stats' ? filteredStats.length : filteredInvoices.length)}
-                                </span>
-                            </h3>
-                            <button onClick={() => setShowFilters(!showFilters)} className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg text-gray-600 dark:text-gray-300 flex items-center gap-2 text-xs font-bold">
-                                {showFilters ? 'بستن فیلترها' : 'فیلتر پیشرفته'} <Icons.Search className="w-4 h-4" />
-                            </button>
-                        </div>
-
-                        <div className={`flex flex-col gap-3 transition-all overflow-hidden ${showFilters ? 'max-h-[500px] opacity-100 mt-3' : 'max-h-0 opacity-0 mt-0'}`}>
-                            <div className="flex flex-col gap-3">
-                                <div className="w-full relative">
-                                    <Icons.Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                    <input 
-                                        type="text" 
-                                        placeholder="جستجو..." 
-                                        className="w-full p-3 pl-10 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:border-metro-blue"
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                    />
-                                </div>
-                                <div className="flex gap-2 w-full">
-                                    <div className="flex-1">
-                                        <JalaliDatePicker value={startDate} onChange={setStartDate} label="از تاریخ" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <JalaliDatePicker value={endDate} onChange={setEndDate} label="تا تاریخ" />
-                                    </div>
-                                </div>
-                                <button onClick={handleClearFilters} className="w-full h-10 bg-red-50 text-red-500 rounded-xl font-bold text-sm">پاکسازی</button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div className="flex-1 min-h-[500px]" ref={sizerRef}>
-                        {(statsLoading || invLoading) ? (
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <SkeletonCard />
-                                <SkeletonCard />
-                            </div>
-                        ) : activeTab === 'stats' ? (
-                            filteredStats.length > 0 && width > 0 && height > 0 ? (
-                                <List
-                                    height={height}
-                                    itemCount={Math.ceil(filteredStats.length / getItemsPerRow(width))}
-                                    itemSize={240} // Increased height for better mobile layout
-                                    width={width}
-                                    itemData={{ 
-                                        items: filteredStats, 
-                                        itemsPerRow: getItemsPerRow(width), 
-                                        type: 'stats',
-                                        getProductName,
-                                        products,
-                                        isEditable,
-                                        handleEditStatOpen,
-                                        handleDeleteRecord,
-                                        isMotefereghe
-                                    }}
-                                    className="custom-scrollbar !overflow-y-auto"
-                                >
-                                    {Row}
-                                </List>
-                            ) : (
-                                <div className="flex flex-col items-center justify-center h-64 text-center text-gray-400">
-                                    <Icons.BarChart className="w-12 h-12 mb-2 opacity-20" />
-                                    <span className="font-bold text-sm">آمار تولیدی یافت نشد</span>
-                                </div>
-                            )
-                        ) : (
-                            filteredInvoices.length > 0 && width > 0 && height > 0 ? (
-                                <List
-                                    height={height}
-                                    itemCount={Math.ceil(filteredInvoices.length / getItemsPerRow(width))}
-                                    itemSize={180} 
-                                    width={width}
-                                    itemData={{ 
-                                        items: filteredInvoices, 
-                                        itemsPerRow: getItemsPerRow(width), 
-                                        type: 'invoices',
-                                        getProductName,
-                                        isEditable,
-                                        handleEditInvoiceOpen,
-                                        handleDeleteRecord
-                                    }}
-                                    className="custom-scrollbar !overflow-y-auto"
-                                >
-                                    {Row}
-                                </List>
-                            ) : (
-                                <div className="flex flex-col items-center justify-center h-64 text-center text-gray-400">
-                                    <Icons.FileText className="w-12 h-12 mb-2 opacity-20" />
-                                    <span className="font-bold text-sm">حواله‌ای یافت نشد</span>
-                                </div>
-                            )
-                        )}
-                    </div>
+            {/* Top Tabs & Filter */}
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 mb-4 sticky top-0 z-20">
+                <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-xl mb-4">
+                    <button onClick={() => setActiveTab('stats')} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 ${activeTab === 'stats' ? 'bg-white dark:bg-gray-600 text-metro-blue shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}>
+                        <Icons.BarChart className="w-4 h-4" /> آمار تولید
+                    </button>
+                    <button onClick={() => setActiveTab('invoices')} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 ${activeTab === 'invoices' ? 'bg-white dark:bg-gray-600 text-metro-orange shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}>
+                        <Icons.FileText className="w-4 h-4" /> حواله‌ها
+                    </button>
+                </div>
+                <div className="flex gap-2">
+                    <div className="flex-1"><JalaliDatePicker value={startDate} onChange={setStartDate} label="از تاریخ" /></div>
+                    <div className="flex-1"><JalaliDatePicker value={endDate} onChange={setEndDate} label="تا تاریخ" /></div>
                 </div>
             </div>
-            
-            {/* ... Modals (same as before) ... */}
-            {!!editStat && (
-                <Modal isOpen={true} onClose={handleCancelStat} title="ویرایش آمار روزانه">
-                    {/* ... modal content ... */}
-                    <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1">
-                        <div className="p-4 bg-white dark:bg-gray-800 rounded-2xl border-2 border-blue-100 dark:border-blue-900 flex flex-col gap-2 shadow-sm">
-                            <span className="text-sm font-bold text-blue-600 dark:text-blue-400">اطلاعات تعداد (کارتن)</span>
-                            <div className={`grid gap-4 ${isMotefereghe ? 'grid-cols-1' : 'grid-cols-2'}`}>
-                                <div>
-                                    <label className="block text-sm font-black mb-1 opacity-60 dark:text-gray-300">{isMotefereghe ? 'موجودی اعلامی' : 'تولید'}</label>
-                                    <PersianNumberInput className={inputClasses} value={statValues.prod} onChange={(val) => setStatValues({ ...statValues, prod: val })} />
-                                </div>
-                                {!isMotefereghe && (
-                                    <div>
-                                        <label className="block text-sm font-black mb-1 opacity-60 dark:text-gray-300">موجودی قبل</label>
-                                        <PersianNumberInput className={inputClasses} value={statValues.prev} onChange={(val) => setStatValues({ ...statValues, prev: val })} />
+
+            {/* Content Area */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar px-1">
+                {activeTab === 'stats' ? (
+                    <div className="space-y-3">
+                        {sortedProductIds.map(pid => {
+                            const product = getProductById(pid);
+                            // GHOST PRODUCT FIX: Check if product exists
+                            if (!product) return null;
+
+                            const productStats = filteredStats.filter(s => s.productId === pid);
+                            const hasStats = productStats.length > 0;
+                            const isExpanded = selectedProductId === pid;
+
+                            return (
+                                <div key={pid} className={`bg-white dark:bg-gray-800 rounded-2xl shadow-sm border-2 overflow-hidden transition-all duration-300 ${hasStats ? 'border-green-100 dark:border-green-900/30' : 'border-gray-100 dark:border-gray-700 opacity-60'}`}>
+                                    <div 
+                                        onClick={() => hasStats ? setSelectedProductId(isExpanded ? null : pid) : null}
+                                        className={`p-4 flex items-center justify-between ${hasStats ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30' : 'cursor-not-allowed'}`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${hasStats ? 'bg-green-100 text-green-600 dark:bg-green-900/20' : 'bg-gray-100 text-gray-400 dark:bg-gray-700'}`}>
+                                                <Icons.BarChart className="w-5 h-5" />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-gray-800 dark:text-gray-200">{product.name}</h4>
+                                                <span className="text-xs font-bold text-gray-400">
+                                                    {hasStats ? `${toPersianDigits(productStats.length)} رکورد یافت شد` : 'بدون رکورد در این بازه'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        {hasStats && <Icons.ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />}
                                     </div>
-                                )}
-                            </div>
-                        </div>
-                        {isLiquid(editStat.productId) && (
-                            <div className="p-4 bg-white dark:bg-gray-800 rounded-2xl border-2 border-indigo-100 dark:border-indigo-900 flex flex-col gap-2 shadow-sm">
-                                <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">اطلاعات وزن (کیلوگرم)</span>
-                                <div className={`grid gap-4 ${isMotefereghe ? 'grid-cols-1' : 'grid-cols-2'}`}>
-                                    <div><label className="block text-sm font-black mb-1 opacity-60 dark:text-gray-300">{isMotefereghe ? 'موجودی اعلامی (Kg)' : 'تولید (Kg)'}</label><PersianNumberInput inputMode="decimal" className={inputClasses} value={statValues.prodKg} onChange={(val) => setStatValues({ ...statValues, prodKg: val })} /></div>
-                                    {!isMotefereghe && (
-                                        <div><label className="block text-sm font-black mb-1 opacity-60 dark:text-gray-300">موجودی قبل (Kg)</label><PersianNumberInput inputMode="decimal" className={inputClasses} value={statValues.prevKg} onChange={(val) => setStatValues({ ...statValues, prevKg: val })} /></div>
+
+                                    {isExpanded && (
+                                        <div className="bg-gray-50 dark:bg-black/20 border-t border-gray-100 dark:border-gray-700 p-3 space-y-3">
+                                            {productStats.map(stat => (
+                                                <div key={stat.id} className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-600 relative">
+                                                    <div className="flex justify-between items-center mb-2">
+                                                        <span className="text-xs font-bold bg-blue-50 dark:bg-blue-900/20 text-blue-600 px-2 py-1 rounded-md">
+                                                            {toPersianDigits(stat.date)}
+                                                        </span>
+                                                        <div className="flex gap-2">
+                                                            {isEditable(stat.createdAt) ? (
+                                                                <>
+                                                                    <button onClick={() => onEditStatClick(stat)} className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"><Icons.Edit className="w-4 h-4" /></button>
+                                                                    <button onClick={() => handleDeleteStat(stat)} className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Icons.Trash className="w-4 h-4" /></button>
+                                                                </>
+                                                            ) : (
+                                                                <Icons.Lock className="w-4 h-4 text-gray-300" />
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex justify-between items-center text-sm">
+                                                        <div className="flex flex-col items-center">
+                                                            <span className="text-[10px] text-gray-400">تولید</span>
+                                                            <span className="font-black">{toPersianDigits(stat.production)}</span>
+                                                        </div>
+                                                        <div className="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
+                                                        <div className="flex flex-col items-center">
+                                                            <span className="text-[10px] text-gray-400">فروش</span>
+                                                            <span className="font-black text-red-500">{toPersianDigits(stat.sales)}</span>
+                                                        </div>
+                                                        <div className="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
+                                                        <div className="flex flex-col items-center">
+                                                            <span className="text-[10px] text-gray-400">مانده</span>
+                                                            <span className="font-black text-blue-600">{toPersianDigits(stat.currentInventory)}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
                                     )}
                                 </div>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    // Invoices List
+                    <div className="space-y-3">
+                        {filteredInvoices.length === 0 ? (
+                            <div className="text-center py-10 text-gray-400 font-bold">هیچ حواله‌ای یافت نشد</div>
+                        ) : (
+                            filteredInvoices.map(inv => {
+                                const prodName = getProductName(inv.productId || '');
+                                // Ghost Product Check not strictly needed here but good practice
+                                if (inv.productId && !getProductById(inv.productId)) return null;
+
+                                return (
+                                <div key={inv.id} className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 relative">
+                                    <div className="flex justify-between items-start mb-3">
+                                        <div>
+                                            <span className="text-xs font-black text-metro-orange block mb-1">حواله {toPersianDigits(inv.invoiceNumber)}</span>
+                                            <h4 className="font-bold text-gray-800 dark:text-gray-200">{prodName}</h4>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            {isEditable(inv.createdAt) ? (
+                                                <>
+                                                    <button onClick={() => handleEditInvoice(inv)} className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"><Icons.Edit className="w-4 h-4" /></button>
+                                                    <button onClick={() => handleDeleteInvoice(inv)} className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Icons.Trash className="w-4 h-4" /></button>
+                                                </>
+                                            ) : (
+                                                <Icons.Lock className="w-4 h-4 text-gray-300" />
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs text-gray-500 mb-3">
+                                        <span className="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">{toPersianDigits(inv.date)}</span>
+                                        {inv.plateNumber && <span className="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded" dir="ltr">{inv.plateNumber}</span>}
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="bg-gray-50 dark:bg-gray-900/50 p-2 rounded-lg text-center">
+                                            <span className="block text-[9px] text-gray-400">کارتن</span>
+                                            <span className="font-black">{toPersianDigits(inv.totalCartons)}</span>
+                                        </div>
+                                        <div className="bg-gray-50 dark:bg-gray-900/50 p-2 rounded-lg text-center">
+                                            <span className="block text-[9px] text-gray-400">وزن</span>
+                                            <span className="font-black text-blue-600">{toPersianDigits(inv.totalWeight)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )})
+                        )}
+                    </div>
+                )}
+            </div>
+
+            {/* Edit Stat Modal */}
+            {showEditStatModal && targetStat && (
+                <Modal isOpen={true} onClose={() => setShowEditStatModal(false)} title="ویرایش آمار">
+                    <div className="space-y-4 pt-2">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div><label className="block text-xs font-bold mb-1">تولید (کارتن)</label><PersianNumberInput className={inputClasses} value={statValues.prod} onChange={v => setStatValues({...statValues, prod: v})} /></div>
+                            {!isMotefereghe && <div><label className="block text-xs font-bold mb-1">موجودی قبل</label><PersianNumberInput className={inputClasses} value={statValues.prev} onChange={v => setStatValues({...statValues, prev: v})} /></div>}
+                        </div>
+                        {isLiquid(targetStat.productId) && (
+                            <div className="grid grid-cols-2 gap-4">
+                                <div><label className="block text-xs font-bold mb-1 text-blue-600">تولید (وزن)</label><PersianNumberInput inputMode="decimal" className={`${inputClasses} border-blue-200`} value={statValues.prodKg} onChange={v => setStatValues({...statValues, prodKg: v})} /></div>
+                                {!isMotefereghe && <div><label className="block text-xs font-bold mb-1 text-blue-600">وزن قبل</label><PersianNumberInput inputMode="decimal" className={`${inputClasses} border-blue-200`} value={statValues.prevKg} onChange={v => setStatValues({...statValues, prevKg: v})} /></div>}
                             </div>
                         )}
-                        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700"><Button variant="secondary" onClick={handleCancelStat}>انصراف</Button><Button onClick={handleSaveStat}>بروزرسانی آمار</Button></div>
+                        <div className="flex justify-end gap-3 pt-4">
+                            <Button variant="secondary" onClick={() => setShowEditStatModal(false)}>انصراف</Button>
+                            <Button onClick={saveStatChanges}>ذخیره تغییرات</Button>
+                        </div>
                     </div>
                 </Modal>
             )}
 
-            {!!editInvoice && (
-                <Modal isOpen={true} onClose={handleCancelInvoice} title="ویرایش حواله خروج">
-                    {/* ... modal content ... */}
-                    <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1 custom-scrollbar">
-                        <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-orange-200 dark:border-orange-800">
-                            <label className="block text-sm font-bold mb-2 text-orange-700 dark:text-orange-400">رمز حواله</label>
-                            <PersianNumberInput 
-                                className="w-full p-4 border-2 border-gray-200 rounded-xl text-center font-black text-3xl tracking-widest bg-white dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:border-metro-orange outline-none transition-colors" 
-                                value={invoiceValues.invoiceNumber} 
-                                onChange={(val) => setInvoiceValues({ ...invoiceValues, invoiceNumber: val })}
-                            />
-                        </div>
-                        
+            {/* Edit Invoice Modal */}
+            {showEditInvoiceModal && selectedInvoice && (
+                <Modal isOpen={true} onClose={() => setShowEditInvoiceModal(false)} title="ویرایش حواله">
+                    <div className="space-y-4 pt-2 overflow-y-auto max-h-[60vh]">
+                        <div><label className="block text-xs font-bold mb-1">شماره حواله</label><PersianNumberInput className={inputClasses} value={invoiceValues.invoiceNumber} onChange={v => setInvoiceValues({...invoiceValues, invoiceNumber: v})} /></div>
                         <div className="grid grid-cols-2 gap-4">
-                            <div><label className="block text-sm font-bold mb-2 dark:text-gray-300">تعداد کارتن</label><PersianNumberInput className={inputClasses} value={invoiceValues.cartons} onChange={(val) => setInvoiceValues({ ...invoiceValues, cartons: val })} /></div>
-                            <div><label className="block text-sm font-bold mb-2 text-blue-600 dark:text-blue-400">وزن واقعی (Kg)</label><PersianNumberInput inputMode="decimal" className={`${inputClasses} border-blue-100 dark:border-blue-900`} value={invoiceValues.weight} onChange={(val) => setInvoiceValues({ ...invoiceValues, weight: val })} /></div>
+                            <div><label className="block text-xs font-bold mb-1">تعداد کارتن</label><PersianNumberInput className={inputClasses} value={invoiceValues.cartons} onChange={v => setInvoiceValues({...invoiceValues, cartons: v})} /></div>
+                            <div><label className="block text-xs font-bold mb-1">وزن (Kg)</label><PersianNumberInput inputMode="decimal" className={inputClasses} value={invoiceValues.weight} onChange={v => setInvoiceValues({...invoiceValues, weight: v})} /></div>
                         </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-bold mb-2 dark:text-gray-300">نام راننده</label>
-                                <input type="text" className="w-full p-3 border-2 rounded-xl bg-white dark:bg-gray-700 dark:text-white dark:border-gray-600 outline-none" value={invoiceValues.driverName} onChange={(e) => setInvoiceValues({ ...invoiceValues, driverName: e.target.value })} />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold mb-2 dark:text-gray-300">شماره تماس</label>
-                                <PersianNumberInput inputMode="tel" className="w-full p-3 border-2 rounded-xl bg-white dark:bg-gray-700 dark:text-white dark:border-gray-600 outline-none text-center font-mono tracking-widest" value={invoiceValues.driverPhone} onChange={(val) => setInvoiceValues({ ...invoiceValues, driverPhone: val })} />
-                            </div>
+                        <div><label className="block text-xs font-bold mb-1">راننده</label><input type="text" className="w-full p-3 border-2 rounded-xl dark:bg-gray-700 dark:text-white" value={invoiceValues.driverName} onChange={e => setInvoiceValues({...invoiceValues, driverName: e.target.value})} /></div>
+                        <div><label className="block text-xs font-bold mb-1">پلاک</label><PlateInput value={invoiceValues.plateNumber} onChange={v => setInvoiceValues({...invoiceValues, plateNumber: v})} /></div>
+                        <div className="flex justify-end gap-3 pt-4">
+                            <Button variant="secondary" onClick={() => setShowEditInvoiceModal(false)}>انصراف</Button>
+                            <Button onClick={saveInvoiceChanges}>ذخیره تغییرات</Button>
                         </div>
-
-                        <div>
-                            <label className="block text-sm font-bold mb-2 dark:text-gray-300">شماره پلاک</label>
-                            <PlateInput value={invoiceValues.plateNumber} onChange={(val) => setInvoiceValues({ ...invoiceValues, plateNumber: val })} />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-bold mb-2 dark:text-gray-300">توضیحات</label>
-                            <textarea className="w-full p-3 border-2 rounded-xl bg-white dark:bg-gray-700 dark:text-white dark:border-gray-600 outline-none h-24 resize-none" value={invoiceValues.description} onChange={(e) => setInvoiceValues({ ...invoiceValues, description: e.target.value })} />
-                        </div>
-
-                        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700"><Button variant="secondary" onClick={handleCancelInvoice}>انصراف</Button><Button onClick={handleSaveInvoice}>ثبت تغییرات</Button></div>
                     </div>
                 </Modal>
             )}

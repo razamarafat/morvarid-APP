@@ -18,7 +18,7 @@ const RegistrationDashboard: React.FC = () => {
         if (isLoading && currentView === 'dashboard') {
             return (
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                    <SkeletonTile size="large" />
+                    <SkeletonTile size="wide" />
                     <SkeletonTile size="wide" />
                     <SkeletonTile size="wide" />
                 </div>
@@ -56,7 +56,7 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
                 title="ثبت آمار تولید" 
                 icon={Icons.BarChart} 
                 color="bg-metro-orange" 
-                size="large"
+                size="wide" // CHANGED from 'large' to 'wide' for consistency
                 onClick={() => onNavigate('stats')} 
             />
             
