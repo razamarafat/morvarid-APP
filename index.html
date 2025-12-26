@@ -150,6 +150,7 @@
         background: rgba(156, 163, 175, 0.8);
       }
 
+      /* Enhanced Seamless Shimmer Effect */
       .shimmer-bg {
         position: absolute;
         inset: 0;
@@ -157,21 +158,28 @@
         pointer-events: none;
       }
 
-      .shimmer-bg::after {
+      .shimmer-bg::before {
         content: '';
         position: absolute;
-        top: 0;
-        left: 0;
-        width: 200%;
-        height: 100%;
-        background: linear-gradient(105deg, transparent 20%, rgba(255,255,255,0.1) 40%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.1) 60%, transparent 80%);
-        transform: translateX(-100%);
-        animation: shimmer-transform 8s infinite linear;
+        inset: 0;
+        /* Using a very wide repeating gradient to ensure seamless looping */
+        background: linear-gradient(
+          110deg, 
+          transparent 0%, 
+          transparent 40%, 
+          rgba(255,255,255,0.1) 45%, 
+          rgba(255,255,255,0.2) 50%, 
+          rgba(255,255,255,0.1) 55%, 
+          transparent 60%, 
+          transparent 100%
+        );
+        background-size: 200% 100%;
+        animation: shimmer-flow 6s linear infinite;
       }
 
-      @keyframes shimmer-transform {
-        0% { transform: translateX(-50%); }
-        100% { transform: translateX(0%); }
+      @keyframes shimmer-flow {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
       }
 
       /* Star Pulse Animation */

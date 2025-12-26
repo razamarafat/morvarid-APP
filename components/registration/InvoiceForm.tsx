@@ -120,9 +120,21 @@ export const InvoiceForm: React.FC = () => {
         if (confirmed) {
             const parsed = await readFromClipboard();
             if (parsed.length > 0) {
-                const newDrafts = parsed.map(p => ({ ...p, id: uuidv4() }));
-                setSmsDrafts(prev => [...prev, ...newDrafts]); // Append new drafts
-                addToast(`${toPersianDigits(parsed.length)} حواله شناسایی شد.`, 'success');
+                // Filter out duplicates (check if invoiceNumber exists in current drafts)
+                const uniqueNewDrafts = parsed.filter(p => !smsDrafts.some(d => d.invoiceNumber === p.invoiceNumber));
+                
+                if (uniqueNewDrafts.length < parsed.length) {
+                    addToast('رمز پیامک تکراری است (برخی موارد نادیده گرفته شدند)', 'warning');
+                }
+
+                if (uniqueNewDrafts.length > 0) {
+                    const newDrafts = uniqueNewDrafts.map(p => ({ ...p, id: uuidv4() }));
+                    setSmsDrafts(prev => [...prev, ...newDrafts]); 
+                    addToast(`${toPersianDigits(uniqueNewDrafts.length)} حواله جدید شناسایی شد.`, 'success');
+                } else if (parsed.length > 0) {
+                    // All were duplicates
+                    addToast('همه حواله‌های کپی شده تکراری هستند.', 'warning');
+                }
             } else {
                 addToast('هیچ اطلاعات معتبری در حافظه یافت نشد.', 'warning');
             }
@@ -320,7 +332,9 @@ export const InvoiceForm: React.FC = () => {
         <div className="max-w-4xl mx-auto space-y-6 lg:space-y-10 pb-20">
             {/* Updated Header */}
             <div className="bg-gradient-to-br from-metro-blue via-blue-600 to-indigo-600 p-6 text-white shadow-xl relative overflow-hidden flex flex-col items-center justify-center gap-3 rounded-b-[32px] border-b-4 border-blue-800/20 gpu-accelerated">
+                 {/* Shimmer Effect */}
                  <div className="absolute inset-0 shimmer-bg z-0"></div>
+                 
                  <Icons.FileText className="absolute -right-8 -bottom-8 w-48 h-48 opacity-10 pointer-events-none -rotate-12" />
                  <div className="relative z-10 flex flex-col items-center w-full">
                      <div className="flex items-center gap-3 mb-1">

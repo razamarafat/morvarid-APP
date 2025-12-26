@@ -203,9 +203,11 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
 
     return (
         <div className="max-w-4xl mx-auto pb-24"> 
-            {/* Header Updated to match App Style */}
+            {/* Header Updated to match App Style with Shimmer */}
             <div className="bg-gradient-to-br from-metro-orange via-orange-500 to-amber-500 p-6 text-white shadow-xl relative overflow-hidden flex flex-col items-center justify-center gap-3 rounded-b-[32px] mb-8 border-b-4 border-orange-700/20 gpu-accelerated">
+                 {/* Shimmer Effect */}
                  <div className="absolute inset-0 shimmer-bg z-0"></div>
+                 
                  <Icons.BarChart className="absolute -left-8 -bottom-8 w-48 h-48 text-white opacity-10 pointer-events-none rotate-12" />
 
                  <div className="relative z-10 flex flex-col items-center w-full">
@@ -233,8 +235,6 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                     const product = getProductById(pid);
                     
                     // --- GHOST PRODUCT FIX ---
-                    // If the product doesn't exist in the store (but id exists in farm.productIds),
-                    // skip rendering this card completely.
                     if (!product) return null;
                     // -------------------------
 

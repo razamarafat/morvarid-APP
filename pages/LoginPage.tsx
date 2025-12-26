@@ -8,7 +8,7 @@ import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
 import { Icons } from '../components/common/Icons';
 import { UserRole } from '../types';
-import { getTodayJalaliPersian, getCurrentTime } from '../utils/dateUtils';
+import { getTodayJalaliPersian, getCurrentTime, getTodayDayName } from '../utils/dateUtils';
 import { APP_VERSION } from '../constants';
 import ThemeToggle from '../components/common/ThemeToggle';
 
@@ -163,6 +163,7 @@ const LoginPage: React.FC = () => {
   
   const [currentTime, setCurrentTime] = useState(getCurrentTime());
   const [currentDate, setCurrentDate] = useState(getTodayJalaliPersian());
+  const [currentDayName, setCurrentDayName] = useState(getTodayDayName());
   const [showPassword, setShowPassword] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
 
@@ -272,13 +273,14 @@ const LoginPage: React.FC = () => {
               </div>
 
               {/* Mobile Date - Visible */}
-              <div className="flex md:hidden items-center justify-center gap-4 z-20 bg-orange-50/50 dark:bg-black/30 px-4 py-2 rounded-lg backdrop-blur-sm border border-orange-200/50 dark:border-white/10 shadow-sm mt-4">
+              <div className="flex md:hidden items-center justify-center gap-3 z-20 bg-orange-50/50 dark:bg-black/30 px-4 py-2 rounded-lg backdrop-blur-sm border border-orange-200/50 dark:border-white/10 shadow-sm mt-4">
                   <div className="text-sm font-black text-gray-800 dark:text-white tabular-nums tracking-tight">
                       {currentTime}
                   </div>
                   <div className="w-[1px] h-3 bg-orange-300 dark:bg-gray-600 rounded-full"></div>
-                  <div className="text-sm font-black text-gray-800 dark:text-white tabular-nums tracking-tight">
-                      {currentDate}
+                  <div className="flex items-center gap-1 text-sm font-black text-gray-800 dark:text-white tabular-nums tracking-tight">
+                      <span>{currentDate}</span>
+                      <span className="text-xs opacity-75">({currentDayName})</span>
                   </div>
               </div>
 
@@ -288,8 +290,11 @@ const LoginPage: React.FC = () => {
                       {currentTime}
                   </div>
                   <div className="w-[2px] h-6 md:h-10 bg-orange-300 dark:bg-gray-600 rounded-full"></div>
-                  <div className="text-2xl md:text-4xl font-black text-gray-800 dark:text-white tabular-nums tracking-tight">
-                      {currentDate}
+                  <div className="flex flex-col items-center">
+                      <div className="text-2xl md:text-4xl font-black text-gray-800 dark:text-white tabular-nums tracking-tight">
+                          {currentDate}
+                      </div>
+                      <span className="text-sm font-bold text-gray-600 dark:text-gray-400 mt-1">{currentDayName}</span>
                   </div>
               </div>
 
