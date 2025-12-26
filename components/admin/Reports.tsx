@@ -35,11 +35,9 @@ const Reports: React.FC = () => {
     const [endDate, setEndDate] = useState(getTodayJalali());
     const [searchTerm, setSearchTerm] = useState('');
     
-    // DEBOUNCE SEARCH
     const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
     const [previewData, setPreviewData] = useState<any[]>([]);
-    const [hasSearched, setHasSearched] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
 
     const [editingStat, setEditingStat] = useState<any | null>(null);
@@ -48,14 +46,12 @@ const Reports: React.FC = () => {
     const [statForm, setStatForm] = useState({ prod: '', sales: '', prev: '', prodKg: '', salesKg: '', prevKg: '' });
     const [invoiceForm, setInvoiceForm] = useState({ invoiceNumber: '', cartons: '', weight: '', driver: '', plate: '', phone: '', desc: '' });
 
-    // EFFECT TO TRIGGER SEARCH ON FILTER CHANGE
     useEffect(() => {
         handleSearch();
     }, [debouncedSearchTerm, selectedFarmId, selectedProductId, startDate, endDate, reportTab]);
 
     const handleSearch = () => {
         setIsSearching(true);
-        setHasSearched(true);
         const start = normalizeDate(startDate);
         const end = normalizeDate(endDate);
         const term = debouncedSearchTerm.toLowerCase();
@@ -67,7 +63,6 @@ const Reports: React.FC = () => {
                     const farmMatch = selectedFarmId === 'all' || s.farmId === selectedFarmId;
                     const prodMatch = selectedProductId === 'all' || s.productId === selectedProductId;
                     const dateMatch = isDateInRange(s.date, start, end);
-                    // Basic search if needed (e.g. Creator name)
                     const searchMatch = !term || (s.creatorName?.toLowerCase().includes(term));
                     return farmMatch && prodMatch && dateMatch && searchMatch;
                 });
@@ -76,7 +71,6 @@ const Reports: React.FC = () => {
                     const farmMatch = selectedFarmId === 'all' || i.farmId === selectedFarmId;
                     const prodMatch = selectedProductId === 'all' || i.productId === selectedProductId;
                     const dateMatch = isDateInRange(i.date, start, end);
-                    // Search in multiple fields
                     const searchMatch = !term || 
                         (i.invoiceNumber.includes(term)) || 
                         (i.driverName?.toLowerCase().includes(term)) || 
@@ -166,11 +160,27 @@ const Reports: React.FC = () => {
         else addToast(result.error || 'خطا در ثبت تغییرات', 'error');
     };
 
+    // Helper for visual display in Table
+    const formatPlateVisual = (plate: string) => {
+        if (!plate || !plate.includes('-')) return plate || '-';
+        const parts = plate.split('-');
+        if (parts.length === 4) {
+            // Visual: IranCode - 3digits Letter 2digits
+            return `${toPersianDigits(parts[3])} - ${toPersianDigits(parts[2])} ${parts[1]} ${toPersianDigits(parts[0])}`;
+        }
+        return plate;
+    };
+
+    // Helper for Excel Export (Reverses order for spreadsheet logic if needed, or keeps it standard string)
+    // Excel usually handles RTL better if we just pass the string as is or pre-formatted.
+    // The user requested "Exactly like the table", so we use the same visual format logic.
     const formatPlateForExcel = (plate: string) => {
         if (!plate || !plate.includes('-')) return plate || '-';
         const parts = plate.split('-');
         if (parts.length === 4) {
-            return `${toPersianDigits(parts[3])} - ${toPersianDigits(parts[2])} ${parts[1]} ${toPersianDigits(parts[0])}`;
+             // For Excel, we might need LTR char embedding if mixed
+             // But simpler is usually better: Iran - 3dig Let 2dig
+             return `${parts[3]} - ${parts[2]} ${parts[1]} ${parts[0]}`;
         }
         return plate;
     };
@@ -186,14 +196,24 @@ const Reports: React.FC = () => {
     const handleExportExcel = () => {
         if (previewData.length === 0) return;
         
-        const commonStyle = { font: { name: "Koodak", sz: 18, bold: true }, alignment: { horizontal: "right", vertical: "center", wrapText: true } };
-        const headerStyle = { ...commonStyle, fill: { fgColor: { rgb: "E0E0E0" } } };
+        // Right alignment for ALL cells
+        const commonStyle = { 
+            font: { name: "Vazir", sz: 12 }, 
+            alignment: { horizontal: "right", vertical: "center", wrapText: true } 
+        };
+        const headerStyle = { 
+            font: { name: "Vazir", sz: 12, bold: true }, 
+            alignment: { horizontal: "right", vertical: "center" },
+            fill: { fgColor: { rgb: "E0E0E0" } } 
+        };
+        
         const cell = (v: any, style: any = commonStyle) => ({ v: v, s: style });
 
         let wsData: any[] = [];
+        let headers: any[] = [];
         
         if (reportTab === 'stats') {
-            const headers = ['تاریخ', 'فارم', 'محصول', 'تولید', 'فروش', 'موجودی', 'مسئول ثبت', 'زمان ثبت/ویرایش'];
+            headers = ['تاریخ', 'فارم', 'محصول', 'تولید', 'فروش', 'موجودی', 'مسئول ثبت', 'زمان ثبت/ویرایش'];
             const headerRow = headers.map(h => cell(h, headerStyle));
             
             const rows = previewData.map(item => {
@@ -214,7 +234,7 @@ const Reports: React.FC = () => {
             });
             wsData = [headerRow, ...rows];
         } else {
-            const headers = ['تاریخ', 'رمز حواله', 'فارم', 'نوع محصول', 'تعداد', 'وزن', 'شماره تماس', 'راننده', 'پلاک', 'مسئول ثبت', 'زمان ثبت/ویرایش'];
+            headers = ['تاریخ', 'رمز حواله', 'فارم', 'نوع محصول', 'تعداد', 'وزن', 'شماره تماس', 'راننده', 'پلاک', 'مسئول ثبت', 'زمان ثبت/ویرایش'];
             const headerRow = headers.map(h => cell(h, headerStyle));
             const rows = previewData.map(item => {
                 const displayTime = new Date(item.updatedAt || item.createdAt).toLocaleTimeString('fa-IR');
@@ -239,8 +259,20 @@ const Reports: React.FC = () => {
 
         const ws = XLSX.utils.aoa_to_sheet(wsData);
         ws['!dir'] = 'rtl';
-        ws['!views'] = [{ rightToLeft: true }];
-        ws['!cols'] = Array(11).fill({ wch: 25 });
+        
+        // Auto-calculate column widths based on content
+        const wscols = headers.map((h, i) => {
+            // Start with header length
+            let maxLen = h.length; 
+            // Check all rows for this column
+            wsData.slice(1).forEach(row => {
+                const val = row[i]?.v ? String(row[i].v) : '';
+                if (val.length > maxLen) maxLen = val.length;
+            });
+            return { wch: maxLen + 5 }; // Add padding
+        });
+        
+        ws['!cols'] = wscols;
 
         const wb = XLSX.utils.book_new();
         wb.Workbook = { Views: [{ RTL: true }] };
@@ -356,7 +388,7 @@ const Reports: React.FC = () => {
                                             <td className={`p-5 text-center text-blue-600 font-black text-xl lg:text-2xl ${isEdited ? 'bg-yellow-50 dark:bg-yellow-900/10 rounded' : ''}`}>{toPersianDigits(row.totalWeight || 0)}</td>
                                             <td className="p-5 font-mono font-bold text-sm">{toPersianDigits(row.driverPhone || '-')}</td>
                                             <td className="p-5 font-bold">{row.driverName || '-'}</td>
-                                            <td className="p-5 font-mono text-sm">{formatPlateForExcel(row.plateNumber || '') || '-'}</td>
+                                            <td className="p-5 font-mono text-sm">{formatPlateVisual(row.plateNumber || '') || '-'}</td>
                                             <td className="p-5">
                                                 <div className="flex flex-col gap-1">
                                                     <div className="flex items-center gap-2">
@@ -382,18 +414,84 @@ const Reports: React.FC = () => {
                 </div>
             </div>
             
-            {/* ... Modals (kept same as before) ... */}
+            {/* ... Modals ... */}
             <Modal isOpen={!!editingStat} onClose={() => setEditingStat(null)} title="اصلاح مدیریتی آمار">
                 <div className="space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div><label className="text-xs font-bold mb-2 block mr-1 dark:text-gray-300">تولید (تعداد)</label><input type="text" inputMode="numeric" value={toPersianDigits(statForm.prod)} onChange={e => setStatForm({...statForm, prod: toEnglishDigits(e.target.value)})} className="w-full p-4 bg-gray-50 dark:bg-gray-700 dark:text-white rounded-xl text-center font-black text-2xl outline-none border-none focus:ring-2 focus:ring-metro-blue"/></div>
-                        <div><label className="text-xs font-bold mb-2 block mr-1 dark:text-gray-300">فروش (تعداد)</label><input type="text" inputMode="numeric" value={toPersianDigits(statForm.sales)} onChange={e => setStatForm({...statForm, sales: toEnglishDigits(e.target.value)})} className="w-full p-4 bg-gray-50 dark:bg-gray-700 dark:text-white rounded-xl text-center font-black text-2xl outline-none border-none focus:ring-2 focus:ring-metro-blue"/></div>
+                     <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl text-sm font-bold text-purple-800 dark:text-purple-300 border border-purple-100 dark:border-purple-800">
+                         شما در حال ویرایش با دسترسی مدیر هستید. هیچ محدودیت زمانی اعمال نمی‌شود.
+                     </div>
+                     <div className="grid grid-cols-2 gap-4 lg:gap-6">
+                         <div>
+                             <label className="text-sm lg:text-lg font-bold block mb-2 px-1">تولید</label>
+                             <input type="number" value={statForm.prod} onChange={e => setStatForm({...statForm, prod: Number(e.target.value) as any})} className="w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center font-black lg:text-2xl outline-none focus:border-green-500" />
+                         </div>
+                         <div>
+                             <label className="text-sm lg:text-lg font-bold block mb-2 px-1">فروش</label>
+                             <input type="number" value={statForm.sales} onChange={e => setStatForm({...statForm, sales: Number(e.target.value) as any})} className="w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center font-black lg:text-2xl outline-none focus:border-red-500" />
+                         </div>
+                     </div>
+                     <div>
+                         <label className="text-sm lg:text-lg font-bold block mb-2 px-1">مانده قبل (اصلاح دستی)</label>
+                         <input type="number" value={statForm.prev} onChange={e => setStatForm({...statForm, prev: Number(e.target.value) as any})} className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 text-center font-bold lg:text-2xl" />
+                     </div>
+                     <div className="flex justify-end gap-2 mt-8">
+                         <Button variant="secondary" onClick={() => setEditingStat(null)} className="lg:h-12 lg:px-6">لغو</Button>
+                         <Button onClick={saveStatEdit} className="lg:h-12 lg:px-6">ذخیره تغییرات</Button>
+                     </div>
+                </div>
+            </Modal>
+
+             <Modal isOpen={!!editingInvoice} onClose={() => setEditingInvoice(null)} title="ویرایش حواله (مدیریت)">
+                <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1 custom-scrollbar">
+                     <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl text-sm font-bold text-purple-800 dark:text-purple-300 border border-purple-100 dark:border-purple-800">
+                         ویرایش حواله باعث بروزرسانی خودکار موجودی انبار در تاریخ مربوطه خواهد شد.
+                     </div>
+                     
+                     <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-xl border border-orange-200 dark:border-orange-800">
+                        <label className="block text-sm lg:text-lg font-bold mb-2 text-orange-800 dark:text-orange-300">شماره حواله (اصلاحیه)</label>
+                        <input 
+                            type="text" 
+                            dir="ltr"
+                            maxLength={10}
+                            className="w-full p-4 border-2 border-orange-300 rounded-xl text-center font-black text-2xl lg:text-4xl tracking-[0.2em] bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:border-metro-orange outline-none"
+                            value={invoiceForm.invoiceNumber}
+                            onChange={(e) => setInvoiceForm({ ...invoiceForm, invoiceNumber: e.target.value })}
+                            placeholder=""
+                        />
                     </div>
-                    <div className="grid grid-cols-2 gap-4 border-t pt-4 border-dashed border-gray-300 dark:border-gray-600">
-                        <div><label className="text-xs font-bold mb-2 block mr-1 dark:text-gray-300">تولید (Kg)</label><input type="text" inputMode="decimal" value={toPersianDigits(statForm.prodKg)} onChange={e => setStatForm({...statForm, prodKg: toEnglishDigits(e.target.value)})} className="w-full p-4 bg-blue-50/50 dark:bg-blue-900/10 dark:text-white rounded-xl text-center font-black text-2xl outline-none border-none focus:ring-2 focus:ring-blue-500"/></div>
-                        <div><label className="text-xs font-bold mb-2 block mr-1 dark:text-gray-300">فروش (Kg)</label><input type="text" inputMode="decimal" value={toPersianDigits(statForm.salesKg)} onChange={e => setStatForm({...statForm, salesKg: toEnglishDigits(e.target.value)})} className="w-full p-4 bg-blue-50/50 dark:bg-blue-900/10 dark:text-white rounded-xl text-center font-black text-2xl outline-none border-none focus:ring-2 focus:ring-blue-500"/></div>
-                    </div>
-                    <div className="flex justify-end gap-3 pt-6 border-t border-gray-100 dark:border-gray-700"><Button variant="secondary" onClick={() => setEditingStat(null)}>انصراف</Button><Button onClick={saveStatEdit}>ذخیره تغییرات مدیریت</Button></div>
+
+                     <div className="grid grid-cols-2 gap-4 lg:gap-6">
+                         <div>
+                             <label className="text-sm lg:text-lg font-bold block mb-2 px-1">تعداد کارتن</label>
+                             <input type="number" value={invoiceForm.cartons} onChange={e => setInvoiceForm({...invoiceForm, cartons: Number(e.target.value) as any})} className="w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center font-black lg:text-2xl outline-none focus:border-metro-orange" />
+                         </div>
+                         <div>
+                             <label className="text-sm lg:text-lg font-bold block mb-2 px-1">وزن (Kg)</label>
+                             <input type="number" value={invoiceForm.weight} onChange={e => setInvoiceForm({...invoiceForm, weight: Number(e.target.value) as any})} className="w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center font-black lg:text-2xl outline-none focus:border-metro-orange" />
+                         </div>
+                     </div>
+                     <div>
+                         <label className="text-sm lg:text-lg font-bold block mb-2 px-1">نام راننده</label>
+                         <input type="text" value={invoiceForm.driver} onChange={e => setInvoiceForm({...invoiceForm, driver: e.target.value})} className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-lg lg:text-xl outline-none focus:border-metro-purple" />
+                     </div>
+                     <div className="grid grid-cols-2 gap-4 lg:gap-6">
+                         <div>
+                             <label className="text-sm lg:text-lg font-bold block mb-2 px-1">پلاک</label>
+                             <input type="text" value={invoiceForm.plate} onChange={e => setInvoiceForm({...invoiceForm, plate: e.target.value})} className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center text-lg lg:text-xl outline-none focus:border-metro-purple" />
+                         </div>
+                         <div>
+                             <label className="text-sm lg:text-lg font-bold block mb-2 px-1">موبایل</label>
+                             <input type="text" value={invoiceForm.phone} onChange={e => setInvoiceForm({...invoiceForm, phone: e.target.value})} className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center text-lg lg:text-xl outline-none focus:border-metro-purple" />
+                         </div>
+                     </div>
+                     <div>
+                         <label className="text-sm lg:text-lg font-bold block mb-2 px-1">توضیحات</label>
+                         <textarea value={invoiceForm.desc} onChange={e => setInvoiceForm({...invoiceForm, desc: e.target.value})} className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 h-24 lg:h-32 text-lg lg:text-xl outline-none focus:border-metro-purple" />
+                     </div>
+                     <div className="flex justify-end gap-2 mt-6">
+                         <Button variant="secondary" onClick={() => setEditingInvoice(null)} className="lg:h-12 lg:px-6">لغو</Button>
+                         <Button onClick={saveInvoiceEdit} className="lg:h-12 lg:px-6">ذخیره تغییرات</Button>
+                     </div>
                 </div>
             </Modal>
         </div>

@@ -21,12 +21,12 @@ const MetroTile: React.FC<MetroTileProps> = React.memo(({
   onClick,
   className = '' 
 }) => {
-  // Updated sizes for a cleaner grid
+  // Updated sizes for consistency - All standard tiles are h-44
   const sizeClasses = {
-    small:  'col-span-1 h-36',
-    medium: 'col-span-1 h-36',
-    wide:   'col-span-2 h-36', 
-    large:  'col-span-2 h-72 md:col-span-2 md:row-span-2', 
+    small:  'col-span-1 h-44',
+    medium: 'col-span-1 h-44',
+    wide:   'col-span-2 h-44', 
+    large:  'col-span-2 h-44 md:col-span-2 md:row-span-2 md:h-96 lg:h-[23rem]', 
   };
 
   return (

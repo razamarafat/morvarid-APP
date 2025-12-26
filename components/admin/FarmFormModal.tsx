@@ -11,7 +11,6 @@ import { Icons } from '../common/Icons';
 import { useConfirm } from '../../hooks/useConfirm';
 import { useToastStore } from '../../store/toastStore';
 
-// Regex: Persian Chars, Spaces, Digits. No latin.
 const farmNameRegex = /^[\u0600-\u06FF\s0-9]+$/;
 
 const farmSchema = z.object({
@@ -54,18 +53,15 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
   const SADEH_ID = '11111111-1111-1111-1111-111111111111';
   
   const MOTEFEREGHE_DEFAULT_IDS = [PRINTI_ID, SADEH_ID]; 
+  const MORVARIDI_DEFAULT_IDS = [PRINTI_ID, SADEH_ID];
 
-  // Sort products based on request: Printed first, then Simple, then others
+  // Sort products: Printed first, then Simple, then others
   const sortedProducts = useMemo(() => {
       return [...allProducts].sort((a, b) => {
-          // 1. Printed (priority)
           if (a.id === PRINTI_ID) return -1;
           if (b.id === PRINTI_ID) return 1;
-          
-          // 2. Simple (second priority)
           if (a.id === SADEH_ID) return -1;
           if (b.id === SADEH_ID) return 1;
-          
           return 0;
       });
   }, [allProducts]);
@@ -86,14 +82,12 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
     }
   }, [farm, isOpen, reset]);
 
-  // Logic for Farm Type selection
   useEffect(() => {
     if (selectedType === FarmType.MOTEFEREGHE) {
-       // Auto select printed and simple, disable others
        setValue('productIds', MOTEFEREGHE_DEFAULT_IDS);
     } else if (selectedType === FarmType.MORVARIDI && !farm) {
-       // Reset if switching to Morvaridi on new form
-       setValue('productIds', []);
+       // Pre-select Printed & Simple for Morvaridi too, but allowing edits
+       setValue('productIds', MORVARIDI_DEFAULT_IDS);
     }
   }, [selectedType, farm, setValue]);
 
@@ -222,12 +216,7 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
                 render={({ field }) => (
                     <div className="space-y-1 max-h-48 overflow-y-auto pr-1 custom-scrollbar border-2 border-gray-100 dark:border-gray-700 rounded-xl p-2 bg-gray-50 dark:bg-gray-800">
                         {sortedProducts.map(p => {
-                            // Rule 1: If Motefereghe, ONLY show defaults (Printed & Simple)
                             if (selectedType === FarmType.MOTEFEREGHE && !MOTEFEREGHE_DEFAULT_IDS.includes(p.id)) return null;
-                            
-                            // Rule 2: If Morvaridi, HIDE defaults
-                            if (selectedType === FarmType.MORVARIDI && MOTEFEREGHE_DEFAULT_IDS.includes(p.id)) return null;
-
                             const isReadOnly = selectedType === FarmType.MOTEFEREGHE;
                             const isChecked = field.value.includes(p.id);
                             
@@ -252,9 +241,6 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
                             );
                         })}
                         {!selectedType && <p className="text-sm text-gray-400 italic text-center py-4">لطفا ابتدا نوع فارم را انتخاب کنید.</p>}
-                        {selectedType === FarmType.MORVARIDI && allProducts.every(p => MOTEFEREGHE_DEFAULT_IDS.includes(p.id)) && (
-                            <p className="text-sm text-gray-500 text-center py-4">هیچ محصول اختصاصی تعریف نشده است.</p>
-                        )}
                     </div>
                 )}
              />

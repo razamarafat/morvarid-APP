@@ -20,7 +20,7 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-// --- REDESIGNED SKETCH: ENRICHED (Chickens + Nissan) ---
+// --- EXISTING: SKETCH ---
 const UltraRealisticSketch = React.memo(() => (
   <svg viewBox="0 0 1000 150" className="w-full h-full opacity-80 dark:opacity-50 pointer-events-none text-gray-700 dark:text-gray-400" preserveAspectRatio="xMidYMax meet">
     <defs>
@@ -48,17 +48,14 @@ const UltraRealisticSketch = React.memo(() => (
 
     {/* --- 1.5 CHICKENS (Small, on the line) --- */}
     <g transform="translate(160, 132)">
-        {/* Chicken 1 */}
         <path d="M0,8 Q2,0 6,2 Q10,4 8,8 Z" fill="none" stroke="currentColor" strokeWidth="1" />
         <line x1="2" y1="8" x2="2" y2="10" stroke="currentColor" strokeWidth="0.5" />
         <line x1="6" y1="8" x2="6" y2="10" stroke="currentColor" strokeWidth="0.5" />
-        {/* Chicken 2 */}
         <g transform="translate(15, 0)">
              <path d="M0,8 Q-2,0 4,0 Q8,4 6,8 Z" fill="none" stroke="currentColor" strokeWidth="1" />
              <line x1="1" y1="8" x2="1" y2="10" stroke="currentColor" strokeWidth="0.5" />
              <line x1="5" y1="8" x2="5" y2="10" stroke="currentColor" strokeWidth="0.5" />
         </g>
-        {/* Chicken 3 */}
         <g transform="translate(30, 2)">
              <path d="M0,6 Q3,0 7,3 Q9,6 6,6 Z" fill="none" stroke="currentColor" strokeWidth="1" />
              <line x1="2" y1="6" x2="2" y2="8" stroke="currentColor" strokeWidth="0.5" />
@@ -107,30 +104,23 @@ const UltraRealisticSketch = React.memo(() => (
 
     {/* --- 6. NISSAN JUNIOR (Right, Loaded, Leaving) --- */}
     <g transform="translate(780, 85)">
-        {/* Bed */}
         <path d="M0,20 L0,50 L70,50 L70,20 Z" fill="white" stroke="currentColor" strokeWidth="1.5" />
-        {/* Cab */}
         <path d="M70,50 L70,10 L95,10 L110,30 L110,50 Z" fill="white" stroke="currentColor" strokeWidth="1.5" />
-        <line x1="95" y1="10" x2="95" y2="50" stroke="currentColor" strokeWidth="1" /> {/* Door line */}
-        
-        {/* Load (Boxes in Bed) */}
+        <line x1="95" y1="10" x2="95" y2="50" stroke="currentColor" strokeWidth="1" /> 
         <rect x="5" y="10" width="15" height="10" fill="white" stroke="currentColor" strokeWidth="1" />
         <rect x="25" y="10" width="15" height="10" fill="white" stroke="currentColor" strokeWidth="1" />
         <rect x="45" y="10" width="15" height="10" fill="white" stroke="currentColor" strokeWidth="1" />
         <rect x="15" y="0" width="15" height="10" fill="white" stroke="currentColor" strokeWidth="1" />
         <rect x="35" y="0" width="15" height="10" fill="white" stroke="currentColor" strokeWidth="1" />
-
-        {/* Wheels (y=140 relative -> 85+55 = 140) */}
         <circle cx="25" cy="55" r="7" fill="white" stroke="currentColor" strokeWidth="1.5" />
         <circle cx="25" cy="55" r="2.5" fill="currentColor" />
-        
         <circle cx="90" cy="55" r="7" fill="white" stroke="currentColor" strokeWidth="1.5" />
         <circle cx="90" cy="55" r="2.5" fill="currentColor" />
     </g>
   </svg>
 ));
 
-// --- OPTIMIZED STATIC STARS ---
+// --- EXISTING: STARS ---
 const StarryNight = React.memo(() => {
     const stars = [
         { t: '10%', l: '20%', d: '0s', s: '2px' },
@@ -242,7 +232,6 @@ const LoginPage: React.FC = () => {
       {/* --- BACKGROUND --- */}
       <div className="absolute inset-0 z-0 pointer-events-none">
           <div className="absolute inset-0 bg-gradient-to-b md:bg-gradient-to-l from-orange-100/90 via-orange-50/50 to-transparent dark:from-orange-900/10 dark:via-orange-800/5 dark:to-transparent"></div>
-          {/* REMOVED GRID FOR DARK MODE: Now `dark:opacity-0` */}
           <div className="absolute inset-0 opacity-[0.04] dark:opacity-0" 
                style={{ backgroundImage: 'radial-gradient(currentColor 1px, transparent 1px)', backgroundSize: '30px 30px' }}>
           </div>
@@ -258,12 +247,14 @@ const LoginPage: React.FC = () => {
       <div className="relative z-10 flex flex-col md:flex-row h-full w-full justify-between md:justify-center">
           
           {/* --- TOP SECTION (Logo & Title) --- */}
-          {/* Changed justify-center to justify-start on desktop to prevent overlap */}
           <div className="flex-none flex flex-col items-center justify-center md:justify-start pt-8 md:pt-32 relative z-20 shrink-0 md:flex-1 md:w-[55%]">
               
               <div className="text-center z-20 transform-gpu transition-transform duration-300">
-                  {/* Larger Title on Mobile */}
-                  <h1 className="text-4xl md:text-5xl font-black tracking-[0.2em] text-gray-900 dark:text-white mb-2 md:mb-2 drop-shadow-md">MORVARID</h1>
+                  {/* MORVARID TEXT WITHOUT CROWN */}
+                  <div className="relative inline-block mb-2 md:mb-2 w-auto">
+                      <h1 className="text-4xl md:text-5xl font-black tracking-[0.2em] text-gray-900 dark:text-white drop-shadow-md relative z-10">MORVARID</h1>
+                  </div>
+
                   <div className="h-1.5 w-16 md:w-24 bg-gradient-to-r from-orange-400 to-yellow-400 mx-auto rounded-full mb-3 md:mb-5 shadow-sm"></div>
                   
                   <h1 className="text-5xl md:text-6xl font-black text-gray-800 dark:text-white mb-3 md:mb-5 tracking-tight drop-shadow-sm scale-y-110">
@@ -286,7 +277,7 @@ const LoginPage: React.FC = () => {
                   </div>
               </div>
 
-              {/* Desktop Date - Moved closer to title */}
+              {/* Desktop Date */}
               <div className="hidden md:flex items-center justify-center gap-6 z-20 bg-orange-100/60 dark:bg-black/40 px-6 py-3 md:px-10 md:py-5 rounded-2xl backdrop-blur-sm border border-orange-200 dark:border-white/10 shadow-md transform-gpu mt-8">
                   <div className="text-2xl md:text-4xl font-black text-gray-800 dark:text-white tabular-nums tracking-tight">
                       {currentTime}
@@ -296,14 +287,15 @@ const LoginPage: React.FC = () => {
                       {currentDate}
                   </div>
               </div>
+
           </div>
 
           {/* --- BOTTOM SECTION (Form) --- */}
           <div className="flex-1 md:w-[45%] flex flex-col items-center justify-center px-6 pb-20 md:pb-0 relative z-30 w-full">
               <div className="w-full max-w-[340px] md:max-w-[420px] relative">
                   
-                  {/* Form Container */}
-                  <div className="backdrop-blur-xl bg-white/40 md:bg-white/85 dark:bg-black/40 md:dark:bg-black/70 p-6 md:p-10 rounded-[30px] md:rounded-[36px] border border-white/40 dark:border-white/10 shadow-xl drop-shadow-xl animate-in slide-in-from-bottom-10 duration-700">
+                  {/* Form Container - TRANSPARENT GLASS STYLE */}
+                  <div className="backdrop-blur-sm bg-white/10 md:bg-white/20 dark:bg-black/20 md:dark:bg-black/30 p-6 md:p-10 rounded-[30px] md:rounded-[36px] border border-white/20 dark:border-white/10 shadow-2xl drop-shadow-2xl animate-in slide-in-from-bottom-10 duration-700">
                       
                       <div className="mb-4 md:mb-8 text-center">
                           <div className="inline-flex items-center justify-center w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-yellow-500 text-white mb-2 md:mb-4 shadow-lg shadow-orange-500/40">
@@ -316,14 +308,14 @@ const LoginPage: React.FC = () => {
                           <div className="space-y-1">
                               <div className="relative group">
                                   <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                                      <Icons.User className="w-5 h-5 text-gray-400 group-focus-within:text-orange-500 transition-colors" />
+                                      <Icons.User className="w-5 h-5 text-gray-500 dark:text-gray-400 group-focus-within:text-orange-500 transition-colors" />
                                   </div>
                                   <input
                                       type="text"
                                       dir="ltr"
                                       disabled={isBlocked}
                                       {...register('username')}
-                                      className="block w-full h-12 md:h-14 pr-10 pl-4 rounded-xl bg-gray-50/80 dark:bg-white/5 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-base placeholder-gray-400 focus:border-orange-500 focus:bg-white dark:focus:bg-black/50 focus:outline-none transition-all font-bold text-left shadow-sm group-hover:border-gray-300 dark:group-hover:border-gray-600"
+                                      className="block w-full h-12 md:h-14 pr-10 pl-4 rounded-xl bg-white/50 dark:bg-black/50 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-base placeholder-gray-500 dark:placeholder-gray-400 focus:border-orange-500 focus:bg-white/80 dark:focus:bg-black/70 focus:outline-none transition-all font-bold text-left shadow-sm group-hover:border-gray-300 dark:group-hover:border-gray-500 backdrop-blur-sm"
                                       placeholder="Username"
                                       autoComplete="username"
                                   />
@@ -333,21 +325,21 @@ const LoginPage: React.FC = () => {
                           <div className="space-y-1">
                               <div className="relative group">
                                   <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                                      <Icons.Lock className="w-5 h-5 text-gray-400 group-focus-within:text-orange-500 transition-colors" />
+                                      <Icons.Lock className="w-5 h-5 text-gray-500 dark:text-gray-400 group-focus-within:text-orange-500 transition-colors" />
                                   </div>
                                   <input
                                       type={showPassword ? "text" : "password"}
                                       dir="ltr"
                                       disabled={isBlocked}
                                       {...register('password')}
-                                      className="block w-full h-12 md:h-14 pr-10 pl-10 rounded-xl bg-gray-50/80 dark:bg-white/5 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-base tracking-widest placeholder-gray-400 focus:border-orange-500 focus:bg-white dark:focus:bg-black/50 focus:outline-none transition-all font-mono text-left shadow-sm group-hover:border-gray-300 dark:group-hover:border-gray-600"
+                                      className="block w-full h-12 md:h-14 pr-10 pl-10 rounded-xl bg-white/50 dark:bg-black/50 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-base tracking-widest placeholder-gray-500 dark:placeholder-gray-400 focus:border-orange-500 focus:bg-white/80 dark:focus:bg-black/70 focus:outline-none transition-all font-mono text-left shadow-sm group-hover:border-gray-300 dark:group-hover:border-gray-500 backdrop-blur-sm"
                                       placeholder="••••••"
                                       autoComplete="current-password"
                                   />
                                   <button 
                                       type="button"
                                       onClick={() => setShowPassword(!showPassword)}
-                                      className="absolute left-1 top-1/2 -translate-y-1/2 p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 focus:outline-none transition-colors"
+                                      className="absolute left-1 top-1/2 -translate-y-1/2 p-2 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none transition-colors"
                                       tabIndex={-1}
                                   >
                                       {showPassword ? <Icons.EyeOff className="w-5 h-5" /> : <Icons.Eye className="w-5 h-5" />}
@@ -363,10 +355,10 @@ const LoginPage: React.FC = () => {
                                           {...register('rememberMe')} 
                                           className="peer sr-only"
                                       />
-                                      <div className="w-5 h-5 border-2 border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 peer-checked:bg-orange-500 peer-checked:border-orange-500 transition-all"></div>
+                                      <div className="w-5 h-5 border-2 border-gray-400 dark:border-gray-500 rounded-md bg-white/50 dark:bg-black/50 peer-checked:bg-orange-500 peer-checked:border-orange-500 transition-all backdrop-blur-sm"></div>
                                       <Icons.Check className="absolute top-0 left-0 w-5 h-5 text-white opacity-0 peer-checked:opacity-100 transition-opacity p-0.5" />
                                   </div>
-                                  <span className="text-sm font-bold text-gray-500 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-200 transition-colors">مرا به خاطر بسپار</span>
+                                  <span className="text-sm font-bold text-gray-600 group-hover:text-gray-800 dark:text-gray-300 dark:group-hover:text-white transition-colors">مرا به خاطر بسپار</span>
                               </label>
                           </div>
 
@@ -379,7 +371,7 @@ const LoginPage: React.FC = () => {
                               {isSubmitting || isRedirecting ? (
                                   <>
                                       <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                                      <span>...</span>
+                                      <span>در حال پردازش...</span>
                                   </>
                               ) : (
                                   <>
@@ -392,7 +384,7 @@ const LoginPage: React.FC = () => {
                   </div>
                   
                   <div className="mt-4 text-center relative z-20 pb-4">
-                      <p className="text-[10px] md:text-xs text-gray-400 dark:text-gray-500 font-medium backdrop-blur-sm inline-block px-2 rounded">Morvarid Cloud • v{APP_VERSION}</p>
+                      <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 font-medium backdrop-blur-sm inline-block px-2 rounded">Morvarid Cloud • v{APP_VERSION}</p>
                   </div>
               </div>
           </div>

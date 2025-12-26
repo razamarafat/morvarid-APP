@@ -1,6 +1,6 @@
 
-import React, { useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { Icons } from '../common/Icons';
 import ThemeToggle from '../common/ThemeToggle';
@@ -11,6 +11,7 @@ import { useConfirm } from '../../hooks/useConfirm';
 import { usePwaStore } from '../../store/pwaStore';
 import { useAlertStore } from '../../store/alertStore';
 import OnlineStatusBadge from '../common/OnlineStatusBadge';
+import Modal from '../common/Modal';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -23,7 +24,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
   const theme = useThemeStore(state => state.theme);
   const { confirm } = useConfirm();
   const { deferredPrompt, setDeferredPrompt, isInstalled } = usePwaStore(); 
-  const { permissionStatus, requestPermissionManual, checkAndRequestPermission } = useAlertStore();
+  const { permissionStatus, requestPermissionManual, checkAndRequestPermission, notifications, clearNotifications } = useAlertStore();
+  
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
 
   useEffect(() => {
       checkAndRequestPermission();
@@ -31,6 +34,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
 
   const role = user?.role || UserRole.ADMIN;
   const themeColors = THEMES[theme][role];
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   const handleNavClick = (view: string) => {
       const event = new CustomEvent('dashboard-navigate', { detail: { view } });
@@ -59,6 +63,14 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
     if (outcome === 'accepted') {
       setDeferredPrompt(null);
     }
+  };
+
+  const handleBellClick = () => {
+      if (permissionStatus === 'default' || permissionStatus === 'denied') {
+          requestPermissionManual();
+      } else {
+          setIsNotifOpen(true);
+      }
   };
 
   const getDesktopNavItems = () => {
@@ -99,7 +111,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
   };
 
   return (
-    // Updated: Glassmorphism header
+    <>
     <header className="sticky top-0 z-30 transition-colors duration-300 border-b border-gray-200/50 dark:border-white/5 shadow-sm bg-white/80 dark:bg-[#0f172a]/80 backdrop-blur-xl">
       <div className="container mx-auto px-4 h-16 flex justify-between items-center max-w-full">
         
@@ -126,18 +138,19 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
           <OnlineStatusBadge />
 
           <button 
-            onClick={requestPermissionManual}
+            onClick={handleBellClick}
             className={`p-2 rounded-full transition-colors ${permissionStatus === 'granted' ? 'text-metro-blue hover:bg-blue-50 dark:hover:bg-blue-900/20' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
-            title={permissionStatus === 'granted' ? 'اعلان‌ها فعال است' : 'فعال‌سازی اعلان‌ها'}
+            title={permissionStatus === 'granted' ? 'مشاهده اعلان‌ها' : 'فعال‌سازی اعلان‌ها'}
           >
-             {permissionStatus === 'granted' ? (
-                 <Icons.Bell className="w-6 h-6 fill-current" />
-             ) : (
-                 <div className="relative">
-                     <Icons.Bell className="w-6 h-6" />
+             <div className="relative">
+                 {permissionStatus === 'granted' ? <Icons.Bell className="w-6 h-6 fill-current" /> : <Icons.Bell className="w-6 h-6" />}
+                 {unreadCount > 0 && permissionStatus === 'granted' && (
                      <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-gray-800"></span>
-                 </div>
-             )}
+                 )}
+                 {permissionStatus !== 'granted' && (
+                     <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-gray-400 rounded-full border-2 border-white dark:border-gray-800"></span>
+                 )}
+             </div>
           </button>
 
           {deferredPrompt && !isInstalled && (
@@ -165,6 +178,38 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
         </div>
       </div>
     </header>
+
+    <Modal isOpen={isNotifOpen} onClose={() => setIsNotifOpen(false)} title="تاریخچه اعلان‌ها">
+        <div className="h-[400px] flex flex-col">
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-1 space-y-2">
+                {notifications.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                        <Icons.Bell className="w-12 h-12 mb-2 opacity-20" />
+                        <span className="text-sm font-bold">هیچ اعلانی وجود ندارد</span>
+                    </div>
+                ) : (
+                    notifications.map(n => (
+                        <div key={n.id} className={`p-3 rounded-xl border ${n.type === 'error' ? 'bg-red-50 border-red-100 dark:bg-red-900/10 dark:border-red-900' : 'bg-gray-50 border-gray-100 dark:bg-gray-800 dark:border-gray-700'}`}>
+                            <div className="flex justify-between items-start mb-1">
+                                <span className="font-bold text-sm dark:text-white">{n.title}</span>
+                                <span className="text-[10px] text-gray-400 font-mono">{new Date(n.timestamp).toLocaleTimeString('fa-IR')}</span>
+                            </div>
+                            <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">{n.message}</p>
+                        </div>
+                    ))
+                )}
+            </div>
+            {notifications.length > 0 && (
+                <button 
+                    onClick={clearNotifications}
+                    className="mt-4 w-full py-3 bg-gray-100 dark:bg-gray-800 text-red-500 rounded-xl font-bold text-sm hover:bg-gray-200 transition-colors"
+                >
+                    پاکسازی تاریخچه
+                </button>
+            )}
+        </div>
+    </Modal>
+    </>
   );
 };
 

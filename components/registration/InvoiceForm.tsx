@@ -115,7 +115,6 @@ export const InvoiceForm: React.FC = () => {
             return;
         }
 
-        // Pre-validation Loop
         for (const pid of selectedProductIds) {
             const item = itemsState[pid];
             const product = getProductById(pid);
@@ -221,7 +220,7 @@ export const InvoiceForm: React.FC = () => {
 
     return (
         <div className="max-w-4xl mx-auto space-y-6 lg:space-y-10 pb-20">
-            {/* Header */}
+            {/* Updated Header */}
             <div className="bg-gradient-to-br from-metro-blue via-blue-600 to-indigo-600 p-6 text-white shadow-xl relative overflow-hidden flex flex-col items-center justify-center gap-3 rounded-b-[32px] border-b-4 border-blue-800/20 gpu-accelerated">
                  <div className="absolute inset-0 shimmer-bg z-0"></div>
                  <Icons.FileText className="absolute -right-8 -bottom-8 w-48 h-48 opacity-10 pointer-events-none -rotate-12" />

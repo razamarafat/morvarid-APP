@@ -53,26 +53,18 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
             if (!pA || !pB) return 0;
             
             const getScore = (name: string) => {
-                // Priority 1: Shirink Products
                 if (name.includes('شیرینگ') || name.includes('شیرینک')) {
-                    if (name.includes('پرینتی')) return 1; // Highest Priority
-                    return 2; // Shirink Sadeh
+                    if (name.includes('پرینتی')) return 1; 
+                    return 2; 
                 }
-
-                // Priority 2: General Products (Carton/Bulk)
                 if (name.includes('پرینتی')) return 3;
                 if (name.includes('ساده')) return 4;
-
-                // Priority 3: Special Types
                 if (name.includes('دوزرده')) return 5;
                 if (name.includes('نوکی')) return 6;
                 if (name.includes('کودی')) return 7;
                 if (name.includes('مایع')) return 8;
-
-                return 9; // Others
+                return 9; 
             };
-            
-            // Ascending sort (Lower number comes first)
             return getScore(pA.name) - getScore(pB.name);
         });
     }, [selectedFarm, getProductById]);
@@ -102,10 +94,8 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
     const handleInputChange = (productId: string, field: keyof ProductFormState, value: string) => {
         let cleanVal = '';
         if (field === 'production' || field === 'previousBalance') {
-            // Integer only for units/cartons
             cleanVal = value.replace(/[^0-9]/g, '');
         } else {
-            // Decimals allowed for KG
             cleanVal = value.replace(/[^0-9.]/g, '');
         }
         setFormsState(prev => ({ ...prev, [productId]: { ...prev[productId], [field]: cleanVal } }));
@@ -117,41 +107,34 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
         const payloads = [];
 
         for (const pid of selectedFarm.productIds) {
-            // Skip if already registered
             if (statistics.some(s => s.farmId === selectedFarmId && s.date === normalizedDate && s.productId === pid)) continue;
             
             const vals = formsState[pid];
             if (!vals) continue;
 
-            // Raw Inputs
-            const inputVal = vals.production === '' ? 0 : Number(vals.production); // Acts as Production OR Current Inv based on type
+            const inputVal = vals.production === '' ? 0 : Number(vals.production);
             const inputValKg = vals.productionKg === '' ? 0 : Number(vals.productionKg);
             
             const prev = vals.previousBalance === '' ? 0 : Number(vals.previousBalance);
             const prevKg = vals.previousBalanceKg === '' ? 0 : Number(vals.previousBalanceKg);
 
-            // Skip empty rows (Relaxed check for Motefereghe as they might only fill "Declared Inv")
             if (vals.production === '' && vals.productionKg === '' && vals.previousBalance === '' && vals.previousBalanceKg === '') continue;
 
-            // --- VALIDATION FOR UNNATURAL NUMBERS ---
             const prodName = getProductById(pid)?.name || 'محصول';
             
             if (inputVal > 10000) {
                 addToast(`خطا: عدد وارد شده برای ${isMotefereghe ? 'موجودی' : 'تولید'} محصول "${prodName}" (${toPersianDigits(inputVal)}) غیرمتعارف است.`, 'error');
                 return;
             }
-            if (inputValKg > 150000) { // Approx 150 tons seems unlikely for daily single farm stat
+            if (inputValKg > 150000) { 
                  addToast(`خطا: وزن وارد شده برای محصول "${prodName}" (${toPersianDigits(inputValKg)}) غیرمتعارف است.`, 'error');
                  return;
             }
-            // ----------------------------------------
 
-            // Calculate sales from invoices
             const relevantInvoices = invoices.filter(inv => inv.farmId === selectedFarmId && inv.date === normalizedDate && inv.productId === pid);
             const totalSales = relevantInvoices.reduce((sum, inv) => sum + (inv.totalCartons || 0), 0);
             const totalSalesKg = relevantInvoices.reduce((sum, inv) => sum + (inv.totalWeight || 0), 0);
 
-            // Logic Divergence
             let finalPrevious = prev;
             let finalProduction = inputVal;
             let finalCurrent = 0;
@@ -161,11 +144,6 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
             let finalCurrentKg = 0;
 
             if (isMotefereghe) {
-                // Motefereghe Logic:
-                // Input = "Declared Current Inventory"
-                // Previous = 0 (Ignored)
-                // Equation: Current = Previous(0) + Production - Sales
-                // So: Production = Current + Sales
                 finalPrevious = 0;
                 finalPreviousKg = 0;
                 finalCurrent = inputVal;
@@ -173,10 +151,6 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                 finalProduction = inputVal + totalSales;
                 finalProductionKg = inputValKg + totalSalesKg;
             } else {
-                // Morvaridi Logic:
-                // Input = "Daily Production"
-                // Previous = User Input
-                // Equation: Current = Previous + Production - Sales
                 finalCurrent = prev + inputVal - totalSales;
                 finalCurrentKg = prevKg + inputValKg - totalSalesKg;
             }
@@ -214,7 +188,10 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
         const result = await bulkUpsertStatistics(payloads);
         setIsSubmitting(false);
 
-        if (result.success) addToast('آمار با موفقیت ثبت شد.', 'success');
+        if (result.success) {
+            addToast('آمار با موفقیت ثبت شد.', 'success');
+            setExpandedProductId(null); // Collapse the list
+        }
         else addToast(`خطا: ${result.error}`, 'error');
     };
 
@@ -222,17 +199,13 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
 
     const isMotefereghe = selectedFarm.type === FarmType.MOTEFEREGHE;
     
-    // Explicit text colors: text-gray-900 for light mode, text-white for dark mode
     const inputClasses = "w-full p-3 bg-white dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 text-center font-black text-3xl text-gray-900 dark:text-white rounded-xl focus:border-metro-orange focus:ring-4 focus:ring-orange-100 dark:focus:ring-orange-900/20 outline-none h-16 transition-all shadow-sm";
 
     return (
         <div className="max-w-4xl mx-auto pb-24"> 
-            
-            {/* COMPACT & OPTIMIZED HEADER */}
+            {/* Header Updated to match App Style */}
             <div className="bg-gradient-to-br from-metro-orange via-orange-500 to-amber-500 p-6 text-white shadow-xl relative overflow-hidden flex flex-col items-center justify-center gap-3 rounded-b-[32px] mb-8 border-b-4 border-orange-700/20 gpu-accelerated">
-                 {/* Infinite Shimmer */}
                  <div className="absolute inset-0 shimmer-bg z-0"></div>
-                 
                  <Icons.BarChart className="absolute -left-8 -bottom-8 w-48 h-48 text-white opacity-10 pointer-events-none rotate-12" />
 
                  <div className="relative z-10 flex flex-col items-center w-full">
@@ -264,7 +237,6 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                     const vals = formsState[pid] || { production: '', productionKg: '', previousBalance: '', previousBalanceKg: '' };
                     const isExpanded = expandedProductId === pid;
 
-                    // Calculate sales from invoices for this product/date
                     const productInvoices = invoices.filter(inv => inv.farmId === selectedFarmId && inv.date === normalizedDate && inv.productId === pid);
                     const soldUnits = productInvoices.reduce((sum, inv) => sum + (inv.totalCartons || 0), 0);
                     const soldKg = productInvoices.reduce((sum, inv) => sum + (inv.totalWeight || 0), 0);
@@ -298,11 +270,9 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                                         exit={{ height: 0, opacity: 0 }} 
                                         transition={{ duration: 0.2, ease: "easeOut" }}
                                         className="bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700"
-                                        style={{ willChange: "height, opacity", transform: "translateZ(0)" }}
                                     >
                                         <div className="p-5 space-y-5">
                                             
-                                            {/* Only show sales box for Morvaridi farms */}
                                             {!isMotefereghe && (
                                                 <div className="flex gap-3">
                                                     <div className="flex-1 bg-red-50 dark:bg-red-900/10 p-3 rounded-xl border border-red-100 dark:border-red-900/20 text-center">
@@ -380,7 +350,6 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
             </div>
 
             <div className="px-4 mt-8">
-                {/* Increased size from h-16/text-2xl to h-20/text-3xl */}
                 <Button onClick={handleFinalSubmit} isLoading={isSubmitting} className="w-full h-20 text-3xl font-black bg-gradient-to-r from-metro-green to-emerald-600 hover:to-emerald-500 shadow-lg shadow-green-200 dark:shadow-none rounded-[20px] border-b-4 border-green-700 active:border-b-0 active:translate-y-1 transition-all">
                     <Icons.Check className="ml-2 w-10 h-10" /> ثبت نهایی آمار
                 </Button>
