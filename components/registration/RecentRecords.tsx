@@ -183,7 +183,7 @@ const Row = React.memo(({ index, style, data }: any) => {
     const rowItems = items.slice(fromIndex, toIndex);
 
     return (
-        <div style={style} className="flex gap-4 px-2">
+        <div style={style} className="flex gap-4 px-2 pb-4">
             {rowItems.map((item: any) => (
                 <div key={item.id} className="flex-1 min-w-0 h-full">
                     {type === 'stats' ? (
@@ -245,7 +245,6 @@ const RecentRecords: React.FC = () => {
         plateNumber: ''
     });
     
-    // Dirty State Tracking
     const [initialStatValues, setInitialStatValues] = useState<any>(null);
     const [initialInvoiceValues, setInitialInvoiceValues] = useState<any>(null);
 
@@ -526,7 +525,7 @@ const RecentRecords: React.FC = () => {
                                 <List
                                     height={height}
                                     itemCount={Math.ceil(filteredStats.length / getItemsPerRow(width))}
-                                    itemSize={220} 
+                                    itemSize={240} // Increased height for better mobile layout
                                     width={width}
                                     itemData={{ 
                                         items: filteredStats, 
@@ -580,8 +579,10 @@ const RecentRecords: React.FC = () => {
                 </div>
             </div>
             
+            {/* ... Modals (same as before) ... */}
             {!!editStat && (
                 <Modal isOpen={true} onClose={handleCancelStat} title="ویرایش آمار روزانه">
+                    {/* ... modal content ... */}
                     <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1">
                         <div className="p-4 bg-white dark:bg-gray-800 rounded-2xl border-2 border-blue-100 dark:border-blue-900 flex flex-col gap-2 shadow-sm">
                             <span className="text-sm font-bold text-blue-600 dark:text-blue-400">اطلاعات تعداد (کارتن)</span>
@@ -616,6 +617,7 @@ const RecentRecords: React.FC = () => {
 
             {!!editInvoice && (
                 <Modal isOpen={true} onClose={handleCancelInvoice} title="ویرایش حواله خروج">
+                    {/* ... modal content ... */}
                     <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1 custom-scrollbar">
                         <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-orange-200 dark:border-orange-800">
                             <label className="block text-sm font-bold mb-2 text-orange-700 dark:text-orange-400">رمز حواله</label>

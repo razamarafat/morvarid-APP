@@ -21,29 +21,101 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-// --- PERFORMANCE OPTIMIZED SKETCH (Hidden on Mobile) ---
+// --- ULTRA REALISTIC INDUSTRIAL SKETCH (Restored & Enhanced) ---
+// Story: Farm (Left) -> Conveyor Belt/Packaging (Middle) -> Truck/Nissan Loading (Right)
 const UltraRealisticSketch = React.memo(() => (
-  <svg viewBox="0 0 1400 200" className="w-full h-full opacity-70 dark:opacity-40 pointer-events-none text-gray-800 dark:text-gray-500 hidden md:block" preserveAspectRatio="xMidYMax slice">
+  <svg viewBox="0 0 1400 250" className="w-full h-full opacity-80 dark:opacity-50 pointer-events-none text-gray-800 dark:text-gray-500" preserveAspectRatio="xMidYMax slice">
     <defs>
         <linearGradient id="groundGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="currentColor" stopOpacity="0.1"/>
-            <stop offset="100%" stopColor="currentColor" stopOpacity="0.8"/>
+            <stop offset="0%" stopColor="currentColor" stopOpacity="0.05"/>
+            <stop offset="100%" stopColor="currentColor" stopOpacity="0.6"/>
         </linearGradient>
     </defs>
     
-    <rect x="0" y="180" width="1400" height="20" fill="url(#groundGrad)" />
-    <line x1="0" y1="180" x2="1400" y2="180" stroke="currentColor" strokeWidth="2" />
+    <rect x="0" y="220" width="1400" height="30" fill="url(#groundGrad)" />
+    <line x1="0" y1="220" x2="1400" y2="220" stroke="currentColor" strokeWidth="2" />
 
-    {/* Only essentials for desktop atmosphere */}
-    <g transform="translate(350, 40)">
-        <path d="M0,140 L0,60 L50,40 L50,60 L100,40 L100,60 L150,40 L150,60 L200,40 L200,140 Z" fill="none" stroke="currentColor" strokeWidth="1.5" />
+    {/* --- LEFT: MODERN POULTRY FARM (The Source) --- */}
+    <g transform="translate(50, 80)">
+        {/* Silos */}
+        <path d="M10,140 L10,40 L30,30 L50,40 L50,140 Z" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M10,50 L50,50" stroke="currentColor" strokeWidth="0.5" />
+        <path d="M10,70 L50,70" stroke="currentColor" strokeWidth="0.5" />
+        <path d="M10,90 L50,90" stroke="currentColor" strokeWidth="0.5" />
+        
+        {/* Main Barn */}
+        <path d="M60,140 L60,60 L200,40 L200,140 Z" fill="none" stroke="currentColor" strokeWidth="2" />
+        <path d="M60,60 L200,40" stroke="currentColor" strokeWidth="1" /> {/* Roof line */}
+        
+        {/* Windows / Vents */}
+        <rect x="80" y="80" width="20" height="20" stroke="currentColor" fill="none" />
+        <rect x="120" y="80" width="20" height="20" stroke="currentColor" fill="none" />
+        <rect x="160" y="80" width="20" height="20" stroke="currentColor" fill="none" />
+        
+        {/* Connection pipe to Packaging */}
+        <path d="M200,100 L300,100" stroke="currentColor" strokeWidth="3" strokeDasharray="5,5" />
+    </g>
+
+    {/* --- MIDDLE: PACKAGING & CONVEYOR BELT --- */}
+    <g transform="translate(350, 60)">
+        {/* Factory Building */}
+        <path d="M0,160 L0,40 L100,20 L100,160 Z" fill="none" stroke="currentColor" strokeWidth="2" />
+        <rect x="20" y="60" width="60" height="80" stroke="currentColor" strokeWidth="0.5" strokeDasharray="2,2" fill="none" />
+        
+        {/* Conveyor Belt System coming out */}
+        <g transform="translate(100, 100)">
+            <path d="M0,20 L150,20" stroke="currentColor" strokeWidth="4" /> {/* Belt */}
+            <circle cx="20" cy="25" r="5" stroke="currentColor" fill="none" />
+            <circle cx="75" cy="25" r="5" stroke="currentColor" fill="none" />
+            <circle cx="130" cy="25" r="5" stroke="currentColor" fill="none" />
+            
+            {/* Boxes on belt */}
+            <rect x="30" y="5" width="20" height="15" stroke="currentColor" fill="none" />
+            <rect x="80" y="5" width="20" height="15" stroke="currentColor" fill="none" />
+        </g>
+    </g>
+
+    {/* --- RIGHT: LOGISTICS (Forklift & Trucks) --- */}
+    <g transform="translate(650, 70)">
+        {/* Forklift */}
+        <g transform="translate(20, 90)">
+            <path d="M10,40 L10,10 L30,10 L30,40 Z" stroke="currentColor" fill="none" /> {/* Mast */}
+            <path d="M30,30 L50,30 L50,20 L40,10 L30,20" stroke="currentColor" fill="none" /> {/* Cabin */}
+            <circle cx="35" cy="40" r="8" stroke="currentColor" fill="none" />
+            <circle cx="55" cy="40" r="8" stroke="currentColor" fill="none" />
+            <line x1="0" y1="35" x2="20" y2="35" stroke="currentColor" strokeWidth="2" /> {/* Forks */}
+            <rect x="0" y="20" width="15" height="15" stroke="currentColor" fill="none" /> {/* Box on fork */}
+        </g>
+
+        {/* Nissan / Small Truck */}
+        <g transform="translate(120, 80)">
+            <path d="M0,60 L0,30 L60,30 L60,60 Z" stroke="currentColor" fill="none" /> {/* Bed */}
+            <path d="M60,60 L60,20 L90,20 L100,40 L100,60 Z" stroke="currentColor" fill="none" /> {/* Cabin */}
+            <circle cx="30" cy="60" r="10" stroke="currentColor" fill="none" strokeWidth="2" />
+            <circle cx="80" cy="60" r="10" stroke="currentColor" fill="none" strokeWidth="2" />
+            {/* Stacked boxes in truck */}
+            <rect x="5" y="15" width="20" height="15" stroke="currentColor" fill="none" />
+            <rect x="30" y="15" width="20" height="15" stroke="currentColor" fill="none" />
+            <rect x="15" y="0" width="20" height="15" stroke="currentColor" fill="none" />
+        </g>
+
+        {/* Big Truck */}
+        <g transform="translate(300, 50)">
+            <rect x="0" y="20" width="140" height="80" stroke="currentColor" fill="none" strokeWidth="2" /> {/* Trailer */}
+            <line x1="0" y1="20" x2="140" y2="90" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
+            <line x1="140" y1="20" x2="0" y2="90" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
+            
+            <path d="M140,100 L140,40 L160,40 L170,60 L170,100 Z" fill="none" stroke="currentColor" strokeWidth="2" /> {/* Cab */}
+            <circle cx="30" cy="100" r="12" stroke="currentColor" fill="none" strokeWidth="2" />
+            <circle cx="50" cy="100" r="12" stroke="currentColor" fill="none" strokeWidth="2" />
+            <circle cx="150" cy="100" r="12" stroke="currentColor" fill="none" strokeWidth="2" />
+        </g>
     </g>
   </svg>
 ));
 
 // --- OPTIMIZED STATIC STARS (No JS Randomness) ---
 const StarryNight = React.memo(() => {
-    // Fixed positions for max performance (no layout thrashing)
     const stars = [
         { t: '10%', l: '20%', d: '0s', s: '2px' },
         { t: '30%', l: '80%', d: '1.2s', s: '3px' },
@@ -159,8 +231,8 @@ const LoginPage: React.FC = () => {
           <StarryNight />
       </div>
 
-      {/* --- SKETCH --- */}
-      <div className="absolute bottom-0 left-0 w-full h-[120px] md:h-[180px] z-0 opacity-100 pointer-events-none">
+      {/* --- SKETCH (Visible on Mobile & Desktop) --- */}
+      <div className="absolute bottom-0 left-0 w-full h-[150px] md:h-[250px] z-0 opacity-100 pointer-events-none">
           <UltraRealisticSketch />
       </div>
 
@@ -168,39 +240,52 @@ const LoginPage: React.FC = () => {
       <div className="relative z-10 flex flex-col md:flex-row h-full w-full">
           
           {/* --- TOP/LEFT SECTION (Visuals) --- */}
-          <div className="absolute inset-0 z-0 flex flex-col items-center justify-start pt-16 md:pt-0 md:relative md:flex-1 md:w-[55%] md:justify-center md:pb-20 md:z-10 pointer-events-none md:pointer-events-auto opacity-60 md:opacity-100 transition-all duration-500">
+          {/* On Mobile: Elements are placed absolutely at the top to be visible */}
+          <div className="absolute inset-0 z-0 flex flex-col items-center justify-start pt-12 md:pt-0 md:relative md:flex-1 md:w-[55%] md:justify-center md:pb-20 md:z-10 pointer-events-none md:pointer-events-auto opacity-100 transition-all duration-500">
               
-              <div className="text-center z-20 md:mt-6 transform-gpu">
-                  <h1 className="text-2xl md:text-5xl font-black tracking-[0.2em] text-gray-900 dark:text-white mb-1 md:mb-2 drop-shadow-md">MORVARID</h1>
+              <div className="text-center z-20 md:mt-6 transform-gpu scale-75 md:scale-100 origin-top">
+                  <h1 className="text-3xl md:text-5xl font-black tracking-[0.2em] text-gray-900 dark:text-white mb-1 md:mb-2 drop-shadow-md">MORVARID</h1>
                   <div className="h-1 md:h-1.5 w-12 md:w-24 bg-gradient-to-r from-orange-400 to-yellow-400 mx-auto rounded-full mb-2 md:mb-5 shadow-sm"></div>
                   
-                  <h1 className="text-3xl md:text-6xl font-black text-gray-800 dark:text-white mb-5 tracking-tight drop-shadow-sm scale-y-110">
+                  <h1 className="text-4xl md:text-6xl font-black text-gray-800 dark:text-white mb-2 md:mb-5 tracking-tight drop-shadow-sm scale-y-110">
                       مـرواریــد
                   </h1>
-                  <h2 className="text-xs md:text-lg font-bold text-gray-600 dark:text-gray-300 tracking-wide mt-1 opacity-80 backdrop-blur-sm bg-white/20 dark:bg-black/20 p-1 rounded">
+                  {/* Subtitle visible on mobile now */}
+                  <h2 className="text-sm md:text-lg font-bold text-gray-600 dark:text-gray-300 tracking-wide mt-1 opacity-90 backdrop-blur-sm bg-white/30 dark:bg-black/30 p-1.5 rounded-lg border border-white/20 dark:border-white/5">
                       سیستم هوشمند پایش زنجیره آمار، تولید و توزیع
                   </h2>
               </div>
 
-              {/* THE EGG */}
-              <div className="relative w-[140px] h-[140px] md:w-[340px] md:h-[340px] flex items-center justify-center my-2 md:my-4 transform-gpu">
+              {/* THE EGG (Visible on Mobile, Smaller) */}
+              <div className="relative w-20 h-20 mt-2 md:w-[340px] md:h-[340px] md:mt-4 flex items-center justify-center transform-gpu z-10">
                   <div className="hidden md:block absolute inset-[-10px] md:inset-[-40px] rounded-full bg-orange-400/10 md:bg-orange-400/20 blur-xl md:blur-3xl animate-pulse" style={{ animationDuration: '8s' }}></div>
                   
-                  {/* Added shadowed halo around the egg */}
                   <motion.div 
                     initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1, y: [0, -5, 0] }}
+                    animate={{ opacity: 1, scale: 1, y: [0, -3, 0] }}
                     transition={{ 
                         scale: { duration: 1.5 },
-                        y: { duration: 6, repeat: Infinity, ease: "easeInOut" } 
+                        y: { duration: 4, repeat: Infinity, ease: "easeInOut" } 
                     }}
-                    className="relative w-28 h-36 md:w-60 md:h-72 bg-gradient-to-br from-white via-gray-100 to-gray-200 dark:from-gray-200 dark:via-gray-400 dark:to-gray-500 rounded-[50%/60%_60%_40%_40%] z-20 flex items-center justify-center overflow-hidden border border-white/60 dark:border-white/10 shadow-[0_0_25px_rgba(0,0,0,0.1),inset_-5px_-5px_20px_rgba(0,0,0,0.05),0_15px_30px_rgba(0,0,0,0.1)] dark:shadow-[0_0_60px_rgba(255,255,255,0.15),inset_-5px_-5px_15px_rgba(0,0,0,0.3),0_10px_25px_rgba(0,0,0,0.5)]"
+                    className="relative w-16 h-20 md:w-60 md:h-72 bg-gradient-to-br from-white via-gray-100 to-gray-200 dark:from-gray-200 dark:via-gray-400 dark:to-gray-500 rounded-[50%/60%_60%_40%_40%] z-20 flex items-center justify-center overflow-hidden border border-white/60 dark:border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.1),inset_-5px_-5px_20px_rgba(0,0,0,0.05)] md:shadow-[0_0_25px_rgba(0,0,0,0.1),inset_-5px_-5px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_0_20px_rgba(255,255,255,0.15)]"
                   >
-                      <div className="absolute top-[15%] left-[20%] w-[30%] h-[15%] bg-white rounded-[50%] blur-md opacity-90"></div>
-                      <div className="absolute inset-0 rounded-[50%/60%_60%_40%_40%] shadow-[inset_10px_10px_20px_rgba(255,255,255,0.8),inset_-10px_-10px_20px_rgba(0,0,0,0.1)] dark:shadow-[inset_5px_5px_20px_rgba(255,255,255,0.2),inset_-5px_-5px_20px_rgba(0,0,0,0.3)] pointer-events-none"></div>
+                      <div className="absolute top-[15%] left-[20%] w-[30%] h-[15%] bg-white rounded-[50%] blur-sm md:blur-md opacity-90"></div>
+                      <div className="absolute inset-0 rounded-[50%/60%_60%_40%_40%] shadow-[inset_5px_5px_10px_rgba(255,255,255,0.8)] md:shadow-[inset_10px_10px_20px_rgba(255,255,255,0.8)] pointer-events-none"></div>
                   </motion.div>
               </div>
 
+              {/* Date & Time (Visible on Mobile now) */}
+              <div className="flex md:hidden items-center justify-center gap-3 z-20 bg-orange-50/50 dark:bg-black/30 px-4 py-1.5 rounded-xl backdrop-blur-sm border border-orange-200/50 dark:border-white/10 shadow-sm mt-2">
+                  <div className="text-lg font-black text-gray-800 dark:text-white tabular-nums tracking-tight">
+                      {currentTime}
+                  </div>
+                  <div className="w-[1px] h-4 bg-orange-300 dark:bg-gray-600 rounded-full"></div>
+                  <div className="text-lg font-black text-gray-800 dark:text-white tabular-nums tracking-tight">
+                      {currentDate}
+                  </div>
+              </div>
+
+              {/* Desktop Date & Time */}
               <div className="hidden md:flex items-center justify-center gap-6 z-20 bg-orange-100/60 dark:bg-black/40 px-6 py-3 md:px-10 md:py-5 rounded-2xl backdrop-blur-sm border border-orange-200 dark:border-white/10 shadow-md transform-gpu mb-10 md:mb-20">
                   <div className="text-2xl md:text-4xl font-black text-gray-800 dark:text-white tabular-nums tracking-tight">
                       {currentTime}
@@ -213,7 +298,7 @@ const LoginPage: React.FC = () => {
           </div>
 
           {/* --- RIGHT/BOTTOM SECTION (Form) --- */}
-          <div className="relative z-20 w-full h-full flex flex-col items-center justify-center p-6 md:flex-1 md:w-[45%] md:relative md:z-30 md:pb-48">
+          <div className="relative z-20 w-full h-full flex flex-col items-center justify-end md:justify-center p-6 pb-24 md:pb-48 md:flex-1 md:w-[45%] md:relative md:z-30">
               <div className="w-full max-w-[340px] md:max-w-[420px] relative">
                   <div className="hidden md:block absolute inset-0 bg-amber-400/20 rounded-[32px] blur-xl animate-[pulse_4s_ease-in-out_infinite] -z-10"></div>
                   

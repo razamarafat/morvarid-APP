@@ -179,25 +179,62 @@ const FarmStatistics = () => {
     );
 };
 
-// --- MODERNIZED INVOICE ROW ---
-const GRID_TEMPLATE = "grid grid-cols-[80px_120px_100px_minmax(180px,1fr)_80px_80px_120px_70px_80px] gap-4 items-center";
+// Strict Grid Configuration to ensure alignment
+// INCREASED PRODUCT COLUMN WIDTH and Overall Container Min-Width
+// 9 cols: Date, Invoice#, Farm, Product, Count, Weight, Registrar, Time, Status
+const GRID_TEMPLATE = "grid grid-cols-[100px_130px_120px_minmax(280px,2fr)_90px_90px_130px_90px_90px] gap-6 items-center whitespace-nowrap";
 
 const StandardInvoiceRow = React.memo(({ invoice, farms, products, renderInvoiceNumber }: { invoice: Invoice, farms: any[], products: any[], renderInvoiceNumber: (num: string) => any }) => {
     const productName = products.find((p: any) => p.id === invoice.productId)?.name || '-';
+    // UPDATED: Show updated time if edited
     const isEdited = !!invoice.updatedAt;
-    const time = new Date(isEdited ? invoice.updatedAt! : invoice.createdAt).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+    // TASK: Use updatedAt if edited
+    const displayDate = isEdited ? invoice.updatedAt! : invoice.createdAt;
+    const time = new Date(displayDate).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
     
     return (
-        <div className={`${GRID_TEMPLATE} text-right border-b border-gray-100 dark:border-gray-700/50 hover:bg-blue-50/50 dark:hover:bg-white/5 transition-colors text-sm py-4 px-4 min-w-[1100px] odd:bg-white dark:odd:bg-[#1e293b] even:bg-gray-50/50 dark:even:bg-[#1e293b]/50`}>
-            <div className="font-black text-gray-500 dark:text-gray-400">{toPersianDigits(invoice.date)}</div>
-            <div className="text-center">{renderInvoiceNumber(invoice.invoiceNumber)}</div>
-            <div className="font-bold text-gray-700 dark:text-gray-300 truncate">{farms.find((f: any) => f.id === invoice.farmId)?.name}</div>
-            <div className="font-bold text-gray-800 dark:text-gray-200 leading-tight">{productName}</div>
-            <div className="text-center font-black text-lg text-gray-800 dark:text-white">{toPersianDigits(invoice.totalCartons)}</div>
-            <div className="text-center font-black text-metro-blue text-lg">{toPersianDigits(invoice.totalWeight)}</div>
-            <div className="text-center"><span className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs font-bold text-gray-600 dark:text-gray-300 truncate block">{invoice.creatorName || 'ناشناس'}</span></div>
-            <div className="text-center flex flex-col items-center"><span className="font-mono text-xs text-gray-400">{toPersianDigits(time)}</span>{isEdited && <span className="text-[9px] text-orange-500">(ویرایش)</span>}</div>
-            <div className="text-center"><span className={`px-2 py-1 text-[10px] font-bold text-white rounded-md ${invoice.isYesterday ? 'bg-orange-500' : 'bg-green-500'}`}>{invoice.isYesterday ? 'دیروز' : 'عادی'}</span></div>
+        <div className={`${GRID_TEMPLATE} text-right border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors text-gray-800 dark:text-gray-200 text-sm py-5 px-4 min-w-[1300px] odd:bg-white even:bg-gray-50 dark:odd:bg-gray-800 dark:even:bg-gray-900/30`}>
+            {/* 1. Date */}
+            <div className="font-black tracking-tighter shrink-0">{toPersianDigits(invoice.date)}</div>
+            
+            {/* 2. Invoice Num (LTR ENFORCED) */}
+            <div className="text-center shrink-0 font-mono">
+                {renderInvoiceNumber(invoice.invoiceNumber)}
+            </div>
+            
+            {/* 3. Farm */}
+            <div className="font-bold truncate shrink-0">{farms.find((f: any) => f.id === invoice.farmId)?.name}</div>
+            
+            {/* 4. Product (No wrapping, extended width) */}
+            <div className="font-bold text-gray-700 dark:text-gray-200 text-sm leading-tight overflow-hidden text-ellipsis" title={productName}>
+                {productName}
+            </div>
+            
+            {/* 5. Count */}
+            <div className="text-center font-black text-lg shrink-0">{toPersianDigits(invoice.totalCartons)}</div>
+            
+            {/* 6. Weight */}
+            <div className="font-black text-metro-blue text-lg text-center shrink-0">{toPersianDigits(invoice.totalWeight)}</div>
+            
+            {/* 7. Registrar */}
+            <div className="text-center shrink-0">
+                <span className="bg-gray-200 dark:bg-gray-700 px-3 py-1 rounded-md text-xs font-bold truncate block max-w-full">
+                    {invoice.creatorName || 'ناشناس'}
+                </span>
+            </div>
+
+            {/* 8. Time */}
+            <div className="text-center flex flex-col items-center shrink-0">
+                <span className="font-mono text-sm font-bold text-gray-600 dark:text-gray-400 dir-ltr">{toPersianDigits(time)}</span>
+                {isEdited && <span className="text-[10px] text-orange-500 font-bold mt-0.5">(ویرایش)</span>}
+            </div>
+
+            {/* 9. Status */}
+            <div className="text-center shrink-0">
+                <span className={`px-3 py-1.5 text-xs font-black text-white rounded-lg shadow-sm ${invoice.isYesterday ? 'bg-metro-orange' : 'bg-metro-green'}`}>
+                    {invoice.isYesterday ? 'دیروز' : 'عادی'}
+                </span>
+            </div>
         </div>
     );
 });
@@ -208,22 +245,31 @@ const InvoiceList = () => {
     const { addToast } = useToastStore();
     const [selectedFarmId, setSelectedFarmId] = useState<string>('all');
     const [isRefreshing, setIsRefreshing] = useState(false);
+    
+    // Strict Filter State
     const [filterDate, setFilterDate] = useState(getTodayJalali());
-    const [ignoreDate, setIgnoreDate] = useState(false);
+    const [ignoreDate, setIgnoreDate] = useState(false); 
     
     const normalizedFilterDate = normalizeDate(filterDate);
 
-    useEffect(() => { fetchInvoices(); }, []);
+    useEffect(() => {
+        fetchInvoices();
+    }, []);
 
     const filteredInvoices = useMemo(() => {
-        return invoices.filter(i => {
-            const itemDate = normalizeDate(i.date);
-            const dateMatch = ignoreDate ? true : itemDate === normalizedFilterDate;
-            const farmMatch = selectedFarmId === 'all' || i.farmId === selectedFarmId;
-            return dateMatch && farmMatch;
-        }).sort((a, b) => b.createdAt - a.createdAt);
+        const results = invoices
+            .filter(i => {
+                const itemDate = normalizeDate(i.date);
+                const dateMatch = ignoreDate ? true : itemDate === normalizedFilterDate;
+                const farmMatch = selectedFarmId === 'all' || i.farmId === selectedFarmId;
+                return dateMatch && farmMatch;
+            })
+            .sort((a, b) => b.createdAt - a.createdAt);
+        
+        return results;
     }, [invoices, normalizedFilterDate, selectedFarmId, ignoreDate]);
 
+    // Calculate totals for footer
     const totals = useMemo(() => {
         return filteredInvoices.reduce((acc, curr) => ({
             cartons: acc.cartons + (curr.totalCartons || 0),
@@ -240,55 +286,127 @@ const InvoiceList = () => {
 
     const renderInvoiceNumber = useCallback((num: string) => {
         const strNum = toPersianDigits(num);
-        if (strNum.length < 4) return <span className="text-gray-800 dark:text-gray-200 text-lg font-mono">{strNum}</span>;
+        if (strNum.length < 4) return <span className="text-gray-800 dark:text-gray-200 text-lg font-mono" dir="ltr">{strNum}</span>;
         const mainPart = strNum.slice(0, -4);
         const lastPart = strNum.slice(-4);
         return (
             <div className="flex justify-center items-center gap-0.5" dir="ltr">
-                <span className="text-gray-400 font-bold text-sm font-mono">{mainPart}</span>
-                <span className="text-gray-900 dark:text-white font-black text-lg font-mono">{lastPart}</span>
+                <span className="text-gray-500 dark:text-gray-400 font-bold text-base font-mono">{mainPart}</span>
+                <span className="text-black dark:text-white font-black text-lg font-mono">{lastPart}</span>
             </div>
         );
     }, []);
 
     return (
         <div className="space-y-4 lg:space-y-6 flex flex-col h-full">
-             <div className="bg-white/80 dark:bg-black/40 backdrop-blur-md p-4 rounded-[24px] shadow-sm border border-white/20 dark:border-white/10 flex flex-col md:flex-row gap-4 items-end">
+             <div className="bg-white/80 dark:bg-black/40 backdrop-blur-md p-4 lg:p-6 shadow-sm border-l-4 border-metro-orange flex flex-col md:flex-row gap-4 lg:gap-6 items-end rounded-xl shrink-0">
                 <div className="w-full md:w-1/3 flex items-end gap-2">
-                    <div className="flex-1"><JalaliDatePicker value={filterDate} onChange={setFilterDate} label="نمایش حواله‌های تاریخ" /></div>
-                    <button onClick={() => setIgnoreDate(!ignoreDate)} className={`mb-1 p-3 rounded-xl border-2 transition-all ${ignoreDate ? 'bg-metro-blue text-white border-metro-blue' : 'bg-white dark:bg-gray-700 text-gray-400 border-gray-200 dark:border-gray-600'}`}><Icons.List className="w-6 h-6" /></button>
+                    <div className="flex-1">
+                        <JalaliDatePicker value={filterDate} onChange={setFilterDate} label="نمایش حواله‌های تاریخ" />
+                    </div>
+                    <button 
+                        onClick={() => setIgnoreDate(!ignoreDate)}
+                        className={`mb-1 p-3 rounded-xl border-2 transition-all ${ignoreDate ? 'bg-metro-blue text-white border-metro-blue' : 'bg-white dark:bg-gray-700 text-gray-400 border-gray-200 dark:border-gray-600'}`}
+                        title={ignoreDate ? "فیلتر تاریخ غیرفعال است (نمایش همه)" : "فیلتر تاریخ فعال است"}
+                    >
+                        <Icons.List className="w-6 h-6" />
+                    </button>
                 </div>
+                
                 <div className="w-full md:w-1/3">
-                    <label className="block text-sm font-bold mb-1 text-gray-500">فیلتر فارم</label>
-                    <select className="w-full p-3 border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 dark:text-white font-bold rounded-xl outline-none focus:border-metro-orange" value={selectedFarmId} onChange={(e) => setSelectedFarmId(e.target.value)}>
-                        <option value="all">همه فارم‌ها</option>
+                    <label className="block text-sm font-bold mb-1 lg:mb-2 text-gray-700 dark:text-gray-300">فیلتر بر اساس فارم</label>
+                    <select 
+                        className="w-full p-2 lg:p-3 border-2 border-gray-300 bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white font-black outline-none focus:border-metro-orange h-[42px] lg:h-[52px] rounded-lg lg:text-lg"
+                        value={selectedFarmId}
+                        onChange={(e) => setSelectedFarmId(e.target.value)}
+                    >
+                        <option value="all">همه فارم‌های فعال</option>
                         {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                     </select>
                 </div>
-                <Button onClick={handleRefresh} disabled={isRefreshing} className="bg-metro-orange h-12 px-6 font-black w-full md:w-auto"><Icons.Refresh className={`w-5 h-5 ml-2 ${isRefreshing ? 'animate-spin' : ''}`} /> بروزرسانی</Button>
+                
+                <Button onClick={handleRefresh} disabled={isRefreshing} className="bg-metro-orange h-[42px] lg:h-[52px] px-6 font-black w-full md:w-auto lg:text-lg">
+                    <Icons.Refresh className={`w-4 h-4 lg:w-6 lg:h-6 ml-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    بروزرسانی لیست
+                </Button>
             </div>
 
-            <div className="bg-white dark:bg-[#1e293b] shadow-sm overflow-hidden border border-gray-100 dark:border-gray-700 rounded-[28px] flex-1 flex flex-col min-h-[500px]">
-                <div className="p-4 bg-gray-50/50 dark:bg-black/20 border-b border-gray-200 dark:border-gray-700 shrink-0 flex justify-between items-center">
-                    <h3 className="font-black text-xl text-gray-800 dark:text-white flex items-center gap-2"><Icons.FileText className="w-6 h-6 text-metro-orange" /> جدول فروش</h3>
-                    <span className="text-xs font-bold text-gray-400">{toPersianDigits(filteredInvoices.length)} مورد</span>
+            <div className="bg-white dark:bg-gray-800 p-0 shadow-sm overflow-hidden border border-gray-100 dark:border-gray-700 rounded-xl flex-1 flex flex-col min-h-[500px]">
+                <div className="p-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shrink-0 flex justify-between items-center">
+                    <h3 className="font-black text-xl text-gray-800 dark:text-white flex items-center gap-2">
+                        <Icons.FileText className="w-6 h-6 text-metro-orange" />
+                        جدول فروش روزانه
+                    </h3>
+                    <span className="text-xs font-bold text-gray-400">
+                        {toPersianDigits(filteredInvoices.length)} مورد یافت شد
+                    </span>
                 </div>
                 
-                <div className="flex-1 w-full overflow-x-auto">
-                    <div className="min-w-[1100px] h-full flex flex-col">
-                         <div className={`${GRID_TEMPLATE} bg-gray-50 dark:bg-black/20 text-gray-500 font-bold text-sm p-4 border-b border-gray-200 dark:border-gray-700 shrink-0 sticky top-0 z-10 pr-4`}>
-                            <div>تاریخ</div><div className="text-center">رمز حواله</div><div>فارم</div><div>محصول</div><div className="text-center">تعداد</div><div className="text-center">وزن</div><div className="text-center">ثبت کننده</div><div className="text-center">ساعت</div><div className="text-center">وضعیت</div>
-                        </div>
-                        <div className="flex-1 overflow-y-auto custom-scrollbar">
-                            {isLoading ? <div className="p-4 space-y-4"><SkeletonRow cols={9} /><SkeletonRow cols={9} /></div> : filteredInvoices.length === 0 ? <div className="text-center py-20 text-gray-400 font-bold">هیچ حواله‌ای یافت نشد</div> : filteredInvoices.map(invoice => <StandardInvoiceRow key={invoice.id} invoice={invoice} farms={farms} products={products} renderInvoiceNumber={renderInvoiceNumber} />)}
-                        </div>
-                        {filteredInvoices.length > 0 && (
-                            <div className="bg-gray-50 dark:bg-black/20 border-t border-gray-200 dark:border-gray-700 p-4 flex justify-end items-center gap-6 shrink-0">
-                                <div className="text-sm font-bold text-gray-500">جمع کل:</div>
-                                <div className="flex items-center gap-2 bg-white dark:bg-gray-700 px-4 py-2 rounded-xl shadow-sm"><span className="text-gray-400 text-xs">کارتن:</span><span className="font-black text-lg dark:text-white">{toPersianDigits(totals.cartons)}</span></div>
-                                <div className="flex items-center gap-2 bg-white dark:bg-gray-700 px-4 py-2 rounded-xl shadow-sm"><span className="text-gray-400 text-xs">وزن:</span><span className="font-black text-lg text-metro-blue">{toPersianDigits(totals.weight)}</span></div>
+                <div className="w-full h-full overflow-hidden flex flex-col">
+                    <div className="flex-1 w-full overflow-x-auto">
+                        <div className="min-w-[1300px] h-full flex flex-col">
+                             <div className={`${GRID_TEMPLATE} bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 text-sm lg:text-base font-bold p-4 border-b border-gray-200 dark:border-gray-700 shrink-0 sticky top-0 z-10 pr-4 shadow-sm`}>
+                                <div>تاریخ خروج</div>
+                                <div className="text-center">رمز حواله</div>
+                                <div>فارم</div>
+                                <div>نوع محصول</div>
+                                <div className="text-center">تعداد (کارتن)</div>
+                                <div className="text-center">وزن (Kg)</div>
+                                <div className="text-center">ثبت کننده</div>
+                                <div className="text-center">ساعت</div>
+                                <div className="text-center">وضعیت</div>
                             </div>
-                        )}
+                            
+                            <div className="flex-1 overflow-y-auto custom-scrollbar">
+                                {isLoading ? (
+                                    <div className="p-4 space-y-4">
+                                        <SkeletonRow cols={9} />
+                                        <SkeletonRow cols={9} />
+                                        <SkeletonRow cols={9} />
+                                    </div>
+                                ) : filteredInvoices.length === 0 ? (
+                                    <div className="text-center py-20 text-gray-400 font-bold lg:text-lg">
+                                        <div className="flex flex-col items-center">
+                                            <Icons.FileText className="w-16 h-16 mb-2 opacity-30" />
+                                            <span>
+                                                {ignoreDate 
+                                                    ? 'هیچ حواله‌ای با این مشخصات یافت نشد.' 
+                                                    : `هیچ حواله‌ای برای تاریخ ${toPersianDigits(normalizedFilterDate)} یافت نشد.`}
+                                            </span>
+                                            {!ignoreDate && (
+                                                <button onClick={() => setIgnoreDate(true)} className="mt-2 text-metro-blue underline text-sm">
+                                                    نمایش همه تاریخ‌ها
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    filteredInvoices.map(invoice => (
+                                        <StandardInvoiceRow 
+                                            key={invoice.id} 
+                                            invoice={invoice} 
+                                            farms={farms} 
+                                            products={products} 
+                                            renderInvoiceNumber={renderInvoiceNumber} 
+                                        />
+                                    ))
+                                )}
+                            </div>
+                            
+                            {filteredInvoices.length > 0 && (
+                                <div className="bg-gray-100 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-4 flex justify-end items-center gap-6 shrink-0">
+                                    <div className="text-sm font-bold text-gray-600 dark:text-gray-400">جمع کل:</div>
+                                    <div className="flex items-center gap-2 bg-white dark:bg-gray-800 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+                                        <span className="text-gray-500 text-xs font-bold">کارتن:</span>
+                                        <span className="font-black text-lg text-gray-800 dark:text-white">{toPersianDigits(totals.cartons)}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 bg-white dark:bg-gray-800 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+                                        <span className="text-gray-500 text-xs font-bold">وزن:</span>
+                                        <span className="font-black text-lg text-metro-blue">{toPersianDigits(totals.weight)}</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -297,13 +415,12 @@ const InvoiceList = () => {
 };
 
 const AnalyticsView = () => {
-    // Analytics view logic (simplified for brevity, keeps existing logic but updated styling)
     return <div className="text-center p-10 text-gray-400">بخش نمودارها در حال بروزرسانی است...</div>;
 };
 
 const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNavigate }) => {
     return (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 lg:gap-6">
             <MetroTile title="پایش آمار فارم‌ها" icon={Icons.BarChart} color="bg-metro-blue" size="wide" onClick={() => onNavigate('farm-stats')} />
             <MetroTile title="لیست حواله‌های فروش" icon={Icons.FileText} color="bg-metro-orange" size="wide" onClick={() => onNavigate('invoices')} />
             <MetroTile title="تحلیل نموداری" icon={Icons.BarChart} color="bg-purple-600" size="medium" onClick={() => onNavigate('analytics')} />
@@ -320,14 +437,22 @@ const SalesDashboard: React.FC = () => {
         if(currentView === 'farm-stats') return 'پایش آمار لحظه‌ای';
         if(currentView === 'invoices') return 'جدول فروش روزانه';
         if(currentView === 'reports') return 'گزارشات فروش';
-        if(currentView === 'analytics') return 'تحلیل نموداری';
+        if(currentView === 'analytics') return 'تحلیل نموداری تولید و فروش';
         return 'داشبورد فروش و توزیع';
     }
 
     const renderContent = () => {
         if (isLoading && currentView === 'dashboard') {
-            return <div className="grid grid-cols-2 gap-4"><SkeletonTile size="wide"/><SkeletonTile size="wide"/></div>;
+            return (
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                    <SkeletonTile size="wide" />
+                    <SkeletonTile size="wide" />
+                    <SkeletonTile size="medium" />
+                    <SkeletonTile size="medium" />
+                </div>
+            );
         }
+
         switch (currentView) {
             case 'farm-stats': return <FarmStatistics />;
             case 'invoices': return <InvoiceList />;
