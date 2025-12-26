@@ -10,7 +10,7 @@ import { Icons } from '../common/Icons';
 import Button from '../common/Button';
 import JalaliDatePicker from '../common/JalaliDatePicker';
 import * as XLSX from 'xlsx';
-import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange } from '../../utils/dateUtils';
+import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange, toEnglishDigits } from '../../utils/dateUtils';
 import { useConfirm } from '../../hooks/useConfirm';
 import Modal from '../common/Modal';
 
@@ -151,8 +151,8 @@ const Reports: React.FC = () => {
         const parts = plate.split('-');
         if (parts.length === 4) {
             // parts[0]: 2 digits, parts[1]: Letter, parts[2]: 3 digits, parts[3]: 2 digits (Iran code)
-            // Requested Format: 22 B 365 - 11 (Left to Right)
-            return `${parts[0]} ${parts[1]} ${parts[2]} - ${parts[3]}`;
+            // Reverse format: 11 - 365 B 22 (Left to Right reading)
+            return `${toPersianDigits(parts[3])} - ${toPersianDigits(parts[2])} ${parts[1]} ${toPersianDigits(parts[0])}`;
         }
         return plate;
     };
@@ -312,7 +312,7 @@ const Reports: React.FC = () => {
                                                 <div className="flex items-center gap-2">
                                                     <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded-md font-bold text-xs">{row.creatorName || 'ناشناس'}</span>
                                                     <div className="flex flex-col">
-                                                        <span className="font-mono text-[10px] opacity-60">{displayTime}</span>
+                                                        <span className="font-mono text-[10px] opacity-60">{toPersianDigits(displayTime)}</span>
                                                         {isEdited && <span className="text-[9px] text-orange-500 font-bold">(ویرایش شده)</span>}
                                                     </div>
                                                 </div>
@@ -333,7 +333,7 @@ const Reports: React.FC = () => {
                                                 <div className="flex items-center gap-2">
                                                     <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded-md font-bold text-xs">{row.creatorName || 'ناشناس'}</span>
                                                     <div className="flex flex-col">
-                                                        <span className="font-mono text-[10px] opacity-60">{displayTime}</span>
+                                                        <span className="font-mono text-[10px] opacity-60">{toPersianDigits(displayTime)}</span>
                                                         {isEdited && <span className="text-[9px] text-orange-500 font-bold">(ویرایش شده)</span>}
                                                     </div>
                                                 </div>
@@ -355,12 +355,12 @@ const Reports: React.FC = () => {
             <Modal isOpen={!!editingStat} onClose={() => setEditingStat(null)} title="اصلاح مدیریتی آمار">
                 <div className="space-y-6">
                     <div className="grid grid-cols-2 gap-4">
-                        <div><label className="text-xs font-bold mb-2 block mr-1 dark:text-gray-300">تولید (تعداد)</label><input type="number" value={statForm.prod} onChange={e => setStatForm({...statForm, prod: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-700 dark:text-white rounded-xl text-center font-black text-2xl outline-none border-none focus:ring-2 focus:ring-metro-blue"/></div>
-                        <div><label className="text-xs font-bold mb-2 block mr-1 dark:text-gray-300">فروش (تعداد)</label><input type="number" value={statForm.sales} onChange={e => setStatForm({...statForm, sales: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-700 dark:text-white rounded-xl text-center font-black text-2xl outline-none border-none focus:ring-2 focus:ring-metro-blue"/></div>
+                        <div><label className="text-xs font-bold mb-2 block mr-1 dark:text-gray-300">تولید (تعداد)</label><input type="text" inputMode="numeric" value={toPersianDigits(statForm.prod)} onChange={e => setStatForm({...statForm, prod: toEnglishDigits(e.target.value)})} className="w-full p-4 bg-gray-50 dark:bg-gray-700 dark:text-white rounded-xl text-center font-black text-2xl outline-none border-none focus:ring-2 focus:ring-metro-blue"/></div>
+                        <div><label className="text-xs font-bold mb-2 block mr-1 dark:text-gray-300">فروش (تعداد)</label><input type="text" inputMode="numeric" value={toPersianDigits(statForm.sales)} onChange={e => setStatForm({...statForm, sales: toEnglishDigits(e.target.value)})} className="w-full p-4 bg-gray-50 dark:bg-gray-700 dark:text-white rounded-xl text-center font-black text-2xl outline-none border-none focus:ring-2 focus:ring-metro-blue"/></div>
                     </div>
                     <div className="grid grid-cols-2 gap-4 border-t pt-4 border-dashed border-gray-300 dark:border-gray-600">
-                        <div><label className="text-xs font-bold mb-2 block mr-1 dark:text-gray-300">تولید (Kg)</label><input type="number" step="0.1" value={statForm.prodKg} onChange={e => setStatForm({...statForm, prodKg: e.target.value})} className="w-full p-4 bg-blue-50/50 dark:bg-blue-900/10 dark:text-white rounded-xl text-center font-black text-2xl outline-none border-none focus:ring-2 focus:ring-blue-500"/></div>
-                        <div><label className="text-xs font-bold mb-2 block mr-1 dark:text-gray-300">فروش (Kg)</label><input type="number" step="0.1" value={statForm.salesKg} onChange={e => setStatForm({...statForm, salesKg: e.target.value})} className="w-full p-4 bg-blue-50/50 dark:bg-blue-900/10 dark:text-white rounded-xl text-center font-black text-2xl outline-none border-none focus:ring-2 focus:ring-blue-500"/></div>
+                        <div><label className="text-xs font-bold mb-2 block mr-1 dark:text-gray-300">تولید (Kg)</label><input type="text" inputMode="decimal" value={toPersianDigits(statForm.prodKg)} onChange={e => setStatForm({...statForm, prodKg: toEnglishDigits(e.target.value)})} className="w-full p-4 bg-blue-50/50 dark:bg-blue-900/10 dark:text-white rounded-xl text-center font-black text-2xl outline-none border-none focus:ring-2 focus:ring-blue-500"/></div>
+                        <div><label className="text-xs font-bold mb-2 block mr-1 dark:text-gray-300">فروش (Kg)</label><input type="text" inputMode="decimal" value={toPersianDigits(statForm.salesKg)} onChange={e => setStatForm({...statForm, salesKg: toEnglishDigits(e.target.value)})} className="w-full p-4 bg-blue-50/50 dark:bg-blue-900/10 dark:text-white rounded-xl text-center font-black text-2xl outline-none border-none focus:ring-2 focus:ring-blue-500"/></div>
                     </div>
                     <div className="flex justify-end gap-3 pt-6 border-t border-gray-100 dark:border-gray-700"><Button variant="secondary" onClick={() => setEditingStat(null)}>انصراف</Button><Button onClick={saveStatEdit}>ذخیره تغییرات مدیریت</Button></div>
                 </div>

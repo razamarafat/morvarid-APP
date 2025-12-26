@@ -72,22 +72,9 @@ const FarmStatistics = () => {
         e.stopPropagation(); 
         setAlertLoading(farmId);
         
-        try {
-            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-            if (AudioContextClass) {
-                const ctx = new AudioContextClass();
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.frequency.setValueAtTime(440, ctx.currentTime);
-                osc.frequency.linearRampToValueAtTime(880, ctx.currentTime + 0.1);
-                gain.gain.setValueAtTime(0.1, ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-                osc.start();
-                osc.stop(ctx.currentTime + 0.3);
-            }
-        } catch(e) {}
+        // BUG FIX: Removed local AudioContext sound playback.
+        // The sender should not hear the alert sound, only the recipient.
+        // The Toast below provides sufficient feedback to the sender.
 
         const message = `عدم ثبت آمار برای فارم ${farmName} در تاریخ ${normalizedSelectedDate}`;
         const result = await sendAlert(farmId, farmName, message);
@@ -211,7 +198,7 @@ const FarmStatistics = () => {
                                                             </div>
                                                             <div className="flex items-center gap-1">
                                                                 <Icons.Clock className="w-3 h-3" />
-                                                                <span className="font-mono">{new Date(stat.createdAt).toLocaleTimeString('fa-IR', {hour: '2-digit', minute:'2-digit'})}</span>
+                                                                <span className="font-mono">{toPersianDigits(new Date(stat.createdAt).toLocaleTimeString('fa-IR', {hour: '2-digit', minute:'2-digit'}))}</span>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -259,17 +246,21 @@ const FarmStatistics = () => {
 const GRID_TEMPLATE = "grid grid-cols-[90px_140px_110px_minmax(200px,1fr)_90px_90px_130px_80px_90px] gap-4 items-center";
 
 // STANDARD Invoice Row Component (No React-Window style injection)
-const StandardInvoiceRow = ({ invoice, farms, products, renderInvoiceNumber }: { invoice: Invoice, farms: any[], products: any[], renderInvoiceNumber: (num: string) => any }) => {
+// WRAPPED IN MEMO FOR PERFORMANCE (Task 3)
+const StandardInvoiceRow = React.memo(({ invoice, farms, products, renderInvoiceNumber }: { invoice: Invoice, farms: any[], products: any[], renderInvoiceNumber: (num: string) => any }) => {
     const productName = products.find((p: any) => p.id === invoice.productId)?.name || '-';
-    const time = new Date(invoice.createdAt).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+    // UPDATED: Show updated time if edited
+    const isEdited = !!invoice.updatedAt;
+    const time = new Date(isEdited ? invoice.updatedAt! : invoice.createdAt).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
     
+    // UPDATED CLASSNAME for Zebra Striping (Task 1) and Monospace font logic (Task 2)
     return (
-        <div className={`${GRID_TEMPLATE} text-right border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors text-gray-800 dark:text-gray-200 text-sm py-4 px-2 min-w-[1100px] odd:bg-white even:bg-gray-50/50 dark:odd:bg-gray-800 dark:even:bg-gray-800/50`}>
+        <div className={`${GRID_TEMPLATE} text-right border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors text-gray-800 dark:text-gray-200 text-sm py-4 px-2 min-w-[1100px] odd:bg-white even:bg-gray-50 dark:odd:bg-gray-800 dark:even:bg-gray-900/30`}>
             {/* 1. Date */}
             <div className="font-black whitespace-nowrap tracking-tighter shrink-0">{toPersianDigits(invoice.date)}</div>
             
             {/* 2. Invoice Num (LTR ENFORCED) */}
-            <div className="text-center shrink-0">
+            <div className="text-center shrink-0 font-mono">
                 {renderInvoiceNumber(invoice.invoiceNumber)}
             </div>
             
@@ -293,7 +284,10 @@ const StandardInvoiceRow = ({ invoice, farms, products, renderInvoiceNumber }: {
             </div>
 
             {/* 8. Time (NEW) */}
-            <div className="text-center font-mono text-xs font-bold text-gray-500 shrink-0 dir-ltr">{time}</div>
+            <div className="text-center flex flex-col items-center shrink-0">
+                <span className="font-mono text-xs font-bold text-gray-500 dir-ltr">{toPersianDigits(time)}</span>
+                {isEdited && <span className="text-[9px] text-orange-500 font-bold">(ویرایش شده)</span>}
+            </div>
 
             {/* 9. Status */}
             <div className="text-center shrink-0">
@@ -303,7 +297,7 @@ const StandardInvoiceRow = ({ invoice, farms, products, renderInvoiceNumber }: {
             </div>
         </div>
     );
-};
+});
 
 const InvoiceList = () => {
     const { invoices, fetchInvoices, isLoading } = useInvoiceStore();
@@ -609,7 +603,7 @@ const AnalyticsView = () => {
                             return (
                                 <div key={index} className="flex-1 flex flex-col justify-end items-center gap-1 group relative h-full z-10">
                                     <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black text-white text-[10px] lg:text-sm p-2 lg:p-3 rounded pointer-events-none whitespace-nowrap z-20">
-                                        <div className="text-center font-bold mb-1 border-b border-white/20 pb-1">{point.date}</div>
+                                        <div className="text-center font-bold mb-1 border-b border-white/20 pb-1">{toPersianDigits(point.date)}</div>
                                         <div>تولید: {toPersianDigits(point.prod)}</div>
                                         <div>فروش: {toPersianDigits(point.sale)}</div>
                                     </div>

@@ -8,7 +8,7 @@ import { useFarmStore } from '../../store/farmStore';
 import { useInvoiceStore } from '../../store/invoiceStore';
 import { useStatisticsStore } from '../../store/statisticsStore';
 import { useToastStore } from '../../store/toastStore';
-import { getTodayJalali, getTodayDayName, getCurrentTime, normalizeDate, toPersianDigits } from '../../utils/dateUtils';
+import { getTodayJalali, getTodayDayName, getCurrentTime, normalizeDate, toPersianDigits, toEnglishDigits } from '../../utils/dateUtils';
 import Button from '../common/Button';
 import { Icons } from '../common/Icons';
 import { useConfirm } from '../../hooks/useConfirm';
@@ -67,10 +67,18 @@ export const InvoiceForm: React.FC = () => {
     const [plateParts, setPlateParts] = useState({ part1: '', letter: '', part3: '', part4: '' });
     const [showLetterPicker, setShowLetterPicker] = useState(false);
 
-    const { register, handleSubmit, setValue, formState: { errors } } = useForm<GlobalValues>({
+    const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<GlobalValues>({
         resolver: zodResolver(invoiceGlobalSchema),
         defaultValues: { description: '' }
     });
+
+    // Helper to force Persian digits in inputs
+    const handlePersianInput = (e: React.FormEvent<HTMLInputElement>, fieldName: keyof GlobalValues) => {
+        const val = e.currentTarget.value;
+        const englishVal = toEnglishDigits(val);
+        setValue(fieldName, englishVal);
+        e.currentTarget.value = toPersianDigits(englishVal);
+    };
 
     useEffect(() => {
         setReferenceDate(normalizedDate);
@@ -106,9 +114,9 @@ export const InvoiceForm: React.FC = () => {
     const handleItemChange = (pid: string, field: 'cartons' | 'weight', val: string) => {
         let cleanVal = '';
         if (field === 'cartons') {
-            cleanVal = val.replace(/[^0-9]/g, '');
+            cleanVal = toEnglishDigits(val).replace(/[^0-9]/g, '');
         } else {
-            cleanVal = val.replace(/[^0-9.]/g, '');
+            cleanVal = toEnglishDigits(val).replace(/[^0-9.]/g, '');
         }
         
         setItemsState(prev => ({
@@ -245,7 +253,7 @@ export const InvoiceForm: React.FC = () => {
                         <span className="text-blue-100 font-bold text-sm tracking-widest uppercase bg-black/10 px-3 py-0.5 rounded-full backdrop-blur-sm">
                              {todayDayName}
                         </span>
-                        <div className="text-xl font-bold opacity-90 font-sans tabular-nums tracking-wide">{currentTime}</div>
+                        <div className="text-xl font-bold opacity-90 font-sans tabular-nums tracking-wide">{toPersianDigits(currentTime)}</div>
                      </div>
                      <div className="flex items-center gap-4">
                          <h1 className="text-5xl lg:text-6xl font-black font-sans tabular-nums tracking-tighter drop-shadow-lg leading-none">
@@ -271,12 +279,13 @@ export const InvoiceForm: React.FC = () => {
                         <div>
                             <label className={labelClass}>رمز حواله (۱۰ رقم)</label>
                             <input 
-                                type="tel" 
-                                dir="ltr" 
+                                type="text" 
+                                inputMode="numeric"
                                 maxLength={10}
                                 {...register('invoiceNumber')} 
                                 className={`${inputClass} tracking-[0.3em] text-3xl h-16 border-metro-orange/30 focus:border-metro-orange focus:ring-4 focus:ring-orange-500/10`}
                                 placeholder=""
+                                onInput={(e) => handlePersianInput(e, 'invoiceNumber')}
                             />
                             {errors.invoiceNumber && <p className="text-red-500 text-xs font-bold mt-2 mr-1">{errors.invoiceNumber.message}</p>}
                         </div>
@@ -342,11 +351,11 @@ export const InvoiceForm: React.FC = () => {
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <label className="text-[10px] font-bold text-gray-400 block mb-1">تعداد (کارتن)</label>
-                                                <input type="tel" className="w-full p-3 bg-white dark:bg-gray-800 dark:text-white text-center font-black text-xl rounded-xl outline-none focus:ring-2 focus:ring-metro-blue border-2 border-transparent dark:border-gray-700" placeholder="" value={itemsState[pid]?.cartons || ''} onChange={e => handleItemChange(pid, 'cartons', e.target.value)} />
+                                                <input type="text" inputMode="numeric" className="w-full p-3 bg-white dark:bg-gray-800 dark:text-white text-center font-black text-xl rounded-xl outline-none focus:ring-2 focus:ring-metro-blue border-2 border-transparent dark:border-gray-700" placeholder="" value={toPersianDigits(itemsState[pid]?.cartons || '')} onChange={e => handleItemChange(pid, 'cartons', e.target.value)} />
                                             </div>
                                             <div>
                                                 <label className="text-[10px] font-bold text-gray-400 block mb-1">وزن (کیلوگرم)</label>
-                                                <input type="tel" className="w-full p-3 bg-white dark:bg-gray-800 dark:text-white text-center font-black text-xl rounded-xl outline-none focus:ring-2 focus:ring-metro-blue border-b-4 border-metro-blue dark:border-metro-blue" placeholder="" value={itemsState[pid]?.weight || ''} onChange={e => handleItemChange(pid, 'weight', e.target.value)} />
+                                                <input type="text" inputMode="decimal" className="w-full p-3 bg-white dark:bg-gray-800 dark:text-white text-center font-black text-xl rounded-xl outline-none focus:ring-2 focus:ring-metro-blue border-b-4 border-metro-blue dark:border-metro-blue" placeholder="" value={toPersianDigits(itemsState[pid]?.weight || '')} onChange={e => handleItemChange(pid, 'weight', e.target.value)} />
                                             </div>
                                         </div>
                                     </div>
@@ -380,7 +389,15 @@ export const InvoiceForm: React.FC = () => {
                             </div>
                             <div>
                                 <label className={labelClass}>شماره تماس</label>
-                                <input type="tel" dir="ltr" maxLength={11} {...register('contactPhone')} className={`${inputClass} font-mono tracking-widest`} placeholder="" />
+                                <input 
+                                    type="text" 
+                                    inputMode="tel"
+                                    maxLength={11} 
+                                    {...register('contactPhone')} 
+                                    className={`${inputClass} font-mono tracking-widest`} 
+                                    placeholder="" 
+                                    onInput={(e) => handlePersianInput(e, 'contactPhone')}
+                                />
                                 {errors.contactPhone && <p className="text-red-500 text-xs font-bold mt-2">{errors.contactPhone.message}</p>}
                             </div>
                         </div>
@@ -391,7 +408,7 @@ export const InvoiceForm: React.FC = () => {
                             <div className="grid grid-cols-[1.2fr_auto_1.5fr_auto] gap-2 items-center bg-gray-100 dark:bg-gray-200 p-3 rounded-2xl border-2 border-gray-300 w-full" dir="ltr">
                                 
                                 {/* Part 1: 2 Digits */}
-                                <input type="tel" maxLength={2} value={plateParts.part1} onChange={e => setPlateParts(p => ({...p, part1: e.target.value.replace(/\D/g, '')}))} className="h-14 bg-white/50 dark:bg-white/50 rounded-lg text-center font-black text-2xl outline-none text-black placeholder-gray-400 w-full min-w-0" placeholder="22" />
+                                <input type="text" inputMode="numeric" maxLength={2} value={toPersianDigits(plateParts.part1)} onChange={e => setPlateParts(p => ({...p, part1: toEnglishDigits(e.target.value)}))} className="h-14 bg-white/50 dark:bg-white/50 rounded-lg text-center font-black text-2xl outline-none text-black placeholder-gray-400 w-full min-w-0" placeholder="۲۲" />
                                 
                                 {/* Letter */}
                                 <div className="relative h-14">
@@ -410,18 +427,19 @@ export const InvoiceForm: React.FC = () => {
                                 </div>
 
                                 {/* Part 3: 3 Digits */}
-                                <input type="tel" maxLength={3} value={plateParts.part3} onChange={e => setPlateParts(p => ({...p, part3: e.target.value.replace(/\D/g, '')}))} className="h-14 bg-white/50 dark:bg-white/50 rounded-lg text-center font-black text-2xl outline-none text-black placeholder-gray-400 w-full min-w-0" placeholder="365" />
+                                <input type="text" inputMode="numeric" maxLength={3} value={toPersianDigits(plateParts.part3)} onChange={e => setPlateParts(p => ({...p, part3: toEnglishDigits(e.target.value)}))} className="h-14 bg-white/50 dark:bg-white/50 rounded-lg text-center font-black text-2xl outline-none text-black placeholder-gray-400 w-full min-w-0" placeholder="۳۶۵" />
 
                                 {/* Part 4: Iran Code - Fixed Width Container */}
                                 <div className="flex flex-col items-center justify-center w-14 h-14 bg-white border border-black/10 rounded-lg shadow-sm">
                                     <span className="text-[8px] font-black text-black">ایران</span>
                                     <input 
-                                        type="tel" 
+                                        type="text"
+                                        inputMode="numeric" 
                                         maxLength={2} 
-                                        value={plateParts.part4} 
-                                        onChange={e => setPlateParts(p => ({...p, part4: e.target.value.replace(/\D/g, '')}))} 
+                                        value={toPersianDigits(plateParts.part4)} 
+                                        onChange={e => setPlateParts(p => ({...p, part4: toEnglishDigits(e.target.value)}))} 
                                         className="w-full h-full bg-transparent text-center font-black text-xl outline-none text-black placeholder-gray-400 p-0 -mt-1" 
-                                        placeholder="11" 
+                                        placeholder="۱۱" 
                                     />
                                 </div>
                             </div>
