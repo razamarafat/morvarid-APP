@@ -145,16 +145,18 @@ const Reports: React.FC = () => {
         else addToast(result.error || 'خطا در ثبت تغییرات', 'error');
     };
 
+    // UPDATED: Custom format [2] [L] [3] - [2]
     const formatPlateForExcel = (plate: string) => {
-        if (!plate || !plate.includes('-')) return plate;
+        if (!plate || !plate.includes('-')) return plate || '-';
         const parts = plate.split('-');
         if (parts.length === 4) {
-            return `${parts[3]} - ${parts[2]} ${parts[1]} ${parts[0]}`;
+            // parts[0]: 2 digits, parts[1]: Letter, parts[2]: 3 digits, parts[3]: 2 digits (Iran code)
+            // Requested Format: 22 B 365 - 11 (Left to Right)
+            return `${parts[0]} ${parts[1]} ${parts[2]} - ${parts[3]}`;
         }
         return plate;
     };
 
-    // FIXED: Better string formatting for excel/display to avoid 0s when value exists
     const getDualValueString = (units: number, weight: number) => {
         const parts = [];
         if (units > 0) parts.push(`${units}`);
@@ -173,29 +175,33 @@ const Reports: React.FC = () => {
         let wsData: any[] = [];
         
         if (reportTab === 'stats') {
-            const headers = ['تاریخ', 'فارم', 'محصول', 'تولید', 'فروش', 'موجودی', 'مسئول ثبت', 'ساعت ثبت', 'آخرین ویرایش'];
+            const headers = ['تاریخ', 'فارم', 'محصول', 'تولید', 'فروش', 'موجودی', 'مسئول ثبت', 'زمان ثبت/ویرایش'];
             const headerRow = headers.map(h => cell(h, headerStyle));
             
             const rows = previewData.map(item => {
                 const prod = getProductById(item.productId);
+                const displayTime = new Date(item.updatedAt || item.createdAt).toLocaleTimeString('fa-IR');
+                const timeLabel = item.updatedAt ? `${displayTime} (ویرایش شده)` : displayTime;
+
                 return [
                     cell(item.date),
                     cell(farms.find(f => f.id === item.farmId)?.name || '-'),
                     cell(prod?.name || '-'),
-                    // FIX: Ensure correct property access for Excel export
                     cell(getDualValueString(item.production || 0, item.productionKg || 0)),
                     cell(getDualValueString(item.sales || 0, item.salesKg || 0)),
                     cell(getDualValueString(item.currentInventory || 0, item.currentInventoryKg || 0)),
                     cell(item.creatorName || '-'),
-                    cell(new Date(item.createdAt).toLocaleTimeString('fa-IR')),
-                    cell(item.updatedAt ? new Date(item.updatedAt).toLocaleString('fa-IR') : '-')
+                    cell(timeLabel)
                 ];
             });
             wsData = [headerRow, ...rows];
         } else {
-            const headers = ['تاریخ', 'رمز حواله', 'فارم', 'نوع محصول', 'تعداد', 'وزن', 'شماره تماس', 'راننده', 'پلاک', 'مسئول ثبت', 'ساعت ثبت', 'آخرین ویرایش'];
+            const headers = ['تاریخ', 'رمز حواله', 'فارم', 'نوع محصول', 'تعداد', 'وزن', 'شماره تماس', 'راننده', 'پلاک', 'مسئول ثبت', 'زمان ثبت/ویرایش'];
             const headerRow = headers.map(h => cell(h, headerStyle));
             const rows = previewData.map(item => {
+                const displayTime = new Date(item.updatedAt || item.createdAt).toLocaleTimeString('fa-IR');
+                const timeLabel = item.updatedAt ? `${displayTime} (ویرایش شده)` : displayTime;
+
                 return [
                     cell(item.date),
                     cell(item.invoiceNumber),
@@ -205,10 +211,10 @@ const Reports: React.FC = () => {
                     cell(item.totalWeight || 0),
                     cell(item.driverPhone || '-'),
                     cell(item.driverName || '-'),
-                    cell(formatPlateForExcel(item.plateNumber)),
+                    // FIX: Ensure not null
+                    cell(formatPlateForExcel(item.plateNumber || '')),
                     cell(item.creatorName || '-'),
-                    cell(new Date(item.createdAt).toLocaleTimeString('fa-IR')),
-                    cell(item.updatedAt ? new Date(item.updatedAt).toLocaleString('fa-IR') : '-')
+                    cell(timeLabel)
                 ];
             });
             wsData = [headerRow, ...rows];
@@ -217,8 +223,7 @@ const Reports: React.FC = () => {
         const ws = XLSX.utils.aoa_to_sheet(wsData);
         ws['!dir'] = 'rtl';
         ws['!views'] = [{ rightToLeft: true }];
-        
-        ws['!cols'] = Array(10).fill({ wch: 25 });
+        ws['!cols'] = Array(11).fill({ wch: 25 });
 
         const wb = XLSX.utils.book_new();
         wb.Workbook = { Views: [{ RTL: true }] };
@@ -283,6 +288,10 @@ const Reports: React.FC = () => {
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                             {previewData.map(row => {
                                 const prod = getProductById(row.productId);
+                                // UPDATED: Time Display Logic
+                                const isEdited = !!row.updatedAt;
+                                const displayTime = new Date(isEdited ? row.updatedAt : row.createdAt).toLocaleTimeString('fa-IR', {hour: '2-digit', minute:'2-digit'});
+                                
                                 return (
                                 <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                                     {reportTab === 'stats' ? <>
@@ -302,7 +311,10 @@ const Reports: React.FC = () => {
                                             <div className="flex flex-col gap-1">
                                                 <div className="flex items-center gap-2">
                                                     <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded-md font-bold text-xs">{row.creatorName || 'ناشناس'}</span>
-                                                    <span className="font-mono text-[10px] opacity-60">{new Date(row.createdAt).toLocaleTimeString('fa-IR')}</span>
+                                                    <div className="flex flex-col">
+                                                        <span className="font-mono text-[10px] opacity-60">{displayTime}</span>
+                                                        {isEdited && <span className="text-[9px] text-orange-500 font-bold">(ویرایش شده)</span>}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </td>
@@ -315,12 +327,15 @@ const Reports: React.FC = () => {
                                         <td className="p-5 text-center text-blue-600 font-black text-xl lg:text-2xl">{toPersianDigits(row.totalWeight || 0)}</td>
                                         <td className="p-5 font-mono font-bold text-sm">{toPersianDigits(row.driverPhone || '-')}</td>
                                         <td className="p-5 font-bold">{row.driverName || '-'}</td>
-                                        <td className="p-5 font-mono text-sm">{formatPlateForExcel(row.plateNumber) || '-'}</td>
+                                        <td className="p-5 font-mono text-sm">{formatPlateForExcel(row.plateNumber || '') || '-'}</td>
                                         <td className="p-5">
                                             <div className="flex flex-col gap-1">
                                                 <div className="flex items-center gap-2">
                                                     <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded-md font-bold text-xs">{row.creatorName || 'ناشناس'}</span>
-                                                    <span className="font-mono text-[10px] opacity-60">{new Date(row.createdAt).toLocaleTimeString('fa-IR')}</span>
+                                                    <div className="flex flex-col">
+                                                        <span className="font-mono text-[10px] opacity-60">{displayTime}</span>
+                                                        {isEdited && <span className="text-[9px] text-orange-500 font-bold">(ویرایش شده)</span>}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </td>

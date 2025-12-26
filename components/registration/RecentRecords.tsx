@@ -16,6 +16,7 @@ import { Invoice } from '../../types';
 import { SkeletonCard } from '../common/Skeleton';
 import JalaliDatePicker from '../common/JalaliDatePicker';
 import { useElementSize } from '../../hooks/useElementSize';
+import { AnimatePresence, motion } from 'framer-motion';
 
 const PERSIAN_LETTERS = [
     'الف', 'ب', 'پ', 'ت', 'ث', 'ج', 'چ', 'ح', 'خ', 'د', 'ذ', 'ر', 'ز', 'ژ', 
@@ -252,6 +253,7 @@ const RecentRecords: React.FC = () => {
     });
     
     const [plateParts, setPlateParts] = useState({ part1: '', letter: '', part3: '', part4: '' });
+    const [showLetterPicker, setShowLetterPicker] = useState(false);
 
     const farmId = user?.assignedFarms?.[0]?.id;
     const farmType = user?.assignedFarms?.[0]?.type;
@@ -395,7 +397,9 @@ const RecentRecords: React.FC = () => {
     const handleSaveInvoice = async () => {
         if (!editInvoice) return;
         const { part1, letter, part3, part4 } = plateParts;
-        const finalPlate = (part1 && letter && part3 && part4) ? `${part1}-${letter}-${part3}-${part4}` : editInvoice.plateNumber;
+        // Logic: If any part is filled, construct the plate string. If ALL are empty, result is empty string (delete plate).
+        // This allows user to delete a plate by clearing all inputs.
+        const finalPlate = (part1 || letter || part3 || part4) ? `${part1}-${letter}-${part3}-${part4}` : '';
 
         const result = await updateInvoice(editInvoice.id, {
             invoiceNumber: invoiceValues.invoiceNumber,
@@ -608,13 +612,63 @@ const RecentRecords: React.FC = () => {
                     <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1 custom-scrollbar">
                         <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-orange-200 dark:border-orange-800">
                             <label className="block text-sm font-bold mb-2 text-orange-700 dark:text-orange-400">رمز حواله</label>
-                            <input type="tel" readOnly className="w-full p-4 border-2 border-gray-200 rounded-xl text-center font-black text-3xl tracking-widest bg-gray-100 dark:bg-gray-800 text-gray-500 cursor-not-allowed outline-none" value={invoiceValues.invoiceNumber} />
-                            <p className="text-[10px] text-red-500 mt-1 text-center">رمز حواله قابل ویرایش نیست.</p>
+                            <input 
+                                type="tel" 
+                                className="w-full p-4 border-2 border-gray-200 rounded-xl text-center font-black text-3xl tracking-widest bg-white dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:border-metro-orange outline-none transition-colors" 
+                                value={invoiceValues.invoiceNumber} 
+                                onChange={(e) => setInvoiceValues({ ...invoiceValues, invoiceNumber: e.target.value })}
+                            />
                         </div>
+                        
                         <div className="grid grid-cols-2 gap-4">
                             <div><label className="block text-sm font-bold mb-2 dark:text-gray-300">تعداد کارتن</label><input type="tel" inputMode="numeric" className={inputClasses} value={invoiceValues.cartons} onChange={(e) => setInvoiceValues({ ...invoiceValues, cartons: e.target.value })} /></div>
                             <div><label className="block text-sm font-bold mb-2 text-blue-600 dark:text-blue-400">وزن واقعی (Kg)</label><input type="tel" inputMode="decimal" className={`${inputClasses} border-blue-100 dark:border-blue-900`} value={invoiceValues.weight} onChange={(e) => setInvoiceValues({ ...invoiceValues, weight: e.target.value })} /></div>
                         </div>
+
+                        {/* Driver & Phone */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-bold mb-2 dark:text-gray-300">نام راننده</label>
+                                <input type="text" className="w-full p-3 border-2 rounded-xl bg-white dark:bg-gray-700 dark:text-white dark:border-gray-600 outline-none" value={invoiceValues.driverName} onChange={(e) => setInvoiceValues({ ...invoiceValues, driverName: e.target.value })} />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold mb-2 dark:text-gray-300">شماره تماس</label>
+                                <input type="tel" className="w-full p-3 border-2 rounded-xl bg-white dark:bg-gray-700 dark:text-white dark:border-gray-600 outline-none text-center font-mono tracking-widest" value={invoiceValues.driverPhone} onChange={(e) => setInvoiceValues({ ...invoiceValues, driverPhone: e.target.value })} />
+                            </div>
+                        </div>
+
+                        {/* Plate Input - Reusing logic from InvoiceForm */}
+                        <div>
+                            <label className="block text-sm font-bold mb-2 dark:text-gray-300">شماره پلاک</label>
+                            <div className="grid grid-cols-[1.2fr_auto_1.5fr_auto] gap-2 items-center bg-gray-100 dark:bg-gray-900/50 p-3 rounded-2xl border-2 border-gray-200 dark:border-gray-600 w-full" dir="ltr">
+                                <input type="tel" maxLength={2} value={plateParts.part1} onChange={e => setPlateParts(p => ({...p, part1: e.target.value.replace(/\D/g, '')}))} className="h-12 bg-white dark:bg-gray-700 rounded-lg text-center font-black text-xl outline-none dark:text-white w-full min-w-0" placeholder="22" />
+                                <div className="relative h-12">
+                                    <button type="button" onClick={() => setShowLetterPicker(!showLetterPicker)} className="h-full px-2 bg-white dark:bg-gray-700 rounded-lg font-black text-lg flex items-center justify-center text-red-600 border border-gray-200 dark:border-gray-600 min-w-[3rem]">
+                                        {plateParts.letter || 'الف'}
+                                    </button>
+                                    <AnimatePresence>
+                                        {showLetterPicker && (
+                                            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white shadow-xl rounded-xl p-2 grid grid-cols-4 gap-1 w-56 z-50 h-48 overflow-y-auto border border-gray-200">
+                                                {PERSIAN_LETTERS.map(l => (
+                                                    <button key={l} type="button" onClick={() => { setPlateParts(p => ({...p, letter: l})); setShowLetterPicker(false); }} className="p-2 hover:bg-gray-100 rounded font-bold text-black text-lg">{l}</button>
+                                                ))}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                                <input type="tel" maxLength={3} value={plateParts.part3} onChange={e => setPlateParts(p => ({...p, part3: e.target.value.replace(/\D/g, '')}))} className="h-12 bg-white dark:bg-gray-700 rounded-lg text-center font-black text-xl outline-none dark:text-white w-full min-w-0" placeholder="365" />
+                                <div className="flex flex-col items-center justify-center w-12 h-12 bg-white dark:bg-gray-700 border border-black/10 dark:border-gray-600 rounded-lg shadow-sm">
+                                    <span className="text-[8px] font-black text-black dark:text-white">ایران</span>
+                                    <input type="tel" maxLength={2} value={plateParts.part4} onChange={e => setPlateParts(p => ({...p, part4: e.target.value.replace(/\D/g, '')}))} className="w-full h-full bg-transparent text-center font-black text-lg outline-none dark:text-white p-0 -mt-1" placeholder="11" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-bold mb-2 dark:text-gray-300">توضیحات</label>
+                            <textarea className="w-full p-3 border-2 rounded-xl bg-white dark:bg-gray-700 dark:text-white dark:border-gray-600 outline-none h-24 resize-none" value={invoiceValues.description} onChange={(e) => setInvoiceValues({ ...invoiceValues, description: e.target.value })} />
+                        </div>
+
                         <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700"><Button variant="secondary" onClick={handleCancelInvoice}>انصراف</Button><Button onClick={handleSaveInvoice}>ثبت تغییرات</Button></div>
                     </div>
                 </Modal>

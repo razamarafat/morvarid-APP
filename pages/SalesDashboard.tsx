@@ -249,7 +249,9 @@ const GRID_TEMPLATE = "grid grid-cols-[90px_140px_110px_minmax(200px,1fr)_90px_9
 // WRAPPED IN MEMO FOR PERFORMANCE (Task 3)
 const StandardInvoiceRow = React.memo(({ invoice, farms, products, renderInvoiceNumber }: { invoice: Invoice, farms: any[], products: any[], renderInvoiceNumber: (num: string) => any }) => {
     const productName = products.find((p: any) => p.id === invoice.productId)?.name || '-';
-    const time = new Date(invoice.createdAt).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+    // UPDATED: Show updated time if edited
+    const isEdited = !!invoice.updatedAt;
+    const time = new Date(isEdited ? invoice.updatedAt! : invoice.createdAt).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
     
     // UPDATED CLASSNAME for Zebra Striping (Task 1) and Monospace font logic (Task 2)
     return (
@@ -282,7 +284,10 @@ const StandardInvoiceRow = React.memo(({ invoice, farms, products, renderInvoice
             </div>
 
             {/* 8. Time (NEW) */}
-            <div className="text-center font-mono text-xs font-bold text-gray-500 shrink-0 dir-ltr">{time}</div>
+            <div className="text-center flex flex-col items-center shrink-0">
+                <span className="font-mono text-xs font-bold text-gray-500 dir-ltr">{time}</span>
+                {isEdited && <span className="text-[9px] text-orange-500 font-bold">(ویرایش شده)</span>}
+            </div>
 
             {/* 9. Status */}
             <div className="text-center shrink-0">
