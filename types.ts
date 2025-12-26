@@ -83,3 +83,12 @@ export interface Backup {
   createdAt: string;
   createdBy: string;
 }
+
+export interface NotificationItem {
+    id: string;
+    title: string;
+    message: string;
+    timestamp: number;
+    read: boolean;
+    type: 'info' | 'warning' | 'error' | 'success';
+}

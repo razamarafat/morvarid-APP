@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { FixedSizeList as List, areEqual } from 'react-window';
 import { useStatisticsStore, DailyStatistic } from '../../store/statisticsStore';
 import { useInvoiceStore } from '../../store/invoiceStore';
@@ -11,17 +11,13 @@ import { useConfirm } from '../../hooks/useConfirm';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 import { useToastStore } from '../../store/toastStore';
-import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange, toEnglishDigits } from '../../utils/dateUtils';
+import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange } from '../../utils/dateUtils';
 import { Invoice } from '../../types';
 import { SkeletonCard } from '../common/Skeleton';
 import JalaliDatePicker from '../common/JalaliDatePicker';
 import { useElementSize } from '../../hooks/useElementSize';
-import { AnimatePresence, motion } from 'framer-motion';
-
-const PERSIAN_LETTERS = [
-    'الف', 'ب', 'پ', 'ت', 'ث', 'ج', 'چ', 'ح', 'خ', 'د', 'ذ', 'ر', 'ز', 'ژ', 
-    'س', 'ش', 'ص', 'ض', 'ط', 'ظ', 'ع', 'غ', 'ف', 'ق', 'ک', 'گ', 'ل', 'م', 'ن', 'و', 'ه', 'ی'
-];
+import PersianNumberInput from '../common/PersianNumberInput';
+import PlateInput from '../common/PlateInput';
 
 interface StatCardProps {
     stat: DailyStatistic;
@@ -33,7 +29,6 @@ interface StatCardProps {
     isMotefereghe: boolean;
 }
 
-// OPTIMIZATION: Memoized StatCard
 const StatCard = React.memo<StatCardProps>(({ stat, getProductName, getProductUnit, isEditable, onEdit, onDelete, isMotefereghe }) => {
     const isLiquid = getProductName(stat.productId).includes('مایع');
     const canEdit = isEditable(stat.createdAt);
@@ -112,7 +107,6 @@ interface InvoiceCardProps {
     onDelete: (id: string) => void;
 }
 
-// OPTIMIZATION: Memoized InvoiceCard
 const InvoiceCard = React.memo<InvoiceCardProps>(({ inv, getProductName, isEditable, onEdit, onDelete }) => {
     const isLiquid = getProductName(inv.productId || '').includes('مایع');
     const canEdit = isEditable(inv.createdAt);
@@ -122,8 +116,6 @@ const InvoiceCard = React.memo<InvoiceCardProps>(({ inv, getProductName, isEdita
         if (!plate || !plate.includes('-')) return plate || '-';
         const parts = plate.split('-');
         if (parts.length === 4) {
-            // REVERSED ORDER: [Part4 Iran] - [Part3] [Part2 Letter] [Part1]
-            // Example: 11 - 365 B 22
             return `${toPersianDigits(parts[3])} - ${toPersianDigits(parts[2])} ${parts[1]} ${toPersianDigits(parts[0])}`;
         }
         return plate;
@@ -184,7 +176,6 @@ const InvoiceCard = React.memo<InvoiceCardProps>(({ inv, getProductName, isEdita
     );
 });
 
-// OPTIMIZATION: Memoized Row component for React-Window to prevent re-renders of all rows on scroll/update
 const Row = React.memo(({ index, style, data }: any) => {
     const { items, itemsPerRow, type, getProductName, products, isEditable, handleEditStatOpen, handleDeleteRecord, isMotefereghe, handleEditInvoiceOpen } = data;
     const fromIndex = index * itemsPerRow;
@@ -231,7 +222,6 @@ const RecentRecords: React.FC = () => {
     const { addToast } = useToastStore();
     const { confirm } = useConfirm();
     
-    // Replacement for AutoSizer
     const { ref: sizerRef, width, height } = useElementSize();
 
     const [activeTab, setActiveTab] = useState<'stats' | 'invoices'>('stats');
@@ -251,11 +241,13 @@ const RecentRecords: React.FC = () => {
         weight: '',
         driverName: '',
         driverPhone: '',
-        description: ''
+        description: '',
+        plateNumber: ''
     });
     
-    const [plateParts, setPlateParts] = useState({ part1: '', letter: '', part3: '', part4: '' });
-    const [showLetterPicker, setShowLetterPicker] = useState(false);
+    // Dirty State Tracking
+    const [initialStatValues, setInitialStatValues] = useState<any>(null);
+    const [initialInvoiceValues, setInitialInvoiceValues] = useState<any>(null);
 
     const farmId = user?.assignedFarms?.[0]?.id;
     const farmType = user?.assignedFarms?.[0]?.type;
@@ -323,15 +315,27 @@ const RecentRecords: React.FC = () => {
     const handleEditStatOpen = (stat: DailyStatistic) => {
         const fmt = (v: any) => (v === undefined || v === null) ? '' : String(v);
         setEditStat(stat);
-        setStatValues({ 
+        const vals = { 
             prod: fmt(stat.production), 
             prev: fmt(stat.previousBalance),
             prodKg: fmt(stat.productionKg),
             prevKg: fmt(stat.previousBalanceKg)
-        });
+        };
+        setStatValues(vals);
+        setInitialStatValues(vals);
     };
 
-    const handleCancelStat = () => {
+    const handleCancelStat = async () => {
+        if (JSON.stringify(statValues) !== JSON.stringify(initialStatValues)) {
+            const confirmed = await confirm({
+                title: 'لغو تغییرات',
+                message: 'آیا مطمئن هستید؟ تغییرات ذخیره نشده از دست خواهند رفت.',
+                confirmText: 'بله، لغو کن',
+                cancelText: 'بازگشت',
+                type: 'warning'
+            });
+            if (!confirmed) return;
+        }
         setEditStat(null);
         setStatValues({ prod: '', prev: '', prodKg: '', prevKg: '' });
     };
@@ -366,24 +370,30 @@ const RecentRecords: React.FC = () => {
     const handleEditInvoiceOpen = (inv: Invoice) => {
         const fmt = (v: any) => (v === undefined || v === null) ? '' : String(v);
         setEditInvoice(inv);
-        setInvoiceValues({ 
+        const vals = { 
             invoiceNumber: inv.invoiceNumber,
             cartons: fmt(inv.totalCartons), 
             weight: fmt(inv.totalWeight),
             driverName: inv.driverName || '',
             driverPhone: inv.driverPhone || '',
-            description: inv.description || ''
-        });
-
-        if (inv.plateNumber && inv.plateNumber.includes('-')) {
-            const parts = inv.plateNumber.split('-');
-            if (parts.length === 4) setPlateParts({ part1: parts[0], letter: parts[1], part3: parts[2], part4: parts[3] });
-        } else {
-            setPlateParts({ part1: '', letter: '', part3: '', part4: '' });
-        }
+            description: inv.description || '',
+            plateNumber: inv.plateNumber || ''
+        };
+        setInvoiceValues(vals);
+        setInitialInvoiceValues(vals);
     };
 
-    const handleCancelInvoice = () => {
+    const handleCancelInvoice = async () => {
+        if (JSON.stringify(invoiceValues) !== JSON.stringify(initialInvoiceValues)) {
+            const confirmed = await confirm({
+                title: 'لغو تغییرات',
+                message: 'آیا مطمئن هستید؟ تغییرات ذخیره نشده از دست خواهند رفت.',
+                confirmText: 'بله، لغو کن',
+                cancelText: 'بازگشت',
+                type: 'warning'
+            });
+            if (!confirmed) return;
+        }
         setEditInvoice(null);
         setInvoiceValues({ 
             invoiceNumber: '',
@@ -391,22 +401,20 @@ const RecentRecords: React.FC = () => {
             weight: '',
             driverName: '',
             driverPhone: '',
-            description: ''
+            description: '',
+            plateNumber: ''
         });
-        setPlateParts({ part1: '', letter: '', part3: '', part4: '' });
     };
 
     const handleSaveInvoice = async () => {
         if (!editInvoice) return;
-        const { part1, letter, part3, part4 } = plateParts;
-        const finalPlate = (part1 || letter || part3 || part4) ? `${part1}-${letter}-${part3}-${part4}` : '';
-
+        
         const result = await updateInvoice(editInvoice.id, {
             invoiceNumber: invoiceValues.invoiceNumber,
             totalCartons: Number(invoiceValues.cartons),
             totalWeight: Number(invoiceValues.weight),
             driverName: invoiceValues.driverName,
-            plateNumber: finalPlate,
+            plateNumber: invoiceValues.plateNumber,
             driverPhone: invoiceValues.driverPhone,
             description: invoiceValues.description
         });
@@ -572,7 +580,6 @@ const RecentRecords: React.FC = () => {
                 </div>
             </div>
             
-            {/* Modals are conditionally rendered to keep DOM light */}
             {!!editStat && (
                 <Modal isOpen={true} onClose={handleCancelStat} title="ویرایش آمار روزانه">
                     <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1">
@@ -581,24 +588,12 @@ const RecentRecords: React.FC = () => {
                             <div className={`grid gap-4 ${isMotefereghe ? 'grid-cols-1' : 'grid-cols-2'}`}>
                                 <div>
                                     <label className="block text-sm font-black mb-1 opacity-60 dark:text-gray-300">{isMotefereghe ? 'موجودی اعلامی' : 'تولید'}</label>
-                                    <input 
-                                        type="text" 
-                                        inputMode="numeric" 
-                                        className={inputClasses} 
-                                        value={toPersianDigits(statValues.prod)} 
-                                        onChange={(e) => setStatValues({ ...statValues, prod: toEnglishDigits(e.target.value) })} 
-                                    />
+                                    <PersianNumberInput className={inputClasses} value={statValues.prod} onChange={(val) => setStatValues({ ...statValues, prod: val })} />
                                 </div>
                                 {!isMotefereghe && (
                                     <div>
                                         <label className="block text-sm font-black mb-1 opacity-60 dark:text-gray-300">موجودی قبل</label>
-                                        <input 
-                                            type="text" 
-                                            inputMode="numeric" 
-                                            className={inputClasses} 
-                                            value={toPersianDigits(statValues.prev)} 
-                                            onChange={(e) => setStatValues({ ...statValues, prev: toEnglishDigits(e.target.value) })} 
-                                        />
+                                        <PersianNumberInput className={inputClasses} value={statValues.prev} onChange={(val) => setStatValues({ ...statValues, prev: val })} />
                                     </div>
                                 )}
                             </div>
@@ -607,9 +602,9 @@ const RecentRecords: React.FC = () => {
                             <div className="p-4 bg-white dark:bg-gray-800 rounded-2xl border-2 border-indigo-100 dark:border-indigo-900 flex flex-col gap-2 shadow-sm">
                                 <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">اطلاعات وزن (کیلوگرم)</span>
                                 <div className={`grid gap-4 ${isMotefereghe ? 'grid-cols-1' : 'grid-cols-2'}`}>
-                                    <div><label className="block text-sm font-black mb-1 opacity-60 dark:text-gray-300">{isMotefereghe ? 'موجودی اعلامی (Kg)' : 'تولید (Kg)'}</label><input type="text" inputMode="decimal" className={inputClasses} value={toPersianDigits(statValues.prodKg)} onChange={(e) => setStatValues({ ...statValues, prodKg: toEnglishDigits(e.target.value) })} /></div>
+                                    <div><label className="block text-sm font-black mb-1 opacity-60 dark:text-gray-300">{isMotefereghe ? 'موجودی اعلامی (Kg)' : 'تولید (Kg)'}</label><PersianNumberInput inputMode="decimal" className={inputClasses} value={statValues.prodKg} onChange={(val) => setStatValues({ ...statValues, prodKg: val })} /></div>
                                     {!isMotefereghe && (
-                                        <div><label className="block text-sm font-black mb-1 opacity-60 dark:text-gray-300">موجودی قبل (Kg)</label><input type="text" inputMode="decimal" className={inputClasses} value={toPersianDigits(statValues.prevKg)} onChange={(e) => setStatValues({ ...statValues, prevKg: toEnglishDigits(e.target.value) })} /></div>
+                                        <div><label className="block text-sm font-black mb-1 opacity-60 dark:text-gray-300">موجودی قبل (Kg)</label><PersianNumberInput inputMode="decimal" className={inputClasses} value={statValues.prevKg} onChange={(val) => setStatValues({ ...statValues, prevKg: val })} /></div>
                                     )}
                                 </div>
                             </div>
@@ -624,21 +619,18 @@ const RecentRecords: React.FC = () => {
                     <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1 custom-scrollbar">
                         <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-orange-200 dark:border-orange-800">
                             <label className="block text-sm font-bold mb-2 text-orange-700 dark:text-orange-400">رمز حواله</label>
-                            <input 
-                                type="text" 
-                                inputMode="numeric"
+                            <PersianNumberInput 
                                 className="w-full p-4 border-2 border-gray-200 rounded-xl text-center font-black text-3xl tracking-widest bg-white dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:border-metro-orange outline-none transition-colors" 
-                                value={toPersianDigits(invoiceValues.invoiceNumber)} 
-                                onChange={(e) => setInvoiceValues({ ...invoiceValues, invoiceNumber: toEnglishDigits(e.target.value) })}
+                                value={invoiceValues.invoiceNumber} 
+                                onChange={(val) => setInvoiceValues({ ...invoiceValues, invoiceNumber: val })}
                             />
                         </div>
                         
                         <div className="grid grid-cols-2 gap-4">
-                            <div><label className="block text-sm font-bold mb-2 dark:text-gray-300">تعداد کارتن</label><input type="text" inputMode="numeric" className={inputClasses} value={toPersianDigits(invoiceValues.cartons)} onChange={(e) => setInvoiceValues({ ...invoiceValues, cartons: toEnglishDigits(e.target.value) })} /></div>
-                            <div><label className="block text-sm font-bold mb-2 text-blue-600 dark:text-blue-400">وزن واقعی (Kg)</label><input type="text" inputMode="decimal" className={`${inputClasses} border-blue-100 dark:border-blue-900`} value={toPersianDigits(invoiceValues.weight)} onChange={(e) => setInvoiceValues({ ...invoiceValues, weight: toEnglishDigits(e.target.value) })} /></div>
+                            <div><label className="block text-sm font-bold mb-2 dark:text-gray-300">تعداد کارتن</label><PersianNumberInput className={inputClasses} value={invoiceValues.cartons} onChange={(val) => setInvoiceValues({ ...invoiceValues, cartons: val })} /></div>
+                            <div><label className="block text-sm font-bold mb-2 text-blue-600 dark:text-blue-400">وزن واقعی (Kg)</label><PersianNumberInput inputMode="decimal" className={`${inputClasses} border-blue-100 dark:border-blue-900`} value={invoiceValues.weight} onChange={(val) => setInvoiceValues({ ...invoiceValues, weight: val })} /></div>
                         </div>
 
-                        {/* Driver & Phone */}
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-bold mb-2 dark:text-gray-300">نام راننده</label>
@@ -646,35 +638,13 @@ const RecentRecords: React.FC = () => {
                             </div>
                             <div>
                                 <label className="block text-sm font-bold mb-2 dark:text-gray-300">شماره تماس</label>
-                                <input type="text" inputMode="tel" className="w-full p-3 border-2 rounded-xl bg-white dark:bg-gray-700 dark:text-white dark:border-gray-600 outline-none text-center font-mono tracking-widest" value={toPersianDigits(invoiceValues.driverPhone)} onChange={(e) => setInvoiceValues({ ...invoiceValues, driverPhone: toEnglishDigits(e.target.value) })} />
+                                <PersianNumberInput inputMode="tel" className="w-full p-3 border-2 rounded-xl bg-white dark:bg-gray-700 dark:text-white dark:border-gray-600 outline-none text-center font-mono tracking-widest" value={invoiceValues.driverPhone} onChange={(val) => setInvoiceValues({ ...invoiceValues, driverPhone: val })} />
                             </div>
                         </div>
 
-                        {/* Plate Input - Reusing logic from InvoiceForm */}
                         <div>
                             <label className="block text-sm font-bold mb-2 dark:text-gray-300">شماره پلاک</label>
-                            <div className="grid grid-cols-[1.2fr_auto_1.5fr_auto] gap-2 items-center bg-gray-100 dark:bg-gray-900/50 p-3 rounded-2xl border-2 border-gray-200 dark:border-gray-600 w-full" dir="ltr">
-                                <input type="text" inputMode="numeric" maxLength={2} value={toPersianDigits(plateParts.part1)} onChange={e => setPlateParts(p => ({...p, part1: toEnglishDigits(e.target.value)}))} className="h-12 bg-white dark:bg-gray-700 rounded-lg text-center font-black text-xl outline-none dark:text-white w-full min-w-0" placeholder="۲۲" />
-                                <div className="relative h-12">
-                                    <button type="button" onClick={() => setShowLetterPicker(!showLetterPicker)} className="h-full px-2 bg-white dark:bg-gray-700 rounded-lg font-black text-lg flex items-center justify-center text-red-600 border border-gray-200 dark:border-gray-600 min-w-[3rem]">
-                                        {plateParts.letter || 'الف'}
-                                    </button>
-                                    <AnimatePresence>
-                                        {showLetterPicker && (
-                                            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white shadow-xl rounded-xl p-2 grid grid-cols-4 gap-1 w-56 z-50 h-48 overflow-y-auto border border-gray-200">
-                                                {PERSIAN_LETTERS.map(l => (
-                                                    <button key={l} type="button" onClick={() => { setPlateParts(p => ({...p, letter: l})); setShowLetterPicker(false); }} className="p-2 hover:bg-gray-100 rounded font-bold text-black text-lg">{l}</button>
-                                                ))}
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-                                </div>
-                                <input type="text" inputMode="numeric" maxLength={3} value={toPersianDigits(plateParts.part3)} onChange={e => setPlateParts(p => ({...p, part3: toEnglishDigits(e.target.value)}))} className="h-12 bg-white dark:bg-gray-700 rounded-lg text-center font-black text-xl outline-none dark:text-white w-full min-w-0" placeholder="۳۶۵" />
-                                <div className="flex flex-col items-center justify-center w-12 h-12 bg-white dark:bg-gray-700 border border-black/10 dark:border-gray-600 rounded-lg shadow-sm">
-                                    <span className="text-[8px] font-black text-black dark:text-white">ایران</span>
-                                    <input type="text" inputMode="numeric" maxLength={2} value={toPersianDigits(plateParts.part4)} onChange={e => setPlateParts(p => ({...p, part4: toEnglishDigits(e.target.value)}))} className="w-full h-full bg-transparent text-center font-black text-lg outline-none dark:text-white p-0 -mt-1" placeholder="۱۱" />
-                                </div>
-                            </div>
+                            <PlateInput value={invoiceValues.plateNumber} onChange={(val) => setInvoiceValues({ ...invoiceValues, plateNumber: val })} />
                         </div>
 
                         <div>

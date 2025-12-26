@@ -13,6 +13,7 @@ import * as XLSX from 'xlsx';
 import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange, toEnglishDigits } from '../../utils/dateUtils';
 import { useConfirm } from '../../hooks/useConfirm';
 import Modal from '../common/Modal';
+import { useDebounce } from '../../hooks/useDebounce';
 
 type ReportTab = 'stats' | 'invoices';
 
@@ -32,7 +33,11 @@ const Reports: React.FC = () => {
     const [selectedProductId, setSelectedProductId] = useState<string>('all');
     const [startDate, setStartDate] = useState(getTodayJalali());
     const [endDate, setEndDate] = useState(getTodayJalali());
+    const [searchTerm, setSearchTerm] = useState('');
     
+    // DEBOUNCE SEARCH
+    const debouncedSearchTerm = useDebounce(searchTerm, 500);
+
     const [previewData, setPreviewData] = useState<any[]>([]);
     const [hasSearched, setHasSearched] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
@@ -43,11 +48,17 @@ const Reports: React.FC = () => {
     const [statForm, setStatForm] = useState({ prod: '', sales: '', prev: '', prodKg: '', salesKg: '', prevKg: '' });
     const [invoiceForm, setInvoiceForm] = useState({ invoiceNumber: '', cartons: '', weight: '', driver: '', plate: '', phone: '', desc: '' });
 
+    // EFFECT TO TRIGGER SEARCH ON FILTER CHANGE
+    useEffect(() => {
+        handleSearch();
+    }, [debouncedSearchTerm, selectedFarmId, selectedProductId, startDate, endDate, reportTab]);
+
     const handleSearch = () => {
         setIsSearching(true);
         setHasSearched(true);
         const start = normalizeDate(startDate);
         const end = normalizeDate(endDate);
+        const term = debouncedSearchTerm.toLowerCase();
 
         setTimeout(() => {
             let data: any[] = [];
@@ -55,13 +66,23 @@ const Reports: React.FC = () => {
                 data = statistics.filter(s => {
                     const farmMatch = selectedFarmId === 'all' || s.farmId === selectedFarmId;
                     const prodMatch = selectedProductId === 'all' || s.productId === selectedProductId;
-                    return farmMatch && prodMatch && isDateInRange(s.date, start, end);
+                    const dateMatch = isDateInRange(s.date, start, end);
+                    // Basic search if needed (e.g. Creator name)
+                    const searchMatch = !term || (s.creatorName?.toLowerCase().includes(term));
+                    return farmMatch && prodMatch && dateMatch && searchMatch;
                 });
             } else {
                 data = invoices.filter(i => {
                     const farmMatch = selectedFarmId === 'all' || i.farmId === selectedFarmId;
                     const prodMatch = selectedProductId === 'all' || i.productId === selectedProductId;
-                    return farmMatch && prodMatch && isDateInRange(i.date, start, end);
+                    const dateMatch = isDateInRange(i.date, start, end);
+                    // Search in multiple fields
+                    const searchMatch = !term || 
+                        (i.invoiceNumber.includes(term)) || 
+                        (i.driverName?.toLowerCase().includes(term)) || 
+                        (i.plateNumber?.includes(term));
+                    
+                    return farmMatch && prodMatch && dateMatch && searchMatch;
                 });
             }
             setPreviewData(data);
@@ -145,13 +166,10 @@ const Reports: React.FC = () => {
         else addToast(result.error || 'خطا در ثبت تغییرات', 'error');
     };
 
-    // UPDATED: Custom format [2] [L] [3] - [2]
     const formatPlateForExcel = (plate: string) => {
         if (!plate || !plate.includes('-')) return plate || '-';
         const parts = plate.split('-');
         if (parts.length === 4) {
-            // parts[0]: 2 digits, parts[1]: Letter, parts[2]: 3 digits, parts[3]: 2 digits (Iran code)
-            // Reverse format: 11 - 365 B 22 (Left to Right reading)
             return `${toPersianDigits(parts[3])} - ${toPersianDigits(parts[2])} ${parts[1]} ${toPersianDigits(parts[0])}`;
         }
         return plate;
@@ -211,7 +229,6 @@ const Reports: React.FC = () => {
                     cell(item.totalWeight || 0),
                     cell(item.driverPhone || '-'),
                     cell(item.driverName || '-'),
-                    // FIX: Ensure not null
                     cell(formatPlateForExcel(item.plateNumber || '')),
                     cell(item.creatorName || '-'),
                     cell(timeLabel)
@@ -231,11 +248,11 @@ const Reports: React.FC = () => {
         XLSX.writeFile(wb, `Morvarid_Report_${reportTab}_${getTodayJalali().replace(/\//g, '-')}.xlsx`);
     };
 
-    const renderDualCell = (units: number, weight: number, colorClass: string) => {
+    const renderDualCell = (units: number, weight: number, colorClass: string, isEdited: boolean) => {
         const hasUnits = units > 0;
         const hasWeight = weight > 0;
         return (
-            <div className={`flex flex-col items-center justify-center font-black text-lg ${colorClass}`}>
+            <div className={`flex flex-col items-center justify-center font-black text-lg ${colorClass} ${isEdited ? 'bg-yellow-50 dark:bg-yellow-900/10 p-1 rounded' : ''}`}>
                 {hasUnits && <span>{toPersianDigits(units)} <small className="text-xs text-gray-400">کارتن</small></span>}
                 {hasWeight && <span>{toPersianDigits(weight)} <small className="text-xs text-gray-400">Kg</small></span>}
                 {!hasUnits && !hasWeight && <span className="text-gray-300">0</span>}
@@ -251,6 +268,15 @@ const Reports: React.FC = () => {
             </div>
 
             <div className={`bg-white dark:bg-gray-800 p-6 rounded-[28px] shadow-sm border-l-[12px] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-end ${reportTab === 'invoices' ? 'border-metro-orange' : 'border-metro-blue'}`}>
+                <div className="lg:col-span-4 mb-2">
+                    <input 
+                        type="text" 
+                        placeholder="جستجو (شماره حواله، راننده، پلاک...)" 
+                        className="w-full p-4 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-900 dark:text-white font-bold outline-none focus:border-metro-blue transition-all"
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                    />
+                </div>
                 <div>
                     <label className="text-sm font-bold text-gray-400 mb-2 block px-1">فارم</label>
                     <select value={selectedFarmId} onChange={e => setSelectedFarmId(e.target.value)} className="w-full p-4 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white font-bold outline-none focus:border-metro-blue">
@@ -268,15 +294,14 @@ const Reports: React.FC = () => {
                 <div><JalaliDatePicker value={startDate} onChange={setStartDate} label="از تاریخ" /></div>
                 <div><JalaliDatePicker value={endDate} onChange={setEndDate} label="تا تاریخ" /></div>
                 <div className="lg:col-span-4 flex justify-end gap-3 mt-4">
-                    <Button onClick={handleSearch} isLoading={isSearching} className="h-14 px-10 text-lg font-black bg-gray-900 text-white hover:bg-black rounded-full shadow-lg">جستجو</Button>
-                    {hasSearched && previewData.length > 0 && <Button onClick={handleExportExcel} className="h-14 px-8 font-bold rounded-full text-lg bg-metro-green hover:bg-green-600 text-white shadow-lg">دانلود اکسل</Button>}
+                    {previewData.length > 0 && <Button onClick={handleExportExcel} className="h-14 px-8 font-bold rounded-full text-lg bg-metro-green hover:bg-green-600 text-white shadow-lg">دانلود اکسل</Button>}
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-[28px] shadow-md overflow-hidden border border-gray-100 dark:border-gray-700">
-                <div className="overflow-x-auto">
+            <div className="bg-white dark:bg-gray-800 rounded-[28px] shadow-md overflow-hidden border border-gray-100 dark:border-gray-700 relative">
+                <div className="overflow-x-auto max-h-[600px] custom-scrollbar relative">
                     <table className="w-full text-right border-collapse min-w-[1200px]">
-                        <thead className="bg-gray-50 dark:bg-gray-900 text-gray-500 font-black text-xs lg:text-sm uppercase tracking-wider">
+                        <thead className="bg-gray-50 dark:bg-gray-900 text-gray-500 font-black text-xs lg:text-sm uppercase tracking-wider sticky top-0 z-10 shadow-md">
                             <tr>
                                 {reportTab === 'stats' ? <>
                                     <th className="p-5">تاریخ</th><th className="p-5">فارم</th><th className="p-5">محصول</th><th className="p-5 text-center">تولید</th><th className="p-5 text-center">فروش</th><th className="p-5 text-center">موجودی</th><th className="p-5">اطلاعات ثبت</th>{isAdmin && <th className="p-5 text-center">عملیات</th>}
@@ -286,72 +311,78 @@ const Reports: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                            {previewData.map(row => {
-                                const prod = getProductById(row.productId);
-                                // UPDATED: Time Display Logic
-                                const isEdited = !!row.updatedAt;
-                                const displayTime = new Date(isEdited ? row.updatedAt : row.createdAt).toLocaleTimeString('fa-IR', {hour: '2-digit', minute:'2-digit'});
-                                
-                                return (
-                                <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                    {reportTab === 'stats' ? <>
-                                        <td className="p-5 font-mono font-bold text-lg">{toPersianDigits(row.date)}</td>
-                                        <td className="p-5 font-bold text-gray-800 dark:text-white">{farms.find(f => f.id === row.farmId)?.name}</td>
-                                        <td className="p-5 text-sm text-gray-500 font-bold">{prod?.name}</td>
-                                        <td className="p-5 text-center">
-                                            {renderDualCell(row.production || 0, row.productionKg || 0, 'text-green-600')}
-                                        </td>
-                                        <td className="p-5 text-center">
-                                            {renderDualCell(row.sales || 0, row.salesKg || 0, 'text-red-500')}
-                                        </td>
-                                        <td className="p-5 text-center">
-                                            {renderDualCell(row.currentInventory || 0, row.currentInventoryKg || 0, 'text-metro-blue')}
-                                        </td>
-                                        <td className="p-5">
-                                            <div className="flex flex-col gap-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded-md font-bold text-xs">{row.creatorName || 'ناشناس'}</span>
-                                                    <div className="flex flex-col">
-                                                        <span className="font-mono text-[10px] opacity-60">{toPersianDigits(displayTime)}</span>
-                                                        {isEdited && <span className="text-[9px] text-orange-500 font-bold">(ویرایش شده)</span>}
+                            {isSearching ? (
+                                <tr><td colSpan={10} className="text-center py-20 text-gray-400">در حال جستجو...</td></tr>
+                            ) : previewData.length === 0 ? (
+                                <tr><td colSpan={10} className="text-center py-20 text-gray-400 font-bold">رکوردی یافت نشد</td></tr>
+                            ) : (
+                                previewData.map(row => {
+                                    const prod = getProductById(row.productId);
+                                    const isEdited = !!row.updatedAt;
+                                    const displayTime = new Date(isEdited ? row.updatedAt : row.createdAt).toLocaleTimeString('fa-IR', {hour: '2-digit', minute:'2-digit'});
+                                    
+                                    return (
+                                    <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                        {reportTab === 'stats' ? <>
+                                            <td className="p-5 font-mono font-bold text-lg">{toPersianDigits(row.date)}</td>
+                                            <td className="p-5 font-bold text-gray-800 dark:text-white">{farms.find(f => f.id === row.farmId)?.name}</td>
+                                            <td className="p-5 text-sm text-gray-500 font-bold">{prod?.name}</td>
+                                            <td className="p-5 text-center">
+                                                {renderDualCell(row.production || 0, row.productionKg || 0, 'text-green-600', isEdited)}
+                                            </td>
+                                            <td className="p-5 text-center">
+                                                {renderDualCell(row.sales || 0, row.salesKg || 0, 'text-red-500', false)}
+                                            </td>
+                                            <td className="p-5 text-center">
+                                                {renderDualCell(row.currentInventory || 0, row.currentInventoryKg || 0, 'text-metro-blue', isEdited)}
+                                            </td>
+                                            <td className="p-5">
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded-md font-bold text-xs">{row.creatorName || 'ناشناس'}</span>
+                                                        <div className="flex flex-col">
+                                                            <span className="font-mono text-[10px] opacity-60">{toPersianDigits(displayTime)}</span>
+                                                            {isEdited && <span className="text-[9px] text-orange-500 font-bold">(ویرایش شده)</span>}
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        </td>
-                                    </> : <>
-                                        <td className="p-5 font-mono font-bold text-lg">{toPersianDigits(row.date)}</td>
-                                        <td className="p-5 text-center font-black text-xl lg:text-2xl tracking-widest text-metro-orange">{toPersianDigits(row.invoiceNumber)}</td>
-                                        <td className="p-5 font-bold text-gray-800 dark:text-white">{farms.find(f => f.id === row.farmId)?.name}</td>
-                                        <td className="p-5 font-bold text-gray-600 dark:text-gray-300">{prod?.name || '-'}</td>
-                                        <td className="p-5 text-center font-black text-xl lg:text-2xl">{toPersianDigits(row.totalCartons || 0)}</td>
-                                        <td className="p-5 text-center text-blue-600 font-black text-xl lg:text-2xl">{toPersianDigits(row.totalWeight || 0)}</td>
-                                        <td className="p-5 font-mono font-bold text-sm">{toPersianDigits(row.driverPhone || '-')}</td>
-                                        <td className="p-5 font-bold">{row.driverName || '-'}</td>
-                                        <td className="p-5 font-mono text-sm">{formatPlateForExcel(row.plateNumber || '') || '-'}</td>
-                                        <td className="p-5">
-                                            <div className="flex flex-col gap-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded-md font-bold text-xs">{row.creatorName || 'ناشناس'}</span>
-                                                    <div className="flex flex-col">
-                                                        <span className="font-mono text-[10px] opacity-60">{toPersianDigits(displayTime)}</span>
-                                                        {isEdited && <span className="text-[9px] text-orange-500 font-bold">(ویرایش شده)</span>}
+                                            </td>
+                                        </> : <>
+                                            <td className="p-5 font-mono font-bold text-lg">{toPersianDigits(row.date)}</td>
+                                            <td className="p-5 text-center font-black text-xl lg:text-2xl tracking-widest text-metro-orange">{toPersianDigits(row.invoiceNumber)}</td>
+                                            <td className="p-5 font-bold text-gray-800 dark:text-white">{farms.find(f => f.id === row.farmId)?.name}</td>
+                                            <td className="p-5 font-bold text-gray-600 dark:text-gray-300">{prod?.name || '-'}</td>
+                                            <td className={`p-5 text-center font-black text-xl lg:text-2xl ${isEdited ? 'bg-yellow-50 dark:bg-yellow-900/10 rounded' : ''}`}>{toPersianDigits(row.totalCartons || 0)}</td>
+                                            <td className={`p-5 text-center text-blue-600 font-black text-xl lg:text-2xl ${isEdited ? 'bg-yellow-50 dark:bg-yellow-900/10 rounded' : ''}`}>{toPersianDigits(row.totalWeight || 0)}</td>
+                                            <td className="p-5 font-mono font-bold text-sm">{toPersianDigits(row.driverPhone || '-')}</td>
+                                            <td className="p-5 font-bold">{row.driverName || '-'}</td>
+                                            <td className="p-5 font-mono text-sm">{formatPlateForExcel(row.plateNumber || '') || '-'}</td>
+                                            <td className="p-5">
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded-md font-bold text-xs">{row.creatorName || 'ناشناس'}</span>
+                                                        <div className="flex flex-col">
+                                                            <span className="font-mono text-[10px] opacity-60">{toPersianDigits(displayTime)}</span>
+                                                            {isEdited && <span className="text-[9px] text-orange-500 font-bold">(ویرایش شده)</span>}
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        </td>
-                                    </>}
-                                    {isAdmin && <td className="p-5 flex justify-center gap-2">
-                                        <button onClick={() => reportTab === 'stats' ? openStatEdit(row) : openInvoiceEdit(row)} className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"><Icons.Edit className="w-5 h-5"/></button>
-                                        <button onClick={() => reportTab === 'stats' ? handleDeleteStat(row.id) : handleDeleteInvoice(row.id)} className="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-full hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"><Icons.Trash className="w-5 h-5"/></button>
-                                    </td>}
-                                </tr>
-                            )})}
+                                            </td>
+                                        </>}
+                                        {isAdmin && <td className="p-5 flex justify-center gap-2">
+                                            <button onClick={() => reportTab === 'stats' ? openStatEdit(row) : openInvoiceEdit(row)} className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"><Icons.Edit className="w-5 h-5"/></button>
+                                            <button onClick={() => reportTab === 'stats' ? handleDeleteStat(row.id) : handleDeleteInvoice(row.id)} className="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-full hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"><Icons.Trash className="w-5 h-5"/></button>
+                                        </td>}
+                                    </tr>
+                                    )
+                                })
+                            )}
                         </tbody>
                     </table>
-                    {previewData.length === 0 && hasSearched && <div className="p-20 text-center text-gray-400 font-bold text-xl">داده‌ای یافت نشد.</div>}
                 </div>
             </div>
-            {/* Edit Modals remain the same as previous file version */}
+            
+            {/* ... Modals (kept same as before) ... */}
             <Modal isOpen={!!editingStat} onClose={() => setEditingStat(null)} title="اصلاح مدیریتی آمار">
                 <div className="space-y-6">
                     <div className="grid grid-cols-2 gap-4">

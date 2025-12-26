@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuthStore } from '../../store/authStore';
@@ -8,12 +8,14 @@ import { useFarmStore } from '../../store/farmStore';
 import { useInvoiceStore } from '../../store/invoiceStore';
 import { useStatisticsStore } from '../../store/statisticsStore';
 import { useToastStore } from '../../store/toastStore';
-import { getTodayJalali, getTodayDayName, getCurrentTime, normalizeDate, toPersianDigits, toEnglishDigits } from '../../utils/dateUtils';
+import { getTodayJalali, getTodayDayName, getCurrentTime, normalizeDate, toPersianDigits } from '../../utils/dateUtils';
 import Button from '../common/Button';
 import { Icons } from '../common/Icons';
 import { useConfirm } from '../../hooks/useConfirm';
 import JalaliDatePicker from '../common/JalaliDatePicker';
 import { motion, AnimatePresence } from 'framer-motion';
+import PersianNumberInput from '../common/PersianNumberInput';
+import PlateInput from '../common/PlateInput';
 
 const persianLettersRegex = /^[\u0600-\u06FF\s]+$/;
 const mobileRegex = /^09\d{9}$/;
@@ -29,14 +31,10 @@ const invoiceGlobalSchema = z.object({
     driverName: z.string().optional(),
     description: z.string().optional()
         .refine(val => !val || persianLettersRegex.test(val.replace(/[0-9]/g, '')), 'توضیحات باید فارسی باشد'),
+    plateNumber: z.string().optional(),
 });
 
 type GlobalValues = z.infer<typeof invoiceGlobalSchema>;
-
-const PERSIAN_LETTERS = [
-    'الف', 'ب', 'پ', 'ت', 'ث', 'ج', 'چ', 'ح', 'خ', 'د', 'ذ', 'ر', 'ز', 'ژ', 
-    'س', 'ش', 'ص', 'ض', 'ط', 'ظ', 'ع', 'غ', 'ف', 'ق', 'ک', 'گ', 'ل', 'م', 'ن', 'و', 'ه', 'ی'
-];
 
 export const InvoiceForm: React.FC = () => {
     const { user } = useAuthStore();
@@ -62,23 +60,12 @@ export const InvoiceForm: React.FC = () => {
     const [itemsState, setItemsState] = useState<Record<string, { cartons: string; weight: string }>>({});
     
     const [isProductSelectorOpen, setIsProductSelectorOpen] = useState(false);
+    const [plateError, setPlateError] = useState<string | null>(null);
 
-    // Plate State LTR: Part1(2) - Letter - Part3(3) - Part4(2-Iran)
-    const [plateParts, setPlateParts] = useState({ part1: '', letter: '', part3: '', part4: '' });
-    const [showLetterPicker, setShowLetterPicker] = useState(false);
-
-    const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<GlobalValues>({
+    const { register, handleSubmit, setValue, control, formState: { errors } } = useForm<GlobalValues>({
         resolver: zodResolver(invoiceGlobalSchema),
         defaultValues: { description: '' }
     });
-
-    // Helper to force Persian digits in inputs
-    const handlePersianInput = (e: React.FormEvent<HTMLInputElement>, fieldName: keyof GlobalValues) => {
-        const val = e.currentTarget.value;
-        const englishVal = toEnglishDigits(val);
-        setValue(fieldName, englishVal);
-        e.currentTarget.value = toPersianDigits(englishVal);
-    };
 
     useEffect(() => {
         setReferenceDate(normalizedDate);
@@ -90,7 +77,6 @@ export const InvoiceForm: React.FC = () => {
     }, []);
 
     const handleProductToggle = (pid: string) => {
-        // Prevent selecting if no statistics exist for this date
         const statRecord = statistics.find(s => s.farmId === selectedFarmId && s.date === referenceDate && s.productId === pid);
         if (!statRecord) {
             addToast(`ابتدا باید آمار تولید ${getProductById(pid)?.name} برای تاریخ ${referenceDate} ثبت شود.`, 'error');
@@ -112,16 +98,9 @@ export const InvoiceForm: React.FC = () => {
     };
 
     const handleItemChange = (pid: string, field: 'cartons' | 'weight', val: string) => {
-        let cleanVal = '';
-        if (field === 'cartons') {
-            cleanVal = toEnglishDigits(val).replace(/[^0-9]/g, '');
-        } else {
-            cleanVal = toEnglishDigits(val).replace(/[^0-9.]/g, '');
-        }
-        
         setItemsState(prev => ({
             ...prev,
-            [pid]: { ...prev[pid], [field]: cleanVal }
+            [pid]: { ...prev[pid], [field]: val }
         }));
     };
 
@@ -131,8 +110,10 @@ export const InvoiceForm: React.FC = () => {
             return;
         }
 
-        const { part1, letter, part3, part4 } = plateParts;
-        const finalPlate = (part1 && letter && part3 && part4) ? `${part1}-${letter}-${part3}-${part4}` : '';
+        if (plateError) {
+            addToast(plateError, 'error');
+            return;
+        }
 
         // Pre-validation Loop
         for (const pid of selectedProductIds) {
@@ -152,7 +133,6 @@ export const InvoiceForm: React.FC = () => {
                 return;
             }
 
-            // --- UNNATURAL VALUE CHECKS ---
             if (weightVal > 6000) {
                 addToast(`خطا: وزن ثبت شده برای "${name}" (${toPersianDigits(weightVal)} Kg) غیرمتعارف و بالاتر از ۶۰۰۰ کیلوگرم است.`, 'error');
                 return;
@@ -162,7 +142,6 @@ export const InvoiceForm: React.FC = () => {
                 return;
             }
 
-            // Client-side Inventory Check
             const statRecord = statistics.find(s => s.farmId === selectedFarmId && s.date === referenceDate && s.productId === pid);
             if (!statRecord) {
                 addToast(`خطا: آمار تولید برای "${name}" یافت نشد.`, 'error');
@@ -199,7 +178,7 @@ export const InvoiceForm: React.FC = () => {
                 productId: pid,
                 driverName: globalData.driverName || '',
                 driverPhone: globalData.contactPhone,
-                plateNumber: finalPlate,
+                plateNumber: globalData.plateNumber,
                 description: globalData.description,
                 isYesterday: referenceDate !== normalizedDate
             });
@@ -214,7 +193,6 @@ export const InvoiceForm: React.FC = () => {
         setIsSubmitting(false);
 
         if (errorsList.length > 0) {
-            // Check for specific duplication error to give better feedback
             if (errorsList.some(e => e.includes('تکراری') || e.includes('Duplicate'))) {
                 addToast('این شماره حواله قبلاً برای این محصول ثبت شده است.', 'error');
             } else if (errorsList.some(e => e.includes('فارم دیگر'))) {
@@ -228,11 +206,11 @@ export const InvoiceForm: React.FC = () => {
             addToast(`${toPersianDigits(successCount)} آیتم با موفقیت ثبت شد.`, 'success');
             setSelectedProductIds([]);
             setItemsState({});
-            setPlateParts({ part1: '', letter: '', part3: '', part4: '' });
             setValue('invoiceNumber', '');
             setValue('contactPhone', '');
             setValue('driverName', '');
             setValue('description', '');
+            setValue('plateNumber', '');
         }
     };
 
@@ -243,7 +221,6 @@ export const InvoiceForm: React.FC = () => {
 
     return (
         <div className="max-w-4xl mx-auto space-y-6 lg:space-y-10 pb-20">
-            
             {/* Header */}
             <div className="bg-gradient-to-br from-metro-blue via-blue-600 to-indigo-600 p-6 text-white shadow-xl relative overflow-hidden flex flex-col items-center justify-center gap-3 rounded-b-[32px] border-b-4 border-blue-800/20 gpu-accelerated">
                  <div className="absolute inset-0 shimmer-bg z-0"></div>
@@ -267,7 +244,6 @@ export const InvoiceForm: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmit(handleFinalSubmit)} className="px-4 space-y-8">
-                
                 {/* Invoice Code Section */}
                 <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 relative border-r-[8px] border-r-metro-orange">
                     <h3 className="font-black text-xl mb-6 text-gray-800 dark:text-white flex items-center gap-2">
@@ -278,14 +254,18 @@ export const InvoiceForm: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label className={labelClass}>رمز حواله (۱۰ رقم)</label>
-                            <input 
-                                type="text" 
-                                inputMode="numeric"
-                                maxLength={10}
-                                {...register('invoiceNumber')} 
-                                className={`${inputClass} tracking-[0.3em] text-3xl h-16 border-metro-orange/30 focus:border-metro-orange focus:ring-4 focus:ring-orange-500/10`}
-                                placeholder=""
-                                onInput={(e) => handlePersianInput(e, 'invoiceNumber')}
+                            <Controller
+                                name="invoiceNumber"
+                                control={control}
+                                render={({ field }) => (
+                                    <PersianNumberInput
+                                        value={field.value}
+                                        onChange={field.onChange}
+                                        maxLength={10}
+                                        className={`${inputClass} tracking-[0.3em] text-3xl h-16 border-metro-orange/30 focus:border-metro-orange focus:ring-4 focus:ring-orange-500/10`}
+                                        placeholder=""
+                                    />
+                                )}
                             />
                             {errors.invoiceNumber && <p className="text-red-500 text-xs font-bold mt-2 mr-1">{errors.invoiceNumber.message}</p>}
                         </div>
@@ -351,11 +331,22 @@ export const InvoiceForm: React.FC = () => {
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <label className="text-[10px] font-bold text-gray-400 block mb-1">تعداد (کارتن)</label>
-                                                <input type="text" inputMode="numeric" className="w-full p-3 bg-white dark:bg-gray-800 dark:text-white text-center font-black text-xl rounded-xl outline-none focus:ring-2 focus:ring-metro-blue border-2 border-transparent dark:border-gray-700" placeholder="" value={toPersianDigits(itemsState[pid]?.cartons || '')} onChange={e => handleItemChange(pid, 'cartons', e.target.value)} />
+                                                <PersianNumberInput 
+                                                    className="w-full p-3 bg-white dark:bg-gray-800 dark:text-white text-center font-black text-xl rounded-xl outline-none focus:ring-2 focus:ring-metro-blue border-2 border-transparent dark:border-gray-700"
+                                                    value={itemsState[pid]?.cartons || ''}
+                                                    onChange={val => handleItemChange(pid, 'cartons', val)}
+                                                    placeholder=""
+                                                />
                                             </div>
                                             <div>
                                                 <label className="text-[10px] font-bold text-gray-400 block mb-1">وزن (کیلوگرم)</label>
-                                                <input type="text" inputMode="decimal" className="w-full p-3 bg-white dark:bg-gray-800 dark:text-white text-center font-black text-xl rounded-xl outline-none focus:ring-2 focus:ring-metro-blue border-b-4 border-metro-blue dark:border-metro-blue" placeholder="" value={toPersianDigits(itemsState[pid]?.weight || '')} onChange={e => handleItemChange(pid, 'weight', e.target.value)} />
+                                                <PersianNumberInput 
+                                                    inputMode="decimal"
+                                                    className="w-full p-3 bg-white dark:bg-gray-800 dark:text-white text-center font-black text-xl rounded-xl outline-none focus:ring-2 focus:ring-metro-blue border-b-4 border-metro-blue dark:border-metro-blue"
+                                                    value={itemsState[pid]?.weight || ''}
+                                                    onChange={val => handleItemChange(pid, 'weight', val)}
+                                                    placeholder=""
+                                                />
                                             </div>
                                         </div>
                                     </div>
@@ -389,14 +380,19 @@ export const InvoiceForm: React.FC = () => {
                             </div>
                             <div>
                                 <label className={labelClass}>شماره تماس</label>
-                                <input 
-                                    type="text" 
-                                    inputMode="tel"
-                                    maxLength={11} 
-                                    {...register('contactPhone')} 
-                                    className={`${inputClass} font-mono tracking-widest`} 
-                                    placeholder="" 
-                                    onInput={(e) => handlePersianInput(e, 'contactPhone')}
+                                <Controller
+                                    name="contactPhone"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <PersianNumberInput
+                                            value={field.value}
+                                            onChange={field.onChange}
+                                            maxLength={11}
+                                            inputMode="tel"
+                                            className={`${inputClass} font-mono tracking-widest`}
+                                            placeholder=""
+                                        />
+                                    )}
                                 />
                                 {errors.contactPhone && <p className="text-red-500 text-xs font-bold mt-2">{errors.contactPhone.message}</p>}
                             </div>
@@ -404,45 +400,17 @@ export const InvoiceForm: React.FC = () => {
 
                         <div>
                             <label className={labelClass}>شماره پلاک</label>
-                            {/* Improved Plate UI for Mobile - Grid Layout */}
-                            <div className="grid grid-cols-[1.2fr_auto_1.5fr_auto] gap-2 items-center bg-gray-100 dark:bg-gray-200 p-3 rounded-2xl border-2 border-gray-300 w-full" dir="ltr">
-                                
-                                {/* Part 1: 2 Digits */}
-                                <input type="text" inputMode="numeric" maxLength={2} value={toPersianDigits(plateParts.part1)} onChange={e => setPlateParts(p => ({...p, part1: toEnglishDigits(e.target.value)}))} className="h-14 bg-white/50 dark:bg-white/50 rounded-lg text-center font-black text-2xl outline-none text-black placeholder-gray-400 w-full min-w-0" placeholder="۲۲" />
-                                
-                                {/* Letter */}
-                                <div className="relative h-14">
-                                    <button type="button" onClick={() => setShowLetterPicker(!showLetterPicker)} className="h-full px-3 bg-white rounded-lg font-black text-xl flex items-center justify-center text-red-600 border border-gray-200 shadow-sm min-w-[3.5rem]">
-                                        {plateParts.letter || 'الف'}
-                                    </button>
-                                    <AnimatePresence>
-                                        {showLetterPicker && (
-                                            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white shadow-xl rounded-xl p-2 grid grid-cols-4 gap-1 w-56 z-50 h-48 overflow-y-auto border border-gray-200">
-                                                {PERSIAN_LETTERS.map(l => (
-                                                    <button key={l} type="button" onClick={() => { setPlateParts(p => ({...p, letter: l})); setShowLetterPicker(false); }} className="p-2 hover:bg-gray-100 rounded font-bold text-black text-lg">{l}</button>
-                                                ))}
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-                                </div>
-
-                                {/* Part 3: 3 Digits */}
-                                <input type="text" inputMode="numeric" maxLength={3} value={toPersianDigits(plateParts.part3)} onChange={e => setPlateParts(p => ({...p, part3: toEnglishDigits(e.target.value)}))} className="h-14 bg-white/50 dark:bg-white/50 rounded-lg text-center font-black text-2xl outline-none text-black placeholder-gray-400 w-full min-w-0" placeholder="۳۶۵" />
-
-                                {/* Part 4: Iran Code - Fixed Width Container */}
-                                <div className="flex flex-col items-center justify-center w-14 h-14 bg-white border border-black/10 rounded-lg shadow-sm">
-                                    <span className="text-[8px] font-black text-black">ایران</span>
-                                    <input 
-                                        type="text"
-                                        inputMode="numeric" 
-                                        maxLength={2} 
-                                        value={toPersianDigits(plateParts.part4)} 
-                                        onChange={e => setPlateParts(p => ({...p, part4: toEnglishDigits(e.target.value)}))} 
-                                        className="w-full h-full bg-transparent text-center font-black text-xl outline-none text-black placeholder-gray-400 p-0 -mt-1" 
-                                        placeholder="۱۱" 
+                            <Controller
+                                name="plateNumber"
+                                control={control}
+                                render={({ field }) => (
+                                    <PlateInput 
+                                        value={field.value} 
+                                        onChange={field.onChange} 
+                                        onError={setPlateError} 
                                     />
-                                </div>
-                            </div>
+                                )}
+                            />
                         </div>
 
                         <div>

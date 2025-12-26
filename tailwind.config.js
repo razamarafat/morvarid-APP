@@ -52,11 +52,16 @@ export default {
       },
       animation: {
         'wiggle': 'wiggle 6s ease-in-out infinite',
+        'bg-pan': 'bgPan 40s linear infinite',
       },
       keyframes: {
         wiggle: {
           '0%, 100%': { transform: 'rotate(-3deg) translateZ(0)' },
           '50%': { transform: 'rotate(3deg) translateZ(0)' },
+        },
+        bgPan: {
+          '0%': { backgroundPosition: '0% 0%' },
+          '100%': { backgroundPosition: '100% 100%' },
         }
       },
       borderRadius: {
@@ -68,5 +73,14 @@ export default {
       }
     }
   },
-  plugins: [],
+  plugins: [
+    function({ addUtilities }) {
+      const newUtilities = {
+        '.persian-nums': {
+          'font-feature-settings': '"ss01"',
+        }
+      }
+      addUtilities(newUtilities)
+    }
+  ],
 }

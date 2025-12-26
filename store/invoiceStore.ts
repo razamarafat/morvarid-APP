@@ -57,7 +57,6 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           const mapped = data.map((i: any) => ({
               id: i.id,
               farmId: i.farm_id,
-              // CRITICAL FIX: Normalize date from DB to ensure it matches UI filters
               date: normalizeDate(i.date),
               invoiceNumber: i.invoice_number,
               totalCartons: i.total_cartons,
@@ -71,7 +70,8 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
               createdAt: i.created_at ? new Date(i.created_at).getTime() : Date.now(),
               updatedAt: i.updated_at ? new Date(i.updated_at).getTime() : undefined,
               createdBy: i.created_by,
-              creatorName: profileMap[i.created_by] || 'ناشناس'
+              // Data Completeness: Ensure non-null string
+              creatorName: profileMap[i.created_by] || 'کاربر حذف شده'
           }));
           set({ invoices: mapped, isLoading: false });
       } else {
@@ -84,18 +84,13 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
   },
 
   bulkAddInvoices: async (invoicesList, isSyncing = false) => {
-      // 1. Strict Unique Logic Check (Client Side Optimization)
       if (!isSyncing) {
           const existingInvoices = get().invoices;
           const offlineQueue = useSyncStore.getState().queue.filter(q => q.type === 'INVOICE').map(q => q.payload);
-          
           const allToCheck = [...existingInvoices, ...offlineQueue];
 
           for (const inv of invoicesList) {
-              // Strict Rule: Invoice Number cannot be reused in "Add Invoice" mode.
-              // To add a product to an existing invoice, user MUST use "Edit" in Recent Records.
               const duplicates = allToCheck.filter(ex => ex.invoiceNumber === inv.invoiceNumber);
-              
               if (duplicates.length > 0) {
                   return { 
                       success: false, 
@@ -105,7 +100,6 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           }
       }
 
-      // 2. Explicit Offline Check
       if (!isSyncing && !navigator.onLine) {
           let hasError = false;
           invoicesList.forEach(inv => {
@@ -121,10 +115,9 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) return { success: false, error: "کاربر لاگین نیست." };
 
-          // 3. Payload Sanitization
           const dbInvoices = invoicesList.map(inv => ({
               farm_id: inv.farmId,
-              date: normalizeDate(inv.date), // Ensure normalized date on insert
+              date: normalizeDate(inv.date),
               invoice_number: inv.invoiceNumber,
               total_cartons: Math.floor(Number(inv.totalCartons)) || 0, 
               total_weight: Number(inv.totalWeight) || 0,
@@ -140,13 +133,10 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           const { error } = await supabase.from('invoices').insert(dbInvoices);
 
           if (error) {
-              // CRITICAL FIX: Fallback to core fields if schema mismatch occurs
               const code = error.code || '';
               const status = String((error as any).status || '');
               
               if (status === '400' || code === 'PGRST204' || code === '42703') {
-                  console.warn('[InvoiceStore] Schema mismatch detected. Retrying with core fields...');
-                  
                   const coreInvoices = dbInvoices.map(inv => ({
                       farm_id: inv.farm_id,
                       date: inv.date,
@@ -155,7 +145,6 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
                       total_weight: inv.total_weight,
                       product_id: inv.product_id,
                       created_by: inv.created_by
-                      // Omitting optional fields to prevent 'column not found'
                   }));
                   
                   const { error: retryError } = await supabase.from('invoices').insert(coreInvoices);
@@ -217,17 +206,15 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
                       total_cartons: fullPayload.total_cartons,
                       total_weight: fullPayload.total_weight,
                       invoice_number: fullPayload.invoice_number,
-                      driver_name: fullPayload.driver_name, // Try including driver
+                      driver_name: fullPayload.driver_name, 
                       plate_number: fullPayload.plate_number,
                       driver_phone: fullPayload.driver_phone
                   };
                   Object.keys(corePayload).forEach(key => corePayload[key] === undefined && delete corePayload[key]);
                   
-                  // If second retry fails, it might be strictly core fields
                   let retry = await supabase.from('invoices').update(corePayload).eq('id', id);
                   
                   if (retry.error) {
-                       // Super safe fallback
                        const absoluteCore = {
                            total_cartons: fullPayload.total_cartons,
                            total_weight: fullPayload.total_weight,
@@ -244,7 +231,18 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           }
           
           await get().fetchInvoices();
-          if (original?.productId) useStatisticsStore.getState().syncSalesFromInvoices(original.farmId, original.date, original.productId);
+          
+          // Data Consistency: Sync Statistics for old date AND new date if changed
+          if (original?.productId) {
+              // Always sync the original date logic
+              useStatisticsStore.getState().syncSalesFromInvoices(original.farmId, original.date, original.productId);
+              
+              // If date changed, sync the new date logic too
+              if (updates.date && updates.date !== original.date) {
+                  useStatisticsStore.getState().syncSalesFromInvoices(original.farmId, updates.date, original.productId);
+              }
+          }
+          
           return { success: true };
 
       } catch (error: any) {
