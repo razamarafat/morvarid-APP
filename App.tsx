@@ -16,6 +16,7 @@ import ConfirmDialog from './components/common/ConfirmDialog';
 import ToastContainer from './components/common/Toast';
 import { useAutoUpdate } from './hooks/useAutoUpdate';
 import { useOfflineSync } from './hooks/useOfflineSync';
+import { useAutoTheme } from './hooks/useAutoTheme';
 
 // Lazy Load Pages
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -119,6 +120,9 @@ function App() {
   
   useAutoUpdate();
   useOfflineSync();
+  
+  // Enable Automatic Theme Switching (18:00 - 06:00)
+  useAutoTheme();
 
   useEffect(() => {
     document.documentElement.classList.remove('light', 'dark');
