@@ -9,7 +9,7 @@ import { useThemeStore } from '../../store/themeStore';
 import { THEMES } from '../../constants';
 import { useConfirm } from '../../hooks/useConfirm';
 import { usePwaStore } from '../../store/pwaStore';
-import { useAlertStore } from '../../store/alertStore'; // Import AlertStore
+import { useAlertStore } from '../../store/alertStore';
 import OnlineStatusBadge from '../common/OnlineStatusBadge';
 
 interface HeaderProps {
@@ -20,12 +20,9 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
-  const location = useLocation();
   const theme = useThemeStore(state => state.theme);
   const { confirm } = useConfirm();
   const { deferredPrompt, setDeferredPrompt, isInstalled } = usePwaStore(); 
-  
-  // Use Alert Store for Permission
   const { permissionStatus, requestPermissionManual, checkAndRequestPermission } = useAlertStore();
 
   useEffect(() => {
@@ -102,24 +99,24 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
   };
 
   return (
-    <header className={`${themeColors.surface} ${themeColors.text} sticky top-0 z-30 transition-colors duration-300 border-b border-gray-200 dark:border-gray-800 shadow-sm`}>
+    // Updated: Glassmorphism header
+    <header className="sticky top-0 z-30 transition-colors duration-300 border-b border-gray-200/50 dark:border-white/5 shadow-sm bg-white/80 dark:bg-[#0f172a]/80 backdrop-blur-xl">
       <div className="container mx-auto px-4 h-16 flex justify-between items-center max-w-full">
         
         <div className="flex items-center gap-2 md:gap-4 flex-1 overflow-hidden">
-          {/* Hamburger Menu - Visible on ALL screens (lg:hidden removed) */}
           <button 
             onClick={onMenuClick} 
-            className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors active:scale-95 shrink-0"
+            className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors active:scale-95 shrink-0 text-gray-700 dark:text-white"
             aria-label="Menu"
           >
             <Icons.Menu className="w-6 h-6" />
           </button>
 
-          <h1 className="text-sm sm:text-lg md:text-2xl font-bold tracking-tight ml-2 sm:ml-4 leading-tight line-clamp-2">
+          <h1 className="text-sm sm:text-lg md:text-2xl font-bold tracking-tight ml-2 sm:ml-4 leading-tight line-clamp-2 text-gray-800 dark:text-white">
             {title}
           </h1>
 
-          <div className="hidden lg:flex items-center gap-1 mr-4 border-r pr-4 border-gray-300 dark:border-gray-600">
+          <div className="hidden lg:flex items-center gap-1 mr-4 border-r pr-4 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300">
               {getDesktopNavItems()}
           </div>
         </div>
@@ -128,7 +125,6 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
           
           <OnlineStatusBadge />
 
-          {/* Notification Permission Toggle */}
           <button 
             onClick={requestPermissionManual}
             className={`p-2 rounded-full transition-colors ${permissionStatus === 'granted' ? 'text-metro-blue hover:bg-blue-50 dark:hover:bg-blue-900/20' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
@@ -144,7 +140,6 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
              )}
           </button>
 
-          {/* PWA INSTALL BUTTON (Desktop Only) */}
           {deferredPrompt && !isInstalled && (
               <button 
                 onClick={handleInstallClick}
@@ -155,7 +150,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
               </button>
           )}
 
-          <div className="hidden sm:flex items-center gap-3 bg-gray-100 dark:bg-gray-800 px-4 py-1.5 rounded-full border border-gray-200 dark:border-gray-700">
+          <div className="hidden sm:flex items-center gap-3 bg-gray-100 dark:bg-white/5 px-4 py-1.5 rounded-full border border-gray-200 dark:border-white/10 text-gray-800 dark:text-white">
             <div className={`p-1 rounded-full ${themeColors.primary} text-white`}>
                 <Icons.User className="w-4 h-4" />
             </div>

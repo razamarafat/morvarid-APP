@@ -21,51 +21,42 @@ const MetroTile: React.FC<MetroTileProps> = React.memo(({
   onClick,
   className = '' 
 }) => {
-  // Enforce consistent height on mobile for ALL tiles to ensure equality.
+  // Updated sizes for a cleaner grid
   const sizeClasses = {
-    small:  'col-span-1 h-40 md:h-44 lg:h-48',
-    medium: 'col-span-1 h-40 md:h-44 lg:h-48',
-    wide:   'col-span-2 h-40 md:h-44 lg:h-48', 
-    large:  'col-span-2 h-40 md:col-span-2 md:row-span-2 md:h-96 lg:h-[25rem]', 
+    small:  'col-span-1 h-36',
+    medium: 'col-span-1 h-36',
+    wide:   'col-span-2 h-36', 
+    large:  'col-span-2 h-72 md:col-span-2 md:row-span-2', 
   };
 
   return (
-    <motion.div
-      whileHover={{ scale: 0.98, y: -2 }}
-      whileTap={{ scale: 0.96 }}
-      transition={{ 
-        type: 'tween', 
-        duration: 0.15, 
-        ease: [0.4, 0, 0.2, 1] 
-      }}
+    <div
       onClick={onClick}
-      className={`${sizeClasses[size]} ${color} relative p-4 flex flex-col justify-center items-center text-center cursor-pointer select-none overflow-hidden group rounded-[32px] shadow-lg hover:shadow-2xl transition-all border-b-4 border-black/10 active:border-b-0 active:translate-y-1 transform-gpu ${className}`}
+      className={`${sizeClasses[size]} relative p-5 flex flex-col justify-between cursor-pointer select-none overflow-hidden group rounded-[32px] shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 active:scale-[0.98] ${color.replace('bg-', 'bg-gradient-to-br from-').replace('text-', '')} to-black/20 ${className}`}
     >
-        {/* Strong Shine Effect */}
-        <div className="strong-shine-overlay" />
+        {/* Glass Effect Overlay */}
+        <div className="absolute inset-0 bg-white/10 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
         
-        {/* Background Decorative Icon */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10 group-hover:opacity-20 transition-opacity duration-500 scale-150">
-             <Icon className="w-32 h-32 md:w-40 md:h-40 lg:w-56 lg:h-56 animate-wiggle" />
-        </div>
+        {/* Decorative Background Icon */}
+        <Icon className="absolute -right-6 -bottom-6 w-32 h-32 opacity-[0.15] transform rotate-12 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6 text-white" />
 
-        {/* Content Wrapper */}
-        <div className="relative z-10 flex flex-col items-center gap-2 w-full">
-             <div className="bg-white/20 p-3 rounded-full shadow-inner mb-1 backdrop-blur-sm">
-                <Icon className="w-8 h-8 md:w-10 md:h-10 text-white drop-shadow-md" />
+        <div className="relative z-10 flex justify-between items-start w-full">
+             <div className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md shadow-inner border border-white/20">
+                <Icon className="w-6 h-6 text-white" />
              </div>
-             
              {count !== undefined && (
-                 <span className="text-3xl md:text-4xl lg:text-5xl font-black text-white drop-shadow-lg tracking-tight my-1">
+                 <span className="text-3xl font-black text-white drop-shadow-md tracking-tight">
                     {count}
                  </span>
              )}
-             
-             <h3 className="text-white font-black text-lg md:text-xl lg:text-2xl leading-tight drop-shadow-md tracking-wide px-2">
+        </div>
+
+        <div className="relative z-10">
+             <h3 className="text-white font-black text-lg leading-tight drop-shadow-sm tracking-wide">
                 {title}
              </h3>
         </div>
-    </motion.div>
+    </div>
   );
 });
 
