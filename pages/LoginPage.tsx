@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm, FieldErrors } from 'react-hook-form';
 import { z } from 'zod';
@@ -20,99 +20,6 @@ const loginSchema = z.object({
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
-
-// --- ULTRA REALISTIC INDUSTRIAL SKETCH (Restored & Enhanced) ---
-// Story: Farm (Left) -> Conveyor Belt/Packaging (Middle) -> Truck/Nissan Loading (Right)
-const UltraRealisticSketch = React.memo(() => (
-  <svg viewBox="0 0 1400 250" className="w-full h-full opacity-80 dark:opacity-50 pointer-events-none text-gray-800 dark:text-gray-500" preserveAspectRatio="xMidYMax slice">
-    <defs>
-        <linearGradient id="groundGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="currentColor" stopOpacity="0.05"/>
-            <stop offset="100%" stopColor="currentColor" stopOpacity="0.6"/>
-        </linearGradient>
-    </defs>
-    
-    <rect x="0" y="220" width="1400" height="30" fill="url(#groundGrad)" />
-    <line x1="0" y1="220" x2="1400" y2="220" stroke="currentColor" strokeWidth="2" />
-
-    {/* --- LEFT: MODERN POULTRY FARM (The Source) --- */}
-    <g transform="translate(50, 80)">
-        {/* Silos */}
-        <path d="M10,140 L10,40 L30,30 L50,40 L50,140 Z" fill="none" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M10,50 L50,50" stroke="currentColor" strokeWidth="0.5" />
-        <path d="M10,70 L50,70" stroke="currentColor" strokeWidth="0.5" />
-        <path d="M10,90 L50,90" stroke="currentColor" strokeWidth="0.5" />
-        
-        {/* Main Barn */}
-        <path d="M60,140 L60,60 L200,40 L200,140 Z" fill="none" stroke="currentColor" strokeWidth="2" />
-        <path d="M60,60 L200,40" stroke="currentColor" strokeWidth="1" /> {/* Roof line */}
-        
-        {/* Windows / Vents */}
-        <rect x="80" y="80" width="20" height="20" stroke="currentColor" fill="none" />
-        <rect x="120" y="80" width="20" height="20" stroke="currentColor" fill="none" />
-        <rect x="160" y="80" width="20" height="20" stroke="currentColor" fill="none" />
-        
-        {/* Connection pipe to Packaging */}
-        <path d="M200,100 L300,100" stroke="currentColor" strokeWidth="3" strokeDasharray="5,5" />
-    </g>
-
-    {/* --- MIDDLE: PACKAGING & CONVEYOR BELT --- */}
-    <g transform="translate(350, 60)">
-        {/* Factory Building */}
-        <path d="M0,160 L0,40 L100,20 L100,160 Z" fill="none" stroke="currentColor" strokeWidth="2" />
-        <rect x="20" y="60" width="60" height="80" stroke="currentColor" strokeWidth="0.5" strokeDasharray="2,2" fill="none" />
-        
-        {/* Conveyor Belt System coming out */}
-        <g transform="translate(100, 100)">
-            <path d="M0,20 L150,20" stroke="currentColor" strokeWidth="4" /> {/* Belt */}
-            <circle cx="20" cy="25" r="5" stroke="currentColor" fill="none" />
-            <circle cx="75" cy="25" r="5" stroke="currentColor" fill="none" />
-            <circle cx="130" cy="25" r="5" stroke="currentColor" fill="none" />
-            
-            {/* Boxes on belt */}
-            <rect x="30" y="5" width="20" height="15" stroke="currentColor" fill="none" />
-            <rect x="80" y="5" width="20" height="15" stroke="currentColor" fill="none" />
-        </g>
-    </g>
-
-    {/* --- RIGHT: LOGISTICS (Forklift & Trucks) --- */}
-    <g transform="translate(650, 70)">
-        {/* Forklift */}
-        <g transform="translate(20, 90)">
-            <path d="M10,40 L10,10 L30,10 L30,40 Z" stroke="currentColor" fill="none" /> {/* Mast */}
-            <path d="M30,30 L50,30 L50,20 L40,10 L30,20" stroke="currentColor" fill="none" /> {/* Cabin */}
-            <circle cx="35" cy="40" r="8" stroke="currentColor" fill="none" />
-            <circle cx="55" cy="40" r="8" stroke="currentColor" fill="none" />
-            <line x1="0" y1="35" x2="20" y2="35" stroke="currentColor" strokeWidth="2" /> {/* Forks */}
-            <rect x="0" y="20" width="15" height="15" stroke="currentColor" fill="none" /> {/* Box on fork */}
-        </g>
-
-        {/* Nissan / Small Truck */}
-        <g transform="translate(120, 80)">
-            <path d="M0,60 L0,30 L60,30 L60,60 Z" stroke="currentColor" fill="none" /> {/* Bed */}
-            <path d="M60,60 L60,20 L90,20 L100,40 L100,60 Z" stroke="currentColor" fill="none" /> {/* Cabin */}
-            <circle cx="30" cy="60" r="10" stroke="currentColor" fill="none" strokeWidth="2" />
-            <circle cx="80" cy="60" r="10" stroke="currentColor" fill="none" strokeWidth="2" />
-            {/* Stacked boxes in truck */}
-            <rect x="5" y="15" width="20" height="15" stroke="currentColor" fill="none" />
-            <rect x="30" y="15" width="20" height="15" stroke="currentColor" fill="none" />
-            <rect x="15" y="0" width="20" height="15" stroke="currentColor" fill="none" />
-        </g>
-
-        {/* Big Truck */}
-        <g transform="translate(300, 50)">
-            <rect x="0" y="20" width="140" height="80" stroke="currentColor" fill="none" strokeWidth="2" /> {/* Trailer */}
-            <line x1="0" y1="20" x2="140" y2="90" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
-            <line x1="140" y1="20" x2="0" y2="90" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
-            
-            <path d="M140,100 L140,40 L160,40 L170,60 L170,100 Z" fill="none" stroke="currentColor" strokeWidth="2" /> {/* Cab */}
-            <circle cx="30" cy="100" r="12" stroke="currentColor" fill="none" strokeWidth="2" />
-            <circle cx="50" cy="100" r="12" stroke="currentColor" fill="none" strokeWidth="2" />
-            <circle cx="150" cy="100" r="12" stroke="currentColor" fill="none" strokeWidth="2" />
-        </g>
-    </g>
-  </svg>
-));
 
 // --- OPTIMIZED STATIC STARS (No JS Randomness) ---
 const StarryNight = React.memo(() => {
@@ -231,16 +138,20 @@ const LoginPage: React.FC = () => {
           <StarryNight />
       </div>
 
-      {/* --- SKETCH (Visible on Mobile & Desktop) --- */}
-      <div className="absolute bottom-0 left-0 w-full h-[150px] md:h-[250px] z-0 opacity-100 pointer-events-none">
-          <UltraRealisticSketch />
+      {/* --- SKETCH IMAGE (Visible on Mobile & Desktop) --- */}
+      {/* PLEASE PLACE 'login-sketch.png' IN YOUR PUBLIC FOLDER */}
+      <div className="absolute bottom-0 left-0 w-full z-0 pointer-events-none flex items-end justify-center">
+          <img 
+            src="/login-sketch.png" 
+            alt="Industrial Sketch" 
+            className="w-full h-auto max-h-[300px] object-cover object-bottom opacity-100 dark:opacity-80 dark:invert dark:grayscale transition-all duration-500"
+          />
       </div>
 
       {/* --- MAIN LAYOUT --- */}
       <div className="relative z-10 flex flex-col md:flex-row h-full w-full">
           
           {/* --- TOP/LEFT SECTION (Visuals) --- */}
-          {/* On Mobile: Elements are placed absolutely at the top to be visible */}
           <div className="absolute inset-0 z-0 flex flex-col items-center justify-start pt-12 md:pt-0 md:relative md:flex-1 md:w-[55%] md:justify-center md:pb-20 md:z-10 pointer-events-none md:pointer-events-auto opacity-100 transition-all duration-500">
               
               <div className="text-center z-20 md:mt-6 transform-gpu scale-75 md:scale-100 origin-top">
@@ -250,7 +161,6 @@ const LoginPage: React.FC = () => {
                   <h1 className="text-4xl md:text-6xl font-black text-gray-800 dark:text-white mb-2 md:mb-5 tracking-tight drop-shadow-sm scale-y-110">
                       مـرواریــد
                   </h1>
-                  {/* Subtitle visible on mobile now */}
                   <h2 className="text-sm md:text-lg font-bold text-gray-600 dark:text-gray-300 tracking-wide mt-1 opacity-90 backdrop-blur-sm bg-white/30 dark:bg-black/30 p-1.5 rounded-lg border border-white/20 dark:border-white/5">
                       سیستم هوشمند پایش زنجیره آمار، تولید و توزیع
                   </h2>
