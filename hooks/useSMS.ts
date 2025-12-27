@@ -18,42 +18,52 @@ export const useSMS = () => {
 
   const parseMultipleInvoices = (text: string): ParsedSMS[] => {
     try {
-      // 1. Convert all digits to English
-      let cleanText = toEnglishDigits(text);
-      
-      // 2. Normalize characters (Arabic vs Persian)
-      // Standardize K (ك -> ک) and Y (ي -> ی) and remove invisible chars
-      cleanText = cleanText
+      // 1. Clean and Normalize Text
+      // Convert digits to English and standardise specific Persian/Arabic characters
+      let cleanText = toEnglishDigits(text)
         .replace(/[\u200B-\u200D\uFEFF]/g, '')
         .replace(/ك/g, 'ک')
         .replace(/ي/g, 'ی');
 
+      // 2. Split Strategy
+      // Instead of searching with a moving window (which can be fragile or miss overlapping items),
+      // we inject a unique marker before every occurrence of the invoice header "حواله بارگیری".
+      // Then we split the text by this marker to get isolated chunks for each invoice.
+      const marker = "|||SMS_SPLIT|||";
+      // This regex finds "حواله بارگیری" allowing for whitespace/newlines between words
+      const splitText = cleanText.replace(/(حواله\s+بارگیری)/g, `${marker}$1`);
+      
+      const chunks = splitText.split(marker);
+      
       const results: ParsedSMS[] = [];
       const seenInvoices = new Set<string>();
 
-      // Global regex to find "حواله بارگیری" and its number
-      // Uses [\s\n]* to handle cases where the number is on a new line
-      const invoiceRegex = /حواله\s+بارگیری[:\s\n]+(\d{8,12})/g;
-      
-      // Field level regexes (case insensitive and space/newline resilient)
+      // 3. Define Regexes for Field Extraction (Applied per chunk)
+      const invoiceNumRegex = /حواله\s+بارگیری[:\s\n]+(\d{8,12})/;
       const weightRegex = /وزن\s+تقریبی[:\s\n]+([\d.]+)/;
       const cartonsRegex = /تعداد\s+کارتن[:\s\n]+(\d+)/;
       const dateRegex = /(\d{4}\/\d{2}\/\d{2})/;
       const farmRegex = /مرغداری[:\s\n]+([^\n\r]+)/;
 
-      let match;
-      while ((match = invoiceRegex.exec(cleanText)) !== null) {
-        const invNum = match[1];
+      // 4. Process Each Chunk
+      for (const chunk of chunks) {
+        // Skip empty or too short chunks
+        if (!chunk || chunk.trim().length < 10) continue;
+
+        // Extract Invoice Number
+        const invoiceMatch = chunk.match(invoiceNumRegex);
+        if (!invoiceMatch) continue; // Not a valid invoice chunk
+
+        const invNum = invoiceMatch[1];
+        
+        // Prevent duplicates within the same paste action
         if (seenInvoices.has(invNum)) continue;
 
-        // Search in a window around the match (150 chars before/after)
-        const startIndex = Math.max(0, match.index - 50);
-        const windowText = cleanText.substring(startIndex, match.index + 250);
-
-        const weightMatch = windowText.match(weightRegex);
-        const cartonsMatch = windowText.match(cartonsRegex);
-        const dateMatch = windowText.match(dateRegex);
-        const farmMatch = windowText.match(farmRegex);
+        // Extract other fields
+        const weightMatch = chunk.match(weightRegex);
+        const cartonsMatch = chunk.match(cartonsRegex);
+        const dateMatch = chunk.match(dateRegex);
+        const farmMatch = chunk.match(farmRegex);
 
         seenInvoices.add(invNum);
         results.push({

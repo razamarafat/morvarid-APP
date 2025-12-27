@@ -203,11 +203,8 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
 
     return (
         <div className="max-w-4xl mx-auto pb-24"> 
-            {/* Header Updated to match App Style with Shimmer */}
             <div className="bg-gradient-to-br from-metro-orange via-orange-500 to-amber-500 p-6 text-white shadow-xl relative overflow-hidden flex flex-col items-center justify-center gap-3 rounded-b-[32px] mb-8 border-b-4 border-orange-700/20 gpu-accelerated">
-                 {/* Shimmer Effect */}
                  <div className="absolute inset-0 shimmer-bg z-0"></div>
-                 
                  <Icons.BarChart className="absolute -left-8 -bottom-8 w-48 h-48 text-white opacity-10 pointer-events-none rotate-12" />
 
                  <div className="relative z-10 flex flex-col items-center w-full">
@@ -233,10 +230,7 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
             <div className="px-4 space-y-4">
                 {sortedProductIds.map((pid) => {
                     const product = getProductById(pid);
-                    
-                    // --- GHOST PRODUCT FIX ---
                     if (!product) return null;
-                    // -------------------------
 
                     const isLiq = product.name.includes('مایع');
                     const statRecord = statistics.find(s => s.farmId === selectedFarmId && s.date === normalizedDate && s.productId === pid);
@@ -357,7 +351,7 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
             </div>
 
             <div className="px-4 mt-8">
-                <Button onClick={handleFinalSubmit} isLoading={isSubmitting} className="w-full h-20 text-3xl font-black bg-gradient-to-r from-metro-green to-emerald-600 hover:to-emerald-500 shadow-lg shadow-green-200 dark:shadow-none rounded-[20px] border-b-4 border-green-700 active:border-b-0 active:translate-y-1 transition-all">
+                <Button onClick={handleFinalSubmit} isLoading={isSubmitting} className="w-full h-20 text-2xl lg:text-3xl font-black bg-gradient-to-r from-metro-green to-emerald-600 hover:to-emerald-500 shadow-lg shadow-green-200 dark:shadow-none rounded-[20px] border-b-4 border-green-700 active:border-b-0 active:translate-y-1 transition-all">
                     <Icons.Check className="ml-2 w-10 h-10" /> ثبت نهایی آمار
                 </Button>
             </div>

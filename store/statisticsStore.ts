@@ -20,6 +20,7 @@ export interface DailyStatistic {
     createdAt: number;
     updatedAt?: number;
     creatorName?: string; 
+    creatorRole?: string; // New Field
     createdBy?: string;
 }
 
@@ -77,12 +78,15 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
 
       if (statsData) {
           const creatorIds = Array.from(new Set(statsData.map((s: any) => s.created_by).filter(Boolean)));
-          let profileMap: Record<string, string> = {};
+          let profileMap: Record<string, { name: string, role: string }> = {};
 
           if (creatorIds.length > 0) {
-              const { data: profilesData } = await supabase.from('profiles').select('id, full_name').in('id', creatorIds);
+              const { data: profilesData } = await supabase.from('profiles').select('id, full_name, role').in('id', creatorIds);
               if (profilesData) {
-                  profileMap = profilesData.reduce((acc: any, p: any) => ({ ...acc, [p.id]: p.full_name }), {});
+                  profileMap = profilesData.reduce((acc: any, p: any) => ({ 
+                      ...acc, 
+                      [p.id]: { name: p.full_name, role: p.role } 
+                  }), {});
               }
           }
 
@@ -122,7 +126,8 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
               currentInventoryKg: s.current_inventory_kg || 0, 
               createdAt: s.created_at ? new Date(s.created_at).getTime() : Date.now(),
               updatedAt: s.updated_at ? new Date(s.updated_at).getTime() : undefined,
-              creatorName: profileMap[s.created_by] || 'ناشناس',
+              creatorName: profileMap[s.created_by]?.name || 'ناشناس',
+              creatorRole: profileMap[s.created_by]?.role,
               createdBy: s.created_by
           }));
           set({ statistics: mappedStats, isLoading: false });
@@ -170,7 +175,6 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           
           if (error) {
               if (String((error as any).status) === '400' || error.code === 'PGRST204' || error.code === '42703') {
-                  // Fallback: update with core fields only
                   const corePayload = {
                       production: fullPayload.production,
                       sales: fullPayload.sales,
@@ -201,7 +205,6 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
   },
 
   bulkUpsertStatistics: async (stats, isSyncing = false) => {
-      // 1. Offline Check
       if (!isSyncing && !navigator.onLine) {
           stats.forEach(s => useSyncStore.getState().addToQueue('STAT', s));
           return { success: true, error: 'ذخیره در صف آفلاین' };
@@ -211,7 +214,6 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) return { success: false, error: "کاربر احراز هویت نشده است." };
           
-          // Prepare DB-ready payload
           const dbStats = stats.map(stat => ({
               farm_id: stat.farmId,
               date: normalizeDate(stat.date),
@@ -225,11 +227,9 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
               previous_balance_kg: Number(stat.previousBalanceKg) || 0,
               current_inventory_kg: Number(stat.currentInventoryKg) || 0,
               created_by: user.id,
-              updated_at: new Date().toISOString() // Ensure update time is set
+              updated_at: new Date().toISOString()
           }));
 
-          // --- STRATEGY 1: Optimistic Native Upsert (Performance) ---
-          // Allows DB to handle uniqueness. Requires Unique Index on (farm_id, date, product_id).
           try {
               const { error } = await supabase
                   .from('daily_statistics')
@@ -243,14 +243,9 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                   return { success: true };
               }
               
-              // If error is NOT a constraint/schema issue, throw it
-              // 42703: Undefined Column (Schema mismatch)
-              // 409: Conflict (If DB is strict but our onConflict param was wrong)
-              // PGRST204: Columns not found
               const code = error.code;
               if (code !== '42703' && code !== 'PGRST204' && code !== '400') {
                   console.warn('[Stats] Native upsert failed, falling back to manual check.', error);
-                  // Don't throw here, let it fall through to Strategy 2
               } else {
                   console.warn('[Stats] Schema mismatch during upsert. Falling back.', error);
               }
@@ -259,10 +254,6 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
               console.warn('[Stats] Upsert exception, using fallback.', e);
           }
 
-          // --- STRATEGY 2: Optimized Check-and-Update (Fallback) ---
-          // Robust logic if DB constraint is missing or schema is outdated.
-          
-          // 2.1 Batch Read Existing Records to minimize queries
           const farmIds = [...new Set(dbStats.map(s => s.farm_id))];
           const dates = [...new Set(dbStats.map(s => s.date))];
           
@@ -272,16 +263,13 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
               .in('farm_id', farmIds)
               .in('date', dates);
 
-          // 2.2 Process Items Loop
           for (const stat of dbStats) {
-              // Find matching record from batch fetch
               const existing = existingRecords?.find(r => 
                   r.farm_id === stat.farm_id && 
                   r.date === stat.date && 
                   r.product_id === stat.product_id
               );
 
-              // Create fallback core payload (no kg) in case of schema error
               const corePayload = { ...stat };
               delete (corePayload as any).production_kg;
               delete (corePayload as any).sales_kg;
@@ -289,13 +277,11 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
               delete (corePayload as any).current_inventory_kg;
 
               if (existing) {
-                  // Update
                   let { error: updateError } = await supabase
                       .from('daily_statistics')
                       .update(stat)
                       .eq('id', existing.id);
                   
-                  // Retry without KG if schema error
                   if (updateError && (updateError.code === '42703' || updateError.code === 'PGRST204' || String(updateError.code) === '400')) {
                       const retry = await supabase.from('daily_statistics').update(corePayload).eq('id', existing.id);
                       if (retry.error) throw retry.error;
@@ -303,12 +289,10 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                       throw updateError;
                   }
               } else {
-                  // Insert
                   let { error: insertError } = await supabase
                       .from('daily_statistics')
                       .insert(stat);
                   
-                  // Retry without KG if schema error
                   if (insertError && (insertError.code === '42703' || insertError.code === 'PGRST204' || String(insertError.code) === '400')) {
                       const retry = await supabase.from('daily_statistics').insert(corePayload);
                       if (retry.error) throw retry.error;

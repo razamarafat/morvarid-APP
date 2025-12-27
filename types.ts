@@ -72,6 +72,7 @@ export interface Invoice {
     createdAt: number;
     createdBy?: string;
     creatorName?: string;
+    creatorRole?: string;
     updatedAt?: number;
     updatedBy?: string;
 }

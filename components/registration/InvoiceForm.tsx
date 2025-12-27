@@ -38,7 +38,6 @@ const invoiceGlobalSchema = z.object({
 
 type GlobalValues = z.infer<typeof invoiceGlobalSchema>;
 
-// Extended Draft Interface
 interface SMSDraft extends ParsedSMS {
     id: string;
 }
@@ -70,7 +69,6 @@ export const InvoiceForm: React.FC = () => {
     const [isProductSelectorOpen, setIsProductSelectorOpen] = useState(false);
     const [plateError, setPlateError] = useState<string | null>(null);
 
-    // SMS Feature State
     const [smsDrafts, setSmsDrafts] = useState<SMSDraft[]>([]);
     const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
     const [pendingDraftData, setPendingDraftData] = useState<{cartons: number, weight: number} | null>(null);
@@ -89,13 +87,11 @@ export const InvoiceForm: React.FC = () => {
         return () => clearInterval(timer);
     }, []);
 
-    // Apply pending draft data to newly selected products
     useEffect(() => {
         if (pendingDraftData && selectedProductIds.length > 0) {
             setItemsState(prev => {
                 const newState = { ...prev };
                 selectedProductIds.forEach(pid => {
-                    // Only overwrite if empty to avoid accidental data loss
                     if (!newState[pid]?.cartons && !newState[pid]?.weight) {
                         newState[pid] = {
                             cartons: String(pendingDraftData.cartons),
@@ -120,7 +116,6 @@ export const InvoiceForm: React.FC = () => {
         if (confirmed) {
             const parsed = await readFromClipboard();
             if (parsed.length > 0) {
-                // Filter out duplicates (check if invoiceNumber exists in current drafts)
                 const uniqueNewDrafts = parsed.filter(p => !smsDrafts.some(d => d.invoiceNumber === p.invoiceNumber));
                 
                 if (uniqueNewDrafts.length < parsed.length) {
@@ -132,7 +127,6 @@ export const InvoiceForm: React.FC = () => {
                     setSmsDrafts(prev => [...prev, ...newDrafts]); 
                     addToast(`${toPersianDigits(uniqueNewDrafts.length)} حواله جدید شناسایی شد.`, 'success');
                 } else if (parsed.length > 0) {
-                    // All were duplicates
                     addToast('همه حواله‌های کپی شده تکراری هستند.', 'warning');
                 }
             } else {
@@ -147,11 +141,9 @@ export const InvoiceForm: React.FC = () => {
             setReferenceDate(normalizeDate(draft.date));
         }
         
-        // Save payload to apply to products
         setPendingDraftData({ cartons: draft.cartons, weight: draft.weight });
         setActiveDraftId(draft.id);
 
-        // If products are already selected, apply immediately
         if (selectedProductIds.length > 0) {
             setItemsState(prev => {
                 const newState = { ...prev };
@@ -306,7 +298,6 @@ export const InvoiceForm: React.FC = () => {
         if (successCount > 0) {
             addToast(`${toPersianDigits(successCount)} آیتم با موفقیت ثبت شد.`, 'success');
             
-            // Remove the active draft if successful
             if (activeDraftId) {
                 removeDraft(activeDraftId);
             }
@@ -330,11 +321,8 @@ export const InvoiceForm: React.FC = () => {
 
     return (
         <div className="max-w-4xl mx-auto space-y-6 lg:space-y-10 pb-20">
-            {/* Updated Header */}
             <div className="bg-gradient-to-br from-metro-blue via-blue-600 to-indigo-600 p-6 text-white shadow-xl relative overflow-hidden flex flex-col items-center justify-center gap-3 rounded-b-[32px] border-b-4 border-blue-800/20 gpu-accelerated">
-                 {/* Shimmer Effect */}
                  <div className="absolute inset-0 shimmer-bg z-0"></div>
-                 
                  <Icons.FileText className="absolute -right-8 -bottom-8 w-48 h-48 opacity-10 pointer-events-none -rotate-12" />
                  <div className="relative z-10 flex flex-col items-center w-full">
                      <div className="flex items-center gap-3 mb-1">
@@ -361,15 +349,9 @@ export const InvoiceForm: React.FC = () => {
                  </div>
             </div>
 
-            {/* SMS Staging Area */}
             <AnimatePresence>
                 {smsDrafts.length > 0 && (
-                    <motion.div 
-                        initial={{ opacity: 0, height: 0 }} 
-                        animate={{ opacity: 1, height: 'auto' }} 
-                        exit={{ opacity: 0, height: 0 }}
-                        className="px-4"
-                    >
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="px-4">
                         <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-2xl p-4">
                             <h4 className="text-sm font-bold text-blue-800 dark:text-blue-200 mb-3 flex items-center gap-2">
                                 <Icons.Download className="w-4 h-4" />
@@ -399,18 +381,8 @@ export const InvoiceForm: React.FC = () => {
                                             </div>
                                         </div>
                                         <div className="flex gap-2">
-                                            <button 
-                                                onClick={() => applyDraft(draft)}
-                                                className="flex-1 bg-metro-blue text-white py-1.5 rounded-lg text-xs font-bold hover:bg-metro-cobalt transition-colors"
-                                            >
-                                                انتقال به فرم
-                                            </button>
-                                            <button 
-                                                onClick={() => removeDraft(draft.id)}
-                                                className="px-3 bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-300 rounded-lg hover:bg-red-200 transition-colors"
-                                            >
-                                                <Icons.Trash className="w-4 h-4" />
-                                            </button>
+                                            <button onClick={() => applyDraft(draft)} className="flex-1 bg-metro-blue text-white py-1.5 rounded-lg text-xs font-bold hover:bg-metro-cobalt transition-colors">انتقال به فرم</button>
+                                            <button onClick={() => removeDraft(draft.id)} className="px-3 bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-300 rounded-lg hover:bg-red-200 transition-colors"><Icons.Trash className="w-4 h-4" /></button>
                                         </div>
                                     </div>
                                 ))}
@@ -421,7 +393,6 @@ export const InvoiceForm: React.FC = () => {
             </AnimatePresence>
 
             <form onSubmit={handleSubmit(handleFinalSubmit)} className="px-4 space-y-8">
-                {/* Invoice Code Section */}
                 <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 relative border-r-[8px] border-r-metro-orange">
                     <h3 className="font-black text-xl mb-6 text-gray-800 dark:text-white flex items-center gap-2">
                         <Icons.FileText className="w-6 h-6 text-metro-orange" />
@@ -456,7 +427,6 @@ export const InvoiceForm: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Product Selection */}
                 <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 relative border-r-[8px] border-r-metro-blue">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="font-black text-xl text-gray-800 dark:text-white flex items-center gap-2">
@@ -533,7 +503,6 @@ export const InvoiceForm: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Driver Info */}
                 <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 relative border-r-[8px] border-r-metro-green">
                     <h3 className="font-black text-xl mb-6 text-gray-800 dark:text-white flex items-center gap-2">
                         <Icons.User className="w-6 h-6 text-metro-green" />
@@ -598,7 +567,7 @@ export const InvoiceForm: React.FC = () => {
                     </div>
                 </div>
 
-                <Button type="submit" isLoading={isSubmitting} className="w-full h-20 text-2xl font-black bg-gradient-to-r from-metro-blue to-indigo-600 hover:to-indigo-500 shadow-xl shadow-blue-200 dark:shadow-none rounded-[24px] border-b-4 border-blue-800 active:border-b-0 active:translate-y-1 transition-all mt-8">
+                <Button type="submit" isLoading={isSubmitting} className="w-full h-20 text-2xl lg:text-3xl font-black bg-gradient-to-r from-metro-blue to-indigo-600 hover:to-indigo-500 shadow-xl shadow-blue-200 dark:shadow-none rounded-[24px] border-b-4 border-blue-800 active:border-b-0 active:translate-y-1 transition-all mt-8">
                     ثبت نهایی حواله
                 </Button>
             </form>

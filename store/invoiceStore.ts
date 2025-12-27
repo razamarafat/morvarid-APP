@@ -48,10 +48,13 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
       
       if (!error && data) {
           const creatorIds = Array.from(new Set(data.map((i: any) => i.created_by).filter(Boolean)));
-          let profileMap: Record<string, string> = {};
+          let profileMap: Record<string, { name: string, role: string }> = {};
           if (creatorIds.length > 0) {
-              const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', creatorIds);
-              if (profiles) profileMap = profiles.reduce((acc: any, p: any) => ({ ...acc, [p.id]: p.full_name }), {});
+              const { data: profiles } = await supabase.from('profiles').select('id, full_name, role').in('id', creatorIds);
+              if (profiles) profileMap = profiles.reduce((acc: any, p: any) => ({ 
+                  ...acc, 
+                  [p.id]: { name: p.full_name, role: p.role } 
+              }), {});
           }
 
           const mapped = data.map((i: any) => ({
@@ -70,8 +73,8 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
               createdAt: i.created_at ? new Date(i.created_at).getTime() : Date.now(),
               updatedAt: i.updated_at ? new Date(i.updated_at).getTime() : undefined,
               createdBy: i.created_by,
-              // Data Completeness: Ensure non-null string
-              creatorName: profileMap[i.created_by] || 'کاربر حذف شده'
+              creatorName: profileMap[i.created_by]?.name || 'کاربر حذف شده',
+              creatorRole: profileMap[i.created_by]?.role
           }));
           set({ invoices: mapped, isLoading: false });
       } else {
@@ -232,12 +235,9 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           
           await get().fetchInvoices();
           
-          // Data Consistency: Sync Statistics for old date AND new date if changed
           if (original?.productId) {
-              // Always sync the original date logic
               useStatisticsStore.getState().syncSalesFromInvoices(original.farmId, original.date, original.productId);
               
-              // If date changed, sync the new date logic too
               if (updates.date && updates.date !== original.date) {
                   useStatisticsStore.getState().syncSalesFromInvoices(original.farmId, updates.date, original.productId);
               }
