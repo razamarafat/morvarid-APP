@@ -11,15 +11,17 @@ export interface ParsedSMS {
   farmName?: string;
 }
 
-interface MatchItem {
-  value: string;
-  index: number;
-}
-
 export const useSMS = () => {
   const { addToast } = useToastStore();
   const TARGET_SENDER = '9830007650001521';
 
+  /**
+   * Advanced Parser for Multiple Invoices
+   * Strategy: Anchor-based parsing
+   * 1. Find all "Invoice Numbers" (Anchors).
+   * 2. Determine the "window" of text belonging to each invoice.
+   * 3. Extract attributes (Weight, Cartons, Date) from that window.
+   */
   const parseMultipleInvoices = (text: string): ParsedSMS[] => {
     try {
       // 1. Clean and Normalize Text
@@ -27,87 +29,84 @@ export const useSMS = () => {
         .replace(/[\u200B-\u200D\uFEFF]/g, ' ') // Remove invisible chars
         .replace(/ك/g, 'ک')
         .replace(/ي/g, 'ی')
-        // Normalize line breaks
-        .replace(/\r\n/g, '\n')
-        .replace(/\r/g, '\n');
+        .replace(/[\r\n]+/g, '\n'); // Normalize newlines
 
-      // 2. Define Regex Patterns (Global)
-      const regexInvoice = /(?:حواله|بارنامه)(?:\s+بارگیری)?[:\s]*(\d{8,12})/g;
-      const regexWeight = /(?:وزن|ثقل)(?:\s+تقریبی)?[:\s]*([\d.,]+)/g;
-      const regexCartons = /(?:تعداد|کارتن)(?:\s+کارتن)?[:\s]*(\d+)/g;
-      // Date format: YYYY/MM/DD or YYYY-MM-DD
-      const regexDate = /(\d{4}[\/\-]\d{2}[\/\-]\d{2})/g;
+      // 2. Define Regex Patterns
+      // Invoice Anchor: 8-12 digits, often preceded by "حواله", "بارنامه", "کد", "شماره"
+      // We look for the digits primarily, but filter by context.
+      const invoiceAnchorRegex = /(?:حواله|بارنامه|کد|شماره|بارگیری).*?[:\s-]*(\d{8,12})/gi;
+      
+      // Weight: "وزن", "ثقل", "کیلو" -> followed by 3-5 digits (allow decimals)
+      const weightRegex = /(?:وزن|ثقل|کیلو|net).*?[:\s-]*([\d.,]+)/i;
+      
+      // Cartons: "تعداد", "کارتن", "عدد" -> followed by 1-4 digits
+      const cartonsRegex = /(?:تعداد|کارتن|عدد|count).*?[:\s-]*(\d+)/i;
+      
+      // Date: YYYY/MM/DD
+      const dateRegex = /(\d{4}[\/\-]\d{2}[\/\-]\d{2})/;
 
-      // 3. Extract All Entities with Indices
-      const invoices = extractAllMatches(cleanText, regexInvoice);
-      const weights = extractAllMatches(cleanText, regexWeight);
-      const cartons = extractAllMatches(cleanText, regexCartons);
-      const dates = extractAllMatches(cleanText, regexDate);
+      // 3. Find All Anchors (Invoice Numbers)
+      const anchors: { value: string, index: number }[] = [];
+      let match;
+      while ((match = invoiceAnchorRegex.exec(cleanText)) !== null) {
+          anchors.push({ value: match[1], index: match.index });
+      }
 
-      if (invoices.length === 0) return [];
+      if (anchors.length === 0) {
+          // Fallback: Try just finding big numbers if they look like invoices (starts with 17/18/98 etc)
+          const fallbackRegex = /\b(1[78]\d{8})\b/g;
+          while ((match = fallbackRegex.exec(cleanText)) !== null) {
+              anchors.push({ value: match[1], index: match.index });
+          }
+      }
+
+      if (anchors.length === 0) return [];
 
       const results: ParsedSMS[] = [];
       const seenInvoices = new Set<string>();
 
-      // 4. Proximity Matching Algorithm
-      for (let i = 0; i < invoices.length; i++) {
-        const currentInv = invoices[i];
-        const nextInvIndex = i < invoices.length - 1 ? invoices[i + 1].index : cleanText.length;
-        const prevInvIndex = i > 0 ? invoices[i - 1].index : 0;
+      // 4. Process Each Anchor Window
+      for (let i = 0; i < anchors.length; i++) {
+          const currentAnchor = anchors[i];
+          
+          if (seenInvoices.has(currentAnchor.value)) continue;
+          seenInvoices.add(currentAnchor.value);
 
-        if (seenInvoices.has(currentInv.value)) continue;
+          // Define Window:
+          // Start: A bit before the anchor (to catch "Date" if it's header)
+          // End: The start of the next anchor, or end of text.
+          const startWindow = Math.max(0, currentAnchor.index - 50); 
+          const endWindow = (i < anchors.length - 1) ? anchors[i+1].index : cleanText.length;
+          
+          const textBlock = cleanText.substring(startWindow, endWindow);
 
-        // A. Find Weight & Cartons (Lookahead)
-        const matchedWeight = weights.find(w => w.index > currentInv.index && w.index < nextInvIndex);
-        const matchedCarton = cartons.find(c => c.index > currentInv.index && c.index < nextInvIndex);
+          // Extract Data from Block
+          const weightMatch = textBlock.match(weightRegex);
+          const cartonsMatch = textBlock.match(cartonsRegex);
+          const dateMatch = textBlock.match(dateRegex);
 
-        // B. Find Date (Lookback with proximity)
-        const matchedDate = dates
-            .filter(d => d.index < currentInv.index && d.index >= prevInvIndex) // Basic: between current and prev
-            .pop(); // Closest one before current
+          const weightVal = weightMatch ? parseFloat(weightMatch[1].replace(/,/g, '')) : 0;
+          const cartonVal = cartonsMatch ? parseInt(cartonsMatch[1]) : 0;
+          const dateVal = dateMatch ? normalizeDate(dateMatch[1]) : undefined;
 
-        // Fallback for date: if not found before, look closely after (sometimes date is at end)
-        let finalDate = matchedDate;
-        if (!finalDate) {
-             const matchedDateAfter = dates.find(d => d.index > currentInv.index && d.index < nextInvIndex);
-             if (matchedDateAfter) finalDate = matchedDateAfter;
-        }
-
-        seenInvoices.add(currentInv.value);
-
-        const weightVal = matchedWeight ? parseFloat(matchedWeight.value.replace(/,/g, '')) : 0;
-        const cartonVal = matchedCarton ? parseInt(matchedCarton.value) : 0;
-
-        if (weightVal > 0 || cartonVal > 0) {
-            results.push({
-              invoiceNumber: currentInv.value,
-              weight: weightVal,
-              cartons: cartonVal,
-              date: finalDate ? normalizeDate(finalDate.value) : undefined,
-              farmName: undefined 
-            });
-        }
+          // Validity Check: Must have at least Weight OR Cartons to be useful
+          if (weightVal > 0 || cartonVal > 0) {
+              results.push({
+                  invoiceNumber: currentAnchor.value,
+                  weight: weightVal,
+                  cartons: cartonVal,
+                  date: dateVal,
+                  farmName: undefined // Could be extracted if pattern known
+              });
+          }
       }
 
       return results;
 
     } catch (e) {
-      console.error("Proximity Parser Error:", e);
+      console.error("Advanced Parser Error:", e);
       return [];
     }
-  };
-
-  const extractAllMatches = (text: string, regex: RegExp): MatchItem[] => {
-    const matches: MatchItem[] = [];
-    let match;
-    regex.lastIndex = 0; 
-    while ((match = regex.exec(text)) !== null) {
-      matches.push({
-        value: match[1], 
-        index: match.index
-      });
-    }
-    return matches;
   };
 
   const requestClipboardPermission = async (): Promise<boolean> => {
@@ -138,7 +137,7 @@ export const useSMS = () => {
 
       const text = await navigator.clipboard.readText();
       
-      if (!text || text.trim().length < 10) {
+      if (!text || text.trim().length < 5) {
         addToast('متن کپی شده معتبر نیست یا حافظه موقت خالی است.', 'warning');
         return [];
       }

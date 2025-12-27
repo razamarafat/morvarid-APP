@@ -18,6 +18,7 @@ import PersianNumberInput from '../common/PersianNumberInput';
 import PlateInput from '../common/PlateInput';
 import { useSMS, ParsedSMS } from '../../hooks/useSMS';
 import { v4 as uuidv4 } from 'uuid';
+import Modal from '../common/Modal';
 
 const persianLettersRegex = /^[\u0600-\u06FF\s]+$/;
 const mobileRegex = /^09\d{9}$/;
@@ -49,7 +50,7 @@ export const InvoiceForm: React.FC = () => {
     const { statistics } = useStatisticsStore(); 
     const { addToast } = useToastStore();
     const { confirm } = useConfirm();
-    const { readFromClipboard } = useSMS();
+    const { readFromClipboard, parseMultipleInvoices } = useSMS();
     
     const todayJalali = getTodayJalali();
     const todayDayName = getTodayDayName();
@@ -72,6 +73,10 @@ export const InvoiceForm: React.FC = () => {
     const [smsDrafts, setSmsDrafts] = useState<SMSDraft[]>([]);
     const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
     const [pendingDraftData, setPendingDraftData] = useState<{cartons: number, weight: number} | null>(null);
+
+    // Manual Paste Modal State
+    const [isPasteModalOpen, setIsPasteModalOpen] = useState(false);
+    const [pastedText, setPastedText] = useState('');
 
     const { register, handleSubmit, setValue, control, formState: { errors } } = useForm<GlobalValues>({
         resolver: zodResolver(invoiceGlobalSchema),
@@ -105,36 +110,37 @@ export const InvoiceForm: React.FC = () => {
     }, [selectedProductIds, pendingDraftData]);
 
     const handleReadSMS = async () => {
-        // We use a different message to imply accumulation
-        const confirmed = await confirm({
-            title: 'خواندن از پیامک',
-            message: 'سیستم محتوای حافظه (Clipboard) را بررسی می‌کند. می‌توانید چندین پیامک را جداگانه کپی کرده و هربار این دکمه را بزنید تا به لیست اضافه شوند.',
-            confirmText: 'تأیید',
-            cancelText: 'انصراف',
-            type: 'info'
-        });
+        const parsed = await readFromClipboard();
+        processParsedMessages(parsed);
+    };
 
-        if (confirmed) {
-            const parsed = await readFromClipboard();
-            if (parsed.length > 0) {
-                // Filter out duplicates that are ALREADY in the drafts list
-                const uniqueNewDrafts = parsed.filter(p => !smsDrafts.some(d => d.invoiceNumber === p.invoiceNumber));
-                
-                if (uniqueNewDrafts.length < parsed.length && uniqueNewDrafts.length > 0) {
-                    addToast('برخی پیامک‌ها قبلاً اضافه شده‌اند (تکراری).', 'info');
-                } else if (uniqueNewDrafts.length === 0) {
-                    addToast('این پیامک(ها) قبلاً در لیست موجود هستند.', 'warning');
-                    return;
-                }
+    const handleManualParse = () => {
+        if (!pastedText.trim()) {
+            addToast('متنی برای پردازش وارد نشده است.', 'warning');
+            return;
+        }
+        const parsed = parseMultipleInvoices(pastedText);
+        processParsedMessages(parsed);
+        setIsPasteModalOpen(false);
+        setPastedText('');
+    };
 
-                const newDrafts = uniqueNewDrafts.map(p => ({ ...p, id: uuidv4() }));
-                // Append new drafts instead of replacing
-                setSmsDrafts(prev => [...prev, ...newDrafts]); 
-                addToast(`${toPersianDigits(uniqueNewDrafts.length)} حواله جدید به لیست اضافه شد.`, 'success');
-                
-            } else {
-                addToast('هیچ الگوی معتبری در حافظه یافت نشد.', 'warning');
+    const processParsedMessages = (parsed: ParsedSMS[]) => {
+        if (parsed.length > 0) {
+            // Filter duplicates already in list
+            const uniqueNewDrafts = parsed.filter(p => !smsDrafts.some(d => d.invoiceNumber === p.invoiceNumber));
+            
+            if (uniqueNewDrafts.length === 0) {
+                addToast('این پیامک(ها) قبلاً در لیست موجود هستند.', 'warning');
+                return;
             }
+
+            const newDrafts = uniqueNewDrafts.map(p => ({ ...p, id: uuidv4() }));
+            // APPEND to existing drafts
+            setSmsDrafts(prev => [...prev, ...newDrafts]); 
+            addToast(`${toPersianDigits(uniqueNewDrafts.length)} حواله جدید به لیست اضافه شد.`, 'success');
+        } else {
+            addToast('هیچ الگوی معتبری یافت نشد.', 'warning');
         }
     };
 
@@ -342,19 +348,50 @@ export const InvoiceForm: React.FC = () => {
                      <div className="mt-3 text-white font-black tracking-wide text-lg border-b-2 border-white/20 pb-1">
                         ثبت حواله فروش
                      </div>
-                     <button 
-                        onClick={handleReadSMS}
-                        className="mt-3 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 backdrop-blur-sm transition-all border border-white/20 active:scale-95"
-                     >
-                         <Icons.Download className="w-4 h-4" />
-                         خواندن از پیامک
-                     </button>
+                     
+                     <div className="flex gap-2 mt-3">
+                         <button 
+                            onClick={handleReadSMS}
+                            className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 backdrop-blur-sm transition-all border border-white/20 active:scale-95"
+                         >
+                             <Icons.Download className="w-4 h-4" />
+                             خواندن از پیامک
+                         </button>
+                         
+                         <button 
+                            onClick={() => setIsPasteModalOpen(true)}
+                            className="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl text-sm font-bold flex items-center gap-2 backdrop-blur-sm transition-all border border-white/10 active:scale-95"
+                            title="ورود دستی / تاریخچه"
+                         >
+                             <Icons.List className="w-4 h-4" />
+                         </button>
+                     </div>
+
                      <div className="mt-2 text-[10px] text-blue-100 bg-black/20 px-3 py-1 rounded-full flex items-center gap-1 backdrop-blur-md border border-white/10">
                          <Icons.AlertCircle className="w-3 h-3" />
-                         نکته: می‌توانید چند پیامک را پشت سر هم کپی کرده و دکمه را بزنید.
+                         نکته: برای چندین پیامک، از دکمه تاریخچه استفاده کنید یا جداگانه بخوانید.
                      </div>
                  </div>
             </div>
+
+            {/* Paste Modal for History/Bulk */}
+            <Modal isOpen={isPasteModalOpen} onClose={() => setIsPasteModalOpen(false)} title="پردازش متن انبوه / تاریخچه">
+                <div className="space-y-4">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                        اگر چندین پیامک در تاریخچه کیبورد دارید، همه آن‌ها را در کادر زیر Paste کنید. سیستم تمام حواله‌ها را استخراج می‌کند.
+                    </p>
+                    <textarea 
+                        className="w-full h-48 p-4 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:border-metro-blue"
+                        placeholder="متن پیامک‌ها را اینجا قرار دهید..."
+                        value={pastedText}
+                        onChange={(e) => setPastedText(e.target.value)}
+                    ></textarea>
+                    <div className="flex justify-end gap-2">
+                        <Button variant="secondary" onClick={() => setIsPasteModalOpen(false)}>انصراف</Button>
+                        <Button onClick={handleManualParse}>پردازش متن</Button>
+                    </div>
+                </div>
+            </Modal>
 
             <AnimatePresence>
                 {smsDrafts.length > 0 && (
