@@ -13,7 +13,7 @@ import { useExpirationAlert } from '../hooks/useExpirationAlert';
 const RegistrationDashboard: React.FC = () => {
     const [currentView, setCurrentView] = useState('dashboard');
     const { isLoading } = useAuthStore();
-    const dashboardTitle = 'داشبورد ثبت اطلاعات روزانه';
+    const dashboardTitle = 'میز کار ثبت اطلاعات روزانه';
 
     // TASK 4: Enable Expiration Alert
     useExpirationAlert();

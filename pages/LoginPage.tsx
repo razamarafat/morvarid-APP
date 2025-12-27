@@ -8,7 +8,7 @@ import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
 import { Icons } from '../components/common/Icons';
 import { UserRole } from '../types';
-import { getTodayJalaliPersian, getCurrentTime, getTodayDayName } from '../utils/dateUtils';
+import { getTodayJalaliPersian, getCurrentTime, getTodayDayName, toPersianDigits } from '../utils/dateUtils';
 import { APP_VERSION } from '../constants';
 import ThemeToggle from '../components/common/ThemeToggle';
 import { motion } from 'framer-motion';
@@ -267,8 +267,9 @@ const LoginPage: React.FC = () => {
                       مـرواریــد
                   </h1>
                   
-                  <h2 className="text-sm md:text-lg font-bold text-gray-600 dark:text-gray-300 tracking-wide mt-1 opacity-90 backdrop-blur-sm bg-white/30 dark:bg-black/30 p-1.5 rounded-lg border border-white/20 dark:border-white/5 inline-block">
-                      سیستم هوشمند پایش زنجیره آمار
+                  {/* TASK 1: Updated Title */}
+                  <h2 className="text-sm md:text-lg font-bold text-gray-600 dark:text-gray-300 tracking-wide mt-1 opacity-90 backdrop-blur-sm bg-white/30 dark:bg-black/30 p-1.5 rounded-lg border border-white/20 dark:border-white/5 inline-block leading-relaxed">
+                      میزکار آمار و فروش
                   </h2>
               </div>
 
@@ -283,12 +284,12 @@ const LoginPage: React.FC = () => {
                           <div className="hidden md:block w-32 h-1 bg-gradient-to-r from-transparent via-orange-400 to-transparent mx-auto rounded-full opacity-80"></div>
                           <div className="md:hidden h-4 w-[2px] bg-orange-400 rounded-full opacity-50"></div>
                           <div className="text-3xl md:text-5xl font-black text-gray-900 dark:text-white tabular-nums tracking-tight leading-none">
-                              {currentDate}
+                              {toPersianDigits(currentDate)}
                           </div>
                       </div>
                       <div className="hidden md:block w-32 h-1 bg-gradient-to-r from-transparent via-orange-400 to-transparent mx-auto rounded-full opacity-80"></div>
                       <div className="text-2xl md:text-4xl font-black text-gray-600 dark:text-gray-400 tabular-nums tracking-widest opacity-80 leading-none">
-                          {currentTime}
+                          {toPersianDigits(currentTime)}
                       </div>
                   </div>
               </div>
@@ -355,7 +356,10 @@ const LoginPage: React.FC = () => {
                               className="w-full h-10 md:h-16 bg-gradient-to-r from-gray-900 to-black hover:from-black hover:to-gray-900 dark:from-orange-500 dark:to-yellow-500 text-white font-black text-sm md:text-lg rounded-xl md:rounded-2xl transition-all duration-300 active:scale-[0.98] shadow-lg flex items-center justify-center gap-2"
                           >
                               {isSubmitting || isRedirecting ? (
-                                  <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin"></div>
+                                  <>
+                                    <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin"></div>
+                                    <span>در حال پردازش...</span>
+                                  </>
                               ) : (
                                   <span>ورود به سیستم</span>
                               )}

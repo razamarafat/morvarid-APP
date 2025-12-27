@@ -53,7 +53,7 @@ const MobileNav: React.FC<MobileNavProps> = ({ onNavigate, currentView }) => {
       case UserRole.REGISTRATION:
         return (
           <>
-            <NavItem icon={Icons.Home} label="داشبورد" view="dashboard" isActive={currentView === 'dashboard'} />
+            <NavItem icon={Icons.Desk} label="میز کار" view="dashboard" isActive={currentView === 'dashboard'} />
             <NavItem icon={Icons.BarChart} label="ثبت آمار" view="stats" isActive={currentView === 'stats'} />
             {notifButton}
             <NavItem icon={Icons.FileText} label="ثبت حواله" view="invoice" isActive={currentView === 'invoice'} />
@@ -63,7 +63,7 @@ const MobileNav: React.FC<MobileNavProps> = ({ onNavigate, currentView }) => {
       case UserRole.SALES:
         return (
           <>
-            <NavItem icon={Icons.Home} label="داشبورد" view="dashboard" isActive={currentView === 'dashboard'} />
+            <NavItem icon={Icons.Desk} label="میز کار" view="dashboard" isActive={currentView === 'dashboard'} />
             <NavItem icon={Icons.BarChart} label="آمار" view="farm-stats" isActive={currentView === 'farm-stats'} />
             {notifButton}
             <NavItem icon={Icons.FileText} label="حواله‌ها" view="invoices" isActive={currentView === 'invoices'} />
@@ -74,7 +74,7 @@ const MobileNav: React.FC<MobileNavProps> = ({ onNavigate, currentView }) => {
       default:
         return (
           <>
-            <NavItem icon={Icons.Home} label="داشبورد" view="dashboard" isActive={currentView === 'dashboard'} />
+            <NavItem icon={Icons.Desk} label="میز کار" view="dashboard" isActive={currentView === 'dashboard'} />
             <NavItem icon={Icons.Home} label="فارم‌ها" view="farms" isActive={currentView === 'farms'} />
             {notifButton}
             <NavItem icon={Icons.Users} label="کاربران" view="users" isActive={currentView === 'users'} />

@@ -73,9 +73,9 @@ const SplashPage: React.FC = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 0.8 }}
                 transition={{ duration: 0.8, delay: 0.8 }}
-                className="text-base md:text-lg font-bold text-gray-500 dark:text-gray-400 font-sans tracking-wide"
+                className="text-sm md:text-base font-bold text-gray-600 dark:text-gray-300 font-sans tracking-wide leading-relaxed"
             >
-                سامانه مدیریت یکپارچه
+                سیستم هوشمند مدیریت یکپارچه آمار ، تولید و فروش
             </motion.p>
         </div>
 

@@ -83,7 +83,7 @@ const AdminDashboard: React.FC = () => {
             case 'reports': return 'گزارشات';
             case 'devices': return 'دستگاه‌های متصل';
             case 'testing': return 'سنجش ویژگی‌ها';
-            default: return 'داشبورد مدیریت';
+            default: return 'میز کار مدیریت';
         }
     }
 
