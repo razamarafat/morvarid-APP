@@ -73,7 +73,7 @@ export const useFarmStore = create<FarmState>((set, get) => ({
               name: p.name,
               description: p.description,
               unit: p.unit,
-              hasKilogramUnit: p.has__kilogram_unit,
+              hasKilogramUnit: p.has_kilogram_unit, // Fixed typo: removed double underscore
               isDefault: p.is_default,
               isCustom: p.is_custom
           }));

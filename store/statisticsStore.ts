@@ -31,7 +31,50 @@ const mapLegacyProductId = (id: string | number): string => {
     return strId;
 };
 
-// Error Helper ... (Same as before)
+// Robust Error Extractor - Guaranteed to return a readable string
+const getErrorMessage = (e: any): string => {
+    if (e === null || e === undefined) return 'خطای ناشناخته (Empty Error)';
+    
+    // 1. If it's already a string
+    if (typeof e === 'string') return e;
+    
+    // 2. Standard JS Error
+    if (e instanceof Error) return e.message;
+    
+    // 3. Supabase PostgrestError often has 'message'
+    if (e?.message) {
+        if (typeof e.message === 'string') return e.message;
+        // If message itself is an object, try to stringify it safely
+        try {
+            return JSON.stringify(e.message);
+        } catch {
+            return 'خطای جزئیات پیام (Message Object)';
+        }
+    }
+    
+    // 4. OAuth / Auth errors
+    if (e?.error_description) return e.error_description;
+    
+    // 5. PostgREST fields
+    if (e?.details) return e.details;
+    if (e?.hint) return e.hint;
+
+    // 6. Fallback: JSON Stringify
+    try {
+        const json = JSON.stringify(e);
+        // Avoid returning empty brackets
+        if (json === '{}' || json === '[]') {
+             const code = e?.code ? `Code: ${e.code}` : '';
+             const status = e?.status ? `Status: ${e.status}` : '';
+             if (code || status) return `خطای سرور (${code} ${status})`.trim();
+             
+             return 'خطای داخلی نامشخص (Unknown Object)';
+        }
+        return json;
+    } catch {
+        return 'خطای سیستمی (Circular Object)';
+    }
+};
 
 interface StatisticsState {
     statistics: DailyStatistic[];
@@ -53,12 +96,11 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
   fetchStatistics: async () => {
       set({ isLoading: true });
       try {
-          // Optimized Query: Sort by Date Descending
           const { data: statsData, error: statsError } = await supabase
               .from('daily_statistics')
               .select('*')
               .order('date', { ascending: false })
-              .limit(3000); // Scalability Limit
+              .limit(3000); 
           
           if (statsError) throw statsError;
 
@@ -76,7 +118,6 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                   }
               }
 
-              // Client-side deduplication (still needed for multiple entries per day edge case)
               const uniqueStatsMap = new Map<string, any>();
               statsData.forEach((s: any) => {
                   const key = `${s.farm_id}_${normalizeDate(s.date)}_${mapLegacyProductId(s.product_id)}`;
@@ -134,31 +175,77 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
   },
 
   updateStatistic: async (id, updates, isSyncing = false) => {
-      // ... Same implementation as before ...
       try {
-          const { error } = await supabase.from('daily_statistics').update(updates).eq('id', id);
+          const dbUpdates: any = {};
+          // Map camelCase to snake_case
+          if (updates.farmId !== undefined) dbUpdates.farm_id = updates.farmId;
+          if (updates.date !== undefined) dbUpdates.date = updates.date;
+          if (updates.productId !== undefined) dbUpdates.product_id = updates.productId;
+          if (updates.previousBalance !== undefined) dbUpdates.previous_balance = updates.previousBalance;
+          if (updates.previousBalanceKg !== undefined) dbUpdates.previous_balance_kg = updates.previousBalanceKg;
+          if (updates.production !== undefined) dbUpdates.production = updates.production;
+          if (updates.productionKg !== undefined) dbUpdates.production_kg = updates.productionKg;
+          if (updates.sales !== undefined) dbUpdates.sales = updates.sales;
+          if (updates.salesKg !== undefined) dbUpdates.sales_kg = updates.salesKg;
+          if (updates.currentInventory !== undefined) dbUpdates.current_inventory = updates.currentInventory;
+          if (updates.currentInventoryKg !== undefined) dbUpdates.current_inventory_kg = updates.currentInventoryKg;
+          
+          dbUpdates.updated_at = new Date().toISOString();
+
+          const { error } = await supabase.from('daily_statistics').update(dbUpdates).eq('id', id);
           if (error) throw error;
           await get().fetchStatistics();
           return { success: true };
       } catch(e: any) {
-          return { success: false, error: e.message };
+          return { success: false, error: getErrorMessage(e) };
       }
   },
 
   bulkUpsertStatistics: async (stats, isSyncing = false) => {
-      // ... Same implementation as before ...
       try {
           const { data: { user } } = await supabase.auth.getUser();
-          if (!user) return { success: false, error: "Auth Error" };
+          if (!user) return { success: false, error: "Auth Error: User not logged in" };
           
-          const dbStats = stats.map(s => ({ ...s, created_by: user.id }));
+          // MAP camelCase (Frontend) TO snake_case (Database)
+          const dbStats = stats.map(s => ({
+              farm_id: s.farmId,
+              date: normalizeDate(s.date),
+              product_id: s.productId,
+              previous_balance: s.previousBalance,
+              previous_balance_kg: s.previousBalanceKg,
+              production: s.production,
+              production_kg: s.productionKg,
+              sales: s.sales,
+              sales_kg: s.salesKg,
+              current_inventory: s.currentInventory,
+              current_inventory_kg: s.currentInventoryKg,
+              created_by: user.id
+          }));
+
+          // DEBUG LOG: Ensure payload is correct before sending
+          console.log('[StatisticsStore] Upsert Payload:', dbStats);
+
           const { error } = await supabase.from('daily_statistics').upsert(dbStats);
           
-          if (error) throw error;
+          if (error) {
+              // DETECT SCHEMA ERROR: If column missing, warn user
+              if (error.message?.includes('Could not find') || error.code === 'PGRST204' || error.code === '42703') {
+                  console.error("CRITICAL: Database schema mismatch. Please run supabase_setup.sql");
+                  return { success: false, error: "ساختار دیتابیس قدیمی است. لطفا فایل supabase_setup.sql را در Supabase اجرا کنید." };
+              }
+              throw error;
+          }
+
           await get().fetchStatistics();
           return { success: true };
       } catch (e: any) {
-          return { success: false, error: e.message };
+          if (!isSyncing && !navigator.onLine) {
+              stats.forEach(s => useSyncStore.getState().addToQueue('STAT', s));
+              return { success: true, error: 'ذخیره در صف آفلاین' };
+          }
+          const errMsg = getErrorMessage(e);
+          console.error("Upsert Stats Error:", errMsg);
+          return { success: false, error: errMsg };
       }
   },
 
@@ -169,17 +256,56 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           await get().fetchStatistics();
           return { success: true };
       } catch(e: any) {
-          return { success: false, error: e.message };
+          return { success: false, error: getErrorMessage(e) };
       }
   },
 
   getLatestInventory: (farmId, productId) => {
     const stats = get().statistics.filter(s => s.farmId === farmId && s.productId === productId);
     if (stats.length === 0) return { units: 0, kg: 0 };
-    return { units: stats[0].currentInventory || 0, kg: stats[0].currentInventoryKg || 0 };
+    // Sort by date descending to get true latest
+    const sorted = [...stats].sort((a, b) => b.date.localeCompare(a.date));
+    return { units: sorted[0].currentInventory || 0, kg: sorted[0].currentInventoryKg || 0 };
   },
 
   syncSalesFromInvoices: async (farmId, date, productId) => {
-      // ... Same logic ...
+      try {
+          const normalizedDate = normalizeDate(date);
+          
+          // 1. Fetch all invoices for this day/farm/product
+          const { data: invoices } = await supabase.from('invoices')
+              .select('total_cartons, total_weight')
+              .match({ farm_id: farmId, date: normalizedDate, product_id: productId });
+          
+          // 2. Sum totals
+          const totalSales = invoices?.reduce((sum, inv) => sum + (inv.total_cartons || 0), 0) || 0;
+          const totalSalesKg = invoices?.reduce((sum, inv) => sum + (inv.total_weight || 0), 0) || 0;
+
+          // 3. Find the daily statistic record
+          const { data: stats } = await supabase.from('daily_statistics')
+              .select('*')
+              .match({ farm_id: farmId, date: normalizedDate, product_id: productId })
+              .single();
+          
+          if (stats) {
+              // 4. Recalculate inventory
+              // Logic: Current = Previous + Production - Sales
+              const newCurrent = (stats.previous_balance || 0) + (stats.production || 0) - totalSales;
+              const newCurrentKg = (stats.previous_balance_kg || 0) + (stats.production_kg || 0) - totalSalesKg;
+              
+              // 5. Update the record
+              await supabase.from('daily_statistics').update({
+                  sales: totalSales,
+                  sales_kg: totalSalesKg,
+                  current_inventory: newCurrent,
+                  current_inventory_kg: newCurrentKg,
+                  updated_at: new Date().toISOString()
+              }).eq('id', stats.id);
+              
+              get().fetchStatistics();
+          }
+      } catch (e) { 
+          console.error('Sync Sales Error', e); 
+      }
   }
 }));

@@ -13,18 +13,65 @@ const mapLegacyProductId = (id: string | number): string => {
     return strId;
 };
 
+// Robust Error Extractor - Guaranteed to return a readable string
+const getErrorMessage = (e: any): string => {
+    if (e === null || e === undefined) return 'خطای ناشناخته (Empty Error)';
+    
+    // 1. If it's already a string
+    if (typeof e === 'string') return e;
+    
+    // 2. Standard JS Error
+    if (e instanceof Error) return e.message;
+    
+    // 3. Supabase PostgrestError often has 'message'
+    if (e?.message) {
+        if (typeof e.message === 'string') return e.message;
+        // If message itself is an object, try to stringify it safely
+        try {
+            return JSON.stringify(e.message);
+        } catch {
+            return 'خطای جزئیات پیام (Message Object)';
+        }
+    }
+    
+    // 4. OAuth / Auth errors
+    if (e?.error_description) return e.error_description;
+    
+    // 5. PostgREST fields
+    if (e?.details) return e.details;
+    if (e?.hint) return e.hint;
+
+    // 6. Fallback: JSON Stringify
+    try {
+        const json = JSON.stringify(e);
+        // Avoid returning empty brackets
+        if (json === '{}' || json === '[]') {
+             const code = e?.code ? `Code: ${e.code}` : '';
+             const status = e?.status ? `Status: ${e.status}` : '';
+             if (code || status) return `خطای سرور (${code} ${status})`.trim();
+             
+             return 'خطای داخلی نامشخص (Unknown Object)';
+        }
+        return json;
+    } catch {
+        return 'خطای سیستمی (Circular Object)';
+    }
+};
+
 const translateError = (error: any): string => {
     if (!error) return 'خطای ناشناخته';
     const code = error.code || '';
     const status = String(error.status || '');
-    if (status === '400' || code === 'PGRST204' || code === '42703') return 'خطای ساختار دیتابیس (ستون یافت نشد). پیلود اصلاح و تلاش مجدد شد.';
+    if (status === '400' || code === 'PGRST204' || code === '42703') return 'خطای ساختار دیتابیس (ستون یافت نشد).';
     if (code === '23505') return 'شماره حواله تکراری است.';
-    return `خطای سیستم: ${error.message || code}`;
+    
+    // Use the robust extractor for other errors
+    return `خطای سیستم: ${getErrorMessage(error)}`;
 };
 
 const isNetworkError = (error: any) => {
     if (!error) return false;
-    const msg = error.message?.toLowerCase() || '';
+    const msg = getErrorMessage(error).toLowerCase();
     return msg.includes('fetch') || msg.includes('network') || msg.includes('connection') || msg.includes('offline');
 };
 
@@ -45,8 +92,6 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
   fetchInvoices: async () => {
       set({ isLoading: true });
       try {
-          // Optimization: Order by date descending on server-side to get latest first.
-          // Limit to 2000 records for performance if needed (currently unlimited but sorted).
           const { data, error } = await supabase
               .from('invoices')
               .select('*')
@@ -101,8 +146,6 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
   },
 
   bulkAddInvoices: async (invoicesList, isSyncing = false) => {
-      // Offline & Duplicate Logic Omitted for brevity (Same as before)
-      // ...
       if (!isSyncing && !navigator.onLine) {
           invoicesList.forEach(inv => useSyncStore.getState().addToQueue('INVOICE', inv));
           return { success: true, error: 'ذخیره در صف آفلاین' };
@@ -130,13 +173,11 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           const { error } = await supabase.from('invoices').insert(dbInvoices);
 
           if (error) {
-              // Retry logic for schema mismatch...
               throw error;
           }
 
           get().fetchInvoices();
           
-          // Trigger Sync for Stats
           const uniqueKeys = new Set<string>();
           invoicesList.forEach(inv => {
               if (inv.productId) uniqueKeys.add(`${inv.farmId}|${inv.date}|${inv.productId}`);
@@ -158,12 +199,9 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
   },
 
   updateInvoice: async (id, updates, isSyncing = false) => {
-      // Update logic...
       try {
           const fullPayload: any = { ...updates, updated_at: new Date().toISOString() };
-          // Mapping fields...
           if (updates.totalCartons !== undefined) fullPayload.total_cartons = updates.totalCartons;
-          // ... (rest of mapping)
 
           const { error } = await supabase.from('invoices').update(fullPayload).eq('id', id);
           if (error) throw error;
@@ -171,19 +209,18 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           await get().fetchInvoices();
           return { success: true };
       } catch (error: any) {
-          return { success: false, error: error.message };
+          return { success: false, error: getErrorMessage(error) };
       }
   },
 
   deleteInvoice: async (id, isSyncing = false) => {
-      // Delete logic...
       try {
           const { error } = await supabase.from('invoices').delete().eq('id', id);
           if (error) throw error;
           await get().fetchInvoices();
           return { success: true };
       } catch(e: any) {
-          return { success: false, error: e.message };
+          return { success: false, error: getErrorMessage(e) };
       }
   }
 }));
