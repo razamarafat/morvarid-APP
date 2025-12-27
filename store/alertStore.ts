@@ -129,8 +129,9 @@ export const useAlertStore = create<AlertState>()(
                     } else {
                         useToastStore.getState().addToast('مجوز اعلان رد شد.', 'warning');
                     }
-                } catch (e) {
+                } catch (e: any) {
                     console.error('Permission Request Error:', e);
+                    get().addLog(`Permission Error: ${e.message || e}`);
                 }
             },
 
@@ -149,13 +150,17 @@ export const useAlertStore = create<AlertState>()(
                         console.error('[Alert] DB Save Error:', error);
                         if (error.code === '42P01') {
                             console.warn('Table push_subscriptions does not exist. Please run the SQL setup script.');
+                            get().addLog('هشدار: جدول دیتابیس یافت نشد (42P01)');
+                        } else {
+                            get().addLog(`DB Error: ${error.message}`);
                         }
                     } else {
                         console.log('[Alert] Subscription saved to DB.');
                         get().addLog('دستگاه در سرور ثبت شد.');
                     }
-                } catch (e) {
+                } catch (e: any) {
                     console.error('[Alert] DB Save Exception:', e);
+                    get().addLog(`Exception: ${e.message || String(e)}`);
                 }
             },
 
@@ -184,9 +189,9 @@ export const useAlertStore = create<AlertState>()(
                         await get().saveSubscriptionToDb(sub);
                     }
                     
-                } catch (e) {
+                } catch (e: any) {
                     console.warn('[Alert] Push Subscription failed:', e);
-                    get().addLog(`خطا در اشتراک Push: ${e}`);
+                    get().addLog(`خطا در اشتراک Push: ${e.message || String(e)}`);
                 }
             },
 

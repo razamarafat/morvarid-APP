@@ -90,6 +90,30 @@
         font-family: 'Vazir', sans-serif !important;
       }
 
+      /* AUTOFILL FIX START */
+      /* Light Mode */
+      input:-webkit-autofill,
+      input:-webkit-autofill:hover, 
+      input:-webkit-autofill:focus, 
+      input:-webkit-autofill:active {
+          -webkit-box-shadow: 0 0 0 30px white inset !important;
+          -webkit-text-fill-color: #111827 !important; /* gray-900 */
+          background-color: white !important;
+          color: #111827 !important;
+      }
+
+      /* Dark Mode */
+      html.dark input:-webkit-autofill,
+      html.dark input:-webkit-autofill:hover, 
+      html.dark input:-webkit-autofill:focus, 
+      html.dark input:-webkit-autofill:active {
+          -webkit-box-shadow: 0 0 0 30px #374151 inset !important; /* gray-700 */
+          -webkit-text-fill-color: white !important;
+          background-color: #374151 !important;
+          color: white !important;
+      }
+      /* AUTOFILL FIX END */
+
       :root {
         --sat: env(safe-area-inset-top);
         --sar: env(safe-area-inset-right);

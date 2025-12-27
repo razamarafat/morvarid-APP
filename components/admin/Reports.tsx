@@ -15,14 +15,15 @@ import { useConfirm } from '../../hooks/useConfirm';
 import Modal from '../common/Modal';
 import { useDebounce } from '../../hooks/useDebounce';
 import PersianNumberInput from '../common/PersianNumberInput';
+import PlateInput from '../common/PlateInput';
 
 type ReportTab = 'stats' | 'invoices' | 'create';
 type CreateSubTab = 'stats' | 'invoice';
 
 const Reports: React.FC = () => {
     const { farms, products, getProductById } = useFarmStore();
-    const { statistics, deleteStatistic, updateStatistic, addStatistic } = useStatisticsStore();
-    const { invoices, deleteInvoice, updateInvoice, addInvoice } = useInvoiceStore();
+    const { statistics, deleteStatistic, updateStatistic, addStatistic, fetchStatistics } = useStatisticsStore();
+    const { invoices, deleteInvoice, updateInvoice, addInvoice, fetchInvoices } = useInvoiceStore();
     const { addToast } = useToastStore();
     const { confirm } = useConfirm();
     const { user: currentUser } = useAuthStore();
@@ -62,7 +63,7 @@ const Reports: React.FC = () => {
         if (reportTab !== 'create') {
             handleSearch();
         }
-    }, [debouncedSearchTerm, selectedFarmId, selectedProductId, startDate, endDate, reportTab]);
+    }, [debouncedSearchTerm, selectedFarmId, selectedProductId, startDate, endDate, reportTab, statistics, invoices]);
 
     const handleSearch = () => {
         setIsSearching(true);
@@ -116,7 +117,6 @@ const Reports: React.FC = () => {
         }
     };
 
-    // ... Edit Functions (similar to before) ...
     const openStatEdit = (stat: any) => {
         const f = (v: any) => (v === undefined || v === null) ? '' : String(v);
         setEditingStat(stat);
@@ -201,6 +201,7 @@ const Reports: React.FC = () => {
             });
 
             if (result.success) {
+                await fetchStatistics(); // Force update
                 addToast('آمار با موفقیت توسط مدیر ثبت شد.', 'success');
                 setCreateStat({ prod: '', prodKg: '', prev: '', prevKg: '' });
             } else {
@@ -232,6 +233,7 @@ const Reports: React.FC = () => {
             });
 
             if (result.success) {
+                await fetchInvoices(); // Force update
                 addToast('حواله با موفقیت توسط مدیر ثبت شد.', 'success');
                 setCreateInvoice({ invoiceNumber: '', cartons: '', weight: '', driver: '', plate: '', phone: '', desc: '' });
             } else {
@@ -240,20 +242,11 @@ const Reports: React.FC = () => {
         }
     };
 
-    // ... Helper functions from original (formatPlateVisual, exportExcel, etc) ...
     const formatPlateVisual = (plate: string) => {
         if (!plate || !plate.includes('-')) return plate || '-';
         const parts = plate.split('-');
         if (parts.length === 4) return `${toPersianDigits(parts[3])} - ${toPersianDigits(parts[2])} ${parts[1]} ${toPersianDigits(parts[0])}`;
         return plate;
-    };
-
-    const getDualValueString = (units: number, weight: number) => {
-        const parts = [];
-        if (units > 0) parts.push(`${units}`);
-        if (weight > 0) parts.push(`${weight} Kg`);
-        if (parts.length === 0) return '0';
-        return parts.join(' / ');
     };
 
     const renderDualCell = (units: number, weight: number, colorClass: string, isEdited: boolean) => {
@@ -267,8 +260,6 @@ const Reports: React.FC = () => {
             </div>
         );
     };
-
-    const handleExportExcel = () => { /* Same as before, omitted for brevity */ };
 
     return (
         <div className="space-y-6">
@@ -288,15 +279,15 @@ const Reports: React.FC = () => {
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                             <div>
-                                <label className="block text-sm font-bold mb-2">انتخاب فارم</label>
-                                <select value={createFarmId} onChange={e => setCreateFarmId(e.target.value)} className="w-full p-3 border rounded-xl dark:bg-gray-700 dark:text-white">
+                                <label className="block text-sm font-bold mb-2 text-gray-700 dark:text-gray-300">انتخاب فارم</label>
+                                <select value={createFarmId} onChange={e => setCreateFarmId(e.target.value)} className="w-full p-3 border rounded-xl bg-white text-gray-900 dark:bg-gray-700 dark:text-white dark:border-gray-600">
                                     <option value="">انتخاب کنید</option>
                                     {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm font-bold mb-2">انتخاب محصول</label>
-                                <select value={createProductId} onChange={e => setCreateProductId(e.target.value)} className="w-full p-3 border rounded-xl dark:bg-gray-700 dark:text-white">
+                                <label className="block text-sm font-bold mb-2 text-gray-700 dark:text-gray-300">انتخاب محصول</label>
+                                <select value={createProductId} onChange={e => setCreateProductId(e.target.value)} className="w-full p-3 border rounded-xl bg-white text-gray-900 dark:bg-gray-700 dark:text-white dark:border-gray-600">
                                     <option value="">انتخاب کنید</option>
                                     {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                 </select>
@@ -309,27 +300,37 @@ const Reports: React.FC = () => {
                         {createSubTab === 'stats' ? (
                             <div className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div><label className="block text-sm font-bold mb-1">تولید (کارتن)</label><PersianNumberInput className="w-full p-3 border rounded-xl dark:bg-gray-700" value={createStat.prod} onChange={v => setCreateStat({...createStat, prod: v})} /></div>
-                                    <div><label className="block text-sm font-bold mb-1">موجودی قبل (کارتن)</label><PersianNumberInput className="w-full p-3 border rounded-xl dark:bg-gray-700" value={createStat.prev} onChange={v => setCreateStat({...createStat, prev: v})} /></div>
+                                    <div><label className="block text-sm font-bold mb-1 text-gray-700 dark:text-gray-300">تولید (کارتن)</label><PersianNumberInput className="w-full p-3 border rounded-xl bg-white text-gray-900 dark:bg-gray-700 dark:text-white dark:border-gray-600" value={createStat.prod} onChange={v => setCreateStat({...createStat, prod: v})} /></div>
+                                    <div><label className="block text-sm font-bold mb-1 text-gray-700 dark:text-gray-300">موجودی قبل (کارتن)</label><PersianNumberInput className="w-full p-3 border rounded-xl bg-white text-gray-900 dark:bg-gray-700 dark:text-white dark:border-gray-600" value={createStat.prev} onChange={v => setCreateStat({...createStat, prev: v})} /></div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div><label className="block text-sm font-bold mb-1">تولید (Kg)</label><PersianNumberInput className="w-full p-3 border rounded-xl dark:bg-gray-700" value={createStat.prodKg} onChange={v => setCreateStat({...createStat, prodKg: v})} /></div>
-                                    <div><label className="block text-sm font-bold mb-1">موجودی قبل (Kg)</label><PersianNumberInput className="w-full p-3 border rounded-xl dark:bg-gray-700" value={createStat.prevKg} onChange={v => setCreateStat({...createStat, prevKg: v})} /></div>
+                                    <div><label className="block text-sm font-bold mb-1 text-gray-700 dark:text-gray-300">تولید (Kg)</label><PersianNumberInput className="w-full p-3 border rounded-xl bg-white text-gray-900 dark:bg-gray-700 dark:text-white dark:border-gray-600" value={createStat.prodKg} onChange={v => setCreateStat({...createStat, prodKg: v})} /></div>
+                                    <div><label className="block text-sm font-bold mb-1 text-gray-700 dark:text-gray-300">موجودی قبل (Kg)</label><PersianNumberInput className="w-full p-3 border rounded-xl bg-white text-gray-900 dark:bg-gray-700 dark:text-white dark:border-gray-600" value={createStat.prevKg} onChange={v => setCreateStat({...createStat, prevKg: v})} /></div>
                                 </div>
                                 <Button onClick={handleCreateStat} className="w-full mt-4">ثبت آمار توسط مدیر</Button>
                             </div>
                         ) : (
                             <div className="space-y-4">
-                                <div><label className="block text-sm font-bold mb-1">شماره حواله</label><PersianNumberInput className="w-full p-3 border rounded-xl dark:bg-gray-700" value={createInvoice.invoiceNumber} onChange={v => setCreateInvoice({...createInvoice, invoiceNumber: v})} /></div>
+                                <div><label className="block text-sm font-bold mb-1 text-gray-700 dark:text-gray-300">شماره حواله</label><PersianNumberInput className="w-full p-3 border rounded-xl bg-white text-gray-900 dark:bg-gray-700 dark:text-white dark:border-gray-600" value={createInvoice.invoiceNumber} onChange={v => setCreateInvoice({...createInvoice, invoiceNumber: v})} /></div>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div><label className="block text-sm font-bold mb-1">تعداد کارتن</label><PersianNumberInput className="w-full p-3 border rounded-xl dark:bg-gray-700" value={createInvoice.cartons} onChange={v => setCreateInvoice({...createInvoice, cartons: v})} /></div>
-                                    <div><label className="block text-sm font-bold mb-1">وزن (Kg)</label><PersianNumberInput className="w-full p-3 border rounded-xl dark:bg-gray-700" value={createInvoice.weight} onChange={v => setCreateInvoice({...createInvoice, weight: v})} /></div>
+                                    <div><label className="block text-sm font-bold mb-1 text-gray-700 dark:text-gray-300">تعداد کارتن</label><PersianNumberInput className="w-full p-3 border rounded-xl bg-white text-gray-900 dark:bg-gray-700 dark:text-white dark:border-gray-600" value={createInvoice.cartons} onChange={v => setCreateInvoice({...createInvoice, cartons: v})} /></div>
+                                    <div><label className="block text-sm font-bold mb-1 text-gray-700 dark:text-gray-300">وزن (Kg)</label><PersianNumberInput className="w-full p-3 border rounded-xl bg-white text-gray-900 dark:bg-gray-700 dark:text-white dark:border-gray-600" value={createInvoice.weight} onChange={v => setCreateInvoice({...createInvoice, weight: v})} /></div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div><label className="block text-sm font-bold mb-1">نام راننده</label><input className="w-full p-3 border rounded-xl dark:bg-gray-700 dark:text-white" value={createInvoice.driver} onChange={e => setCreateInvoice({...createInvoice, driver: e.target.value})} /></div>
-                                    <div><label className="block text-sm font-bold mb-1">شماره تماس</label><PersianNumberInput className="w-full p-3 border rounded-xl dark:bg-gray-700" value={createInvoice.phone} onChange={v => setCreateInvoice({...createInvoice, phone: v})} /></div>
+                                    <div><label className="block text-sm font-bold mb-1 text-gray-700 dark:text-gray-300">نام راننده</label><input className="w-full p-3 border rounded-xl bg-white text-gray-900 dark:bg-gray-700 dark:text-white dark:border-gray-600" value={createInvoice.driver} onChange={e => setCreateInvoice({...createInvoice, driver: e.target.value})} /></div>
+                                    <div><label className="block text-sm font-bold mb-1 text-gray-700 dark:text-gray-300">شماره تماس</label><PersianNumberInput className="w-full p-3 border rounded-xl bg-white text-gray-900 dark:bg-gray-700 dark:text-white dark:border-gray-600" value={createInvoice.phone} onChange={v => setCreateInvoice({...createInvoice, phone: v})} /></div>
                                 </div>
-                                <div><label className="block text-sm font-bold mb-1">توضیحات</label><input className="w-full p-3 border rounded-xl dark:bg-gray-700 dark:text-white" value={createInvoice.desc} onChange={e => setCreateInvoice({...createInvoice, desc: e.target.value})} /></div>
+                                
+                                {/* PLATE INPUT ADDED HERE */}
+                                <div>
+                                    <label className="block text-sm font-bold mb-1 text-gray-700 dark:text-gray-300">شماره پلاک</label>
+                                    <PlateInput 
+                                        value={createInvoice.plate} 
+                                        onChange={v => setCreateInvoice({...createInvoice, plate: v})} 
+                                    />
+                                </div>
+
+                                <div><label className="block text-sm font-bold mb-1 text-gray-700 dark:text-gray-300">توضیحات</label><input className="w-full p-3 border rounded-xl bg-white text-gray-900 dark:bg-gray-700 dark:text-white dark:border-gray-600" value={createInvoice.desc} onChange={e => setCreateInvoice({...createInvoice, desc: e.target.value})} /></div>
                                 <Button onClick={handleCreateInvoice} className="w-full mt-4 bg-metro-orange hover:bg-orange-600">ثبت حواله توسط مدیر</Button>
                             </div>
                         )}
@@ -338,12 +339,12 @@ const Reports: React.FC = () => {
             ) : (
                 <>
                     <div className={`bg-white dark:bg-gray-800 p-6 rounded-[28px] shadow-sm border-l-[12px] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-end ${reportTab === 'invoices' ? 'border-metro-orange' : 'border-metro-blue'}`}>
-                        {/* Filters... Same as before */}
+                        {/* Filters */}
                         <div className="lg:col-span-4 mb-2">
-                            <input type="text" placeholder="جستجو..." className="w-full p-4 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-900 dark:text-white font-bold outline-none focus:border-metro-blue transition-all" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                            <input type="text" placeholder="جستجو..." className="w-full p-4 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white text-gray-900 dark:bg-gray-900 dark:text-white font-bold outline-none focus:border-metro-blue transition-all" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                         </div>
-                        <div><select value={selectedFarmId} onChange={e => setSelectedFarmId(e.target.value)} className="w-full p-4 border-2 border-gray-200 rounded-xl dark:bg-gray-700 dark:text-white"><option value="all">همه فارم‌ها</option>{farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}</select></div>
-                        <div><select value={selectedProductId} onChange={e => setSelectedProductId(e.target.value)} className="w-full p-4 border-2 border-gray-200 rounded-xl dark:bg-gray-700 dark:text-white"><option value="all">همه محصولات</option>{products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
+                        <div><select value={selectedFarmId} onChange={e => setSelectedFarmId(e.target.value)} className="w-full p-4 border-2 border-gray-200 rounded-xl bg-white text-gray-900 dark:bg-gray-700 dark:text-white dark:border-gray-600"><option value="all">همه فارم‌ها</option>{farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}</select></div>
+                        <div><select value={selectedProductId} onChange={e => setSelectedProductId(e.target.value)} className="w-full p-4 border-2 border-gray-200 rounded-xl bg-white text-gray-900 dark:bg-gray-700 dark:text-white dark:border-gray-600"><option value="all">همه محصولات</option>{products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
                         <div><JalaliDatePicker value={startDate} onChange={setStartDate} label="از تاریخ" /></div>
                         <div><JalaliDatePicker value={endDate} onChange={setEndDate} label="تا تاریخ" /></div>
                     </div>
@@ -364,7 +365,6 @@ const Reports: React.FC = () => {
                                     {isSearching ? <tr><td colSpan={10} className="text-center py-20 text-gray-400">در حال جستجو...</td></tr> : previewData.length === 0 ? <tr><td colSpan={10} className="text-center py-20 text-gray-400 font-bold">رکوردی یافت نشد</td></tr> : (
                                         previewData.map(row => {
                                             const prod = getProductById(row.productId);
-                                            // Enhanced Edited Logic: Compare updatedAt > createdAt + 2s buffer
                                             const isEdited = row.updatedAt && row.updatedAt > row.createdAt + 2000;
                                             const isAdminCreated = row.creatorRole === UserRole.ADMIN;
                                             const displayTime = (!isAdminCreated || isAdmin) ? new Date(isEdited ? row.updatedAt : row.createdAt).toLocaleTimeString('fa-IR', {hour: '2-digit', minute:'2-digit'}) : '---';
@@ -372,7 +372,7 @@ const Reports: React.FC = () => {
                                             return (
                                             <tr key={row.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${isAdminCreated ? 'bg-purple-50/50 dark:bg-purple-900/10' : ''}`}>
                                                 {reportTab === 'stats' ? <>
-                                                    <td className="p-5 font-mono font-bold text-lg">{toPersianDigits(row.date)}</td>
+                                                    <td className="p-5 font-mono font-bold text-lg text-gray-800 dark:text-white">{toPersianDigits(row.date)}</td>
                                                     <td className="p-5 font-bold text-gray-800 dark:text-white">{farms.find(f => f.id === row.farmId)?.name}</td>
                                                     <td className="p-5 text-sm text-gray-500 font-bold">{prod?.name}</td>
                                                     <td className="p-5 text-center">{renderDualCell(row.production || 0, row.productionKg || 0, 'text-green-600', isEdited)}</td>
@@ -381,34 +381,34 @@ const Reports: React.FC = () => {
                                                     <td className="p-5">
                                                         <div className="flex flex-col gap-1">
                                                             <div className="flex items-center gap-2">
-                                                                <span className={`px-2 py-0.5 rounded-md font-bold text-xs ${isAdminCreated ? 'bg-purple-200 text-purple-800' : 'bg-gray-100 dark:bg-gray-700'}`}>
+                                                                <span className={`px-2 py-0.5 rounded-md font-bold text-xs ${isAdminCreated ? 'bg-purple-200 text-purple-800' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}>
                                                                     {isAdminCreated ? 'ثبت توسط مدیر' : (row.creatorName || 'ناشناس')}
                                                                 </span>
                                                                 <div className="flex flex-col">
-                                                                    <span className="font-mono text-[10px] opacity-60">{toPersianDigits(displayTime)}</span>
+                                                                    <span className="font-mono text-[10px] opacity-60 text-gray-500 dark:text-gray-400">{toPersianDigits(displayTime)}</span>
                                                                     {isEdited && <span className="text-[9px] text-orange-500 font-bold">(ویرایش شده)</span>}
                                                                 </div>
                                                             </div>
                                                         </div>
                                                     </td>
                                                 </> : <>
-                                                    <td className="p-5 font-mono font-bold text-lg">{toPersianDigits(row.date)}</td>
+                                                    <td className="p-5 font-mono font-bold text-lg text-gray-800 dark:text-white">{toPersianDigits(row.date)}</td>
                                                     <td className="p-5 text-center font-black text-xl lg:text-2xl tracking-widest text-metro-orange">{toPersianDigits(row.invoiceNumber)}</td>
                                                     <td className="p-5 font-bold text-gray-800 dark:text-white">{farms.find(f => f.id === row.farmId)?.name}</td>
                                                     <td className="p-5 font-bold text-gray-600 dark:text-gray-300">{prod?.name || '-'}</td>
-                                                    <td className={`p-5 text-center font-black text-xl lg:text-2xl ${isEdited ? 'bg-yellow-50 dark:bg-yellow-900/10 rounded' : ''}`}>{toPersianDigits(row.totalCartons || 0)}</td>
+                                                    <td className={`p-5 text-center font-black text-xl lg:text-2xl text-gray-800 dark:text-white ${isEdited ? 'bg-yellow-50 dark:bg-yellow-900/10 rounded' : ''}`}>{toPersianDigits(row.totalCartons || 0)}</td>
                                                     <td className={`p-5 text-center text-blue-600 font-black text-xl lg:text-2xl ${isEdited ? 'bg-yellow-50 dark:bg-yellow-900/10 rounded' : ''}`}>{toPersianDigits(row.totalWeight || 0)}</td>
-                                                    <td className="p-5 font-mono font-bold text-sm">{toPersianDigits(row.driverPhone || '-')}</td>
-                                                    <td className="p-5 font-bold">{row.driverName || '-'}</td>
-                                                    <td className="p-5 font-mono text-sm">{formatPlateVisual(row.plateNumber || '') || '-'}</td>
+                                                    <td className="p-5 font-mono font-bold text-sm text-gray-600 dark:text-gray-400">{toPersianDigits(row.driverPhone || '-')}</td>
+                                                    <td className="p-5 font-bold text-gray-700 dark:text-gray-300">{row.driverName || '-'}</td>
+                                                    <td className="p-5 font-mono text-sm text-gray-600 dark:text-gray-400">{formatPlateVisual(row.plateNumber || '') || '-'}</td>
                                                     <td className="p-5">
                                                         <div className="flex flex-col gap-1">
                                                             <div className="flex items-center gap-2">
-                                                                <span className={`px-2 py-0.5 rounded-md font-bold text-xs ${isAdminCreated ? 'bg-purple-200 text-purple-800' : 'bg-gray-100 dark:bg-gray-700'}`}>
+                                                                <span className={`px-2 py-0.5 rounded-md font-bold text-xs ${isAdminCreated ? 'bg-purple-200 text-purple-800' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}>
                                                                     {isAdminCreated ? 'ثبت توسط مدیر' : (row.creatorName || 'ناشناس')}
                                                                 </span>
                                                                 <div className="flex flex-col">
-                                                                    <span className="font-mono text-[10px] opacity-60">{toPersianDigits(displayTime)}</span>
+                                                                    <span className="font-mono text-[10px] opacity-60 text-gray-500 dark:text-gray-400">{toPersianDigits(displayTime)}</span>
                                                                     {isEdited && <span className="text-[9px] text-orange-500 font-bold">(ویرایش شده)</span>}
                                                                 </div>
                                                             </div>
@@ -430,16 +430,14 @@ const Reports: React.FC = () => {
                 </>
             )}
             
-            {/* Modals remain mostly same, omitted for brevity, logic handled in main component */}
             <Modal isOpen={!!editingStat} onClose={() => setEditingStat(null)} title="اصلاح مدیریتی آمار">
-                {/* ... Edit Stat Form ... */}
                 <div className="space-y-6">
                      <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl text-sm font-bold text-purple-800 dark:text-purple-300 border border-purple-100 dark:border-purple-800">
                          شما در حال ویرایش با دسترسی مدیر هستید.
                      </div>
                      <div className="grid grid-cols-2 gap-4 lg:gap-6">
-                         <div><label className="text-sm font-bold block mb-2">تولید</label><input type="number" value={statForm.prod} onChange={e => setStatForm({...statForm, prod: e.target.value})} className="w-full p-3 border rounded-xl dark:bg-gray-700" /></div>
-                         <div><label className="text-sm font-bold block mb-2">فروش</label><input type="number" value={statForm.sales} onChange={e => setStatForm({...statForm, sales: e.target.value})} className="w-full p-3 border rounded-xl dark:bg-gray-700" /></div>
+                         <div><label className="text-sm font-bold block mb-2 text-gray-700 dark:text-gray-300">تولید</label><input type="number" value={statForm.prod} onChange={e => setStatForm({...statForm, prod: e.target.value})} className="w-full p-3 border rounded-xl bg-white text-gray-900 dark:bg-gray-700 dark:text-white dark:border-gray-600" /></div>
+                         <div><label className="text-sm font-bold block mb-2 text-gray-700 dark:text-gray-300">فروش</label><input type="number" value={statForm.sales} onChange={e => setStatForm({...statForm, sales: e.target.value})} className="w-full p-3 border rounded-xl bg-white text-gray-900 dark:bg-gray-700 dark:text-white dark:border-gray-600" /></div>
                      </div>
                      <div className="flex justify-end gap-2 mt-8">
                          <Button variant="secondary" onClick={() => setEditingStat(null)}>لغو</Button>
@@ -449,14 +447,13 @@ const Reports: React.FC = () => {
             </Modal>
 
              <Modal isOpen={!!editingInvoice} onClose={() => setEditingInvoice(null)} title="ویرایش حواله (مدیریت)">
-                {/* ... Edit Invoice Form ... */}
                 <div className="space-y-6">
                      <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl text-sm font-bold text-purple-800 dark:text-purple-300">
                          ویرایش حواله باعث بروزرسانی خودکار موجودی انبار خواهد شد.
                      </div>
                      <div className="grid grid-cols-2 gap-4">
-                         <div><label className="block text-sm font-bold mb-2">تعداد کارتن</label><input type="number" value={invoiceForm.cartons} onChange={e => setInvoiceForm({...invoiceForm, cartons: e.target.value})} className="w-full p-3 border rounded-xl dark:bg-gray-700" /></div>
-                         <div><label className="block text-sm font-bold mb-2">وزن (Kg)</label><input type="number" value={invoiceForm.weight} onChange={e => setInvoiceForm({...invoiceForm, weight: e.target.value})} className="w-full p-3 border rounded-xl dark:bg-gray-700" /></div>
+                         <div><label className="block text-sm font-bold mb-2 text-gray-700 dark:text-gray-300">تعداد کارتن</label><input type="number" value={invoiceForm.cartons} onChange={e => setInvoiceForm({...invoiceForm, cartons: e.target.value})} className="w-full p-3 border rounded-xl bg-white text-gray-900 dark:bg-gray-700 dark:text-white dark:border-gray-600" /></div>
+                         <div><label className="block text-sm font-bold mb-2 text-gray-700 dark:text-gray-300">وزن (Kg)</label><input type="number" value={invoiceForm.weight} onChange={e => setInvoiceForm({...invoiceForm, weight: e.target.value})} className="w-full p-3 border rounded-xl bg-white text-gray-900 dark:bg-gray-700 dark:text-white dark:border-gray-600" /></div>
                      </div>
                      <div className="flex justify-end gap-2 mt-6">
                          <Button variant="secondary" onClick={() => setEditingInvoice(null)}>لغو</Button>

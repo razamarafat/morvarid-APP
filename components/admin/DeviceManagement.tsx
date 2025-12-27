@@ -29,6 +29,7 @@ const DeviceManagement: React.FC = () => {
     const fetchDevices = async () => {
         setIsLoading(true);
         // Join with profiles to get user names
+        // Requires Foreign Key: push_subscriptions.user_id -> profiles.id
         const { data, error } = await supabase
             .from('push_subscriptions')
             .select(`
@@ -41,10 +42,14 @@ const DeviceManagement: React.FC = () => {
             .order('created_at', { ascending: false });
 
         if (error) {
-            console.error('Fetch Devices Error:', error);
-            // If error is 404/relation does not exist, it means the user hasn't run the SQL yet.
+            console.error('Fetch Devices Error:', error.message || error);
+            
             if (error.code === '42P01') {
-                addToast('جدول اشتراک‌ها یافت نشد. لطفاً اسکریپت SQL را اجرا کنید.', 'error');
+                addToast('جدول اشتراک‌ها (push_subscriptions) یافت نشد. لطفاً اسکریپت SQL را اجرا کنید.', 'error');
+            } else if (error.code === 'PGRST200') {
+                addToast('رابطه بین جداول یافت نشد. لطفاً Foreign Key را بررسی کنید.', 'error');
+            } else {
+                addToast(`خطا در دریافت لیست دستگاه‌ها: ${error.message}`, 'error');
             }
         } else {
             setDevices(data as any || []);
@@ -67,7 +72,7 @@ const DeviceManagement: React.FC = () => {
         if (confirmed) {
             const { error } = await supabase.from('push_subscriptions').delete().eq('id', id);
             if (error) {
-                addToast('خطا در حذف دستگاه', 'error');
+                addToast(`خطا در حذف دستگاه: ${error.message}`, 'error');
             } else {
                 addToast('دستگاه با موفقیت حذف شد', 'success');
                 fetchDevices();
@@ -170,7 +175,7 @@ const DeviceManagement: React.FC = () => {
             <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl text-xs text-blue-800 dark:text-blue-300 border border-blue-100 dark:border-blue-800 leading-loose">
                 <strong>نکته فنی:</strong> لیست بالا شامل دستگاه‌هایی است که اجازه دریافت نوتیفیکیشن را در مرورگر تایید کرده‌اند.
                 <br/>
-                برای ارسال پیام به این دستگاه‌ها در حالت بسته بودن برنامه، باید <code>Edge Function</code> در Supabase فعال باشد.
+                اگر خطای "relation does not exist" دریافت کردید، فایل <code>supabase_setup.sql</code> موجود در روت پروژه را در SQL Editor پنل Supabase اجرا کنید.
             </div>
         </div>
     );

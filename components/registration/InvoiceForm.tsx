@@ -105,9 +105,10 @@ export const InvoiceForm: React.FC = () => {
     }, [selectedProductIds, pendingDraftData]);
 
     const handleReadSMS = async () => {
+        // We use a different message to imply accumulation
         const confirmed = await confirm({
             title: 'خواندن از پیامک',
-            message: 'کاربر گرامی برای استفاده از این ویژگی ابتدا باید پیامک‌های ارسال شده با محتوای رمز حواله را کپی کرده باشید. آیا مطمئن هستید؟',
+            message: 'سیستم محتوای حافظه (Clipboard) را بررسی می‌کند. می‌توانید چندین پیامک را جداگانه کپی کرده و هربار این دکمه را بزنید تا به لیست اضافه شوند.',
             confirmText: 'تأیید',
             cancelText: 'انصراف',
             type: 'info'
@@ -116,21 +117,23 @@ export const InvoiceForm: React.FC = () => {
         if (confirmed) {
             const parsed = await readFromClipboard();
             if (parsed.length > 0) {
+                // Filter out duplicates that are ALREADY in the drafts list
                 const uniqueNewDrafts = parsed.filter(p => !smsDrafts.some(d => d.invoiceNumber === p.invoiceNumber));
                 
-                if (uniqueNewDrafts.length < parsed.length) {
-                    addToast('رمز پیامک تکراری است (برخی موارد نادیده گرفته شدند)', 'warning');
+                if (uniqueNewDrafts.length < parsed.length && uniqueNewDrafts.length > 0) {
+                    addToast('برخی پیامک‌ها قبلاً اضافه شده‌اند (تکراری).', 'info');
+                } else if (uniqueNewDrafts.length === 0) {
+                    addToast('این پیامک(ها) قبلاً در لیست موجود هستند.', 'warning');
+                    return;
                 }
 
-                if (uniqueNewDrafts.length > 0) {
-                    const newDrafts = uniqueNewDrafts.map(p => ({ ...p, id: uuidv4() }));
-                    setSmsDrafts(prev => [...prev, ...newDrafts]); 
-                    addToast(`${toPersianDigits(uniqueNewDrafts.length)} حواله جدید شناسایی شد.`, 'success');
-                } else if (parsed.length > 0) {
-                    addToast('همه حواله‌های کپی شده تکراری هستند.', 'warning');
-                }
+                const newDrafts = uniqueNewDrafts.map(p => ({ ...p, id: uuidv4() }));
+                // Append new drafts instead of replacing
+                setSmsDrafts(prev => [...prev, ...newDrafts]); 
+                addToast(`${toPersianDigits(uniqueNewDrafts.length)} حواله جدید به لیست اضافه شد.`, 'success');
+                
             } else {
-                addToast('هیچ اطلاعات معتبری در حافظه یافت نشد.', 'warning');
+                addToast('هیچ الگوی معتبری در حافظه یافت نشد.', 'warning');
             }
         }
     };
@@ -348,7 +351,7 @@ export const InvoiceForm: React.FC = () => {
                      </button>
                      <div className="mt-2 text-[10px] text-blue-100 bg-black/20 px-3 py-1 rounded-full flex items-center gap-1 backdrop-blur-md border border-white/10">
                          <Icons.AlertCircle className="w-3 h-3" />
-                         نکته: برای ثبت گروهی، لطفاً تمام پیامک‌ها را یکجا انتخاب و کپی کنید.
+                         نکته: می‌توانید چند پیامک را پشت سر هم کپی کرده و دکمه را بزنید.
                      </div>
                  </div>
             </div>

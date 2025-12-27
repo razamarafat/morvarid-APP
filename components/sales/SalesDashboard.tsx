@@ -394,8 +394,178 @@ const InvoiceList = () => {
     );
 };
 
-// ... Analytics view omitted for brevity, no changes needed there ...
-const AnalyticsView = () => { return null; }; // Placeholder for snippet context
+const AnalyticsView = () => {
+    const { statistics } = useStatisticsStore();
+    const { invoices } = useInvoiceStore();
+    const { farms } = useFarmStore();
+    const [range, setRange] = useState<number>(7);
+    const [selectedFarmId, setSelectedFarmId] = useState<string>('all');
+
+    const chartData = useMemo(() => {
+        const allDates = new Set<string>();
+        const relevantStats = statistics.filter(s => selectedFarmId === 'all' || s.farmId === selectedFarmId);
+        const relevantInvoices = invoices.filter(i => selectedFarmId === 'all' || i.farmId === selectedFarmId);
+
+        relevantStats.forEach(s => allDates.add(s.date));
+        relevantInvoices.forEach(i => allDates.add(i.date));
+
+        const sortedDates = Array.from(allDates).sort().reverse().slice(0, range).reverse();
+
+        let maxVal = 0;
+        let totalProd = 0;
+        let totalSales = 0;
+
+        const dataPoints = sortedDates.map(date => {
+            const prod = relevantStats
+                .filter(s => s.date === date)
+                .reduce((sum, s) => sum + (s.production || 0), 0);
+
+            const sale = relevantInvoices
+                .filter(i => i.date === date)
+                .reduce((sum, i) => sum + (i.totalCartons || 0), 0);
+
+            if (prod > maxVal) maxVal = prod;
+            if (sale > maxVal) maxVal = sale;
+
+            totalProd += prod;
+            totalSales += sale;
+
+            return { date, prod, sale };
+        });
+
+        maxVal = Math.max(10, Math.ceil(maxVal * 1.1));
+
+        return { dataPoints, maxVal, totalProd, totalSales };
+    }, [statistics, invoices, range, selectedFarmId]);
+
+    const salesRate = chartData.totalProd > 0 ? ((chartData.totalSales / chartData.totalProd) * 100).toFixed(1) : '0';
+
+    return (
+        <div className="space-y-6 lg:space-y-8">
+            <div className="bg-white dark:bg-gray-800 p-4 lg:p-6 rounded-xl shadow-sm border-l-4 border-purple-500 flex flex-col sm:flex-row gap-4 justify-between items-center">
+                <div className="flex items-center gap-2">
+                    <Icons.BarChart className="w-6 h-6 lg:w-8 lg:h-8 text-purple-600" />
+                    <h3 className="font-black text-lg lg:text-2xl dark:text-white">تحلیل تولید و فروش</h3>
+                </div>
+                <div className="flex gap-2 w-full sm:w-auto">
+                    <select 
+                        value={selectedFarmId} 
+                        onChange={(e) => setSelectedFarmId(e.target.value)} 
+                        className="p-2 lg:p-3 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white font-bold text-sm lg:text-lg w-full sm:w-40"
+                    >
+                        <option value="all">همه فارم‌های</option>
+                        {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                    </select>
+                    <select 
+                        value={range} 
+                        onChange={(e) => setRange(Number(e.target.value))} 
+                        className="p-2 lg:p-3 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white font-bold text-sm lg:text-lg"
+                    >
+                        <option value={7}>۷ روز اخیر</option>
+                        <option value={14}>۱۴ روز اخیر</option>
+                        <option value={30}>۳۰ روز اخیر</option>
+                    </select>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-8">
+                <div className="bg-green-50 dark:bg-green-900/20 p-4 lg:p-6 rounded-xl border border-green-200 dark:border-green-800 flex items-center justify-between">
+                    <div>
+                        <span className="text-sm font-bold text-green-700 dark:text-green-300 block mb-1 lg:mb-2">مجموع تولید دوره</span>
+                        <span className="text-2xl lg:text-4xl font-black text-green-800 dark:text-green-100">{toPersianDigits(chartData.totalProd)}</span>
+                    </div>
+                    <Icons.BarChart className="w-8 h-8 lg:w-12 lg:h-12 text-green-300 opacity-50" />
+                </div>
+                <div className="bg-red-50 dark:bg-red-900/20 p-4 lg:p-6 rounded-xl border border-red-200 dark:border-red-800 flex items-center justify-between">
+                    <div>
+                        <span className="text-sm font-bold text-red-700 dark:text-red-300 block mb-1 lg:mb-2">مجموع فروش دوره</span>
+                        <span className="text-2xl lg:text-4xl font-black text-red-800 dark:text-red-100">{toPersianDigits(chartData.totalSales)}</span>
+                    </div>
+                    <Icons.FileText className="w-8 h-8 lg:w-12 lg:h-12 text-red-300 opacity-50" />
+                </div>
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 lg:p-6 rounded-xl border border-blue-200 dark:border-blue-800 flex items-center justify-between">
+                    <div>
+                        <span className="text-sm font-bold text-blue-700 dark:text-blue-300 block mb-1 lg:mb-2">نرخ فروش به تولید</span>
+                        <span className="text-2xl lg:text-4xl font-black text-blue-800 dark:text-blue-100">٪ {toPersianDigits(salesRate)}</span>
+                    </div>
+                    <Icons.Refresh className="w-8 h-8 lg:w-12 lg:h-12 text-blue-300 opacity-50" />
+                </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-x-auto">
+                <div className="min-w-[600px] h-[350px] lg:h-[450px] relative pt-6 pb-8 px-4 flex items-end gap-2 md:gap-4 lg:gap-6">
+                    <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-8 pt-6 px-4">
+                        {[1, 0.75, 0.5, 0.25, 0].map((tick, i) => (
+                            <div key={i} className="w-full border-b border-gray-100 dark:border-gray-700 h-0 relative">
+                                <span className="absolute -left-8 -top-2 text-sm lg:text-base text-gray-400 font-mono">
+                                    {toPersianDigits(Math.round(chartData.maxVal * tick))}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+
+                    {chartData.dataPoints.length === 0 ? (
+                        <div className="absolute inset-0 flex items-center justify-center text-gray-400 lg:text-xl">
+                            داده‌ای برای نمایش وجود ندارد
+                        </div>
+                    ) : (
+                        chartData.dataPoints.map((point, index) => {
+                            const prodHeight = (point.prod / chartData.maxVal) * 100;
+                            const saleHeight = (point.sale / chartData.maxVal) * 100;
+                            
+                            return (
+                                <div key={index} className="flex-1 flex flex-col justify-end items-center gap-1 group relative h-full z-10">
+                                    <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black text-white text-[10px] lg:text-sm p-2 lg:p-3 rounded pointer-events-none whitespace-nowrap z-20">
+                                        <div className="text-center font-bold mb-1 border-b border-white/20 pb-1">{point.date}</div>
+                                        <div>تولید: {toPersianDigits(point.prod)}</div>
+                                        <div>فروش: {toPersianDigits(point.sale)}</div>
+                                    </div>
+
+                                    <div className="w-full flex justify-center items-end gap-1 h-full">
+                                        <motion.div 
+                                            initial={{ height: 0 }} 
+                                            animate={{ height: `${prodHeight}%` }}
+                                            transition={{ duration: 0.5, delay: index * 0.05 }}
+                                            className="w-1/2 max-w-[20px] lg:max-w-[40px] bg-green-500 rounded-t-sm hover:bg-green-400 transition-colors relative"
+                                        >
+                                            {prodHeight > 10 && <span className="absolute top-1 left-0 w-full text-center text-[10px] lg:text-xs text-white/90 font-bold">{toPersianDigits(point.prod)}</span>}
+                                        </motion.div>
+                                        
+                                        <motion.div 
+                                            initial={{ height: 0 }} 
+                                            animate={{ height: `${saleHeight}%` }}
+                                            transition={{ duration: 0.5, delay: index * 0.05 + 0.1 }}
+                                            className="w-1/2 max-w-[20px] lg:max-w-[40px] bg-red-500 rounded-t-sm hover:bg-red-400 transition-colors relative"
+                                        >
+                                            {saleHeight > 10 && <span className="absolute top-1 left-0 w-full text-center text-[10px] lg:text-xs text-white/90 font-bold">{toPersianDigits(point.sale)}</span>}
+                                        </motion.div>
+                                    </div>
+                                    
+                                    <div className="h-8 flex items-center justify-center">
+                                        <span className="text-xs lg:text-sm text-gray-500 dark:text-gray-400 -rotate-45 whitespace-nowrap origin-top-left translate-y-2 translate-x-2">
+                                            {toPersianDigits(point.date.slice(5))}
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+                
+                <div className="flex justify-center gap-6 lg:gap-10 mt-4 lg:mt-8">
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 lg:w-5 lg:h-5 bg-green-500 rounded-sm"></div>
+                        <span className="text-sm lg:text-base font-bold text-gray-600 dark:text-gray-300">تولید</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 lg:w-5 lg:h-5 bg-red-500 rounded-sm"></div>
+                        <span className="text-sm lg:text-base font-bold text-gray-600 dark:text-gray-300">فروش</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNavigate }) => {
     return (
@@ -436,7 +606,7 @@ const SalesDashboard: React.FC = () => {
             case 'farm-stats': return <FarmStatistics />;
             case 'invoices': return <InvoiceList />;
             case 'reports': return <Reports />;
-            case 'analytics': return <AnalyticsView />; // Assuming analytics view is defined elsewhere or imported
+            case 'analytics': return <AnalyticsView />;
             default: return <DashboardHome onNavigate={setCurrentView} />;
         }
     };

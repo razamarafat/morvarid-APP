@@ -312,6 +312,8 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                                                         </div>
                                                     </div>
                                                 </div>
+                                                
+                                                {/* CONDITIONAL RENDERING FOR WEIGHT ROW - TASK 5 */}
                                                 {isLiq && (
                                                     <div className="space-y-3 pt-3 border-t border-dashed border-gray-200 dark:border-gray-700">
                                                         <h4 className="text-sm font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">

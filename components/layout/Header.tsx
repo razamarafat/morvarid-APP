@@ -8,7 +8,7 @@ import { UserRole } from '../../types';
 import { useThemeStore } from '../../store/themeStore';
 import { THEMES } from '../../constants';
 import { useConfirm } from '../../hooks/useConfirm';
-import { usePwaStore } from '../../store/pwaStore';
+import { usePwaStore } from '../../store/pwaStore'; 
 import { useAlertStore } from '../../store/alertStore';
 import OnlineStatusBadge from '../common/OnlineStatusBadge';
 import Modal from '../common/Modal';
@@ -104,6 +104,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
                     <button onClick={() => handleNavClick('farms')} className={btnClass}><Icons.Home className="w-4 h-4"/> فارم‌ها</button>
                     <button onClick={() => handleNavClick('users')} className={btnClass}><Icons.Users className="w-4 h-4"/> کاربران</button>
                     <button onClick={() => handleNavClick('reports')} className={btnClass}><Icons.FileText className="w-4 h-4"/> گزارشات</button>
+                    <button onClick={() => handleNavClick('devices')} className={btnClass}><Icons.Globe className="w-4 h-4"/> دستگاه‌ها</button>
                     <button onClick={() => handleNavClick('testing')} className={btnClass}><Icons.TestTube className="w-4 h-4"/> سنجش فنی</button>
                   </>
               );
