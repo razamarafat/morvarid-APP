@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm, FieldErrors } from 'react-hook-form';
 import { z } from 'zod';
@@ -11,6 +11,7 @@ import { UserRole } from '../types';
 import { getTodayJalaliPersian, getCurrentTime, getTodayDayName } from '../utils/dateUtils';
 import { APP_VERSION } from '../constants';
 import ThemeToggle from '../components/common/ThemeToggle';
+import { motion } from 'framer-motion';
 
 const loginSchema = z.object({
   username: z.string().min(1, "نام کاربری الزامی است"),
@@ -19,6 +20,33 @@ const loginSchema = z.object({
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
+
+// --- UPDATED QUOTES DATABASE (Business/Ethical/Motivational) ---
+const DAILY_QUOTES = [
+    { text: "موفقیت، مجموعه‌ای از تلاش‌های کوچک است که هر روز تکرار می‌شوند.", author: "رابرت کالیر" },
+    { text: "کیفیت، هرگز اتفاقی نیست؛ نتیجه نیت عالی، تلاش صادقانه و اجرای هوشمندانه است.", author: "ویلا فاستر" },
+    { text: "بهترین زمان برای کاشتن درخت ۲۰ سال پیش بود. دومین زمان بهترین، همین الان است.", author: "مثل چینی" },
+    { text: "مسئولیت‌پذیری، بهایی است که برای بزرگی می‌پردازیم.", author: "وینستون چرچیل" },
+    { text: "نظم و انضباط، پل بین اهداف و دستاوردهاست.", author: "جیم ران" },
+    { text: "فرصت‌ها اتفاق نمی‌افتند، شما آن‌ها را می‌سازید.", author: "کریس گروسر" },
+    { text: "صداقت، اولین فصل از کتاب دانایی است.", author: "توماس جفرسون" },
+    { text: "تلاش سخت، استعداد را شکست می‌دهد وقتی استعداد سخت تلاش نکند.", author: "تیم نوتک" },
+    { text: "کاسب حبیب خداست؛ روزی حلال برکت زندگی است.", author: "پیامبر اکرم (ص)" },
+    { text: "آنچه امروز انجام می‌دهید، می‌تواند تمام فردای شما را بهبود بخشد.", author: "رالف مارستون" },
+    { text: "برنده شدن همیشگی نیست، اما تمایل به برنده شدن همیشگی است.", author: "وینس لومباردی" },
+    { text: "اخلاق حرفه‌ای، سرمایه‌ای نامشهود اما بسیار ارزشمند است.", author: "پیتر دراکر" },
+    { text: "پشتکار، تفاوت بین شکست و کامیابی است.", author: "ناشناس" },
+    { text: "بهترین راه پیش‌بینی آینده، ساختن آن است.", author: "آبراهام لینکلن" },
+    { text: "رضایت مشتری، ارزشمندترین دارایی یک کسب‌ و کار است.", author: "بیل گیتس" },
+];
+
+const getDayOfYear = () => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 0);
+    const diff = now.getTime() - start.getTime();
+    const oneDay = 1000 * 60 * 60 * 24;
+    return Math.floor(diff / oneDay);
+};
 
 // --- EXISTING: SKETCH ---
 const UltraRealisticSketch = React.memo(() => (
@@ -167,6 +195,13 @@ const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
 
+  // Quote Logic
+  const quote = useMemo(() => {
+      const dayOfYear = getDayOfYear();
+      const index = dayOfYear % DAILY_QUOTES.length;
+      return DAILY_QUOTES[index];
+  }, []);
+
   useEffect(() => {
     const timer = setInterval(() => {
         setCurrentTime(getCurrentTime());
@@ -219,11 +254,6 @@ const LoginPage: React.FC = () => {
       if (firstError?.message) addToast(firstError.message as string, 'error');
   };
 
-  // Custom CSS for autofill to prevent white background in dark mode
-  const inputStyle = {
-      boxShadow: '0 0 0 30px transparent inset',
-  };
-
   return (
     // Fixed height 100dvh prevents scrolling. Overflow hidden crucial.
     <div className="h-[100dvh] w-full flex flex-col relative overflow-hidden bg-[#FFF8F0] dark:bg-[#0f172a] font-sans transition-colors duration-500">
@@ -253,55 +283,72 @@ const LoginPage: React.FC = () => {
       <div className="relative z-10 flex flex-col md:flex-row h-full w-full justify-between md:justify-center">
           
           {/* --- TOP SECTION (Logo & Title) --- */}
-          <div className="flex-none flex flex-col items-center justify-center md:justify-start pt-8 md:pt-32 relative z-20 shrink-0 md:flex-1 md:w-[55%]">
+          <div className="flex-none flex flex-col items-center justify-center md:justify-start pt-2 md:pt-32 relative z-20 shrink-0 md:flex-1 md:w-[55%]">
               
               <div className="text-center z-20 transform-gpu transition-transform duration-300">
-                  {/* MORVARID TEXT WITHOUT CROWN */}
-                  <div className="relative inline-block mb-2 md:mb-2 w-auto">
-                      <h1 className="text-4xl md:text-5xl font-black tracking-[0.2em] text-gray-900 dark:text-white drop-shadow-md relative z-10">MORVARID</h1>
+                  {/* MORVARID TEXT */}
+                  <div className="relative inline-block mb-1 md:mb-2 w-auto">
+                      <h1 className="text-3xl md:text-5xl font-black tracking-[0.2em] text-gray-900 dark:text-white drop-shadow-md relative z-10">MORVARID</h1>
                   </div>
 
-                  <div className="h-1.5 w-16 md:w-24 bg-gradient-to-r from-orange-400 to-yellow-400 mx-auto rounded-full mb-3 md:mb-5 shadow-sm"></div>
+                  <div className="h-1 w-12 md:h-1.5 md:w-24 bg-gradient-to-r from-orange-400 to-yellow-400 mx-auto rounded-full mb-2 md:mb-5 shadow-sm"></div>
                   
-                  <h1 className="text-5xl md:text-6xl font-black text-gray-800 dark:text-white mb-3 md:mb-5 tracking-tight drop-shadow-sm scale-y-110">
+                  {/* Reduced text size for Mobile */}
+                  <h1 className="text-4xl md:text-6xl font-black text-gray-800 dark:text-white mb-2 md:mb-5 tracking-tight drop-shadow-sm scale-y-110">
                       مـرواریــد
                   </h1>
                   
-                  <h2 className="text-sm md:text-lg font-bold text-gray-600 dark:text-gray-300 tracking-wide mt-1 opacity-90 backdrop-blur-sm bg-white/30 dark:bg-black/30 p-1.5 rounded-lg border border-white/20 dark:border-white/5 inline-block">
+                  <h2 className="text-[10px] md:text-lg font-bold text-gray-600 dark:text-gray-300 tracking-wide mt-1 opacity-90 backdrop-blur-sm bg-white/30 dark:bg-black/30 p-1 md:p-1.5 rounded-lg border border-white/20 dark:border-white/5 inline-block">
                       سیستم هوشمند پایش زنجیره آمار، تولید و فروش
                   </h2>
               </div>
 
-              {/* Mobile Date - Visible */}
-              <div className="flex md:hidden items-center justify-center gap-3 z-20 bg-orange-50/50 dark:bg-black/30 px-4 py-2 rounded-lg backdrop-blur-sm border border-orange-200/50 dark:border-white/10 shadow-sm mt-4">
-                  <div className="text-sm font-black text-gray-800 dark:text-white tabular-nums tracking-tight">
-                      {currentTime}
-                  </div>
-                  <div className="w-[1px] h-3 bg-orange-300 dark:bg-gray-600 rounded-full"></div>
-                  <div className="flex items-center gap-1 text-sm font-black text-gray-800 dark:text-white tabular-nums tracking-tight">
-                      <span>{currentDate}</span>
-                      <span className="text-xs opacity-75">({currentDayName})</span>
-                  </div>
-              </div>
+              {/* Vertical Clock Component (Borderless, Clean) */}
+              <div className="mt-4 md:mt-12 z-20 flex flex-col items-center gap-0 w-full max-w-[320px] md:max-w-md">
+                  <div className="w-full text-center flex flex-col gap-2 md:gap-6">
+                      
+                      {/* Mobile: Horizontal Layout for Date/Day */}
+                      <div className="flex md:flex-col items-center justify-center gap-3 md:gap-4">
+                          <div className="text-sm md:text-2xl font-black text-gray-700 dark:text-gray-300 tracking-[0.2em] md:tracking-[0.6em] uppercase opacity-90 scale-x-110">
+                              {currentDayName}
+                          </div>
+                          
+                          <div className="hidden md:block w-32 h-1 bg-gradient-to-r from-transparent via-orange-400 to-transparent mx-auto rounded-full opacity-80"></div>
+                          
+                          {/* Separator for Mobile */}
+                          <div className="md:hidden h-4 w-[2px] bg-orange-400 rounded-full opacity-50"></div>
 
-              {/* Desktop Date */}
-              <div className="hidden md:flex items-center justify-center gap-6 z-20 bg-orange-100/60 dark:bg-black/40 px-6 py-3 md:px-10 md:py-5 rounded-2xl backdrop-blur-sm border border-orange-200 dark:border-white/10 shadow-md transform-gpu mt-8">
-                  <div className="text-2xl md:text-4xl font-black text-gray-800 dark:text-white tabular-nums tracking-tight">
-                      {currentTime}
-                  </div>
-                  <div className="w-[2px] h-6 md:h-10 bg-orange-300 dark:bg-gray-600 rounded-full"></div>
-                  <div className="flex flex-col items-center">
-                      <div className="text-2xl md:text-4xl font-black text-gray-800 dark:text-white tabular-nums tracking-tight">
-                          {currentDate}
+                          <div className="text-xl md:text-5xl font-black text-gray-900 dark:text-white tabular-nums tracking-tight leading-none drop-shadow-sm">
+                              {currentDate}
+                          </div>
                       </div>
-                      <span className="text-sm font-bold text-gray-600 dark:text-gray-400 mt-1">{currentDayName}</span>
+
+                      <div className="hidden md:block w-32 h-1 bg-gradient-to-r from-transparent via-orange-400 to-transparent mx-auto rounded-full opacity-80"></div>
+
+                      {/* Time */}
+                      <div className="text-lg md:text-4xl font-black text-gray-600 dark:text-gray-400 tabular-nums tracking-widest opacity-80 leading-none">
+                          {currentTime}
+                      </div>
+
+                      {/* Daily Quote (Desktop Only) */}
+                      <div className="hidden md:block mt-2 max-w-[350px] mx-auto">
+                          <div className="w-32 h-1 bg-gradient-to-r from-transparent via-orange-400 to-transparent mx-auto rounded-full opacity-80 mb-4"></div>
+                          <p className="text-sm md:text-lg font-bold text-gray-800 dark:text-gray-200 leading-relaxed whitespace-normal break-words">
+                              <span className="text-orange-500 ml-1 font-black">سخن برتر:</span>
+                              «{quote.text}»
+                          </p>
+                      </div>
                   </div>
               </div>
 
           </div>
 
           {/* --- BOTTOM SECTION (Form) --- */}
-          <div className="flex-1 md:w-[45%] flex flex-col items-center justify-center px-6 pb-20 md:pb-0 relative z-30 w-full">
+          <div className="flex-1 md:w-[45%] flex flex-col items-center md:justify-center px-6 relative z-30 w-full mt-2 md:mt-0">
+              
+              {/* Spacer for Mobile Vertical Flow */}
+              <div className="flex-1 md:hidden"></div>
+
               <div className="w-full max-w-[340px] md:max-w-[420px] relative">
                   
                   {/* Form Container - TRANSPARENT GLASS STYLE */}
@@ -317,7 +364,7 @@ const LoginPage: React.FC = () => {
                       <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-4 md:space-y-6">
                           <div className="space-y-1">
                               <div className="relative group">
-                                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none z-10">
                                       <Icons.User className="w-5 h-5 text-gray-500 dark:text-gray-400 group-focus-within:text-orange-500 transition-colors" />
                                   </div>
                                   <input
@@ -325,7 +372,10 @@ const LoginPage: React.FC = () => {
                                       dir="ltr"
                                       disabled={isBlocked}
                                       {...register('username')}
-                                      className="block w-full h-12 md:h-14 pr-10 pl-4 rounded-xl bg-white/50 dark:bg-black/50 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-base placeholder-gray-500 dark:placeholder-gray-400 focus:border-orange-500 focus:bg-white/80 dark:focus:bg-black/70 focus:outline-none transition-all font-bold text-left shadow-sm group-hover:border-gray-300 dark:group-hover:border-gray-500 backdrop-blur-sm [&:-webkit-autofill]:shadow-[0_0_0_1000px_rgba(255,255,255,0.5)_inset_!important] dark:[&:-webkit-autofill]:shadow-[0_0_0_1000px_rgba(0,0,0,0.5)_inset_!important] [&:-webkit-autofill]:text-fill-color-black dark:[&:-webkit-autofill]:text-fill-color-white"
+                                      className="block w-full h-12 md:h-14 pr-10 pl-4 rounded-xl bg-white/50 dark:bg-black/50 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-base placeholder-gray-500 dark:placeholder-gray-400 focus:border-orange-500 focus:bg-white/80 dark:focus:bg-black/70 focus:outline-none transition-all font-bold text-left shadow-sm group-hover:border-gray-300 dark:group-hover:border-gray-500 backdrop-blur-sm 
+                                      [&:-webkit-autofill]:shadow-[0_0_0_1000px_rgba(255,255,255,0.8)_inset_!important] 
+                                      dark:[&:-webkit-autofill]:shadow-[0_0_0_1000px_#0f172a_inset_!important] 
+                                      [&:-webkit-autofill]:text-fill-color-black dark:[&:-webkit-autofill]:text-fill-color-white"
                                       placeholder="نام کاربری"
                                       autoComplete="username"
                                   />
@@ -334,7 +384,7 @@ const LoginPage: React.FC = () => {
 
                           <div className="space-y-1">
                               <div className="relative group">
-                                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none z-10">
                                       <Icons.Lock className="w-5 h-5 text-gray-500 dark:text-gray-400 group-focus-within:text-orange-500 transition-colors" />
                                   </div>
                                   <input
@@ -342,14 +392,17 @@ const LoginPage: React.FC = () => {
                                       dir="ltr"
                                       disabled={isBlocked}
                                       {...register('password')}
-                                      className="block w-full h-12 md:h-14 pr-10 pl-10 rounded-xl bg-white/50 dark:bg-black/50 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-base tracking-widest placeholder-gray-500 dark:placeholder-gray-400 focus:border-orange-500 focus:bg-white/80 dark:focus:bg-black/70 focus:outline-none transition-all font-mono text-left shadow-sm group-hover:border-gray-300 dark:group-hover:border-gray-500 backdrop-blur-sm [&:-webkit-autofill]:shadow-[0_0_0_1000px_rgba(255,255,255,0.5)_inset_!important] dark:[&:-webkit-autofill]:shadow-[0_0_0_1000px_rgba(0,0,0,0.5)_inset_!important] [&:-webkit-autofill]:text-fill-color-black dark:[&:-webkit-autofill]:text-fill-color-white"
+                                      className="block w-full h-12 md:h-14 pr-10 pl-10 rounded-xl bg-white/50 dark:bg-black/50 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-base tracking-widest placeholder-gray-500 dark:placeholder-gray-400 focus:border-orange-500 focus:bg-white/80 dark:focus:bg-black/70 focus:outline-none transition-all font-mono text-left shadow-sm group-hover:border-gray-300 dark:group-hover:border-gray-500 backdrop-blur-sm
+                                      [&:-webkit-autofill]:shadow-[0_0_0_1000px_rgba(255,255,255,0.8)_inset_!important] 
+                                      dark:[&:-webkit-autofill]:shadow-[0_0_0_1000px_#0f172a_inset_!important] 
+                                      [&:-webkit-autofill]:text-fill-color-black dark:[&:-webkit-autofill]:text-fill-color-white"
                                       placeholder="••••••"
                                       autoComplete="current-password"
                                   />
                                   <button 
                                       type="button"
                                       onClick={() => setShowPassword(!showPassword)}
-                                      className="absolute left-1 top-1/2 -translate-y-1/2 p-2 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none transition-colors"
+                                      className="absolute left-1 top-1/2 -translate-y-1/2 p-2 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none transition-colors z-10"
                                       tabIndex={-1}
                                   >
                                       {showPassword ? <Icons.EyeOff className="w-5 h-5" /> : <Icons.Eye className="w-5 h-5" />}
@@ -397,6 +450,20 @@ const LoginPage: React.FC = () => {
                       <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 font-medium backdrop-blur-sm inline-block px-2 rounded">Morvarid Cloud • v{APP_VERSION}</p>
                   </div>
               </div>
+
+              {/* Spacer for Mobile Vertical Flow */}
+              <div className="flex-1 md:hidden"></div>
+
+              {/* --- MOBILE QUOTE (Bottom position stacked in flow) --- */}
+              <div className="md:hidden w-full mb-32 px-4 z-20 flex justify-center shrink-0 relative">
+                  <div className="bg-white/40 dark:bg-black/40 backdrop-blur-sm rounded-xl p-3 max-w-sm w-full text-center border border-white/30 dark:border-white/10 shadow-sm">
+                      <p className="text-[10px] font-bold text-gray-700 dark:text-gray-200 leading-tight">
+                          <span className="text-orange-600 dark:text-orange-400 ml-1 font-black">سخن برتر:</span>
+                          {quote.text}
+                      </p>
+                  </div>
+              </div>
+
           </div>
       </div>
     </div>
