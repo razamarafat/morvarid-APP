@@ -94,7 +94,9 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
         const payloads = [];
 
         for (const pid of selectedFarm.productIds) {
-            if (statistics.some(s => s.farmId === selectedFarmId && s.date === normalizedDate && s.productId === pid)) continue;
+            // FIX TASK 1: REMOVED THE DUPLICATE CHECK HERE. 
+            // We rely on 'upsert' in the store to handle updates if record exists.
+            // Checking here prevented users from submitting if store had data but UI allowed editing.
             
             const vals = formsState[pid];
             if (!vals) continue;
@@ -105,6 +107,7 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
             const prev = vals.previousBalance === '' ? 0 : Number(vals.previousBalance);
             const prevKg = vals.previousBalanceKg === '' ? 0 : Number(vals.previousBalanceKg);
 
+            // Skip only if EVERYTHING is empty (user didn't touch this product)
             if (vals.production === '' && vals.productionKg === '' && vals.previousBalance === '' && vals.previousBalanceKg === '') continue;
 
             const prodName = getProductById(pid)?.name || 'محصول';
@@ -158,7 +161,7 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
         }
 
         if (payloads.length === 0) {
-            addToast('تغییری برای ثبت وجود ندارد.', 'warning');
+            addToast('تغییری برای ثبت وجود ندارد یا مقادیر خالی رها شده‌اند.', 'warning');
             return;
         }
 

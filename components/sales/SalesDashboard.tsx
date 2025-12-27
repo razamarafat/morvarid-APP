@@ -11,6 +11,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useAlertStore } from '../../store/alertStore';
 import { getTodayJalali, normalizeDate, toPersianDigits } from '../../utils/dateUtils';
 import { compareProducts } from '../../utils/sortUtils';
+import { exportTableToExcel } from '../../utils/excel'; // Added Import
 import Button from '../common/Button';
 import MetroTile from '../common/MetroTile';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -43,6 +44,32 @@ const FarmStatistics = React.memo(() => {
         await Promise.all([fetchStatistics(), fetchInvoices()]);
         setTimeout(() => setIsRefreshing(false), 500);
         addToast('اطلاعات بروزرسانی شد', 'success');
+    };
+
+    const handleExportExcel = () => {
+        const statsToExport = statistics
+            .filter(s => normalizeDate(s.date) === normalizedSelectedDate)
+            .map(s => {
+                const farm = farms.find(f => f.id === s.farmId);
+                const prod = products.find(p => p.id === s.productId);
+                return {
+                    'تاریخ': s.date,
+                    'فارم': farm?.name,
+                    'محصول': prod?.name,
+                    'موجودی قبل': s.previousBalance,
+                    'تولید': s.production,
+                    'فروش': s.sales,
+                    'مانده': s.currentInventory,
+                    'ثبت کننده': s.creatorName,
+                    'زمان ثبت': new Date(s.createdAt).toLocaleTimeString('fa-IR')
+                };
+            });
+        
+        if (exportTableToExcel(statsToExport, 'Daily_Stats')) {
+            addToast('خروجی اکسل با موفقیت دانلود شد', 'success');
+        } else {
+            addToast('داده‌ای برای خروجی وجود ندارد', 'warning');
+        }
     };
 
     const handleSendAlert = async (farmId: string, farmName: string, e: React.MouseEvent) => {
@@ -87,9 +114,14 @@ const FarmStatistics = React.memo(() => {
                         آمار فارم‌ها - <span className="text-metro-blue mr-2">{toPersianDigits(todayJalali)}</span>
                     </h3>
                 </div>
-                <Button onClick={handleManualRefresh} disabled={isRefreshing} className="h-12 px-6 rounded-xl bg-metro-blue hover:bg-metro-cobalt font-bold text-lg">
-                    <Icons.Refresh className={`w-5 h-5 ml-2 ${isRefreshing ? 'animate-spin' : ''}`} /> بروزرسانی
-                </Button>
+                <div className="flex gap-2">
+                    <Button onClick={handleExportExcel} variant="secondary" className="h-12 px-4 rounded-xl border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20">
+                        <Icons.Download className="w-5 h-5 ml-2" /> خروجی اکسل
+                    </Button>
+                    <Button onClick={handleManualRefresh} disabled={isRefreshing} className="h-12 px-6 rounded-xl bg-metro-blue hover:bg-metro-cobalt font-bold text-lg">
+                        <Icons.Refresh className={`w-5 h-5 ml-2 ${isRefreshing ? 'animate-spin' : ''}`} /> بروزرسانی
+                    </Button>
+                </div>
             </div>
 
             <div className="grid gap-4">
@@ -172,7 +204,8 @@ const FarmStatistics = React.memo(() => {
     );
 });
 
-const GRID_TEMPLATE = "grid grid-cols-[90px_110px_100px_minmax(200px,1.5fr)_80px_80px_120px_80px_80px] gap-4 items-center whitespace-nowrap";
+// TASK 4: Compact Grid Template
+const GRID_TEMPLATE = "grid grid-cols-[85px_100px_90px_minmax(180px,1fr)_70px_70px_110px_70px_80px] gap-2 items-center whitespace-nowrap";
 
 const StandardInvoiceRow = React.memo(({ invoice, farms, products, renderInvoiceNumber }: { invoice: Invoice, farms: any[], products: any[], renderInvoiceNumber: (num: string) => any }) => {
     const productName = products.find((p: any) => p.id === invoice.productId)?.name || '-';
@@ -186,23 +219,23 @@ const StandardInvoiceRow = React.memo(({ invoice, farms, products, renderInvoice
         : new Date(isEdited ? invoice.updatedAt! : invoice.createdAt).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
     
     return (
-        <div className={`${GRID_TEMPLATE} text-right border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors text-gray-800 dark:text-gray-200 text-sm py-4 px-3 min-w-[1100px] odd:bg-white even:bg-gray-50 dark:odd:bg-gray-800 dark:even:bg-gray-900/30 ${isAdminCreated ? 'bg-purple-50/20' : ''}`}>
+        <div className={`${GRID_TEMPLATE} text-right border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors text-gray-800 dark:text-gray-200 text-sm py-3 px-2 min-w-[1000px] odd:bg-white even:bg-gray-50 dark:odd:bg-gray-800 dark:even:bg-gray-900/30 ${isAdminCreated ? 'bg-purple-50/20' : ''}`}>
             <div className="font-black tracking-tighter shrink-0">{toPersianDigits(invoice.date)}</div>
             <div className="text-center shrink-0 font-mono scale-90">{renderInvoiceNumber(invoice.invoiceNumber)}</div>
-            <div className="font-bold truncate shrink-0">{farms.find((f: any) => f.id === invoice.farmId)?.name}</div>
-            <div className="font-bold text-gray-700 dark:text-gray-200 text-sm leading-tight overflow-hidden text-ellipsis" title={productName}>{productName}</div>
-            <div className="text-center font-black text-lg shrink-0">{toPersianDigits(invoice.totalCartons)}</div>
-            <div className="font-black text-metro-blue text-lg text-center shrink-0">{toPersianDigits(invoice.totalWeight)}</div>
+            <div className="font-bold truncate shrink-0 text-xs">{farms.find((f: any) => f.id === invoice.farmId)?.name}</div>
+            <div className="font-bold text-gray-700 dark:text-gray-200 text-xs leading-tight overflow-hidden text-ellipsis" title={productName}>{productName}</div>
+            <div className="text-center font-black text-base shrink-0">{toPersianDigits(invoice.totalCartons)}</div>
+            <div className="font-black text-metro-blue text-base text-center shrink-0">{toPersianDigits(invoice.totalWeight)}</div>
             <div className="text-center shrink-0">
-                <span className={`px-2 py-1 rounded-md text-xs font-bold truncate block max-w-full ${isAdminCreated ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold truncate block max-w-full ${isAdminCreated ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 dark:bg-gray-700'}`}>
                     {isAdminCreated ? 'مدیر سیستم' : (invoice.creatorName || 'ناشناس')}
                 </span>
             </div>
             <div className="text-center flex flex-col items-center shrink-0">
-                <span className="font-mono text-sm font-bold text-gray-600 dark:text-gray-400 dir-ltr">{toPersianDigits(displayTime)}</span>
+                <span className="font-mono text-xs font-bold text-gray-600 dark:text-gray-400 dir-ltr">{toPersianDigits(displayTime)}</span>
                 {isEdited && !isAdminCreated && <span className="text-[9px] text-orange-500 font-bold mt-0.5">(ویرایش)</span>}
             </div>
-            <div className="text-center shrink-0"><span className={`px-2 py-1 text-xs font-black text-white rounded-lg shadow-sm ${invoice.isYesterday ? 'bg-metro-orange' : 'bg-metro-green'}`}>{invoice.isYesterday ? 'دیروز' : 'عادی'}</span></div>
+            <div className="text-center shrink-0"><span className={`px-2 py-0.5 text-[10px] font-black text-white rounded shadow-sm ${invoice.isYesterday ? 'bg-metro-orange' : 'bg-metro-green'}`}>{invoice.isYesterday ? 'دیروز' : 'عادی'}</span></div>
         </div>
     );
 });
@@ -250,6 +283,33 @@ const InvoiceList = React.memo(() => {
         addToast('لیست حواله‌ها بروزرسانی شد', 'info');
     };
 
+    const handleExportExcel = () => {
+        const data = filteredInvoices.map(i => {
+            const farm = farms.find(f => f.id === i.farmId);
+            const prod = products.find(p => p.id === i.productId);
+            return {
+                'تاریخ': i.date,
+                'شماره حواله': i.invoiceNumber,
+                'فارم': farm?.name,
+                'محصول': prod?.name,
+                'کارتن': i.totalCartons,
+                'وزن': i.totalWeight,
+                'راننده': i.driverName,
+                'شماره تماس': i.driverPhone,
+                'پلاک': i.plateNumber,
+                'توضیحات': i.description,
+                'ثبت کننده': i.creatorName,
+                'زمان': new Date(i.createdAt).toLocaleTimeString('fa-IR')
+            };
+        });
+
+        if (exportTableToExcel(data, 'Daily_Invoices')) {
+            addToast('خروجی اکسل با موفقیت دانلود شد', 'success');
+        } else {
+            addToast('داده‌ای برای خروجی وجود ندارد', 'warning');
+        }
+    };
+
     const renderInvoiceNumber = useCallback((num: string) => {
         const strNum = toPersianDigits(num);
         if (strNum.length < 4) return <span className="text-gray-800 dark:text-gray-200 text-lg font-mono" dir="ltr">{strNum}</span>;
@@ -291,10 +351,15 @@ const InvoiceList = React.memo(() => {
                     </select>
                 </div>
                 
-                <Button onClick={handleRefresh} disabled={isRefreshing} className="bg-metro-orange h-[42px] lg:h-[52px] px-6 font-black w-full md:w-auto lg:text-lg">
-                    <Icons.Refresh className={`w-4 h-4 lg:w-6 lg:h-6 ml-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                    بروزرسانی لیست
-                </Button>
+                <div className="flex gap-2 w-full md:w-auto">
+                    <Button onClick={handleExportExcel} variant="secondary" className="h-[42px] lg:h-[52px] px-4 border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20">
+                        <Icons.Download className="w-5 h-5" />
+                    </Button>
+                    <Button onClick={handleRefresh} disabled={isRefreshing} className="bg-metro-orange h-[42px] lg:h-[52px] px-6 font-black w-full lg:text-lg">
+                        <Icons.Refresh className={`w-4 h-4 lg:w-6 lg:h-6 ml-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                        بروزرسانی
+                    </Button>
+                </div>
             </div>
 
             <div className="bg-white dark:bg-gray-800 p-0 shadow-sm overflow-hidden border border-gray-100 dark:border-gray-700 rounded-xl flex-1 flex flex-col min-h-[500px]">
@@ -310,8 +375,8 @@ const InvoiceList = React.memo(() => {
                 
                 <div className="w-full h-full overflow-hidden flex flex-col">
                     <div className="flex-1 w-full overflow-x-auto">
-                        <div className="min-w-[1100px] h-full flex flex-col">
-                             <div className={`${GRID_TEMPLATE} bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 text-sm lg:text-base font-bold p-4 border-b border-gray-200 dark:border-gray-700 shrink-0 sticky top-0 z-10 pr-4 shadow-sm`}>
+                        <div className="min-w-[1000px] h-full flex flex-col">
+                             <div className={`${GRID_TEMPLATE} bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 text-sm lg:text-base font-bold p-3 border-b border-gray-200 dark:border-gray-700 shrink-0 sticky top-0 z-10 pr-4 shadow-sm`}>
                                 <div>تاریخ خروج</div>
                                 <div className="text-center">رمز حواله</div>
                                 <div>فارم</div>

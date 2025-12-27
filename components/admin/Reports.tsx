@@ -16,6 +16,7 @@ import Modal from '../common/Modal';
 import { useDebounce } from '../../hooks/useDebounce';
 import PersianNumberInput from '../common/PersianNumberInput';
 import PlateInput from '../common/PlateInput';
+import { exportTableToExcel } from '../../utils/excel'; // Import added
 
 type ReportTab = 'stats' | 'invoices' | 'create';
 type CreateSubTab = 'stats' | 'invoice';
@@ -130,6 +131,53 @@ const Reports: React.FC = () => {
             setPreviewData(data);
             setIsSearching(false);
         }, 100);
+    };
+
+    const handleExportExcel = () => {
+        let exportData = [];
+        
+        if (reportTab === 'stats') {
+            exportData = previewData.map(s => {
+                const farm = farms.find(f => f.id === s.farmId);
+                const prod = products.find(p => p.id === s.productId);
+                return {
+                    'تاریخ': s.date,
+                    'فارم': farm?.name,
+                    'محصول': prod?.name,
+                    'موجودی قبل': s.previousBalance,
+                    'تولید': s.production,
+                    'فروش': s.sales,
+                    'مانده': s.currentInventory,
+                    'ثبت کننده': s.creatorName,
+                    'زمان ثبت': new Date(s.createdAt).toLocaleTimeString('fa-IR')
+                };
+            });
+        } else {
+            exportData = previewData.map(i => {
+                const farm = farms.find(f => f.id === i.farmId);
+                const prod = products.find(p => p.id === i.productId);
+                return {
+                    'تاریخ': i.date,
+                    'شماره حواله': i.invoiceNumber,
+                    'فارم': farm?.name,
+                    'محصول': prod?.name,
+                    'کارتن': i.totalCartons,
+                    'وزن': i.totalWeight,
+                    'راننده': i.driverName,
+                    'شماره تماس': i.driverPhone,
+                    'پلاک': i.plateNumber,
+                    'توضیحات': i.description,
+                    'ثبت کننده': i.creatorName,
+                    'زمان': new Date(i.createdAt).toLocaleTimeString('fa-IR')
+                };
+            });
+        }
+
+        if (exportTableToExcel(exportData, `Report_${reportTab}`)) {
+            addToast('خروجی اکسل با موفقیت دانلود شد', 'success');
+        } else {
+            addToast('داده‌ای برای خروجی وجود ندارد', 'warning');
+        }
     };
 
     const handleDeleteStat = async (id: string) => {
@@ -310,6 +358,7 @@ const Reports: React.FC = () => {
                     </div>
 
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
+                        {/* Forms remain unchanged */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                             <div>
                                 <label className="block text-sm font-bold mb-2 text-gray-700 dark:text-gray-300">انتخاب فارم</label>
@@ -354,7 +403,6 @@ const Reports: React.FC = () => {
                                     <div><label className="block text-sm font-bold mb-1 text-gray-700 dark:text-gray-300">شماره تماس</label><PersianNumberInput className="w-full p-3 border rounded-xl bg-white text-gray-900 dark:bg-gray-700 dark:text-white dark:border-gray-600" value={createInvoice.phone} onChange={v => setCreateInvoice({...createInvoice, phone: v})} /></div>
                                 </div>
                                 
-                                {/* PLATE INPUT ADDED HERE */}
                                 <div>
                                     <label className="block text-sm font-bold mb-1 text-gray-700 dark:text-gray-300">شماره پلاک</label>
                                     <PlateInput 
@@ -379,7 +427,12 @@ const Reports: React.FC = () => {
                         <div><select value={selectedFarmId} onChange={e => setSelectedFarmId(e.target.value)} className="w-full p-4 border-2 border-gray-200 rounded-xl bg-white text-gray-900 dark:bg-gray-700 dark:text-white dark:border-gray-600"><option value="all">همه فارم‌ها</option>{farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}</select></div>
                         <div><select value={selectedProductId} onChange={e => setSelectedProductId(e.target.value)} className="w-full p-4 border-2 border-gray-200 rounded-xl bg-white text-gray-900 dark:bg-gray-700 dark:text-white dark:border-gray-600"><option value="all">همه محصولات</option>{products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
                         <div><JalaliDatePicker value={startDate} onChange={setStartDate} label="از تاریخ" /></div>
-                        <div><JalaliDatePicker value={endDate} onChange={setEndDate} label="تا تاریخ" /></div>
+                        <div className="flex items-end gap-2">
+                            <div className="flex-1"><JalaliDatePicker value={endDate} onChange={setEndDate} label="تا تاریخ" /></div>
+                            <Button onClick={handleExportExcel} variant="secondary" className="h-[52px] w-[52px] p-0 flex items-center justify-center border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20">
+                                <Icons.Download className="w-6 h-6" />
+                            </Button>
+                        </div>
                     </div>
 
                     <div className="bg-white dark:bg-gray-800 rounded-[28px] shadow-md overflow-hidden border border-gray-100 dark:border-gray-700 relative">
@@ -464,6 +517,7 @@ const Reports: React.FC = () => {
             )}
             
             <Modal isOpen={!!editingStat} onClose={() => setEditingStat(null)} title="اصلاح مدیریتی آمار">
+                {/* Modal content same as before */}
                 <div className="space-y-6">
                      <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl text-sm font-bold text-purple-800 dark:text-purple-300 border border-purple-100 dark:border-purple-800">
                          شما در حال ویرایش با دسترسی مدیر هستید.
