@@ -6,6 +6,7 @@ import { useStatisticsStore } from '../../store/statisticsStore';
 import { useInvoiceStore } from '../../store/invoiceStore';
 import { useToastStore } from '../../store/toastStore';
 import { getTodayJalali, getTodayDayName, getCurrentTime, normalizeDate, toPersianDigits } from '../../utils/dateUtils';
+import { compareProducts } from '../../utils/sortUtils';
 import Button from '../common/Button';
 import { useConfirm } from '../../hooks/useConfirm';
 import { Icons } from '../common/Icons';
@@ -44,28 +45,14 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
     const [selectedFarmId] = useState<string>(userFarms[0]?.id || '');
     const selectedFarm = userFarms.find(f => f.id === selectedFarmId);
 
-    // --- SORT LOGIC START ---
+    // --- SORT LOGIC START (UPDATED) ---
     const sortedProductIds = useMemo(() => {
         if (!selectedFarm) return [];
         return [...selectedFarm.productIds].sort((aId, bId) => {
             const pA = getProductById(aId);
             const pB = getProductById(bId);
             if (!pA || !pB) return 0;
-            
-            const getScore = (name: string) => {
-                if (name.includes('شیرینگ') || name.includes('شیرینک')) {
-                    if (name.includes('پرینتی')) return 1; 
-                    return 2; 
-                }
-                if (name.includes('پرینتی')) return 3;
-                if (name.includes('ساده')) return 4;
-                if (name.includes('دوزرده')) return 5;
-                if (name.includes('نوکی')) return 6;
-                if (name.includes('کودی')) return 7;
-                if (name.includes('مایع')) return 8;
-                return 9; 
-            };
-            return getScore(pA.name) - getScore(pB.name);
+            return compareProducts(pA, pB);
         });
     }, [selectedFarm, getProductById]);
     // --- SORT LOGIC END ---

@@ -14,6 +14,7 @@ import { useAlertStore } from './store/alertStore';
 import { usePwaStore } from './store/pwaStore'; 
 import ConfirmDialog from './components/common/ConfirmDialog';
 import ToastContainer from './components/common/Toast';
+import PermissionModal from './components/common/PermissionModal';
 import { useAutoUpdate } from './hooks/useAutoUpdate';
 import { useOfflineSync } from './hooks/useOfflineSync';
 import { useAutoTheme } from './hooks/useAutoTheme';
@@ -115,13 +116,11 @@ function App() {
   const { fetchStatistics } = useStatisticsStore();
   const { fetchInvoices } = useInvoiceStore();
   const { fetchUsers } = useUserStore();
-  const { initListener, checkAndRequestPermission } = useAlertStore();
+  const { initListener } = useAlertStore();
   const { setIsInstalled } = usePwaStore();
   
   useAutoUpdate();
   useOfflineSync();
-  
-  // Enable Automatic Theme Switching (18:00 - 06:00)
   useAutoTheme();
 
   useEffect(() => {
@@ -133,7 +132,7 @@ function App() {
     const init = async () => {
         await checkSession();
         initListener();
-        checkAndRequestPermission(); 
+        // Permission check is now handled by PermissionModal on mount
     };
     init();
 
@@ -221,6 +220,7 @@ function App() {
         </Suspense>
       </HashRouter>
       <ConfirmDialog />
+      <PermissionModal />
       <ToastContainer />
     </ErrorBoundary>
   );

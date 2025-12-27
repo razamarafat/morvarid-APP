@@ -11,6 +11,7 @@ import Modal from '../common/Modal';
 import Button from '../common/Button';
 import { useToastStore } from '../../store/toastStore';
 import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange } from '../../utils/dateUtils';
+import { compareProducts } from '../../utils/sortUtils';
 import JalaliDatePicker from '../common/JalaliDatePicker';
 import PersianNumberInput from '../common/PersianNumberInput';
 import PlateInput from '../common/PlateInput';
@@ -52,14 +53,14 @@ const RecentRecords: React.FC = () => {
     const allowedProductIds = user?.assignedFarms?.[0]?.productIds || [];
     const isAdmin = user?.role === UserRole.ADMIN;
 
-    // --- Sort Products ---
+    // --- Sort Products (UPDATED) ---
     const sortedProductIds = useMemo(() => {
         if (!allowedProductIds.length) return [];
         return [...allowedProductIds].sort((aId, bId) => {
             const pA = getProductById(aId);
             const pB = getProductById(bId);
             if (!pA || !pB) return 0;
-            return (pA.name.length) - (pB.name.length); // Simplified sort
+            return compareProducts(pA, pB);
         });
     }, [allowedProductIds, getProductById]);
 

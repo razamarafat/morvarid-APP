@@ -9,6 +9,7 @@ import { useInvoiceStore } from '../../store/invoiceStore';
 import { useStatisticsStore } from '../../store/statisticsStore';
 import { useToastStore } from '../../store/toastStore';
 import { getTodayJalali, getTodayDayName, getCurrentTime, normalizeDate, toPersianDigits } from '../../utils/dateUtils';
+import { compareProducts } from '../../utils/sortUtils';
 import Button from '../common/Button';
 import { Icons } from '../common/Icons';
 import { useConfirm } from '../../hooks/useConfirm';
@@ -328,6 +329,14 @@ export const InvoiceForm: React.FC = () => {
 
     if (!selectedFarm) return <div className="p-20 text-center font-bold text-gray-400">فارمی یافت نشد.</div>;
 
+    // Apply Sorting to Product IDs
+    const sortedProductIds = [...selectedFarm.productIds].sort((aId, bId) => {
+        const pA = getProductById(aId);
+        const pB = getProductById(bId);
+        if (!pA || !pB) return 0;
+        return compareProducts(pA, pB);
+    });
+
     return (
         <div className="max-w-4xl mx-auto space-y-6 lg:space-y-10 pb-20">
             <div className="bg-gradient-to-br from-metro-blue via-blue-600 to-indigo-600 p-6 text-white shadow-xl relative overflow-hidden flex flex-col items-center justify-center gap-3 rounded-b-[32px] border-b-4 border-blue-800/20 gpu-accelerated">
@@ -486,7 +495,7 @@ export const InvoiceForm: React.FC = () => {
                         {isProductSelectorOpen && (
                             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="mb-6 overflow-hidden">
                                 <div className="grid grid-cols-2 gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-2xl border border-dashed border-gray-300 dark:border-gray-700">
-                                    {selectedFarm.productIds.map(pid => {
+                                    {sortedProductIds.map(pid => {
                                         const p = getProductById(pid);
                                         const isSelected = selectedProductIds.includes(pid);
                                         return (

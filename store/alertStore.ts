@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { useToastStore } from './toastStore';
 import { useAuthStore } from './authStore';
+import { usePermissionStore } from './permissionStore';
 import { UserRole, NotificationItem } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -106,10 +107,17 @@ export const useAlertStore = create<AlertState>()(
             checkAndRequestPermission: async () => {
                 if (!("Notification" in window)) {
                     set({ permissionStatus: 'denied' });
+                    usePermissionStore.getState().setPermissionStatus('notifications', 'denied');
                     return false;
                 }
-                set({ permissionStatus: Notification.permission });
-                return Notification.permission === 'granted';
+                const status = Notification.permission;
+                set({ permissionStatus: status });
+                
+                // Sync with central store
+                const centralStatus = status === 'default' ? 'prompt' : status;
+                usePermissionStore.getState().setPermissionStatus('notifications', centralStatus);
+
+                return status === 'granted';
             },
 
             requestPermissionManual: async () => {
@@ -121,6 +129,10 @@ export const useAlertStore = create<AlertState>()(
                 try {
                     const permission = await Notification.requestPermission();
                     set({ permissionStatus: permission });
+                    
+                    // Sync with central store
+                    const centralStatus = permission === 'default' ? 'prompt' : permission;
+                    usePermissionStore.getState().setPermissionStatus('notifications', centralStatus);
                     
                     if (permission === 'granted') {
                         useToastStore.getState().addToast('اعلان‌ها فعال شدند.', 'success');

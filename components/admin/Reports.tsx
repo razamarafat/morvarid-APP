@@ -9,8 +9,8 @@ import { UserRole } from '../../types';
 import { Icons } from '../common/Icons';
 import Button from '../common/Button';
 import JalaliDatePicker from '../common/JalaliDatePicker';
-import * as XLSX from 'xlsx';
-import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange, toEnglishDigits } from '../../utils/dateUtils';
+import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange } from '../../utils/dateUtils';
+import { compareProducts, compareFarms } from '../../utils/sortUtils';
 import { useConfirm } from '../../hooks/useConfirm';
 import Modal from '../common/Modal';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -73,6 +73,8 @@ const Reports: React.FC = () => {
 
         setTimeout(() => {
             let data: any[] = [];
+            
+            // --- FILTER LOGIC ---
             if (reportTab === 'stats') {
                 data = statistics.filter(s => {
                     const farmMatch = selectedFarmId === 'all' || s.farmId === selectedFarmId;
@@ -94,6 +96,37 @@ const Reports: React.FC = () => {
                     return farmMatch && prodMatch && dateMatch && searchMatch;
                 });
             }
+
+            // --- SORT LOGIC (TASK 1 & 2) ---
+            // 1. Farm Name ASC
+            // 2. Product Rank ASC
+            // 3. Date DESC
+            data.sort((a, b) => {
+                const farmA = farms.find(f => f.id === a.farmId);
+                const farmB = farms.find(f => f.id === b.farmId);
+                
+                // Compare Farms
+                if (farmA && farmB) {
+                    const farmDiff = compareFarms(farmA, farmB);
+                    if (farmDiff !== 0) return farmDiff;
+                }
+
+                // Compare Products
+                const prodA = getProductById(a.productId);
+                const prodB = getProductById(b.productId);
+                if (prodA && prodB) {
+                    const prodDiff = compareProducts(prodA, prodB);
+                    if (prodDiff !== 0) return prodDiff;
+                }
+
+                // Compare Date (Newest first)
+                if (a.date !== b.date) {
+                    return b.date.localeCompare(a.date);
+                }
+
+                return 0;
+            });
+
             setPreviewData(data);
             setIsSearching(false);
         }, 100);

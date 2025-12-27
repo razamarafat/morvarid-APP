@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { Farm, Product, ProductUnit } from '../types';
+import { compareFarms, compareProducts } from '../utils/sortUtils';
 
 interface FarmState {
   farms: Farm[];
@@ -48,6 +49,10 @@ export const useFarmStore = create<FarmState>((set, get) => ({
           }
           return { id: f.id, name: f.name, type: f.type, isActive: f.is_active, productIds: pIds };
       });
+      
+      // TASK 2: Sort farms alphabetically
+      mappedFarms.sort(compareFarms);
+      
       set({ farms: mappedFarms, isLoading: false });
     }
   },
@@ -90,6 +95,10 @@ export const useFarmStore = create<FarmState>((set, get) => ({
               if (upsertError) console.error(`Error restoring default product ${p.name}:`, upsertError);
           }
       }
+      
+      // TASK 1: Apply strict product sorting
+      mappedProducts.sort(compareProducts);
+
       set({ products: mappedProducts });
   },
 

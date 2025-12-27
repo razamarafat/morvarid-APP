@@ -8,11 +8,15 @@ import RecentRecords from '../components/registration/RecentRecords';
 import MetroTile from '../components/common/MetroTile';
 import { SkeletonTile } from '../components/common/Skeleton';
 import { useAuthStore } from '../store/authStore';
+import { useExpirationAlert } from '../hooks/useExpirationAlert';
 
 const RegistrationDashboard: React.FC = () => {
     const [currentView, setCurrentView] = useState('dashboard');
     const { isLoading } = useAuthStore();
     const dashboardTitle = 'داشبورد ثبت اطلاعات روزانه';
+
+    // TASK 4: Enable Expiration Alert
+    useExpirationAlert();
 
     const renderContent = () => {
         if (isLoading && currentView === 'dashboard') {

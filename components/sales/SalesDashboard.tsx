@@ -10,34 +10,13 @@ import { useToastStore } from '../../store/toastStore';
 import { useAuthStore } from '../../store/authStore';
 import { useAlertStore } from '../../store/alertStore';
 import { getTodayJalali, normalizeDate, toPersianDigits } from '../../utils/dateUtils';
+import { compareProducts } from '../../utils/sortUtils';
 import Button from '../common/Button';
 import MetroTile from '../common/MetroTile';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FarmType, Invoice, UserRole } from '../../types';
 import JalaliDatePicker from '../common/JalaliDatePicker';
 import { SkeletonTile, SkeletonRow } from '../common/Skeleton';
-
-// ... (Helper sortProducts function remains same) ...
-const sortProducts = (products: any[], aId: string, bId: string) => {
-    const pA = products.find(p => p.id === aId);
-    const pB = products.find(p => p.id === bId);
-    if (!pA || !pB) return 0;
-    
-    const getScore = (name: string) => {
-        if (name.includes('شیرینگ') || name.includes('شیرینک')) {
-            if (name.includes('پرینتی')) return 1; 
-            return 2; 
-        }
-        if (name.includes('پرینتی')) return 3;
-        if (name.includes('ساده')) return 4;
-        if (name.includes('دوزرده')) return 5;
-        if (name.includes('نوکی')) return 6;
-        if (name.includes('کودی')) return 7;
-        if (name.includes('مایع')) return 8;
-        return 9; 
-    };
-    return getScore(pA.name) - getScore(pB.name);
-};
 
 const FarmStatistics = React.memo(() => {
     const { statistics, fetchStatistics, subscribeToStatistics, isLoading } = useStatisticsStore();
@@ -116,7 +95,14 @@ const FarmStatistics = React.memo(() => {
             <div className="grid gap-4">
                 {farms.map(farm => {
                     const dedupedStats = getDeduplicatedStats(farm.id);
-                    const sortedFarmStats = [...dedupedStats].sort((a, b) => sortProducts(products, a.productId, b.productId));
+                    // TASK 1: Apply global compareProducts sort
+                    const sortedFarmStats = [...dedupedStats].sort((a, b) => {
+                        const pA = products.find(p => p.id === a.productId);
+                        const pB = products.find(p => p.id === b.productId);
+                        if (!pA || !pB) return 0;
+                        return compareProducts(pA, pB);
+                    });
+                    
                     const hasStats = sortedFarmStats.length > 0;
                     const isExpanded = expandedFarmId === farm.id;
                     const isMotefereghe = farm.type === FarmType.MOTEFEREGHE;
