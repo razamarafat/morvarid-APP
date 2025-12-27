@@ -24,6 +24,14 @@ export const useSMS = () => {
    */
   const parseMultipleInvoices = (text: string): ParsedSMS[] => {
     try {
+      if (!text) return [];
+      
+      // Safety Check: Limit input length to avoid browser freeze
+      if (text.length > 50000) {
+          addToast('متن کپی شده بسیار طولانی است. فقط ۵۰,۰۰۰ کاراکتر اول پردازش می‌شود.', 'warning');
+          text = text.substring(0, 50000);
+      }
+
       // 1. Clean and Normalize Text
       let cleanText = toEnglishDigits(text)
         .replace(/[\u200B-\u200D\uFEFF]/g, ' ') // Remove invisible chars

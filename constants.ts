@@ -75,4 +75,4 @@ export const THEMES = {
 };
 
 // Restore Point Marker
-export const APP_VERSION = '3.4.9';
+export const APP_VERSION = '3.5.0';

@@ -174,12 +174,14 @@
         background: rgba(156, 163, 175, 0.8);
       }
 
-      /* Enhanced Seamless Shimmer Effect */
+      /* Enhanced Seamless Shimmer Effect - GPU Optimized */
       .shimmer-bg {
         position: absolute;
         inset: 0;
         overflow: hidden;
         pointer-events: none;
+        will-change: transform; /* Hint to browser */
+        transform: translateZ(0); /* Force GPU layer */
       }
 
       .shimmer-bg::before {
@@ -199,6 +201,7 @@
         );
         background-size: 200% 100%;
         animation: shimmer-flow 6s linear infinite;
+        will-change: background-position;
       }
 
       @keyframes shimmer-flow {
@@ -206,10 +209,10 @@
         100% { background-position: -200% 0; }
       }
 
-      /* Star Pulse Animation */
+      /* Star Pulse Animation - GPU Optimized */
       @keyframes star-pulse {
-        0%, 100% { opacity: 0.3; transform: scale(0.8); }
-        50% { opacity: 1; transform: scale(1.2); }
+        0%, 100% { opacity: 0.3; transform: scale(0.8) translateZ(0); }
+        50% { opacity: 1; transform: scale(1.2) translateZ(0); }
       }
       
       .star-anim {
@@ -224,6 +227,7 @@
         border-radius: inherit;
         pointer-events: none;
         z-index: 5;
+        transform: translateZ(0);
       }
      
       .strong-shine-overlay::before {
@@ -236,6 +240,7 @@
         background: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.3) 50%, transparent 60%);
         transform: translateX(-150%) skewX(-20deg);
         animation: shine-slide 4s infinite linear;
+        will-change: transform;
       }
      
       @keyframes shine-slide {
@@ -251,6 +256,7 @@
         -webkit-text-fill-color: transparent;
         animation: shine 3s infinite linear;
         display: inline-block;
+        will-change: background-position;
       }
      
       @keyframes shine {
@@ -261,6 +267,7 @@
         transition-property: transform, opacity, background-color, height;
         transition-duration: 0.3s;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        will-change: transform, opacity;
       }
 
       .pt-safe {

@@ -50,7 +50,7 @@ const getDayOfYear = () => {
 
 // --- EXISTING: SKETCH ---
 const UltraRealisticSketch = React.memo(() => (
-  <svg viewBox="0 0 1000 150" className="w-full h-full opacity-80 dark:opacity-50 pointer-events-none text-gray-700 dark:text-gray-400" preserveAspectRatio="xMidYMax meet">
+  <svg viewBox="0 0 1000 150" className="w-full h-full opacity-80 dark:opacity-50 pointer-events-none text-gray-700 dark:text-gray-400 transform-gpu" preserveAspectRatio="xMidYMax meet">
     <defs>
         <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
             <path d="M 10 0 L 0 0 0 10" fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.2"/>
@@ -166,7 +166,7 @@ const StarryNight = React.memo(() => {
     ];
 
     return (
-        <div className="absolute inset-0 pointer-events-none overflow-hidden hidden dark:block z-0">
+        <div className="absolute inset-0 pointer-events-none overflow-hidden hidden dark:block z-0 transform-gpu">
             {stars.map((s, i) => (
                 <div 
                     key={i}
@@ -255,8 +255,8 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    // Fixed height 100dvh prevents scrolling. Overflow hidden crucial.
-    <div className="h-[100dvh] w-full flex flex-col relative overflow-hidden bg-[#FFF8F0] dark:bg-[#0f172a] font-sans transition-colors duration-500">
+    // Updated container to use safe areas correctly and prevent overlap
+    <div className="min-h-[100dvh] w-full flex flex-col relative overflow-hidden bg-[#FFF8F0] dark:bg-[#0f172a] font-sans transition-colors duration-500">
       
       {/* --- THEME TOGGLE --- */}
       <div className="absolute top-3 left-3 z-50">
@@ -266,8 +266,8 @@ const LoginPage: React.FC = () => {
       </div>
 
       {/* --- BACKGROUND --- */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-          <div className="absolute inset-0 bg-gradient-to-b md:bg-gradient-to-l from-orange-100/90 via-orange-50/50 to-transparent dark:from-orange-900/10 dark:via-orange-800/5 dark:to-transparent"></div>
+      <div className="absolute inset-0 z-0 pointer-events-none transform-gpu">
+          <div className="absolute inset-0 bg-gradient-to-b md:bg-gradient-to-l from-orange-100/90 via-orange-50/50 to-transparent dark:from-orange-900/10 dark:via-orange-800/5 dark:to-transparent will-change-transform"></div>
           <div className="absolute inset-0 opacity-[0.04] dark:opacity-0" 
                style={{ backgroundImage: 'radial-gradient(currentColor 1px, transparent 1px)', backgroundSize: '30px 30px' }}>
           </div>
@@ -279,11 +279,11 @@ const LoginPage: React.FC = () => {
           <UltraRealisticSketch />
       </div>
 
-      {/* --- MAIN LAYOUT --- */}
-      <div className="relative z-10 flex flex-col md:flex-row h-full w-full justify-between md:justify-center">
+      {/* --- MAIN LAYOUT (Scrollable if needed on very small screens) --- */}
+      <div className="relative z-10 flex flex-col md:flex-row h-full w-full justify-between md:justify-center overflow-y-auto md:overflow-hidden pb-safe">
           
           {/* --- TOP SECTION (Logo & Title) --- */}
-          <div className="flex-none flex flex-col items-center justify-center md:justify-start pt-2 md:pt-32 relative z-20 shrink-0 md:flex-1 md:w-[55%]">
+          <div className="flex-none flex flex-col items-center justify-center md:justify-start pt-8 md:pt-32 relative z-20 shrink-0 md:flex-1 md:w-[55%] min-h-[30vh]">
               
               <div className="text-center z-20 transform-gpu transition-transform duration-300">
                   {/* MORVARID TEXT */}
@@ -344,11 +344,8 @@ const LoginPage: React.FC = () => {
           </div>
 
           {/* --- BOTTOM SECTION (Form) --- */}
-          <div className="flex-1 md:w-[45%] flex flex-col items-center md:justify-center px-6 relative z-30 w-full mt-2 md:mt-0">
+          <div className="flex-1 md:w-[45%] flex flex-col items-center md:justify-center px-6 relative z-30 w-full mt-4 md:mt-0 pb-20 md:pb-0">
               
-              {/* Spacer for Mobile Vertical Flow */}
-              <div className="flex-1 md:hidden"></div>
-
               <div className="w-full max-w-[340px] md:max-w-[420px] relative">
                   
                   {/* Form Container - TRANSPARENT GLASS STYLE */}
@@ -428,7 +425,7 @@ const LoginPage: React.FC = () => {
                           <button
                               type="submit"
                               disabled={isSubmitting || isRedirecting || isBlocked}
-                              className="w-full h-14 md:h-16 bg-gradient-to-r from-gray-900 to-black hover:from-black hover:to-gray-900 dark:from-orange-500 dark:to-yellow-500 dark:hover:from-orange-600 dark:hover:to-yellow-600 text-white font-black text-lg rounded-xl md:rounded-2xl transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-3 shadow-xl shadow-gray-400/30 dark:shadow-orange-500/30 disabled:opacity-70 disabled:cursor-wait mt-2 group relative overflow-hidden"
+                              className="w-full h-14 md:h-16 bg-gradient-to-r from-gray-900 to-black hover:from-black hover:to-gray-900 dark:from-orange-500 dark:to-yellow-500 dark:hover:from-orange-600 dark:hover:to-yellow-600 text-white font-black text-lg rounded-xl md:rounded-2xl transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-3 shadow-xl shadow-gray-400/30 dark:shadow-orange-500/30 disabled:opacity-70 disabled:cursor-wait mt-2 group relative overflow-hidden transform-gpu"
                           >
                               <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-in-out skew-x-12"></div>
                               {isSubmitting || isRedirecting ? (
@@ -451,11 +448,8 @@ const LoginPage: React.FC = () => {
                   </div>
               </div>
 
-              {/* Spacer for Mobile Vertical Flow */}
-              <div className="flex-1 md:hidden"></div>
-
               {/* --- MOBILE QUOTE (Bottom position stacked in flow) --- */}
-              <div className="md:hidden w-full mb-32 px-4 z-20 flex justify-center shrink-0 relative">
+              <div className="md:hidden w-full mb-10 px-4 z-20 flex justify-center shrink-0 relative mt-4">
                   <div className="bg-white/40 dark:bg-black/40 backdrop-blur-sm rounded-xl p-3 max-w-sm w-full text-center border border-white/30 dark:border-white/10 shadow-sm">
                       <p className="text-[10px] font-bold text-gray-700 dark:text-gray-200 leading-tight">
                           <span className="text-orange-600 dark:text-orange-400 ml-1 font-black">سخن برتر:</span>
