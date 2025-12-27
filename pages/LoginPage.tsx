@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm, FieldErrors } from 'react-hook-form';
@@ -9,9 +8,9 @@ import { useToastStore } from '../store/toastStore';
 import { Icons } from '../components/common/Icons';
 import { UserRole } from '../types';
 import { getTodayJalaliPersian, getCurrentTime, getTodayDayName, toPersianDigits } from '../utils/dateUtils';
-import { APP_VERSION } from '../constants';
 import ThemeToggle from '../components/common/ThemeToggle';
 import { motion } from 'framer-motion';
+import Button from '../components/common/Button';
 
 const loginSchema = z.object({
   username: z.string().min(1, "نام کاربری الزامی است"),
@@ -267,9 +266,9 @@ const LoginPage: React.FC = () => {
                       مـرواریــد
                   </h1>
                   
-                  {/* TASK 1: Updated Title */}
+                  {/* Updated Title */}
                   <h2 className="text-sm md:text-lg font-bold text-gray-600 dark:text-gray-300 tracking-wide mt-1 opacity-90 backdrop-blur-sm bg-white/30 dark:bg-black/30 p-1.5 rounded-lg border border-white/20 dark:border-white/5 inline-block leading-relaxed">
-                      میزکار آمار و فروش
+                      سیستم هوشمند مدیریت یکپارچه زنجیره تولید ، آمار و فروش
                   </h2>
               </div>
 
@@ -330,60 +329,52 @@ const LoginPage: React.FC = () => {
                                   dir="ltr"
                                   disabled={isBlocked}
                                   {...register('password')}
-                                  className="block w-full h-10 md:h-14 pr-3 pl-8 rounded-xl bg-white/50 dark:bg-black/50 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-base md:text-base tracking-widest font-mono text-center shadow-sm focus:border-orange-500 outline-none backdrop-blur-sm transition-all"
-                                  placeholder="••••••"
+                                  className="block w-full h-10 md:h-14 pr-3 pl-8 rounded-xl bg-white/50 dark:bg-black/50 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-base md:text-base font-bold text-center shadow-sm focus:border-orange-500 outline-none backdrop-blur-sm transition-all"
+                                  placeholder="رمز عبور"
                                   autoComplete="current-password"
                               />
-                              <button 
+                              <button
                                   type="button"
+                                  tabIndex={-1}
+                                  className="absolute left-2 top-2.5 md:top-4 text-gray-500 dark:text-gray-400 focus:outline-none"
                                   onClick={() => setShowPassword(!showPassword)}
-                                  className="absolute left-1 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-gray-500 dark:text-gray-400"
                               >
-                                  {showPassword ? <Icons.EyeOff className="w-4 h-4" /> : <Icons.Eye className="w-4 h-4" />}
+                                  {showPassword ? <Icons.EyeOff className="w-5 h-5" /> : <Icons.Eye className="w-5 h-5" />}
                               </button>
                           </div>
 
-                          <div className="flex items-center justify-between pt-0.5">
-                              <label className="flex items-center gap-2 cursor-pointer group select-none">
-                                  <input type="checkbox" {...register('rememberMe')} className="w-4 h-4 rounded border-gray-400 text-orange-500 focus:ring-orange-500" />
-                                  <span className="text-xs md:text-sm font-bold text-gray-600 dark:text-gray-300">مرا به خاطر بسپار</span>
+                          <div className="flex items-center justify-between py-1">
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                  <input 
+                                      type="checkbox" 
+                                      {...register('rememberMe')} 
+                                      className="w-4 h-4 text-orange-500 rounded focus:ring-orange-500 border-gray-300"
+                                  />
+                                  <span className="text-xs md:text-sm font-bold text-gray-600 dark:text-gray-300 select-none">مرا به خاطر بسپار</span>
                               </label>
                           </div>
 
-                          <button
-                              type="submit"
-                              disabled={isSubmitting || isRedirecting || isBlocked}
-                              className="w-full h-10 md:h-16 bg-gradient-to-r from-gray-900 to-black hover:from-black hover:to-gray-900 dark:from-orange-500 dark:to-yellow-500 text-white font-black text-sm md:text-lg rounded-xl md:rounded-2xl transition-all duration-300 active:scale-[0.98] shadow-lg flex items-center justify-center gap-2"
+                          <Button 
+                            type="submit" 
+                            isLoading={isSubmitting || isRedirecting}
+                            disabled={isBlocked}
+                            className="w-full h-12 md:h-16 text-lg md:text-xl font-black bg-gradient-to-r from-orange-500 to-amber-500 hover:to-amber-600 shadow-xl shadow-orange-200/50 dark:shadow-none rounded-2xl transition-all active:scale-95 text-white mt-2"
                           >
-                              {isSubmitting || isRedirecting ? (
-                                  <>
-                                    <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin"></div>
-                                    <span>در حال پردازش...</span>
-                                  </>
-                              ) : (
-                                  <span>ورود به سیستم</span>
-                              )}
-                          </button>
+                              {isBlocked ? `مسدود (${Math.ceil((blockUntil! - Date.now()) / 1000)}s)` : 'ورود به حساب'}
+                          </Button>
                       </form>
                   </div>
-                  
-                  <div className="mt-2 text-center relative z-20">
-                      <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 font-medium opacity-70">v{APP_VERSION}</p>
-                  </div>
-              </div>
 
-              {/* --- MOBILE QUOTE (Compacted) --- */}
-              {/* Task 3: Increased Font Size */}
-              <div className="md:hidden w-full px-6 z-20 flex justify-center shrink-0 mt-3 mb-Safe-bottom">
-                  <div className="bg-white/40 dark:bg-black/40 backdrop-blur-sm rounded-lg p-2 max-w-sm w-full text-center border border-white/30 dark:border-white/10 shadow-sm">
-                      <p className="text-xs font-bold text-gray-700 dark:text-gray-200 leading-tight line-clamp-2">
-                          <span className="text-orange-600 dark:text-orange-400 ml-1">«</span>
-                          {quote.text}
-                          <span className="text-orange-600 dark:text-orange-400 mr-1">»</span>
+                  {/* Daily Quote - Below form on mobile */}
+                  <div className="mt-4 md:mt-6 text-center px-4 relative z-20">
+                      <p className="text-[10px] md:text-xs font-bold text-gray-600 dark:text-gray-400 italic opacity-80 leading-relaxed">
+                          "{quote.text}"
+                      </p>
+                      <p className="text-[9px] md:text-[10px] text-gray-500 dark:text-gray-500 mt-1">
+                          - {quote.author}
                       </p>
                   </div>
               </div>
-
           </div>
       </div>
     </div>

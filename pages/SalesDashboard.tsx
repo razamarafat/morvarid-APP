@@ -16,7 +16,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FarmType, Invoice, UserRole } from '../types';
 import { SkeletonTile, SkeletonRow } from '../components/common/Skeleton';
 
-// --- NEW COMPONENT: FarmGroup ---
+// --- COMPONENT: FarmGroup ---
 const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate, products }: any) => {
     const [isOpen, setIsOpen] = useState(false);
     const [expandedFarmId, setExpandedFarmId] = useState<string | null>(null);
@@ -68,12 +68,10 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
                         initial={{ height: 0, opacity: 0 }} 
                         animate={{ height: 'auto', opacity: 1 }} 
                         exit={{ height: 0, opacity: 0 }}
-                        className="space-y-4 overflow-hidden pl-2 lg:pl-4 border-r-2 border-dashed border-gray-200 dark:border-gray-700 mr-4"
+                        className="space-y-4 overflow-hidden pl-2 lg:pl-4 mr-4"
                     >
                         {farms.map((farm: any) => {
-                            // Filter stats for this farm and date
                             const farmStats = statistics.filter((s: any) => s.farmId === farm.id && normalizeDate(s.date) === normalizedSelectedDate);
-                            // Dedup logic (simplified for view)
                             const uniqueMap = new Map<string, DailyStatistic>();
                             farmStats.forEach((stat: any) => {
                                 if (uniqueMap.has(stat.productId)) {
@@ -142,9 +140,10 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
                                                                     {isAdminCreated && <span className="text-[10px] font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">ثبت توسط مدیر</span>}
                                                                 </div>
                                                                 {showTime && (
-                                                                    <div className="text-[10px] text-gray-400 font-bold flex flex-col items-end">
+                                                                    <div className="text-[10px] text-gray-400 font-bold flex items-center gap-2">
                                                                         <span>ساعت: {toPersianDigits(new Date(stat.createdAt).toLocaleTimeString('fa-IR', {hour: '2-digit', minute:'2-digit'}))}</span>
-                                                                        <span className="text-gray-500">مسئول: {stat.creatorName || 'نامشخص'}</span>
+                                                                        <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                                                                        <span>مسئول: {stat.creatorName || 'نامشخص'}</span>
                                                                     </div>
                                                                 )}
                                                             </div>
@@ -179,7 +178,6 @@ const FarmStatistics = React.memo(() => {
     const todayJalali = getTodayJalali();
     const normalizedSelectedDate = useMemo(() => normalizeDate(todayJalali), [todayJalali]);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    
     const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
@@ -210,7 +208,7 @@ const FarmStatistics = React.memo(() => {
 
     return (
         <div className="space-y-6">
-            <div className="bg-white/80 dark:bg-black/40 backdrop-blur-md p-4 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between rounded-[24px]">
+            <div className="bg-white/80 dark:bg-black/40 backdrop-blur-md py-2 px-4 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between rounded-[24px]">
                 <div className="flex-1 w-full flex flex-col gap-3">
                     <h3 className="font-black text-gray-800 dark:text-white text-lg flex items-center flex-wrap">
                         آمار فارم‌ها - <span className="mr-2 shiny-text text-orange-500 font-black">{toPersianDigits(todayJalali)}</span>
@@ -254,9 +252,7 @@ const FarmStatistics = React.memo(() => {
     );
 });
 
-// 8 cols: Date, Invoice#, Farm, Product, Count, Weight, Registrar, Time
-const GRID_TEMPLATE = "grid grid-cols-[85px_100px_90px_minmax(140px,1.5fr)_70px_70px_100px_70px] gap-1 items-center whitespace-nowrap px-2";
-
+// TASK 1: Redesigned Table Row (Standard HTML TR/TD)
 const StandardInvoiceRow = React.memo(({ invoice, farms, products, renderInvoiceNumber }: { invoice: Invoice, farms: any[], products: any[], renderInvoiceNumber: (num: string) => any }) => {
     const productName = products.find((p: any) => p.id === invoice.productId)?.name || '-';
     const isEdited = invoice.updatedAt && invoice.updatedAt > invoice.createdAt + 2000;
@@ -267,29 +263,56 @@ const StandardInvoiceRow = React.memo(({ invoice, farms, products, renderInvoice
         : new Date(isEdited ? invoice.updatedAt! : invoice.createdAt).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
     
     return (
-        <div className={`${GRID_TEMPLATE} text-right border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors text-gray-800 dark:text-gray-200 text-sm py-3 min-w-[900px] odd:bg-white even:bg-gray-50 dark:odd:bg-gray-800 dark:even:bg-gray-900/30 ${isAdminCreated ? 'bg-purple-50/20' : ''}`}>
-            <div className="font-black tracking-tighter shrink-0 text-sm">{toPersianDigits(invoice.date)}</div>
-            <div className="text-center shrink-0 font-mono scale-90 text-base font-bold">{renderInvoiceNumber(invoice.invoiceNumber)}</div>
-            <div className="font-bold truncate shrink-0 text-xs">{farms.find((f: any) => f.id === invoice.farmId)?.name}</div>
-            <div className="font-bold text-gray-700 dark:text-gray-200 text-xs leading-tight overflow-hidden text-ellipsis px-1" title={productName}>{productName}</div>
+        <tr className={`border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors text-gray-800 dark:text-gray-200 text-sm odd:bg-white even:bg-gray-50 dark:odd:bg-gray-800 dark:even:bg-gray-900/30 ${isAdminCreated ? 'bg-purple-50/20' : ''}`}>
+            {/* 1. Date */}
+            <td className="p-2 whitespace-nowrap font-black tracking-tight text-center">
+                {toPersianDigits(invoice.date)}
+            </td>
             
-            <div className="text-center">
-                <span className="font-black text-base bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded block">{toPersianDigits(invoice.totalCartons)}</span>
-            </div>
-            <div className="text-center">
-                <span className="font-black text-metro-blue text-base bg-blue-50 dark:bg-blue-900/20 px-1.5 py-0.5 rounded block">{toPersianDigits(invoice.totalWeight)}</span>
-            </div>
+            {/* 2. Invoice Num */}
+            <td className="p-2 whitespace-nowrap text-center font-mono font-bold scale-95" dir="ltr">
+                {renderInvoiceNumber(invoice.invoiceNumber)}
+            </td>
             
-            <div className="text-center shrink-0">
-                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold truncate block max-w-full ${isAdminCreated ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 dark:bg-gray-700'}`}>
+            {/* 3. Farm */}
+            <td className="p-2 whitespace-nowrap font-bold text-right truncate max-w-[120px]">
+                {farms.find((f: any) => f.id === invoice.farmId)?.name}
+            </td>
+            
+            {/* 4. Product */}
+            <td className="p-2 font-bold text-gray-700 dark:text-gray-200 text-xs leading-tight w-auto min-w-[150px]">
+                {productName}
+            </td>
+            
+            {/* 5. Count */}
+            <td className="p-2 whitespace-nowrap text-center">
+                <span className="font-black text-base bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded shadow-sm inline-block min-w-[40px]">
+                    {toPersianDigits(invoice.totalCartons)}
+                </span>
+            </td>
+            
+            {/* 6. Weight */}
+            <td className="p-2 whitespace-nowrap text-center">
+                <span className="font-black text-metro-blue text-base bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded shadow-sm inline-block min-w-[50px]">
+                    {toPersianDigits(invoice.totalWeight)}
+                </span>
+            </td>
+            
+            {/* 7. Registrar */}
+            <td className="p-2 whitespace-nowrap text-center">
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold truncate inline-block max-w-[100px] ${isAdminCreated ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 dark:bg-gray-700'}`}>
                     {isAdminCreated ? 'مدیر' : (invoice.creatorName || 'ناشناس')}
                 </span>
-            </div>
-            <div className="text-center flex flex-col items-center shrink-0">
-                <span className="font-mono text-[10px] font-bold text-gray-600 dark:text-gray-400 dir-ltr">{toPersianDigits(displayTime)}</span>
-                {isEdited && !isAdminCreated && <span className="text-[8px] text-orange-500 font-bold mt-0.5">(ویرایش)</span>}
-            </div>
-        </div>
+            </td>
+
+            {/* 8. Time */}
+            <td className="p-2 whitespace-nowrap text-center">
+                <div className="flex flex-col items-center">
+                    <span className="font-mono text-[10px] font-bold text-gray-600 dark:text-gray-400 dir-ltr">{toPersianDigits(displayTime)}</span>
+                    {isEdited && !isAdminCreated && <span className="text-[8px] text-orange-500 font-bold mt-0.5">(ویرایش)</span>}
+                </div>
+            </td>
+        </tr>
     );
 });
 
@@ -314,7 +337,6 @@ const InvoiceList = React.memo(() => {
         const results = invoices
             .filter(i => {
                 const itemDate = normalizeDate(i.date);
-                // STRICTLY TODAY
                 const dateMatch = itemDate === normalizedToday;
                 const farmMatch = selectedFarmId === 'all' || i.farmId === selectedFarmId;
                 const searchMatch = !term || (
@@ -325,18 +347,12 @@ const InvoiceList = React.memo(() => {
 
                 return dateMatch && farmMatch && searchMatch;
             })
-            // Sort Order: Date(Desc) -> Farm Name -> Product Order
             .sort((a, b) => {
-                // 1. Date Desc (Though all are today, good practice)
                 if (a.createdAt !== b.createdAt) return b.createdAt - a.createdAt;
-                
-                // 2. Farm Name Alphabetic
                 const farmA = farms.find(f => f.id === a.farmId)?.name || '';
                 const farmB = farms.find(f => f.id === b.farmId)?.name || '';
                 const farmDiff = farmA.localeCompare(farmB, 'fa');
                 if (farmDiff !== 0) return farmDiff;
-
-                // 3. Product Rank
                 const prodA = products.find(p => p.id === a.productId);
                 const prodB = products.find(p => p.id === b.productId);
                 if (prodA && prodB) {
@@ -363,11 +379,11 @@ const InvoiceList = React.memo(() => {
 
     const renderInvoiceNumber = useCallback((num: string) => {
         const strNum = toPersianDigits(num);
-        if (strNum.length < 4) return <span className="text-gray-800 dark:text-gray-200 text-lg font-mono" dir="ltr">{strNum}</span>;
+        if (strNum.length < 4) return <span className="text-gray-800 dark:text-gray-200 text-lg font-mono">{strNum}</span>;
         const mainPart = strNum.slice(0, -4);
         const lastPart = strNum.slice(-4);
         return (
-            <div className="flex justify-center items-center gap-0.5" dir="ltr">
+            <div className="flex justify-center items-center gap-0.5">
                 <span className="text-gray-500 dark:text-gray-400 font-bold text-base font-mono">{mainPart}</span>
                 <span className="text-black dark:text-white font-black text-lg font-mono">{lastPart}</span>
             </div>
@@ -422,63 +438,63 @@ const InvoiceList = React.memo(() => {
                 </div>
                 
                 <div className="w-full h-full overflow-hidden flex flex-col">
-                    <div className="flex-1 w-full overflow-x-auto">
-                        <div className="min-w-[900px] h-full flex flex-col">
-                             <div className={`${GRID_TEMPLATE} bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 text-sm lg:text-base font-bold p-3 border-b border-gray-200 dark:border-gray-700 shrink-0 sticky top-0 z-10 pr-2 shadow-sm`}>
-                                <div>تاریخ خروج</div>
-                                <div className="text-center">رمز حواله</div>
-                                <div>فارم</div>
-                                <div>نوع محصول</div>
-                                <div className="text-center">تعداد (کارتن)</div>
-                                <div className="text-center">وزن (Kg)</div>
-                                <div className="text-center">ثبت کننده</div>
-                                <div className="text-center">ساعت</div>
-                            </div>
-                            
-                            <div className="flex-1 overflow-y-auto custom-scrollbar">
-                                {isLoading ? (
-                                    <div className="p-4 space-y-4">
-                                        <SkeletonRow cols={8} />
-                                        <SkeletonRow cols={8} />
-                                        <SkeletonRow cols={8} />
-                                    </div>
-                                ) : filteredInvoices.length === 0 ? (
-                                    <div className="text-center py-20 text-gray-400 font-bold lg:text-lg">
-                                        <div className="flex flex-col items-center">
-                                            <Icons.FileText className="w-16 h-16 mb-2 opacity-30" />
-                                            <span>
-                                                هیچ حواله‌ای برای امروز ({toPersianDigits(normalizedToday)}) ثبت نشده است.
-                                            </span>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    filteredInvoices.map(invoice => (
-                                        <StandardInvoiceRow 
-                                            key={invoice.id} 
-                                            invoice={invoice} 
-                                            farms={farms} 
-                                            products={products} 
-                                            renderInvoiceNumber={renderInvoiceNumber} 
-                                        />
-                                    ))
-                                )}
-                            </div>
-                            
-                            {filteredInvoices.length > 0 && (
-                                <div className="bg-gray-100 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-4 flex justify-end items-center gap-6 shrink-0">
-                                    <div className="text-sm font-bold text-gray-600 dark:text-gray-400">جمع کل امروز:</div>
-                                    <div className="flex items-center gap-2 bg-white dark:bg-gray-800 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
-                                        <span className="text-gray-500 text-xs font-bold">کارتن:</span>
-                                        <span className="font-black text-lg text-gray-800 dark:text-white">{toPersianDigits(totals.cartons)}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2 bg-white dark:bg-gray-800 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
-                                        <span className="text-gray-500 text-xs font-bold">وزن:</span>
-                                        <span className="font-black text-lg text-metro-blue">{toPersianDigits(totals.weight)}</span>
-                                    </div>
-                                </div>
-                            )}
+                    <div className="flex-1 w-full overflow-auto custom-scrollbar">
+                        {/* TASK 1: Replaced Grid with Table */}
+                        <div className="min-w-[800px] h-full">
+                             <table className="w-full text-right border-collapse">
+                                <thead className="bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400 text-xs lg:text-sm font-black uppercase sticky top-0 z-10 shadow-sm">
+                                    <tr>
+                                        <th className="p-3 text-center whitespace-nowrap">تاریخ خروج</th>
+                                        <th className="p-3 text-center whitespace-nowrap">رمز حواله</th>
+                                        <th className="p-3 whitespace-nowrap">فارم</th>
+                                        <th className="p-3">نوع محصول</th>
+                                        <th className="p-3 text-center whitespace-nowrap">تعداد (کارتن)</th>
+                                        <th className="p-3 text-center whitespace-nowrap">وزن (Kg)</th>
+                                        <th className="p-3 text-center whitespace-nowrap">ثبت کننده</th>
+                                        <th className="p-3 text-center whitespace-nowrap">ساعت</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {isLoading ? (
+                                        <tr><td colSpan={8} className="p-4 space-y-4"><SkeletonRow cols={8} /><SkeletonRow cols={8} /></td></tr>
+                                    ) : filteredInvoices.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={8} className="text-center py-20 text-gray-400 font-bold lg:text-lg">
+                                                <div className="flex flex-col items-center">
+                                                    <Icons.FileText className="w-16 h-16 mb-2 opacity-30" />
+                                                    <span>هیچ حواله‌ای برای امروز ({toPersianDigits(normalizedToday)}) ثبت نشده است.</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        filteredInvoices.map(invoice => (
+                                            <StandardInvoiceRow 
+                                                key={invoice.id} 
+                                                invoice={invoice} 
+                                                farms={farms} 
+                                                products={products} 
+                                                renderInvoiceNumber={renderInvoiceNumber} 
+                                            />
+                                        ))
+                                    )}
+                                </tbody>
+                             </table>
                         </div>
                     </div>
+                    
+                    {filteredInvoices.length > 0 && (
+                        <div className="bg-gray-100 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-4 flex justify-end items-center gap-6 shrink-0 sticky bottom-0 z-20 shadow-md">
+                            <div className="text-sm font-bold text-gray-600 dark:text-gray-400">جمع کل امروز:</div>
+                            <div className="flex items-center gap-2 bg-white dark:bg-gray-800 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+                                <span className="text-gray-500 text-xs font-bold">کارتن:</span>
+                                <span className="font-black text-lg text-gray-800 dark:text-white">{toPersianDigits(totals.cartons)}</span>
+                            </div>
+                            <div className="flex items-center gap-2 bg-white dark:bg-gray-800 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+                                <span className="text-gray-500 text-xs font-bold">وزن:</span>
+                                <span className="font-black text-lg text-metro-blue">{toPersianDigits(totals.weight)}</span>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -503,7 +519,7 @@ const SalesDashboard: React.FC = () => {
         if(currentView === 'farm-stats') return 'پایش آمار لحظه‌ای';
         if(currentView === 'invoices') return 'جدول فروش امروز';
         if(currentView === 'reports') return 'گزارشات فروش';
-        return 'میز کار فروش و توزیع';
+        return 'میز کار آمار و فروش';
     }
 
     const renderContent = () => {

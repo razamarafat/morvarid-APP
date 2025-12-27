@@ -19,11 +19,27 @@ import { useAutoUpdate } from './hooks/useAutoUpdate';
 import { useOfflineSync } from './hooks/useOfflineSync';
 import { useAutoTheme } from './hooks/useAutoTheme';
 
-// Lazy Load Pages
-const LoginPage = lazy(() => import('./pages/LoginPage'));
-const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
-const RegistrationDashboard = lazy(() => import('./pages/RegistrationDashboard'));
-const SalesDashboard = lazy(() => import('./components/sales/SalesDashboard'));
+// Helper to safely load lazy components and handle default export issues
+const safeLazy = (importFunc: () => Promise<any>, fallbackName: string) => {
+  return lazy(() => 
+    importFunc().then(module => {
+      if (module.default) return { default: module.default };
+      console.error(`Module ${fallbackName} missing default export. Available:`, Object.keys(module));
+      // Fallback if named export matches the file name context (common mistake)
+      // or return a dummy component to prevent crash #306
+      return { default: () => <div className="p-4 text-red-500 font-bold">Error: Failed to load {fallbackName}</div> };
+    }).catch(err => {
+      console.error(`Failed to load ${fallbackName}:`, err);
+      return { default: () => <div className="p-4 text-red-500 font-bold">Network Error loading {fallbackName}</div> };
+    })
+  );
+};
+
+// Lazy Load Pages with Safe Wrapper
+const LoginPage = safeLazy(() => import('./pages/LoginPage'), 'LoginPage');
+const AdminDashboard = safeLazy(() => import('./pages/AdminDashboard'), 'AdminDashboard');
+const RegistrationDashboard = safeLazy(() => import('./pages/RegistrationDashboard'), 'RegistrationDashboard');
+const SalesDashboard = safeLazy(() => import('./components/sales/SalesDashboard'), 'SalesDashboard');
 
 interface ErrorBoundaryProps {
   children?: ReactNode;
@@ -54,7 +70,6 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 
   handleHardReset = () => {
-      // Clear LocalStorage, SessionStorage, Caches, and SW
       localStorage.clear();
       sessionStorage.clear();
       if ('caches' in window) {
@@ -81,7 +96,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
               <h1 className="text-2xl font-black text-red-600 mb-2">خطای سیستمی</h1>
               <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm">
                   {error?.message?.includes('Minified React error') 
-                    ? 'خطای داخلی رابط کاربری رخ داده است (525). لطفا کنسول مرورگر را بررسی کنید.' 
+                    ? 'خطای داخلی رابط کاربری رخ داده است (306/185). لطفا کنسول را بررسی کنید.' 
                     : 'متأسفانه برنامه با مشکل مواجه شده است.'}
               </p>
               
@@ -132,11 +147,9 @@ function App() {
     const init = async () => {
         await checkSession();
         initListener();
-        // Permission check is now handled by PermissionModal on mount
     };
     init();
 
-    // OPTIMIZED: Throttle activity updates to 10s to reduce localStorage IO
     let activityTimeout: ReturnType<typeof setTimeout> | null = null;
     const handleUserActivity = () => {
         if (!activityTimeout) {
