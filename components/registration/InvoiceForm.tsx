@@ -346,6 +346,10 @@ export const InvoiceForm: React.FC = () => {
                          <Icons.Download className="w-4 h-4" />
                          خواندن از پیامک
                      </button>
+                     <div className="mt-2 text-[10px] text-blue-100 bg-black/20 px-3 py-1 rounded-full flex items-center gap-1 backdrop-blur-md border border-white/10">
+                         <Icons.AlertCircle className="w-3 h-3" />
+                         نکته: برای ثبت گروهی، لطفاً تمام پیامک‌ها را یکجا انتخاب و کپی کنید.
+                     </div>
                  </div>
             </div>
 
