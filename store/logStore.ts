@@ -1,3 +1,3 @@
 
-/* Dead Code - File Neutralized for Optimization */
-export const useLogStore = () => {};
+// This file has been deprecated and its functionality removed.
+export {};

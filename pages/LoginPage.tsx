@@ -21,7 +21,6 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-// --- UPDATED QUOTES DATABASE (Business/Ethical/Motivational) ---
 const DAILY_QUOTES = [
     { text: "موفقیت، مجموعه‌ای از تلاش‌های کوچک است که هر روز تکرار می‌شوند.", author: "رابرت کالیر" },
     { text: "کیفیت، هرگز اتفاقی نیست؛ نتیجه نیت عالی، تلاش صادقانه و اجرای هوشمندانه است.", author: "ویلا فاستر" },
@@ -48,7 +47,7 @@ const getDayOfYear = () => {
     return Math.floor(diff / oneDay);
 };
 
-// --- EXISTING: SKETCH ---
+// --- SKETCH ---
 const UltraRealisticSketch = React.memo(() => (
   <svg viewBox="0 0 1000 150" className="w-full h-full opacity-80 dark:opacity-50 pointer-events-none text-gray-700 dark:text-gray-400 transform-gpu" preserveAspectRatio="xMidYMax meet">
     <defs>
@@ -59,11 +58,7 @@ const UltraRealisticSketch = React.memo(() => (
             <rect width="2" height="4" transform="translate(0,0)" fill="currentColor" fillOpacity="0.1"></rect>
         </pattern>
     </defs>
-    
-    {/* Ground Line (y=140) */}
     <line x1="0" y1="140" x2="1000" y2="140" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-
-    {/* --- 1. TRADITIONAL FARM (Far Left) --- */}
     <g transform="translate(20, 90)">
         <path d="M0,50 L0,20 L60,5 L120,20 L120,50 Z" fill="none" stroke="currentColor" strokeWidth="1.5" />
         <rect x="30" y="0" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1" />
@@ -73,8 +68,6 @@ const UltraRealisticSketch = React.memo(() => (
         <line x1="130" y1="25" x2="150" y2="25" stroke="currentColor" strokeWidth="0.5" />
         <line x1="130" y1="35" x2="150" y2="35" stroke="currentColor" strokeWidth="0.5" />
     </g>
-
-    {/* --- 1.5 CHICKENS (Small, on the line) --- */}
     <g transform="translate(160, 132)">
         <path d="M0,8 Q2,0 6,2 Q10,4 8,8 Z" fill="none" stroke="currentColor" strokeWidth="1" />
         <line x1="2" y1="8" x2="2" y2="10" stroke="currentColor" strokeWidth="0.5" />
@@ -90,15 +83,11 @@ const UltraRealisticSketch = React.memo(() => (
              <line x1="5" y1="6" x2="5" y2="8" stroke="currentColor" strokeWidth="0.5" />
         </g>
     </g>
-
-    {/* --- 2. MODERN FACTORY (Mid Left) --- */}
     <g transform="translate(220, 40)">
         <path d="M0,100 L0,30 L40,10 L80,30 L80,100 Z" fill="none" stroke="currentColor" strokeWidth="1.5" />
         <rect x="25" y="60" width="30" height="40" fill="url(#hatch)" stroke="currentColor" strokeWidth="1" />
         <rect x="60" y="-10" width="10" height="40" fill="none" stroke="currentColor" strokeWidth="1.5" />
     </g>
-
-    {/* --- 3. CONVEYOR BELT --- */}
     <g transform="translate(320, 100)">
         <line x1="10" y1="10" x2="10" y2="40" stroke="currentColor" strokeWidth="1" />
         <line x1="50" y1="10" x2="50" y2="40" stroke="currentColor" strokeWidth="1" />
@@ -107,8 +96,6 @@ const UltraRealisticSketch = React.memo(() => (
         <rect x="15" y="-5" width="15" height="10" fill="white" stroke="currentColor" strokeWidth="1" />
         <rect x="55" y="-5" width="15" height="10" fill="white" stroke="currentColor" strokeWidth="1" />
     </g>
-
-    {/* --- 4. FORKLIFT --- */}
     <g transform="translate(450, 95)">
         <path d="M20,40 L20,15 L45,15 L50,40 Z" fill="none" stroke="currentColor" strokeWidth="1.5" />
         <path d="M20,15 L20,0 L40,0 L45,15" fill="none" stroke="currentColor" strokeWidth="1.5" />
@@ -118,8 +105,6 @@ const UltraRealisticSketch = React.memo(() => (
         <circle cx="25" cy="45" r="5" fill="white" stroke="currentColor" strokeWidth="1.5" />
         <circle cx="45" cy="45" r="5" fill="white" stroke="currentColor" strokeWidth="1.5" />
     </g>
-
-    {/* --- 5. DELIVERY TRUCK (Mid Right) --- */}
     <g transform="translate(560, 60)">
         <rect x="0" y="10" width="110" height="60" fill="white" stroke="currentColor" strokeWidth="1.5" />
         <rect x="10" y="20" width="90" height="40" fill="url(#grid)" stroke="none" opacity="0.3" />
@@ -129,8 +114,6 @@ const UltraRealisticSketch = React.memo(() => (
         <circle cx="125" cy="72" r="8" fill="white" stroke="currentColor" strokeWidth="1.5" />
         <circle cx="125" cy="72" r="3" fill="currentColor" />
     </g>
-
-    {/* --- 6. NISSAN JUNIOR (Right, Loaded, Leaving) --- */}
     <g transform="translate(780, 85)">
         <path d="M0,20 L0,50 L70,50 L70,20 Z" fill="white" stroke="currentColor" strokeWidth="1.5" />
         <path d="M70,50 L70,10 L95,10 L110,30 L110,50 Z" fill="white" stroke="currentColor" strokeWidth="1.5" />
@@ -148,35 +131,20 @@ const UltraRealisticSketch = React.memo(() => (
   </svg>
 ));
 
-// --- EXISTING: STARS ---
+// --- STARS ---
 const StarryNight = React.memo(() => {
-    const stars = [
-        { t: '10%', l: '20%', d: '0s', s: '2px' },
-        { t: '30%', l: '80%', d: '1.2s', s: '3px' },
-        { t: '50%', l: '10%', d: '0.5s', s: '1.5px' },
-        { t: '70%', l: '90%', d: '2.5s', s: '2px' },
-        { t: '15%', l: '60%', d: '1.8s', s: '2.5px' },
-        { t: '85%', l: '30%', d: '3s', s: '1.8px' },
-        { t: '40%', l: '40%', d: '0.8s', s: '2.2px' },
-        { t: '5%', l: '95%', d: '2.1s', s: '3px' },
-        { t: '60%', l: '75%', d: '1.5s', s: '1.5px' },
-        { t: '90%', l: '10%', d: '0.2s', s: '2px' },
-        { t: '25%', l: '5%', d: '2.8s', s: '2.5px' },
-        { t: '75%', l: '50%', d: '1s', s: '1.8px' }
-    ];
-
     return (
         <div className="absolute inset-0 pointer-events-none overflow-hidden hidden dark:block z-0 transform-gpu">
-            {stars.map((s, i) => (
+            {[...Array(12)].map((_, i) => (
                 <div 
                     key={i}
                     className="absolute bg-white rounded-full star-anim"
                     style={{
-                        top: s.t,
-                        left: s.l,
-                        width: s.s,
-                        height: s.s,
-                        animationDelay: s.d
+                        top: `${Math.random() * 100}%`,
+                        left: `${Math.random() * 100}%`,
+                        width: `${Math.random() * 2 + 1}px`,
+                        height: `${Math.random() * 2 + 1}px`,
+                        animationDelay: `${Math.random() * 3}s`
                     }}
                 />
             ))}
@@ -195,7 +163,6 @@ const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
 
-  // Quote Logic
   const quote = useMemo(() => {
       const dayOfYear = getDayOfYear();
       const index = dayOfYear % DAILY_QUOTES.length;
@@ -255,17 +222,17 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    // Updated container to use safe areas correctly and prevent overlap
-    <div className="min-h-[100dvh] w-full flex flex-col relative overflow-hidden bg-[#FFF8F0] dark:bg-[#0f172a] font-sans transition-colors duration-500">
+    // OPTIMIZED CONTAINER: No Scroll on Mobile (h-100dvh, overflow-hidden)
+    <div className="h-[100dvh] w-full flex flex-col relative overflow-hidden bg-[#FFF8F0] dark:bg-[#0f172a] font-sans transition-colors duration-500">
       
-      {/* --- THEME TOGGLE --- */}
+      {/* Theme Toggle - Absolute Top Left */}
       <div className="absolute top-3 left-3 z-50">
           <div className="bg-white/50 dark:bg-black/30 p-1.5 rounded-full backdrop-blur-md border border-white/40 dark:border-white/10 shadow-sm scale-90 md:scale-100">
               <ThemeToggle />
           </div>
       </div>
 
-      {/* --- BACKGROUND --- */}
+      {/* Background */}
       <div className="absolute inset-0 z-0 pointer-events-none transform-gpu">
           <div className="absolute inset-0 bg-gradient-to-b md:bg-gradient-to-l from-orange-100/90 via-orange-50/50 to-transparent dark:from-orange-900/10 dark:via-orange-800/5 dark:to-transparent will-change-transform"></div>
           <div className="absolute inset-0 opacity-[0.04] dark:opacity-0" 
@@ -274,186 +241,141 @@ const LoginPage: React.FC = () => {
           <StarryNight />
       </div>
 
-      {/* --- SKETCH FOOTER (Fixed Bottom) --- */}
-      <div className="absolute bottom-0 left-0 w-full z-0 h-[120px] md:h-[180px] pointer-events-none opacity-60">
+      {/* Footer Sketch - Absolute Bottom */}
+      {/* Task 3: Increased Height for Mobile */}
+      <div className="absolute bottom-0 left-0 w-full z-0 h-[140px] md:h-[180px] pointer-events-none opacity-60 flex-shrink-0">
           <UltraRealisticSketch />
       </div>
 
-      {/* --- MAIN LAYOUT (Scrollable if needed on very small screens) --- */}
-      <div className="relative z-10 flex flex-col md:flex-row h-full w-full justify-between md:justify-center overflow-y-auto md:overflow-hidden pb-safe">
+      {/* MAIN CONTENT AREA - Flex layout to distribute space */}
+      <div className="relative z-10 flex flex-col md:flex-row h-full w-full justify-between pb-safe">
           
-          {/* --- TOP SECTION (Logo & Title) --- */}
-          <div className="flex-none flex flex-col items-center justify-center md:justify-start pt-8 md:pt-32 relative z-20 shrink-0 md:flex-1 md:w-[55%] min-h-[30vh]">
+          {/* --- TOP SECTION (Logo, Clock) --- */}
+          {/* Task 2: Increased top margin (mt-8) */}
+          <div className="flex-none flex flex-col items-center justify-center md:justify-start pt-safe mt-8 md:pt-32 relative z-20 shrink-0 md:flex-1 md:w-[55%]">
               
-              <div className="text-center z-20 transform-gpu transition-transform duration-300">
-                  {/* MORVARID TEXT */}
-                  <div className="relative inline-block mb-1 md:mb-2 w-auto">
+              <div className="text-center z-20 transform-gpu">
+                  {/* Logo Text */}
+                  {/* Task 1: Increased Font Sizes */}
+                  <div className="relative inline-block mb-1 w-auto">
                       <h1 className="text-3xl md:text-5xl font-black tracking-[0.2em] text-gray-900 dark:text-white drop-shadow-md relative z-10">MORVARID</h1>
                   </div>
 
-                  <div className="h-1 w-12 md:h-1.5 md:w-24 bg-gradient-to-r from-orange-400 to-yellow-400 mx-auto rounded-full mb-2 md:mb-5 shadow-sm"></div>
+                  <div className="h-1 w-12 md:w-24 bg-gradient-to-r from-orange-400 to-yellow-400 mx-auto rounded-full mb-2 md:mb-5 shadow-sm"></div>
                   
-                  {/* Reduced text size for Mobile */}
-                  <h1 className="text-4xl md:text-6xl font-black text-gray-800 dark:text-white mb-2 md:mb-5 tracking-tight drop-shadow-sm scale-y-110">
+                  <h1 className="text-5xl md:text-6xl font-black text-gray-800 dark:text-white mb-1 md:mb-5 tracking-tight drop-shadow-sm scale-y-110">
                       مـرواریــد
                   </h1>
                   
-                  <h2 className="text-[10px] md:text-lg font-bold text-gray-600 dark:text-gray-300 tracking-wide mt-1 opacity-90 backdrop-blur-sm bg-white/30 dark:bg-black/30 p-1 md:p-1.5 rounded-lg border border-white/20 dark:border-white/5 inline-block">
-                      سیستم هوشمند پایش زنجیره آمار، تولید و فروش
+                  <h2 className="text-sm md:text-lg font-bold text-gray-600 dark:text-gray-300 tracking-wide mt-1 opacity-90 backdrop-blur-sm bg-white/30 dark:bg-black/30 p-1.5 rounded-lg border border-white/20 dark:border-white/5 inline-block">
+                      سیستم هوشمند پایش زنجیره آمار
                   </h2>
               </div>
 
-              {/* Vertical Clock Component (Borderless, Clean) */}
+              {/* Clock & Date */}
+              {/* Task 1: Increased Font Sizes */}
               <div className="mt-4 md:mt-12 z-20 flex flex-col items-center gap-0 w-full max-w-[320px] md:max-w-md">
                   <div className="w-full text-center flex flex-col gap-2 md:gap-6">
-                      
-                      {/* Mobile: Horizontal Layout for Date/Day */}
                       <div className="flex md:flex-col items-center justify-center gap-3 md:gap-4">
                           <div className="text-sm md:text-2xl font-black text-gray-700 dark:text-gray-300 tracking-[0.2em] md:tracking-[0.6em] uppercase opacity-90 scale-x-110">
                               {currentDayName}
                           </div>
-                          
                           <div className="hidden md:block w-32 h-1 bg-gradient-to-r from-transparent via-orange-400 to-transparent mx-auto rounded-full opacity-80"></div>
-                          
-                          {/* Separator for Mobile */}
                           <div className="md:hidden h-4 w-[2px] bg-orange-400 rounded-full opacity-50"></div>
-
-                          <div className="text-xl md:text-5xl font-black text-gray-900 dark:text-white tabular-nums tracking-tight leading-none drop-shadow-sm">
+                          <div className="text-3xl md:text-5xl font-black text-gray-900 dark:text-white tabular-nums tracking-tight leading-none">
                               {currentDate}
                           </div>
                       </div>
-
                       <div className="hidden md:block w-32 h-1 bg-gradient-to-r from-transparent via-orange-400 to-transparent mx-auto rounded-full opacity-80"></div>
-
-                      {/* Time */}
-                      <div className="text-lg md:text-4xl font-black text-gray-600 dark:text-gray-400 tabular-nums tracking-widest opacity-80 leading-none">
+                      <div className="text-2xl md:text-4xl font-black text-gray-600 dark:text-gray-400 tabular-nums tracking-widest opacity-80 leading-none">
                           {currentTime}
-                      </div>
-
-                      {/* Daily Quote (Desktop Only) */}
-                      <div className="hidden md:block mt-2 max-w-[350px] mx-auto">
-                          <div className="w-32 h-1 bg-gradient-to-r from-transparent via-orange-400 to-transparent mx-auto rounded-full opacity-80 mb-4"></div>
-                          <p className="text-sm md:text-lg font-bold text-gray-800 dark:text-gray-200 leading-relaxed whitespace-normal break-words">
-                              <span className="text-orange-500 ml-1 font-black">سخن برتر:</span>
-                              «{quote.text}»
-                          </p>
                       </div>
                   </div>
               </div>
-
           </div>
 
-          {/* --- BOTTOM SECTION (Form) --- */}
-          <div className="flex-1 md:w-[45%] flex flex-col items-center md:justify-center px-6 relative z-30 w-full mt-4 md:mt-0 pb-20 md:pb-0">
+          {/* --- MIDDLE/BOTTOM SECTION (Form & Quote) --- */}
+          {/* Mobile: Use flex-grow to center form in remaining space */}
+          <div className="flex-1 md:w-[45%] flex flex-col items-center justify-center md:justify-center px-6 relative z-30 w-full md:pb-0 min-h-0">
               
-              <div className="w-full max-w-[340px] md:max-w-[420px] relative">
+              <div className="w-full max-w-[320px] md:max-w-[420px] relative">
                   
-                  {/* Form Container - TRANSPARENT GLASS STYLE */}
-                  <div className="backdrop-blur-sm bg-white/10 md:bg-white/20 dark:bg-black/20 md:dark:bg-black/30 p-6 md:p-10 rounded-[30px] md:rounded-[36px] border border-white/20 dark:border-white/10 shadow-2xl drop-shadow-2xl animate-in slide-in-from-bottom-10 duration-700">
+                  {/* Form Container */}
+                  <div className="backdrop-blur-sm bg-white/10 md:bg-white/20 dark:bg-black/20 md:dark:bg-black/30 p-5 md:p-10 rounded-[24px] md:rounded-[36px] border border-white/20 dark:border-white/10 shadow-2xl drop-shadow-2xl animate-in slide-in-from-bottom-5 duration-700">
                       
-                      <div className="mb-4 md:mb-8 text-center">
-                          <div className="inline-flex items-center justify-center w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-yellow-500 text-white mb-2 md:mb-4 shadow-lg shadow-orange-500/40">
-                              <Icons.User className="w-6 h-6 md:w-8 md:h-8" />
-                          </div>
-                          <h3 className="text-xl md:text-2xl font-black text-gray-900 dark:text-white">ورود به حساب</h3>
+                      <div className="mb-3 md:mb-8 text-center">
+                          <h3 className="text-lg md:text-2xl font-black text-gray-900 dark:text-white flex items-center justify-center gap-2">
+                              <Icons.User className="w-5 h-5 md:w-8 md:h-8 text-orange-500" />
+                              ورود به حساب
+                          </h3>
                       </div>
 
-                      <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-4 md:space-y-6">
+                      <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-3 md:space-y-6">
                           <div className="space-y-1">
-                              <div className="relative group">
-                                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none z-10">
-                                      <Icons.User className="w-5 h-5 text-gray-500 dark:text-gray-400 group-focus-within:text-orange-500 transition-colors" />
-                                  </div>
-                                  <input
-                                      type="text"
-                                      dir="ltr"
-                                      disabled={isBlocked}
-                                      {...register('username')}
-                                      className="block w-full h-12 md:h-14 pr-10 pl-4 rounded-xl bg-white/50 dark:bg-black/50 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-base placeholder-gray-500 dark:placeholder-gray-400 focus:border-orange-500 focus:bg-white/80 dark:focus:bg-black/70 focus:outline-none transition-all font-bold text-left shadow-sm group-hover:border-gray-300 dark:group-hover:border-gray-500 backdrop-blur-sm 
-                                      [&:-webkit-autofill]:shadow-[0_0_0_1000px_rgba(255,255,255,0.8)_inset_!important] 
-                                      dark:[&:-webkit-autofill]:shadow-[0_0_0_1000px_#0f172a_inset_!important] 
-                                      [&:-webkit-autofill]:text-fill-color-black dark:[&:-webkit-autofill]:text-fill-color-white"
-                                      placeholder="نام کاربری"
-                                      autoComplete="username"
-                                  />
-                              </div>
+                              <input
+                                  type="text"
+                                  dir="ltr"
+                                  disabled={isBlocked}
+                                  {...register('username')}
+                                  className="block w-full h-10 md:h-14 pr-3 pl-3 rounded-xl bg-white/50 dark:bg-black/50 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-base md:text-base font-bold text-center shadow-sm focus:border-orange-500 outline-none backdrop-blur-sm transition-all"
+                                  placeholder="نام کاربری"
+                                  autoComplete="username"
+                              />
                           </div>
 
-                          <div className="space-y-1">
-                              <div className="relative group">
-                                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none z-10">
-                                      <Icons.Lock className="w-5 h-5 text-gray-500 dark:text-gray-400 group-focus-within:text-orange-500 transition-colors" />
-                                  </div>
-                                  <input
-                                      type={showPassword ? "text" : "password"}
-                                      dir="ltr"
-                                      disabled={isBlocked}
-                                      {...register('password')}
-                                      className="block w-full h-12 md:h-14 pr-10 pl-10 rounded-xl bg-white/50 dark:bg-black/50 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-base tracking-widest placeholder-gray-500 dark:placeholder-gray-400 focus:border-orange-500 focus:bg-white/80 dark:focus:bg-black/70 focus:outline-none transition-all font-mono text-left shadow-sm group-hover:border-gray-300 dark:group-hover:border-gray-500 backdrop-blur-sm
-                                      [&:-webkit-autofill]:shadow-[0_0_0_1000px_rgba(255,255,255,0.8)_inset_!important] 
-                                      dark:[&:-webkit-autofill]:shadow-[0_0_0_1000px_#0f172a_inset_!important] 
-                                      [&:-webkit-autofill]:text-fill-color-black dark:[&:-webkit-autofill]:text-fill-color-white"
-                                      placeholder="••••••"
-                                      autoComplete="current-password"
-                                  />
-                                  <button 
-                                      type="button"
-                                      onClick={() => setShowPassword(!showPassword)}
-                                      className="absolute left-1 top-1/2 -translate-y-1/2 p-2 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none transition-colors z-10"
-                                      tabIndex={-1}
-                                  >
-                                      {showPassword ? <Icons.EyeOff className="w-5 h-5" /> : <Icons.Eye className="w-5 h-5" />}
-                                  </button>
-                              </div>
+                          <div className="space-y-1 relative">
+                              <input
+                                  type={showPassword ? "text" : "password"}
+                                  dir="ltr"
+                                  disabled={isBlocked}
+                                  {...register('password')}
+                                  className="block w-full h-10 md:h-14 pr-3 pl-8 rounded-xl bg-white/50 dark:bg-black/50 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-base md:text-base tracking-widest font-mono text-center shadow-sm focus:border-orange-500 outline-none backdrop-blur-sm transition-all"
+                                  placeholder="••••••"
+                                  autoComplete="current-password"
+                              />
+                              <button 
+                                  type="button"
+                                  onClick={() => setShowPassword(!showPassword)}
+                                  className="absolute left-1 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-gray-500 dark:text-gray-400"
+                              >
+                                  {showPassword ? <Icons.EyeOff className="w-4 h-4" /> : <Icons.Eye className="w-4 h-4" />}
+                              </button>
                           </div>
 
-                          <div className="flex items-center justify-between pt-1">
+                          <div className="flex items-center justify-between pt-0.5">
                               <label className="flex items-center gap-2 cursor-pointer group select-none">
-                                  <div className="relative">
-                                      <input 
-                                          type="checkbox" 
-                                          {...register('rememberMe')} 
-                                          className="peer sr-only"
-                                      />
-                                      <div className="w-5 h-5 border-2 border-gray-400 dark:border-gray-500 rounded-md bg-white/50 dark:bg-black/50 peer-checked:bg-orange-500 peer-checked:border-orange-500 transition-all backdrop-blur-sm"></div>
-                                      <Icons.Check className="absolute top-0 left-0 w-5 h-5 text-white opacity-0 peer-checked:opacity-100 transition-opacity p-0.5" />
-                                  </div>
-                                  <span className="text-sm font-bold text-gray-600 group-hover:text-gray-800 dark:text-gray-300 dark:group-hover:text-white transition-colors">مرا به خاطر بسپار</span>
+                                  <input type="checkbox" {...register('rememberMe')} className="w-4 h-4 rounded border-gray-400 text-orange-500 focus:ring-orange-500" />
+                                  <span className="text-xs md:text-sm font-bold text-gray-600 dark:text-gray-300">مرا به خاطر بسپار</span>
                               </label>
                           </div>
 
                           <button
                               type="submit"
                               disabled={isSubmitting || isRedirecting || isBlocked}
-                              className="w-full h-14 md:h-16 bg-gradient-to-r from-gray-900 to-black hover:from-black hover:to-gray-900 dark:from-orange-500 dark:to-yellow-500 dark:hover:from-orange-600 dark:hover:to-yellow-600 text-white font-black text-lg rounded-xl md:rounded-2xl transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-3 shadow-xl shadow-gray-400/30 dark:shadow-orange-500/30 disabled:opacity-70 disabled:cursor-wait mt-2 group relative overflow-hidden transform-gpu"
+                              className="w-full h-10 md:h-16 bg-gradient-to-r from-gray-900 to-black hover:from-black hover:to-gray-900 dark:from-orange-500 dark:to-yellow-500 text-white font-black text-sm md:text-lg rounded-xl md:rounded-2xl transition-all duration-300 active:scale-[0.98] shadow-lg flex items-center justify-center gap-2"
                           >
-                              <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-in-out skew-x-12"></div>
                               {isSubmitting || isRedirecting ? (
-                                  <>
-                                      <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                                      <span>در حال پردازش...</span>
-                                  </>
+                                  <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin"></div>
                               ) : (
-                                  <>
-                                      <span>ورود</span>
-                                      <Icons.ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform duration-300" />
-                                  </>
+                                  <span>ورود به سیستم</span>
                               )}
                           </button>
                       </form>
                   </div>
                   
-                  <div className="mt-4 text-center relative z-20 pb-4">
-                      <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 font-medium backdrop-blur-sm inline-block px-2 rounded">Morvarid Cloud • v{APP_VERSION}</p>
+                  <div className="mt-2 text-center relative z-20">
+                      <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 font-medium opacity-70">v{APP_VERSION}</p>
                   </div>
               </div>
 
-              {/* --- MOBILE QUOTE (Bottom position stacked in flow) --- */}
-              <div className="md:hidden w-full mb-10 px-4 z-20 flex justify-center shrink-0 relative mt-4">
-                  <div className="bg-white/40 dark:bg-black/40 backdrop-blur-sm rounded-xl p-3 max-w-sm w-full text-center border border-white/30 dark:border-white/10 shadow-sm">
-                      <p className="text-[10px] font-bold text-gray-700 dark:text-gray-200 leading-tight">
-                          <span className="text-orange-600 dark:text-orange-400 ml-1 font-black">سخن برتر:</span>
+              {/* --- MOBILE QUOTE (Compacted) --- */}
+              {/* Task 3: Increased Font Size */}
+              <div className="md:hidden w-full px-6 z-20 flex justify-center shrink-0 mt-3 mb-Safe-bottom">
+                  <div className="bg-white/40 dark:bg-black/40 backdrop-blur-sm rounded-lg p-2 max-w-sm w-full text-center border border-white/30 dark:border-white/10 shadow-sm">
+                      <p className="text-xs font-bold text-gray-700 dark:text-gray-200 leading-tight line-clamp-2">
+                          <span className="text-orange-600 dark:text-orange-400 ml-1">«</span>
                           {quote.text}
+                          <span className="text-orange-600 dark:text-orange-400 mr-1">»</span>
                       </p>
                   </div>
               </div>
