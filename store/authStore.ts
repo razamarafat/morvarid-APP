@@ -90,10 +90,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError) {
-          console.error('Session Check Error:', sessionError);
-          if (sessionError.message.includes('Refresh Token Not Found') || sessionError.message.includes('Invalid Refresh Token')) {
+          const errMsg = sessionError.message || '';
+          
+          // CRITICAL FIX: Handle Invalid Refresh Token Loop
+          if (
+              errMsg.includes('Refresh Token Not Found') || 
+              errMsg.includes('Invalid Refresh Token') ||
+              errMsg.includes('not found')
+          ) {
+              console.warn('[Auth] Refresh token invalid or not found. Forcing cleanup.');
               await get().logout(false);
+              return; // Stop execution here to prevent state inconsistencies
           }
+
+          console.error('Session Check Error:', sessionError);
           set({ user: null, isLoading: false });
           return;
       }
@@ -170,7 +180,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return { success: false, error: 'حساب موقتا مسدود است. لطفا صبر کنید.' };
     }
 
-    // TASK FIX: Removed toLowerCase() and strict regex. Only trimmed.
     const cleanUsername = username.trim();
     if (!cleanUsername) return { success: false, error: 'نام کاربری نامعتبر است' };
 
@@ -179,13 +188,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     let loginError = null;
 
     for (const domain of domains) {
-        // NOTE: Supabase Auth (GoTrue) is case-insensitive for EMAIL parts by default,
-        // BUT we are constructing email from username. 
-        // If we want case-sensitive username, we rely on the fact that we store username in 'profiles' table
-        // and we will check it after login if needed, or rely on the user typing the correct email prefix.
-        // However, standard email standard implies local-part IS case sensitive but usually treated as insensitive.
-        // Since we map username -> email, we might face issue if Supabase lowercases emails on signup.
-        // Assuming Supabase config allows it or we stick to the input.
         const { data, error } = await supabase.auth.signInWithPassword({
             email: `${cleanUsername}@${domain}`,
             password,
@@ -212,13 +214,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             return { success: false, error: 'حساب کاربری شما غیرفعال شده است.' };
         }
 
-        // Optional: Strict username check if needed (e.g. if email matches but username casing was different)
-        // For now, we trust the successful login via password.
-
         get().resetAttempts();
         
         if (rememberMe) {
-            localStorage.setItem(STORAGE_KEYS.USERNAME, cleanUsername); // Store exact case
+            localStorage.setItem(STORAGE_KEYS.USERNAME, cleanUsername); 
             set({ savedUsername: cleanUsername });
         } else {
             localStorage.removeItem(STORAGE_KEYS.USERNAME);
@@ -239,9 +238,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async (isTimeout = false) => {
-    await supabase.auth.signOut().catch(err => console.error("SignOut error:", err));
+    try {
+        await supabase.auth.signOut();
+    } catch (err) {
+        console.warn("SignOut warning (token likely invalid):", err);
+    }
+
+    // Aggressively clear Supabase tokens from localStorage
+    Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+            localStorage.removeItem(key);
+        }
+    });
+
     localStorage.removeItem(STORAGE_KEYS.ACTIVITY);
     set({ user: null, isLoading: false });
+    
     if (isTimeout) {
         useToastStore.getState().addToast('مدت زمان نشست شما به پایان رسیده است. لطفا مجددا وارد شوید.', 'warning');
     }

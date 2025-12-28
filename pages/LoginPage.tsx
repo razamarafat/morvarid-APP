@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm, FieldErrors } from 'react-hook-form';
@@ -250,12 +251,11 @@ const LoginPage: React.FC = () => {
       <div className="relative z-10 flex flex-col md:flex-row h-full w-full justify-between pb-safe">
           
           {/* --- TOP SECTION (Logo, Clock) --- */}
-          {/* Task 2: Increased top margin (mt-8) */}
-          <div className="flex-none flex flex-col items-center justify-center md:justify-start pt-safe mt-8 md:pt-32 relative z-20 shrink-0 md:flex-1 md:w-[55%]">
+          {/* Layout Shift: Reduced desktop top padding to move text column UP */}
+          <div className="flex-none flex flex-col items-center justify-center md:justify-start pt-safe mt-8 md:pt-16 relative z-20 shrink-0 md:flex-1 md:w-[55%]">
               
               <div className="text-center z-20 transform-gpu">
                   {/* Logo Text */}
-                  {/* Task 1: Increased Font Sizes */}
                   <div className="relative inline-block mb-1 w-auto">
                       <h1 className="text-3xl md:text-5xl font-black tracking-[0.2em] text-gray-900 dark:text-white drop-shadow-md relative z-10">MORVARID</h1>
                   </div>
@@ -273,7 +273,6 @@ const LoginPage: React.FC = () => {
               </div>
 
               {/* Clock & Date */}
-              {/* Task 1: Increased Font Sizes */}
               <div className="mt-4 md:mt-12 z-20 flex flex-col items-center gap-0 w-full max-w-[320px] md:max-w-md">
                   <div className="w-full text-center flex flex-col gap-2 md:gap-6">
                       <div className="flex md:flex-col items-center justify-center gap-3 md:gap-4">
@@ -292,10 +291,21 @@ const LoginPage: React.FC = () => {
                       </div>
                   </div>
               </div>
+
+              {/* --- DESKTOP QUOTE SECTION (New Position) --- */}
+              <div className="hidden md:flex flex-col items-center mt-16 max-w-md text-center z-20 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-500">
+                  <div className="w-24 h-1 bg-gradient-to-r from-transparent via-orange-400 to-transparent rounded-full mb-6 opacity-70"></div>
+                  <p className="text-lg font-bold text-gray-700 dark:text-gray-200 italic leading-relaxed px-4">
+                      "{quote.text}"
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 font-medium">
+                      - {quote.author}
+                  </p>
+              </div>
+
           </div>
 
-          {/* --- MIDDLE/BOTTOM SECTION (Form & Quote) --- */}
-          {/* Mobile: Use flex-grow to center form in remaining space */}
+          {/* --- MIDDLE/BOTTOM SECTION (Form & Mobile Quote) --- */}
           <div className="flex-1 md:w-[45%] flex flex-col items-center justify-center md:justify-center px-6 relative z-30 w-full md:pb-0 min-h-0">
               
               <div className="w-full max-w-[320px] md:max-w-[420px] relative">
@@ -365,12 +375,12 @@ const LoginPage: React.FC = () => {
                       </form>
                   </div>
 
-                  {/* Daily Quote - Below form on mobile */}
-                  <div className="mt-4 md:mt-6 text-center px-4 relative z-20">
-                      <p className="text-[10px] md:text-xs font-bold text-gray-600 dark:text-gray-400 italic opacity-80 leading-relaxed">
+                  {/* Daily Quote - MOBILE ONLY */}
+                  <div className="mt-4 md:hidden text-center px-4 relative z-20">
+                      <p className="text-[10px] font-bold text-gray-600 dark:text-gray-400 italic opacity-80 leading-relaxed">
                           "{quote.text}"
                       </p>
-                      <p className="text-[9px] md:text-[10px] text-gray-500 dark:text-gray-500 mt-1">
+                      <p className="text-[9px] text-gray-500 dark:text-gray-500 mt-1">
                           - {quote.author}
                       </p>
                   </div>

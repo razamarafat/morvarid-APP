@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import DashboardLayout from '../layout/DashboardLayout';
 import { Icons } from '../common/Icons';
@@ -520,7 +519,7 @@ const SalesDashboard: React.FC = () => {
         if(currentView === 'farm-stats') return 'پایش آمار لحظه‌ای';
         if(currentView === 'invoices') return 'جدول فروش امروز';
         if(currentView === 'reports') return 'گزارشات فروش';
-        return 'میزکار آمار و فروش';
+        return 'میز کار آمار و فروش';
     }
 
     const renderContent = () => {
