@@ -114,7 +114,7 @@ const RecentRecords: React.FC = () => {
             const result = await deleteStatistic(stat.id);
             if (result.success) {
                 const msg = navigator.onLine ? 'رکورد حذف شد' : 'درخواست حذف در صف آفلاین ذخیره شد';
-                addToast(msg, navigator.onLine ? 'success' : 'info');
+                addToast(msg, navigator.onLine ? 'success' : 'warning');
             } else {
                 addToast('خطا در حذف', 'error');
             }
@@ -166,7 +166,7 @@ const RecentRecords: React.FC = () => {
             setShowEditStatModal(false);
             setTargetStat(null);
             const msg = navigator.onLine ? 'آمار ویرایش شد' : 'ویرایش در صف همگام‌سازی ذخیره شد';
-            addToast(msg, navigator.onLine ? 'success' : 'info');
+            addToast(msg, navigator.onLine ? 'success' : 'warning');
         } else {
             addToast(result.error || 'خطا', 'error');
         }
@@ -183,7 +183,7 @@ const RecentRecords: React.FC = () => {
             const result = await deleteInvoice(inv.id);
             if (result.success) {
                 const msg = navigator.onLine ? 'حواله حذف شد' : 'درخواست حذف در صف آفلاین ذخیره شد';
-                addToast(msg, navigator.onLine ? 'success' : 'info');
+                addToast(msg, navigator.onLine ? 'success' : 'warning');
             } else {
                 addToast('خطا در حذف', 'error');
             }
@@ -236,7 +236,7 @@ const RecentRecords: React.FC = () => {
             setShowEditInvoiceModal(false);
             setSelectedInvoice(null);
             const msg = navigator.onLine ? 'حواله ویرایش شد' : 'ویرایش در صف همگام‌سازی ذخیره شد';
-            addToast(msg, navigator.onLine ? 'success' : 'info');
+            addToast(msg, navigator.onLine ? 'success' : 'warning');
         } else {
             addToast(result.error || 'خطا', 'error');
         }

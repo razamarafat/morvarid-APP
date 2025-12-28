@@ -196,9 +196,16 @@ const FarmStatistics = React.memo(() => {
 
     const handleManualRefresh = async () => {
         setIsRefreshing(true);
-        await Promise.all([fetchStatistics(), fetchInvoices()]);
-        setTimeout(() => setIsRefreshing(false), 500);
-        addToast('اطلاعات بروزرسانی شد', 'success');
+        // Only fetch if online, otherwise just show local data
+        if (navigator.onLine) {
+            await Promise.all([fetchStatistics(), fetchInvoices()]);
+            addToast('اطلاعات بروزرسانی شد', 'success');
+        } else {
+            // Simulate delay for feedback
+            await new Promise(resolve => setTimeout(resolve, 500));
+            addToast('شما آفلاین هستید. نمایش اطلاعات ذخیره شده.', 'warning');
+        }
+        setIsRefreshing(false);
     };
 
     if (isLoading && statistics.length === 0) {
@@ -379,9 +386,14 @@ const InvoiceList = React.memo(() => {
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
-        await fetchInvoices();
-        setTimeout(() => setIsRefreshing(false), 500);
-        addToast('لیست حواله‌ها بروزرسانی شد', 'info');
+        if (navigator.onLine) {
+            await fetchInvoices();
+            addToast('لیست حواله‌ها بروزرسانی شد', 'info');
+        } else {
+            await new Promise(r => setTimeout(r, 500));
+            addToast('شما آفلاین هستید. نمایش لیست ذخیره شده.', 'warning');
+        }
+        setIsRefreshing(false);
     };
 
     const renderInvoiceNumber = useCallback((num: string) => {

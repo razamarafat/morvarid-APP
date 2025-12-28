@@ -27,21 +27,17 @@ const OnlineStatusBadge: React.FC = () => {
 
   useEffect(() => {
     const handleStatusChange = () => {
-      // Clear any existing timeout to prevent multiple triggers
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-
-      // Add a small delay to filter out false positives (e.g., tab switching/VPN connection)
       timeoutRef.current = setTimeout(() => {
         setIsOnline(navigator.onLine);
-      }, 1000); // 1 second debounce
+      }, 1000); 
     };
 
     window.addEventListener('online', handleStatusChange);
     window.addEventListener('offline', handleStatusChange);
     
-    // Check initial status
     handleStatusChange();
 
     return () => {
@@ -72,7 +68,7 @@ const OnlineStatusBadge: React.FC = () => {
           return;
       }
       addToast('در حال تلاش مجدد برای ارسال...', 'info');
-      processQueue(true); // Force retry
+      processQueue(true); 
   };
 
   const handleClearLogs = () => {
@@ -83,8 +79,8 @@ const OnlineStatusBadge: React.FC = () => {
   const getStatusColor = () => {
       if (!isOnline) return 'bg-red-500 text-white animate-pulse shadow-red-500/30';
       if (failedItemsCount > 0) return 'bg-orange-500 text-white shadow-orange-500/30';
-      if (isSyncingActive) return 'bg-blue-500 text-white shadow-blue-500/30'; // Only blue when processing
-      if (queue.length > 0) return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'; // Pending but waiting
+      if (isSyncingActive) return 'bg-blue-500 text-white shadow-blue-500/30'; 
+      if (queue.length > 0) return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'; 
       return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
   };
 
@@ -173,7 +169,7 @@ const OnlineStatusBadge: React.FC = () => {
         {/* CUSTOM MODAL FOR OFFLINE STATUS - Z-INDEX 9999 TO OVERLAY EVERYTHING */}
         <AnimatePresence>
             {isModalOpen && (
-                <div className="fixed inset-0 z-[9999]">
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
                     {/* Backdrop */}
                     <motion.div
                         initial={{ opacity: 0 }}
@@ -183,13 +179,12 @@ const OnlineStatusBadge: React.FC = () => {
                         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
                     />
                     
-                    {/* Modal Content - Centered properly using transform */}
+                    {/* Modal Content - Centered properly using flexbox */}
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: '-45%', x: '-50%' }}
-                        animate={{ opacity: 1, scale: 1, y: '-50%', x: '-50%' }}
-                        exit={{ opacity: 0, scale: 0.95, y: '-45%', x: '-50%' }}
-                        className="fixed top-1/2 left-1/2 w-[90%] max-w-lg bg-[#FDFBFF] dark:bg-[#1E1E1E] rounded-[24px] shadow-2xl overflow-hidden max-h-[80vh] flex flex-col"
-                        style={{ transform: 'translate(-50%, -50%)' }} // Fallback for animation
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                        className="relative w-full max-w-lg bg-[#FDFBFF] dark:bg-[#1E1E1E] rounded-[24px] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col"
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Header */}
