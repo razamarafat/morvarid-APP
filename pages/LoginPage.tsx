@@ -13,6 +13,7 @@ import ThemeToggle from '../components/common/ThemeToggle';
 import { motion } from 'framer-motion';
 import Button from '../components/common/Button';
 import { APP_VERSION } from '../constants';
+import { SKETCH_BASE64 } from '../components/common/SketchAsset';
 
 const loginSchema = z.object({
   username: z.string().min(1, "نام کاربری الزامی است"),
@@ -47,90 +48,6 @@ const getDayOfYear = () => {
     const oneDay = 1000 * 60 * 60 * 24;
     return Math.floor(diff / oneDay);
 };
-
-// --- SKETCH ---
-const UltraRealisticSketch = React.memo(() => (
-  <svg viewBox="0 0 1000 150" className="w-full h-full opacity-80 dark:opacity-50 pointer-events-none text-gray-700 dark:text-gray-400 transform-gpu" preserveAspectRatio="xMidYMax meet">
-    <defs>
-        <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
-            <path d="M 10 0 L 0 0 0 10" fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.2"/>
-        </pattern>
-        <pattern id="hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <rect width="2" height="4" transform="translate(0,0)" fill="currentColor" fillOpacity="0.1"></rect>
-        </pattern>
-    </defs>
-    <line x1="0" y1="140" x2="1000" y2="140" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    <g transform="translate(20, 90)">
-        <path d="M0,50 L0,20 L60,5 L120,20 L120,50 Z" fill="none" stroke="currentColor" strokeWidth="1.5" />
-        <rect x="30" y="0" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1" />
-        <rect x="80" y="0" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1" />
-        <path d="M28,0 L42,0 M78,0 L92,0" stroke="currentColor" strokeWidth="1" />
-        <path d="M130,50 L130,20 L140,10 L150,20 L150,50" fill="none" stroke="currentColor" strokeWidth="1.5" />
-        <line x1="130" y1="25" x2="150" y2="25" stroke="currentColor" strokeWidth="0.5" />
-        <line x1="130" y1="35" x2="150" y2="35" stroke="currentColor" strokeWidth="0.5" />
-    </g>
-    <g transform="translate(160, 132)">
-        <path d="M0,8 Q2,0 6,2 Q10,4 8,8 Z" fill="none" stroke="currentColor" strokeWidth="1" />
-        <line x1="2" y1="8" x2="2" y2="10" stroke="currentColor" strokeWidth="0.5" />
-        <line x1="6" y1="8" x2="6" y2="10" stroke="currentColor" strokeWidth="0.5" />
-        <g transform="translate(15, 0)">
-             <path d="M0,8 Q-2,0 4,0 Q8,4 6,8 Z" fill="none" stroke="currentColor" strokeWidth="1" />
-             <line x1="1" y1="8" x2="1" y2="10" stroke="currentColor" strokeWidth="0.5" />
-             <line x1="5" y1="8" x2="5" y2="10" stroke="currentColor" strokeWidth="0.5" />
-        </g>
-        <g transform="translate(30, 2)">
-             <path d="M0,6 Q3,0 7,3 Q9,6 6,6 Z" fill="none" stroke="currentColor" strokeWidth="1" />
-             <line x1="2" y1="6" x2="2" y2="8" stroke="currentColor" strokeWidth="0.5" />
-             <line x1="5" y1="6" x2="5" y2="8" stroke="currentColor" strokeWidth="0.5" />
-        </g>
-    </g>
-    <g transform="translate(220, 40)">
-        <path d="M0,100 L0,30 L40,10 L80,30 L80,100 Z" fill="none" stroke="currentColor" strokeWidth="1.5" />
-        <rect x="25" y="60" width="30" height="40" fill="url(#hatch)" stroke="currentColor" strokeWidth="1" />
-        <rect x="60" y="-10" width="10" height="40" fill="none" stroke="currentColor" strokeWidth="1.5" />
-    </g>
-    <g transform="translate(320, 100)">
-        <line x1="10" y1="10" x2="10" y2="40" stroke="currentColor" strokeWidth="1" />
-        <line x1="50" y1="10" x2="50" y2="40" stroke="currentColor" strokeWidth="1" />
-        <line x1="90" y1="10" x2="90" y2="40" stroke="currentColor" strokeWidth="1" />
-        <rect x="0" y="5" width="100" height="5" fill="currentColor" stroke="none" />
-        <rect x="15" y="-5" width="15" height="10" fill="white" stroke="currentColor" strokeWidth="1" />
-        <rect x="55" y="-5" width="15" height="10" fill="white" stroke="currentColor" strokeWidth="1" />
-    </g>
-    <g transform="translate(450, 95)">
-        <path d="M20,40 L20,15 L45,15 L50,40 Z" fill="none" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M20,15 L20,0 L40,0 L45,15" fill="none" stroke="currentColor" strokeWidth="1.5" />
-        <line x1="55" y1="45" x2="55" y2="-10" stroke="currentColor" strokeWidth="2" />
-        <line x1="55" y1="35" x2="75" y2="35" stroke="currentColor" strokeWidth="1.5" />
-        <rect x="57" y="15" width="16" height="20" fill="white" stroke="currentColor" strokeWidth="1" />
-        <circle cx="25" cy="45" r="5" fill="white" stroke="currentColor" strokeWidth="1.5" />
-        <circle cx="45" cy="45" r="5" fill="white" stroke="currentColor" strokeWidth="1.5" />
-    </g>
-    <g transform="translate(560, 60)">
-        <rect x="0" y="10" width="110" height="60" fill="white" stroke="currentColor" strokeWidth="1.5" />
-        <rect x="10" y="20" width="90" height="40" fill="url(#grid)" stroke="none" opacity="0.3" />
-        <path d="M110,70 L110,30 L130,30 L145,50 L145,70 Z" fill="white" stroke="currentColor" strokeWidth="1.5" />
-        <circle cx="30" cy="72" r="8" fill="white" stroke="currentColor" strokeWidth="1.5" />
-        <circle cx="30" cy="72" r="3" fill="currentColor" />
-        <circle cx="125" cy="72" r="8" fill="white" stroke="currentColor" strokeWidth="1.5" />
-        <circle cx="125" cy="72" r="3" fill="currentColor" />
-    </g>
-    <g transform="translate(780, 85)">
-        <path d="M0,20 L0,50 L70,50 L70,20 Z" fill="white" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M70,50 L70,10 L95,10 L110,30 L110,50 Z" fill="white" stroke="currentColor" strokeWidth="1.5" />
-        <line x1="95" y1="10" x2="95" y2="50" stroke="currentColor" strokeWidth="1" /> 
-        <rect x="5" y="10" width="15" height="10" fill="white" stroke="currentColor" strokeWidth="1" />
-        <rect x="25" y="10" width="15" height="10" fill="white" stroke="currentColor" strokeWidth="1" />
-        <rect x="45" y="10" width="15" height="10" fill="white" stroke="currentColor" strokeWidth="1" />
-        <rect x="15" y="0" width="15" height="10" fill="white" stroke="currentColor" strokeWidth="1" />
-        <rect x="35" y="0" width="15" height="10" fill="white" stroke="currentColor" strokeWidth="1" />
-        <circle cx="25" cy="55" r="7" fill="white" stroke="currentColor" strokeWidth="1.5" />
-        <circle cx="25" cy="55" r="2.5" fill="currentColor" />
-        <circle cx="90" cy="55" r="7" fill="white" stroke="currentColor" strokeWidth="1.5" />
-        <circle cx="90" cy="55" r="2.5" fill="currentColor" />
-    </g>
-  </svg>
-));
 
 // --- STARS ---
 const StarryNight = React.memo(() => {
@@ -242,17 +159,23 @@ const LoginPage: React.FC = () => {
           <StarryNight />
       </div>
 
-      {/* Footer Sketch - Absolute Bottom, Low Z-Index */}
-      {/* Task 1: Increased height to 320px (h-80) on mobile for huge impact */}
-      <div className="absolute bottom-0 left-0 w-full z-0 h-[320px] md:h-[200px] pointer-events-none opacity-60 flex-shrink-0">
-          <UltraRealisticSketch />
-      </div>
+      {/* Footer Sketch - Image Asset (Restricted Height & Masked) */}
+      {SKETCH_BASE64 && (
+          <img 
+              src={SKETCH_BASE64} 
+              alt="Production Chain Sketch" 
+              className="absolute bottom-0 left-0 w-full h-32 md:h-64 object-cover object-bottom opacity-80 mix-blend-multiply dark:mix-blend-screen dark:invert pointer-events-none z-0 transition-opacity duration-500" 
+              style={{ 
+                  maskImage: 'linear-gradient(to top, black 60%, transparent 100%)',
+                  WebkitMaskImage: 'linear-gradient(to top, black 60%, transparent 100%)'
+              }}
+          />
+      )}
 
       {/* MAIN CONTENT AREA - Flex layout */}
       <div className="relative z-10 flex flex-col md:flex-row h-full w-full justify-between pb-safe">
           
           {/* --- TOP SECTION (Logo, Clock) --- */}
-          {/* Task 1: Breathing room (pt-12) */}
           <div className="flex-none flex flex-col items-center justify-start pt-safe mt-10 md:mt-16 relative z-20 shrink-0 md:flex-1 md:w-[55%]">
               
               <div className="text-center z-20 transform-gpu">
@@ -307,7 +230,6 @@ const LoginPage: React.FC = () => {
           </div>
 
           {/* --- MIDDLE/BOTTOM SECTION (Form Container) --- */}
-          {/* Task 2: Flex-1 to take available space, justify-start to sit near top (under clock) */}
           <div className="flex-1 md:w-[45%] flex flex-col items-center justify-start md:justify-center px-6 pt-4 md:pt-0 relative z-30 w-full min-h-0">
               
               <div className="w-full max-w-[320px] md:max-w-[420px] relative flex flex-col items-center">
@@ -377,13 +299,12 @@ const LoginPage: React.FC = () => {
                       </form>
                   </div>
 
-                  {/* Task 3: Version Number (STATIC FLOW - CENTERED BELOW FORM) */}
+                  {/* Task 3: Version Number */}
                   <div className="mt-3 text-[10px] text-gray-500 dark:text-gray-400 font-bold font-mono opacity-80 select-none">
                       v{APP_VERSION}
                   </div>
 
                   {/* Daily Quote - MOBILE ONLY */}
-                  {/* Task 4: Below Version */}
                   <div className="mt-4 md:hidden text-center px-4 relative z-20 pb-4">
                       <p className="text-sm font-bold text-gray-700 dark:text-gray-300 italic leading-relaxed drop-shadow-sm">
                           "{quote.text}"
