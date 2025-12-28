@@ -173,26 +173,27 @@ const OnlineStatusBadge: React.FC = () => {
         {/* CUSTOM MODAL FOR OFFLINE STATUS - Z-INDEX 9999 TO OVERLAY EVERYTHING */}
         <AnimatePresence>
             {isModalOpen && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-[9999]">
                     {/* Backdrop */}
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={() => setIsModalOpen(false)}
-                        className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+                        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
                     />
                     
-                    {/* Modal Content */}
+                    {/* Modal Content - Centered properly using transform */}
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="relative w-full max-w-lg bg-[#FDFBFF] dark:bg-[#1E1E1E] rounded-[24px] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+                        initial={{ opacity: 0, scale: 0.95, y: '-45%', x: '-50%' }}
+                        animate={{ opacity: 1, scale: 1, y: '-50%', x: '-50%' }}
+                        exit={{ opacity: 0, scale: 0.95, y: '-45%', x: '-50%' }}
+                        className="fixed top-1/2 left-1/2 w-[90%] max-w-lg bg-[#FDFBFF] dark:bg-[#1E1E1E] rounded-[24px] shadow-2xl overflow-hidden max-h-[80vh] flex flex-col"
+                        style={{ transform: 'translate(-50%, -50%)' }} // Fallback for animation
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Header */}
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-white/50 dark:bg-black/20">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-white/50 dark:bg-black/20 shrink-0">
                             <h3 className="font-black text-lg text-gray-800 dark:text-white flex items-center gap-2">
                                 <Icons.Refresh className="w-5 h-5 text-metro-blue" />
                                 مدیریت همگام‌سازی
@@ -224,7 +225,7 @@ const OnlineStatusBadge: React.FC = () => {
                                 </button>
                             </div>
 
-                            <div className="min-h-[200px]">
+                            <div className="min-h-[150px]">
                                 {activeTab === 'queue' ? (
                                     queue.length === 0 ? (
                                         <div className="h-40 flex flex-col items-center justify-center text-gray-400 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
@@ -258,7 +259,7 @@ const OnlineStatusBadge: React.FC = () => {
                         </div>
 
                         {/* Footer */}
-                        <div className="p-4 bg-gray-50 dark:bg-black/20 border-t border-gray-100 dark:border-gray-700 flex flex-col gap-2">
+                        <div className="p-4 bg-gray-50 dark:bg-black/20 border-t border-gray-100 dark:border-gray-700 flex flex-col gap-2 shrink-0">
                             {activeTab === 'queue' && queue.length > 0 && isOnline && (
                                 <Button variant="primary" onClick={handleManualRetry} disabled={isProcessing} className="w-full h-12 text-sm bg-orange-500 hover:bg-orange-600 text-white">
                                     <Icons.Refresh className={`w-4 h-4 ml-2 ${isProcessing ? 'animate-spin' : ''}`} />

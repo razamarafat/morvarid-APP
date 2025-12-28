@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { normalizeDate } from '../utils/dateUtils';
 import { useSyncStore } from './syncStore';
+import { useAuthStore } from './authStore';
 
 export interface DailyStatistic {
     id: string;
@@ -197,15 +198,26 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           await get().fetchStatistics();
           return { success: true };
       } catch(e: any) {
+          if (!isSyncing && (!navigator.onLine || getErrorMessage(e).toLowerCase().includes('fetch'))) {
+              useSyncStore.getState().addToQueue('UPDATE_STAT', { id, updates });
+              return { success: true, error: 'ویرایش در صف آفلاین ذخیره شد' };
+          }
           return { success: false, error: getErrorMessage(e) };
       }
   },
 
   bulkUpsertStatistics: async (stats, isSyncing = false) => {
+      // 1. Offline Check First
+      if (!isSyncing && !navigator.onLine) {
+          stats.forEach(s => useSyncStore.getState().addToQueue('STAT', s));
+          return { success: true, error: 'ذخیره در صف آفلاین' };
+      }
+
+      // 2. Get User from Local Store
+      const currentUser = useAuthStore.getState().user;
+      if (!currentUser) return { success: false, error: "Auth Error: User not logged in" };
+
       try {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (!user) return { success: false, error: "Auth Error: User not logged in" };
-          
           // MAP camelCase (Frontend) TO snake_case (Database)
           const dbStats = stats.map(s => ({
               farm_id: s.farmId,
@@ -219,7 +231,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
               sales_kg: s.salesKg,
               current_inventory: s.currentInventory,
               current_inventory_kg: s.currentInventoryKg,
-              created_by: user.id
+              created_by: currentUser.id // Use cached ID
           }));
 
           // DEBUG LOG: Ensure payload is correct before sending
@@ -239,11 +251,13 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           await get().fetchStatistics();
           return { success: true };
       } catch (e: any) {
-          if (!isSyncing && !navigator.onLine) {
-              stats.forEach(s => useSyncStore.getState().addToQueue('STAT', s));
-              return { success: true, error: 'ذخیره در صف آفلاین' };
-          }
+          // Check for Network Error specifically
           const errMsg = getErrorMessage(e);
+          if (!isSyncing && (errMsg.toLowerCase().includes('fetch') || !navigator.onLine)) {
+              stats.forEach(s => useSyncStore.getState().addToQueue('STAT', s));
+              return { success: true, error: 'ذخیره در صف آفلاین (خطای شبکه)' };
+          }
+          
           console.error("Upsert Stats Error:", errMsg);
           return { success: false, error: errMsg };
       }
@@ -256,6 +270,10 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           await get().fetchStatistics();
           return { success: true };
       } catch(e: any) {
+          if (!isSyncing && (!navigator.onLine || getErrorMessage(e).toLowerCase().includes('fetch'))) {
+              useSyncStore.getState().addToQueue('DELETE_STAT', { id });
+              return { success: true, error: 'حذف در صف آفلاین ذخیره شد' };
+          }
           return { success: false, error: getErrorMessage(e) };
       }
   },

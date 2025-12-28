@@ -5,6 +5,7 @@ import { Invoice } from '../types';
 import { useStatisticsStore } from './statisticsStore';
 import { normalizeDate } from '../utils/dateUtils';
 import { useSyncStore } from './syncStore';
+import { useAuthStore } from './authStore';
 
 const mapLegacyProductId = (id: string | number): string => {
     const strId = String(id);
@@ -146,15 +147,17 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
   },
 
   bulkAddInvoices: async (invoicesList, isSyncing = false) => {
+      // 1. Check Offline first
       if (!isSyncing && !navigator.onLine) {
           invoicesList.forEach(inv => useSyncStore.getState().addToQueue('INVOICE', inv));
           return { success: true, error: 'ذخیره در صف آفلاین' };
       }
 
-      try {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (!user) return { success: false, error: "کاربر لاگین نیست." };
+      // 2. Get User from Store (Memory) instead of async Supabase call
+      const currentUser = useAuthStore.getState().user;
+      if (!currentUser) return { success: false, error: "کاربر لاگین نیست." };
 
+      try {
           const dbInvoices = invoicesList.map(inv => ({
               farm_id: inv.farmId,
               date: normalizeDate(inv.date),
@@ -167,7 +170,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
               plate_number: inv.plateNumber || null,
               description: inv.description || null,
               is_yesterday: inv.isYesterday || false,
-              created_by: user.id
+              created_by: currentUser.id // Use local user ID
           }));
 
           const { error } = await supabase.from('invoices').insert(dbInvoices);
@@ -190,9 +193,10 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           return { success: true };
 
       } catch (error: any) {
-          if (!isSyncing && isNetworkError(error)) {
+          // If network error during request, add to queue
+          if (!isSyncing && (isNetworkError(error) || !navigator.onLine)) {
               invoicesList.forEach(inv => useSyncStore.getState().addToQueue('INVOICE', inv));
-              return { success: true, error: 'ذخیره در صف آفلاین' };
+              return { success: true, error: 'ذخیره در صف آفلاین (خطای شبکه)' };
           }
           return { success: false, error: translateError(error) };
       }
@@ -222,6 +226,11 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           await get().fetchInvoices();
           return { success: true };
       } catch (error: any) {
+          if (!isSyncing && (isNetworkError(error) || !navigator.onLine)) {
+              // For updates, we need the ID in the payload
+              useSyncStore.getState().addToQueue('UPDATE_INVOICE', { id, updates });
+              return { success: true, error: 'ویرایش در صف آفلاین ذخیره شد' };
+          }
           return { success: false, error: getErrorMessage(error) };
       }
   },
@@ -233,6 +242,10 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           await get().fetchInvoices();
           return { success: true };
       } catch(e: any) {
+          if (!isSyncing && (isNetworkError(e) || !navigator.onLine)) {
+               useSyncStore.getState().addToQueue('DELETE_INVOICE', { id });
+               return { success: true, error: 'حذف در صف آفلاین ذخیره شد' };
+          }
           return { success: false, error: getErrorMessage(e) };
       }
   }
