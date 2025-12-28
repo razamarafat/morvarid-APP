@@ -200,10 +200,23 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
 
   updateInvoice: async (id, updates, isSyncing = false) => {
       try {
-          const fullPayload: any = { ...updates, updated_at: new Date().toISOString() };
-          if (updates.totalCartons !== undefined) fullPayload.total_cartons = updates.totalCartons;
+          // Construct DB payload with snake_case keys manually to prevent missing column errors
+          const dbUpdates: any = { 
+              updated_at: new Date().toISOString() 
+          };
+          
+          if (updates.invoiceNumber !== undefined) dbUpdates.invoice_number = updates.invoiceNumber;
+          if (updates.totalCartons !== undefined) dbUpdates.total_cartons = updates.totalCartons;
+          if (updates.totalWeight !== undefined) dbUpdates.total_weight = updates.totalWeight;
+          if (updates.driverName !== undefined) dbUpdates.driver_name = updates.driverName;
+          if (updates.driverPhone !== undefined) dbUpdates.driver_phone = updates.driverPhone;
+          if (updates.plateNumber !== undefined) dbUpdates.plate_number = updates.plateNumber;
+          if (updates.description !== undefined) dbUpdates.description = updates.description;
+          if (updates.productId !== undefined) dbUpdates.product_id = updates.productId;
+          if (updates.farmId !== undefined) dbUpdates.farm_id = updates.farmId;
+          if (updates.date !== undefined) dbUpdates.date = normalizeDate(updates.date);
 
-          const { error } = await supabase.from('invoices').update(fullPayload).eq('id', id);
+          const { error } = await supabase.from('invoices').update(dbUpdates).eq('id', id);
           if (error) throw error;
           
           await get().fetchInvoices();

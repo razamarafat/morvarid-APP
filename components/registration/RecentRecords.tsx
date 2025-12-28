@@ -112,8 +112,12 @@ const RecentRecords: React.FC = () => {
         });
         if (confirmed) {
             const result = await deleteStatistic(stat.id);
-            if (result.success) addToast('رکورد حذف شد', 'success');
-            else addToast('خطا در حذف', 'error');
+            if (result.success) {
+                const msg = navigator.onLine ? 'رکورد حذف شد' : 'درخواست حذف در صف آفلاین ذخیره شد';
+                addToast(msg, navigator.onLine ? 'success' : 'info');
+            } else {
+                addToast('خطا در حذف', 'error');
+            }
         }
     };
 
@@ -138,6 +142,17 @@ const RecentRecords: React.FC = () => {
         const prodKg = Number(statValues.prodKg);
         const prevKg = isMotefereghe ? 0 : Number(statValues.prevKg);
 
+        // Validation: Check if nothing changed
+        if (
+            prod === targetStat.production && 
+            prev === (targetStat.previousBalance || 0) &&
+            prodKg === (targetStat.productionKg || 0) &&
+            prevKg === (targetStat.previousBalanceKg || 0)
+        ) {
+            addToast('هیچ تغییری داده نشده است.', 'warning');
+            return;
+        }
+
         const result = await updateStatistic(targetStat.id, {
             production: prod,
             previousBalance: prev,
@@ -150,7 +165,8 @@ const RecentRecords: React.FC = () => {
         if (result.success) {
             setShowEditStatModal(false);
             setTargetStat(null);
-            addToast('آمار ویرایش شد', 'success');
+            const msg = navigator.onLine ? 'آمار ویرایش شد' : 'ویرایش در صف همگام‌سازی ذخیره شد';
+            addToast(msg, navigator.onLine ? 'success' : 'info');
         } else {
             addToast(result.error || 'خطا', 'error');
         }
@@ -164,8 +180,13 @@ const RecentRecords: React.FC = () => {
             type: 'danger'
         });
         if (confirmed) {
-            await deleteInvoice(inv.id);
-            addToast('حواله حذف شد', 'success');
+            const result = await deleteInvoice(inv.id);
+            if (result.success) {
+                const msg = navigator.onLine ? 'حواله حذف شد' : 'درخواست حذف در صف آفلاین ذخیره شد';
+                addToast(msg, navigator.onLine ? 'success' : 'info');
+            } else {
+                addToast('خطا در حذف', 'error');
+            }
         }
     };
 
@@ -186,6 +207,22 @@ const RecentRecords: React.FC = () => {
 
     const saveInvoiceChanges = async () => {
         if (!selectedInvoice) return;
+
+        // Validation: Check for changes
+        const isChanged = 
+            invoiceValues.invoiceNumber !== selectedInvoice.invoiceNumber ||
+            Number(invoiceValues.cartons) !== selectedInvoice.totalCartons ||
+            Number(invoiceValues.weight) !== selectedInvoice.totalWeight ||
+            invoiceValues.driverName !== (selectedInvoice.driverName || '') ||
+            invoiceValues.driverPhone !== (selectedInvoice.driverPhone || '') ||
+            invoiceValues.plateNumber !== (selectedInvoice.plateNumber || '') ||
+            invoiceValues.description !== (selectedInvoice.description || '');
+
+        if (!isChanged) {
+            addToast('هیچ تغییری داده نشده است.', 'warning');
+            return;
+        }
+
         const result = await updateInvoice(selectedInvoice.id, {
             invoiceNumber: invoiceValues.invoiceNumber,
             totalCartons: Number(invoiceValues.cartons),
@@ -198,7 +235,8 @@ const RecentRecords: React.FC = () => {
         if (result.success) {
             setShowEditInvoiceModal(false);
             setSelectedInvoice(null);
-            addToast('حواله ویرایش شد', 'success');
+            const msg = navigator.onLine ? 'حواله ویرایش شد' : 'ویرایش در صف همگام‌سازی ذخیره شد';
+            addToast(msg, navigator.onLine ? 'success' : 'info');
         } else {
             addToast(result.error || 'خطا', 'error');
         }

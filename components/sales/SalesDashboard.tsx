@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import DashboardLayout from '../layout/DashboardLayout';
 import { Icons } from '../common/Icons';
@@ -32,6 +33,12 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
 
     const handleSendAlert = async (farmId: string, farmName: string, e: React.MouseEvent) => {
         e.stopPropagation(); 
+        
+        if (!navigator.onLine) {
+            addToast('امکان ارسال هشدار در حالت آفلاین وجود ندارد.', 'warning');
+            return;
+        }
+
         setAlertLoading(farmId);
         const message = `عدم ثبت آمار برای فارم ${farmName} در تاریخ ${normalizedSelectedDate}`;
         const result = await sendAlert(farmId, farmName, message);

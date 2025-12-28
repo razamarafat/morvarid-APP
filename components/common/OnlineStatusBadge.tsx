@@ -1,13 +1,13 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Icons } from './Icons';
 import { useSyncStore, SyncItem } from '../../store/syncStore';
-import Modal from './Modal';
 import Button from './Button';
 import { useConfirm } from '../../hooks/useConfirm';
 import { useToastStore } from '../../store/toastStore';
 import { toPersianDigits } from '../../utils/dateUtils';
 import { useOfflineSync } from '../../hooks/useOfflineSync';
+import { AnimatePresence, motion } from 'framer-motion';
 
 const OnlineStatusBadge: React.FC = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -17,23 +17,37 @@ const OnlineStatusBadge: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'queue' | 'logs'>('queue');
   const { confirm } = useConfirm();
   const { addToast } = useToastStore();
+  
+  // Ref to hold the timeout ID for debouncing
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const failedItemsCount = queue.filter(i => i.retryCount > 0).length;
   
-  // FIX: Only show syncing state if ACTUALLY processing, otherwise show queue status
   const isSyncingActive = isProcessing && isOnline;
 
   useEffect(() => {
-    const updateOnlineStatus = () => {
+    const handleStatusChange = () => {
+      // Clear any existing timeout to prevent multiple triggers
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
+      // Add a small delay to filter out false positives (e.g., tab switching/VPN connection)
+      timeoutRef.current = setTimeout(() => {
         setIsOnline(navigator.onLine);
+      }, 1000); // 1 second debounce
     };
 
-    window.addEventListener('online', updateOnlineStatus);
-    window.addEventListener('offline', updateOnlineStatus);
+    window.addEventListener('online', handleStatusChange);
+    window.addEventListener('offline', handleStatusChange);
     
+    // Check initial status
+    handleStatusChange();
+
     return () => {
-      window.removeEventListener('online', updateOnlineStatus);
-      window.removeEventListener('offline', updateOnlineStatus);
+      window.removeEventListener('online', handleStatusChange);
+      window.removeEventListener('offline', handleStatusChange);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, []);
 
@@ -156,88 +170,124 @@ const OnlineStatusBadge: React.FC = () => {
             )}
         </button>
 
-        <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="مدیریت همگام‌سازی">
-            <div className="h-[450px] flex flex-col">
-                
-                <div className={`p-2 rounded-lg mb-3 text-center text-xs font-bold ${isOnline ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                    {isOnline ? 'وضعیت شبکه: متصل (آنلاین)' : 'وضعیت شبکه: قطع (آفلاین)'}
-                </div>
-
-                <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl mb-4 shrink-0">
-                    <button 
-                        onClick={() => setActiveTab('queue')} 
-                        className={`flex-1 py-2 rounded-lg text-sm font-bold transition-colors ${activeTab === 'queue' ? 'bg-white dark:bg-gray-700 shadow text-metro-blue' : 'text-gray-500'}`}
+        {/* CUSTOM MODAL FOR OFFLINE STATUS - Z-INDEX 9999 TO OVERLAY EVERYTHING */}
+        <AnimatePresence>
+            {isModalOpen && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                    {/* Backdrop */}
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setIsModalOpen(false)}
+                        className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+                    />
+                    
+                    {/* Modal Content */}
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                        className="relative w-full max-w-lg bg-[#FDFBFF] dark:bg-[#1E1E1E] rounded-[24px] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+                        onClick={(e) => e.stopPropagation()}
                     >
-                        تغییرات در انتظار ({toPersianDigits(queue.length)})
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('logs')} 
-                        className={`flex-1 py-2 rounded-lg text-sm font-bold transition-colors ${activeTab === 'logs' ? 'bg-white dark:bg-gray-700 shadow text-metro-orange' : 'text-gray-500'}`}
-                    >
-                        لاگ خطاها ({toPersianDigits(syncLogs.length)})
-                    </button>
-                </div>
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-white/50 dark:bg-black/20">
+                            <h3 className="font-black text-lg text-gray-800 dark:text-white flex items-center gap-2">
+                                <Icons.Refresh className="w-5 h-5 text-metro-blue" />
+                                مدیریت همگام‌سازی
+                            </h3>
+                            <button onClick={() => setIsModalOpen(false)} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+                                <Icons.X className="w-5 h-5 text-gray-500" />
+                            </button>
+                        </div>
 
-                <div className="flex-1 overflow-y-auto custom-scrollbar px-1">
-                    {activeTab === 'queue' ? (
-                        queue.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                                <Icons.Check className="w-12 h-12 mb-2 opacity-20" />
-                                <span className="text-sm font-bold">همه تغییرات با موفقیت ارسال شده‌اند</span>
+                        {/* Body */}
+                        <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
+                            <div className={`p-3 rounded-xl mb-4 text-center text-sm font-bold flex items-center justify-center gap-2 ${isOnline ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'}`}>
+                                {isOnline ? <Icons.Check className="w-4 h-4" /> : <Icons.Globe className="w-4 h-4" />}
+                                {isOnline ? 'وضعیت شبکه: متصل (آنلاین)' : 'وضعیت شبکه: قطع (آفلاین)'}
                             </div>
-                        ) : (
-                            queue.map(renderQueueItem)
-                        )
-                    ) : (
-                        syncLogs.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                                <Icons.FileText className="w-12 h-12 mb-2 opacity-20" />
-                                <span className="text-sm font-bold">هیچ خطایی ثبت نشده است</span>
+
+                            <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl mb-4 shrink-0">
+                                <button 
+                                    onClick={() => setActiveTab('queue')} 
+                                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'queue' ? 'bg-white dark:bg-gray-600 shadow text-metro-blue' : 'text-gray-500'}`}
+                                >
+                                    صف ارسال ({toPersianDigits(queue.length)})
+                                </button>
+                                <button 
+                                    onClick={() => setActiveTab('logs')} 
+                                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'logs' ? 'bg-white dark:bg-gray-600 shadow text-metro-orange' : 'text-gray-500'}`}
+                                >
+                                    گزارش خطاها ({toPersianDigits(syncLogs.length)})
+                                </button>
                             </div>
-                        ) : (
-                            <div className="space-y-2">
-                                {syncLogs.map(log => (
-                                    <div key={log.id} className="p-3 bg-red-50 dark:bg-red-900/10 rounded-xl border-r-4 border-red-400 border-t border-b border-l border-gray-100 dark:border-gray-800">
-                                        <div className="flex justify-between mb-1">
-                                            <span className="font-bold text-xs text-red-800 dark:text-red-300">{log.itemType}</span>
-                                            <span className="font-mono text-[10px] text-red-600/70">{new Date(log.timestamp).toLocaleTimeString('fa-IR')}</span>
+
+                            <div className="min-h-[200px]">
+                                {activeTab === 'queue' ? (
+                                    queue.length === 0 ? (
+                                        <div className="h-40 flex flex-col items-center justify-center text-gray-400 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
+                                            <Icons.Check className="w-10 h-10 mb-2 opacity-30" />
+                                            <span className="text-xs font-bold">همه تغییرات با موفقیت ارسال شده‌اند</span>
                                         </div>
-                                        <p className="text-xs text-gray-700 dark:text-gray-300 break-words leading-relaxed">{log.message}</p>
-                                    </div>
-                                ))}
+                                    ) : (
+                                        queue.map(renderQueueItem)
+                                    )
+                                ) : (
+                                    syncLogs.length === 0 ? (
+                                        <div className="h-40 flex flex-col items-center justify-center text-gray-400 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
+                                            <Icons.FileText className="w-10 h-10 mb-2 opacity-30" />
+                                            <span className="text-xs font-bold">هیچ خطایی ثبت نشده است</span>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {syncLogs.map(log => (
+                                                <div key={log.id} className="p-3 bg-red-50 dark:bg-red-900/10 rounded-xl border-r-4 border-red-400 border-t border-b border-l border-gray-100 dark:border-gray-800">
+                                                    <div className="flex justify-between mb-1">
+                                                        <span className="font-bold text-xs text-red-800 dark:text-red-300">{log.itemType}</span>
+                                                        <span className="font-mono text-[10px] text-red-600/70">{new Date(log.timestamp).toLocaleTimeString('fa-IR')}</span>
+                                                    </div>
+                                                    <p className="text-xs text-gray-700 dark:text-gray-300 break-words leading-relaxed">{log.message}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )
+                                )}
                             </div>
-                        )
-                    )}
-                </div>
+                        </div>
 
-                <div className="pt-4 border-t border-gray-100 dark:border-gray-700 mt-2 shrink-0 flex flex-col gap-2">
-                    {activeTab === 'queue' && queue.length > 0 && isOnline && (
-                        <Button variant="primary" size="sm" onClick={handleManualRetry} disabled={isProcessing} className="w-full bg-orange-500 hover:bg-orange-600 text-white">
-                            <Icons.Refresh className={`w-4 h-4 ml-2 ${isProcessing ? 'animate-spin' : ''}`} />
-                            تلاش مجدد آنی (نادیده گرفتن زمان‌بندی)
-                        </Button>
-                    )}
+                        {/* Footer */}
+                        <div className="p-4 bg-gray-50 dark:bg-black/20 border-t border-gray-100 dark:border-gray-700 flex flex-col gap-2">
+                            {activeTab === 'queue' && queue.length > 0 && isOnline && (
+                                <Button variant="primary" onClick={handleManualRetry} disabled={isProcessing} className="w-full h-12 text-sm bg-orange-500 hover:bg-orange-600 text-white">
+                                    <Icons.Refresh className={`w-4 h-4 ml-2 ${isProcessing ? 'animate-spin' : ''}`} />
+                                    تلاش مجدد آنی
+                                </Button>
+                            )}
 
-                    {activeTab === 'queue' && queue.length > 0 && (
-                        <Button variant="danger" size="sm" onClick={handleClearQueue} className="w-full">
-                            <Icons.Trash className="w-4 h-4 ml-2" />
-                            حذف کل صف (انصراف از تغییرات)
-                        </Button>
-                    )}
-                    
-                    {activeTab === 'logs' && syncLogs.length > 0 && (
-                        <Button variant="secondary" size="sm" onClick={handleClearLogs} className="w-full text-gray-500">
-                            <Icons.Trash className="w-4 h-4 ml-2" />
-                            پاکسازی گزارشات
-                        </Button>
-                    )}
-                    
-                    <Button variant="secondary" size="sm" onClick={() => setIsModalOpen(false)} className="w-full">
-                        بستن پنجره
-                    </Button>
+                            {activeTab === 'queue' && queue.length > 0 && (
+                                <Button variant="danger" onClick={handleClearQueue} className="w-full h-12 text-sm">
+                                    <Icons.Trash className="w-4 h-4 ml-2" />
+                                    حذف کل صف (انصراف)
+                                </Button>
+                            )}
+                            
+                            {activeTab === 'logs' && syncLogs.length > 0 && (
+                                <Button variant="secondary" onClick={handleClearLogs} className="w-full h-12 text-sm text-gray-500">
+                                    <Icons.Trash className="w-4 h-4 ml-2" />
+                                    پاکسازی گزارشات
+                                </Button>
+                            )}
+                            
+                            <Button variant="secondary" onClick={() => setIsModalOpen(false)} className="w-full h-12 text-sm">
+                                بستن پنجره
+                            </Button>
+                        </div>
+                    </motion.div>
                 </div>
-            </div>
-        </Modal>
+            )}
+        </AnimatePresence>
     </>
   );
 };
