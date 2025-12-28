@@ -237,7 +237,12 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
           // DEBUG LOG: Ensure payload is correct before sending
           console.log('[StatisticsStore] Upsert Payload:', dbStats);
 
-          const { error } = await supabase.from('daily_statistics').upsert(dbStats);
+          // FIX: Add onConflict to handle unique constraint violation on 'farm_id, date, product_id'
+          // We ignore duplicate key error and UPDATE instead.
+          const { error } = await supabase.from('daily_statistics').upsert(dbStats, {
+              onConflict: 'farm_id,date,product_id',
+              ignoreDuplicates: false // We want to UPDATE if it exists
+          });
           
           if (error) {
               // DETECT SCHEMA ERROR: If column missing, warn user
