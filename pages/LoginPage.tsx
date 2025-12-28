@@ -12,6 +12,7 @@ import { getTodayJalaliPersian, getCurrentTime, getTodayDayName, toPersianDigits
 import ThemeToggle from '../components/common/ThemeToggle';
 import { motion } from 'framer-motion';
 import Button from '../components/common/Button';
+import { APP_VERSION } from '../constants';
 
 const loginSchema = z.object({
   username: z.string().min(1, "نام کاربری الزامی است"),
@@ -241,18 +242,18 @@ const LoginPage: React.FC = () => {
           <StarryNight />
       </div>
 
-      {/* Footer Sketch - Absolute Bottom */}
-      {/* Task 3: Increased Height for Mobile */}
-      <div className="absolute bottom-0 left-0 w-full z-0 h-[140px] md:h-[180px] pointer-events-none opacity-60 flex-shrink-0">
+      {/* Footer Sketch - Absolute Bottom, Low Z-Index */}
+      {/* Task 1 & 5: Bottom anchored, lower z-index so content floats over if needed */}
+      <div className="absolute bottom-0 left-0 w-full z-0 h-[160px] md:h-[200px] pointer-events-none opacity-60 flex-shrink-0">
           <UltraRealisticSketch />
       </div>
 
-      {/* MAIN CONTENT AREA - Flex layout to distribute space */}
+      {/* MAIN CONTENT AREA - Flex layout */}
       <div className="relative z-10 flex flex-col md:flex-row h-full w-full justify-between pb-safe">
           
           {/* --- TOP SECTION (Logo, Clock) --- */}
-          {/* Layout Shift: Reduced desktop top padding to move text column UP */}
-          <div className="flex-none flex flex-col items-center justify-center md:justify-start pt-safe mt-8 md:pt-16 relative z-20 shrink-0 md:flex-1 md:w-[55%]">
+          {/* Task 1: Breathing room (pt-12) */}
+          <div className="flex-none flex flex-col items-center justify-start pt-safe mt-10 md:mt-16 relative z-20 shrink-0 md:flex-1 md:w-[55%]">
               
               <div className="text-center z-20 transform-gpu">
                   {/* Logo Text */}
@@ -274,7 +275,7 @@ const LoginPage: React.FC = () => {
 
               {/* Clock & Date */}
               <div className="mt-4 md:mt-12 z-20 flex flex-col items-center gap-0 w-full max-w-[320px] md:max-w-md">
-                  <div className="w-full text-center flex flex-col gap-2 md:gap-6">
+                  <div className="w-full text-center flex flex-col gap-1 md:gap-6">
                       <div className="flex md:flex-col items-center justify-center gap-3 md:gap-4">
                           <div className="text-sm md:text-2xl font-black text-gray-700 dark:text-gray-300 tracking-[0.2em] md:tracking-[0.6em] uppercase opacity-90 scale-x-110">
                               {currentDayName}
@@ -292,7 +293,7 @@ const LoginPage: React.FC = () => {
                   </div>
               </div>
 
-              {/* --- DESKTOP QUOTE SECTION (New Position) --- */}
+              {/* --- DESKTOP QUOTE SECTION --- */}
               <div className="hidden md:flex flex-col items-center mt-16 max-w-md text-center z-20 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-500">
                   <div className="w-24 h-1 bg-gradient-to-r from-transparent via-orange-400 to-transparent rounded-full mb-6 opacity-70"></div>
                   <p className="text-lg font-bold text-gray-700 dark:text-gray-200 italic leading-relaxed px-4">
@@ -305,13 +306,14 @@ const LoginPage: React.FC = () => {
 
           </div>
 
-          {/* --- MIDDLE/BOTTOM SECTION (Form & Mobile Quote) --- */}
-          <div className="flex-1 md:w-[45%] flex flex-col items-center justify-center md:justify-center px-6 relative z-30 w-full md:pb-0 min-h-0">
+          {/* --- MIDDLE/BOTTOM SECTION (Form Container) --- */}
+          {/* Task 2: Flex-1 to take available space, justify-start to sit near top (under clock) */}
+          <div className="flex-1 md:w-[45%] flex flex-col items-center justify-start md:justify-center px-6 pt-4 md:pt-0 relative z-30 w-full min-h-0">
               
-              <div className="w-full max-w-[320px] md:max-w-[420px] relative">
+              <div className="w-full max-w-[320px] md:max-w-[420px] relative flex flex-col items-center">
                   
                   {/* Form Container */}
-                  <div className="backdrop-blur-sm bg-white/10 md:bg-white/20 dark:bg-black/20 md:dark:bg-black/30 p-5 md:p-10 rounded-[24px] md:rounded-[36px] border border-white/20 dark:border-white/10 shadow-2xl drop-shadow-2xl animate-in slide-in-from-bottom-5 duration-700">
+                  <div className="w-full backdrop-blur-sm bg-white/10 md:bg-white/20 dark:bg-black/20 md:dark:bg-black/30 p-5 md:p-10 rounded-[24px] md:rounded-[36px] border border-white/20 dark:border-white/10 shadow-2xl drop-shadow-2xl animate-in slide-in-from-bottom-5 duration-700">
                       
                       <div className="mb-3 md:mb-8 text-center">
                           <h3 className="text-lg md:text-2xl font-black text-gray-900 dark:text-white flex items-center justify-center gap-2">
@@ -360,7 +362,7 @@ const LoginPage: React.FC = () => {
                                       {...register('rememberMe')} 
                                       className="w-4 h-4 text-orange-500 rounded focus:ring-orange-500 border-gray-300"
                                   />
-                                  <span className="text-xs md:text-sm font-bold text-gray-600 dark:text-gray-300 select-none">مرا به خاطر بسپار</span>
+                                  <span className="text-sm font-bold text-gray-600 dark:text-gray-300 select-none">مرا به خاطر بسپار</span>
                               </label>
                           </div>
 
@@ -375,12 +377,18 @@ const LoginPage: React.FC = () => {
                       </form>
                   </div>
 
+                  {/* Task 3: Version Number (STATIC FLOW - CENTERED BELOW FORM) */}
+                  <div className="mt-3 text-[10px] text-gray-500 dark:text-gray-400 font-bold font-mono opacity-80 select-none">
+                      v{APP_VERSION}
+                  </div>
+
                   {/* Daily Quote - MOBILE ONLY */}
-                  <div className="mt-4 md:hidden text-center px-4 relative z-20">
-                      <p className="text-[10px] font-bold text-gray-600 dark:text-gray-400 italic opacity-80 leading-relaxed">
+                  {/* Task 4: Below Version */}
+                  <div className="mt-4 md:hidden text-center px-4 relative z-20 pb-4">
+                      <p className="text-sm font-bold text-gray-700 dark:text-gray-300 italic leading-relaxed drop-shadow-sm">
                           "{quote.text}"
                       </p>
-                      <p className="text-[9px] text-gray-500 dark:text-gray-500 mt-1">
+                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-2 font-medium">
                           - {quote.author}
                       </p>
                   </div>
