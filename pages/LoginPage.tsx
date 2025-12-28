@@ -243,8 +243,8 @@ const LoginPage: React.FC = () => {
       </div>
 
       {/* Footer Sketch - Absolute Bottom, Low Z-Index */}
-      {/* Task 1 & 5: Bottom anchored, lower z-index so content floats over if needed */}
-      <div className="absolute bottom-0 left-0 w-full z-0 h-[160px] md:h-[200px] pointer-events-none opacity-60 flex-shrink-0">
+      {/* Task 1: Increased height to 320px (h-80) on mobile for huge impact */}
+      <div className="absolute bottom-0 left-0 w-full z-0 h-[320px] md:h-[200px] pointer-events-none opacity-60 flex-shrink-0">
           <UltraRealisticSketch />
       </div>
 
