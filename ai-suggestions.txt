@@ -1,22 +1,27 @@
 
-AI SUGGESTIONS BACKLOG - V25
+AI SUGGESTIONS BACKLOG - V26
 
 --------------------------------
 1. پیشنهادات امنیت و مدیریت کاربران (Security & Auth)
 --------------------------------
-- [ ] عنوان: Server-Side User Management (Edge Functions)
+- [ ] عنوان: Server-Side Sensitive Operations (Edge Functions)
   - دسته‌بندی: Security
-  - توضیح: انتقال کامل ساخت/ویرایش کاربر به Supabase Edge Functions با استفاده از Service Role Key برای جلوگیری از هرگونه دستکاری کلاینت.
+  - توضیح: انتقال عملیات حساس مثل حذف کاربر یا ویرایش رکوردهای قدیمی به Edge Functions که فقط با Service Role Key قابل انجام باشد.
   - اولویت: High
 
-- [ ] عنوان: Force Password Change
+- [ ] عنوان: Content Security Policy (CSP)
   - دسته‌بندی: Security
-  - توضیح: افزودن فیلد `must_change_password` به پروفایل و اجبار کاربر به تغییر رمز عبور در اولین ورود.
-  - اولویت: High
+  - توضیح: افزودن متاتگ CSP به index.html برای جلوگیری از حملات XSS و تزریق اسکریپت خارجی.
+  - اولویت: Medium
 
 --------------------------------
 2. پیشنهادات بهره‌وری و پرفورمنس (Performance)
 --------------------------------
+- [ ] عنوان: Database Point-in-Time Recovery
+  - دسته‌بندی: Reliability
+  - توضیح: فعال‌سازی PITR در تنظیمات پروژه Supabase برای امکان بازیابی داده‌ها به هر لحظه از زمان.
+  - اولویت: High
+
 - [ ] عنوان: Bundle Analyzer
   - دسته‌بندی: Performance
   - توضیح: افزودن `rollup-plugin-visualizer` برای آنالیز حجم باندل نهایی.
@@ -27,19 +32,9 @@ AI SUGGESTIONS BACKLOG - V25
   - توضیح: ساخت کامپوننت `LazyImage` با پشتیبانی از Blur-hash برای لود بهینه تصاویر در داشبورد.
   - اولویت: Medium
 
-- [ ] عنوان: API Response Caching
-  - دسته‌بندی: Performance
-  - توضیح: کش کردن پاسخ‌های GET (مثل لیست فارم‌ها) با React Query یا استور برای کاهش درخواست‌ها.
-  - اولویت: Medium
-
 --------------------------------
 3. پیشنهادات رابط کاربری و تجربه کاربری (UI/UX)
 --------------------------------
-- [ ] عنوان: Password Strength Meter
-  - دسته‌بندی: UX/Security
-  - توضیح: نمایش میزان قدرت رمز عبور در فرم ایجاد کاربر جدید.
-  - اولویت: Medium
-
 - [ ] عنوان: Interactive Tutorial (Driver.js)
   - دسته‌بندی: UX/Onboarding
   - توضیح: ایجاد یک تور راهنما برای کاربران جدید که عملکرد بخش‌های مختلف داشبورد را توضیح دهد.
@@ -48,10 +43,10 @@ AI SUGGESTIONS BACKLOG - V25
 --------------------------------
 4. پیشنهادات ساختار کد و دواپس (DevOps & Refactoring)
 --------------------------------
-- [ ] عنوان: Barrel Exports
-  - دسته‌بندی: Refactoring
-  - توضیح: ایجاد فایل‌های `index.ts` در فولدرهای کامپوننت برای تمیز کردن ایمپورت‌ها.
-  - اولویت: Low
+- [ ] عنوان: Pre-build Environment Check
+  - دسته‌بندی: DX/DevOps
+  - توضیح: نوشتن اسکریپت ساده Node.js که قبل از بیلد اجرا شود و وجود فایل .env و متغیرهای حیاتی را چک کند.
+  - اولویت: Medium
 
 - [ ] عنوان: Typed Supabase Client
   - دسته‌بندی: DX

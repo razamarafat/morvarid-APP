@@ -1,20 +1,40 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Security: Do not expose actual keys in source code. 
-// These must be provided via .env file or build environment variables.
-const meta = (import.meta as any) || {};
-const env = meta.env || {};
+// Security: Strictly load keys from environment variables.
+// No hardcoded fallbacks are allowed in production code.
+// TypeScript workaround for import.meta.env if types are missing
+const env = (import.meta as any).env;
+const supabaseUrl = env.VITE_SUPABASE_URL;
+const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY;
 
-export const supabaseUrl = env.VITE_SUPABASE_URL;
-export const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY;
-
+// Fail Fast: Halt application execution if keys are missing
 if (!supabaseUrl || !supabaseAnonKey) {
-  // Graceful fallback for development only - prompts developer to check setup
-  console.error('[Supabase] Missing Environment Variables! Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.');
+  const errorMsg = 
+    '[CRITICAL SECURITY ERROR] Supabase configuration missing.\n' +
+    'Please create a .env file in the project root with the following keys:\n' +
+    '- VITE_SUPABASE_URL\n' +
+    '- VITE_SUPABASE_ANON_KEY';
+  
+  // Log to console for developer visibility
+  console.error(errorMsg);
+  
+  // In development, throw an error to stop execution visually
+  throw new Error(errorMsg);
 }
 
-export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co', 
-  supabaseAnonKey || 'placeholder-key'
-);
+// Export specific variables as they are used in store/userStore.ts
+export { supabaseUrl, supabaseAnonKey };
+
+// Initialize Supabase Client
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true, // Maintain session across refreshes
+    autoRefreshToken: true, // Automatically refresh token before expiry
+    detectSessionInUrl: false, // Disable PKCE flow detection on hash router unless needed
+  },
+  // Global fetch configuration (optional: for timeout handling)
+  global: {
+    headers: { 'x-application-name': 'morvarid-mis-client' },
+  },
+});
