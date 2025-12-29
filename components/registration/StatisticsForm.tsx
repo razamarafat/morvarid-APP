@@ -12,6 +12,7 @@ import { useConfirm } from '../../hooks/useConfirm';
 import { Icons } from '../common/Icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FarmType } from '../../types';
+import { useAutoSave } from '../../hooks/useAutoSave';
 
 interface StatisticsFormProps {
     onNavigate?: (view: string) => void;
@@ -55,6 +56,16 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
         });
     }, [selectedFarm, getProductById]);
 
+    // --- AUTO SAVE INTEGRATION ---
+    const draftKey = `morvarid_stats_draft_${selectedFarmId}_${normalizedDate}`;
+    const { clear: clearDraft } = useAutoSave(
+        draftKey,
+        formsState,
+        () => {}, // Load logic handled manually in useEffect below to merge with DB
+        1000
+    );
+    // -----------------------------
+
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(getCurrentTime(false)), 30000);
         return () => clearInterval(timer);
@@ -63,6 +74,8 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
     useEffect(() => {
         if (!selectedFarm) return;
         const newState: Record<string, ProductFormState> = {};
+        
+        // 1. Populate from DB (Statistics Store)
         selectedFarm.productIds.forEach(pid => {
             const record = statistics.find(s => s.farmId === selectedFarmId && s.date === normalizedDate && s.productId === pid);
             const fmt = (val: any) => (val === undefined || val === null || val === 0) ? '' : String(val);
@@ -73,8 +86,32 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                 previousBalanceKg: fmt(record?.previousBalanceKg)
             };
         });
+
+        // 2. Merge with Auto-Save Draft (Prioritize Draft)
+        const savedDraft = localStorage.getItem(draftKey);
+        if (savedDraft) {
+            try {
+                const parsedDraft = JSON.parse(savedDraft);
+                Object.keys(parsedDraft).forEach(pid => {
+                    if (newState[pid]) {
+                        // Only override fields that have values in draft
+                        const draftProd = parsedDraft[pid];
+                        if (draftProd) {
+                            if (draftProd.production) newState[pid].production = draftProd.production;
+                            if (draftProd.productionKg) newState[pid].productionKg = draftProd.productionKg;
+                            if (draftProd.previousBalance) newState[pid].previousBalance = draftProd.previousBalance;
+                            if (draftProd.previousBalanceKg) newState[pid].previousBalanceKg = draftProd.previousBalanceKg;
+                        }
+                    } else {
+                        newState[pid] = parsedDraft[pid];
+                    }
+                });
+                console.log(`[StatisticsForm] Merged draft data for ${draftKey}`);
+            } catch (e) { console.error("Error merging stats draft", e); }
+        }
+
         setFormsState(newState);
-    }, [selectedFarmId, statistics, selectedFarm, normalizedDate]);
+    }, [selectedFarmId, statistics, selectedFarm, normalizedDate, draftKey]);
 
     const handleInputChange = (productId: string, field: keyof ProductFormState, value: string) => {
         let cleanVal = '';
@@ -173,6 +210,7 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
 
         if (result.success) {
             addToast('آمار با موفقیت ثبت شد.', 'success');
+            clearDraft(); // Clear draft on success
             setExpandedProductId(null); // Collapse the list
         }
         else addToast(`خطا: ${result.error}`, 'error');

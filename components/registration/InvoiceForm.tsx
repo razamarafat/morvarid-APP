@@ -23,6 +23,7 @@ import { useSMS, ParsedSMS } from '../../hooks/useSMS';
 import { v4 as uuidv4 } from 'uuid';
 import Modal from '../common/Modal';
 import { useValidation } from '../../hooks/useValidation';
+import { useAutoSave } from '../../hooks/useAutoSave';
 
 const persianLettersRegex = /^[\u0600-\u06FF\s]+$/;
 const mobileRegex = /^09\d{9}$/;
@@ -45,6 +46,14 @@ type GlobalValues = z.infer<typeof invoiceGlobalSchema>;
 
 interface SMSDraft extends ParsedSMS {
     id: string;
+}
+
+// Composite state for auto-save
+interface InvoiceDraftState {
+    globalValues: GlobalValues;
+    itemsState: Record<string, { cartons: string; weight: string }>;
+    selectedProductIds: string[];
+    referenceDate: string;
 }
 
 export const InvoiceForm: React.FC = () => {
@@ -83,13 +92,37 @@ export const InvoiceForm: React.FC = () => {
     const [isPasteModalOpen, setIsPasteModalOpen] = useState(false);
     const [pastedText, setPastedText] = useState('');
 
-    const { register, handleSubmit, setValue, control, formState: { errors } } = useForm<GlobalValues>({
+    const { register, handleSubmit, setValue, control, watch, reset, formState: { errors } } = useForm<GlobalValues>({
         resolver: zodResolver(invoiceGlobalSchema),
-        defaultValues: { description: '' }
+        defaultValues: { description: '', invoiceNumber: '', contactPhone: '', driverName: '', plateNumber: '' }
     });
 
+    // --- AUTO SAVE INTEGRATION ---
+    const watchedValues = watch();
+    const compositeState: InvoiceDraftState = {
+        globalValues: watchedValues,
+        itemsState,
+        selectedProductIds,
+        referenceDate
+    };
+
+    const { clear: clearDraft } = useAutoSave<InvoiceDraftState>(
+        'morvarid_invoice_form_draft',
+        compositeState,
+        (saved) => {
+            if (saved.globalValues) reset(saved.globalValues);
+            if (saved.itemsState) setItemsState(saved.itemsState);
+            if (saved.selectedProductIds) setSelectedProductIds(saved.selectedProductIds);
+            if (saved.referenceDate) setReferenceDate(saved.referenceDate);
+            addToast('اطلاعات تایپ شده قبلی بازیابی شد.', 'info');
+        }
+    );
+    // -----------------------------
+
     useEffect(() => {
-        setReferenceDate(normalizedDate);
+        // Only set default if not loaded from draft (draft logic handles override)
+        // But we want to ensure referenceDate defaults to today if draft is empty
+        if (!referenceDate) setReferenceDate(normalizedDate);
     }, [normalizedDate]);
 
     useEffect(() => {
@@ -309,6 +342,9 @@ export const InvoiceForm: React.FC = () => {
         
         if (successCount > 0) {
             addToast(`${toPersianDigits(successCount)} آیتم با موفقیت ثبت شد.`, 'success');
+            
+            // CLEAR AUTO SAVE
+            clearDraft();
             
             if (activeDraftId) {
                 removeDraft(activeDraftId);
