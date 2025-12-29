@@ -74,6 +74,6 @@ export const THEMES = {
   }
 };
 
-// Single Source of Truth: Injected by Vite from package.json
-// Fix: Cast import.meta to any to avoid TS error about missing env property
-export const APP_VERSION = (import.meta as any).env.VITE_APP_VERSION || '2.9.0-fallback';
+// Single Source of Truth: Injected by Vite from package.json via 'define'
+declare const __APP_VERSION__: string;
+export const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '2.9.7-cleaned';

@@ -1,3 +1,6 @@
 
-// This file was identified as corrupt or empty in the file structure.
-// It can be safely deleted.
+/* 
+  !!! FILE MARKED FOR DELETION !!!
+  This file (.tsx) was created erroneously and contains no logic.
+  Please delete this file manually from your file system.
+*/
