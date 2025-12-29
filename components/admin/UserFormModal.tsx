@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,6 +10,8 @@ import Modal from '../common/Modal';
 import Button from '../common/Button';
 import Input from '../common/Input';
 import { useConfirm } from '../../hooks/useConfirm';
+import { Icons } from '../common/Icons';
+import { useToastStore } from '../../store/toastStore';
 
 // Strict Persian Regex (No numbers allowed)
 const persianLettersOnlyRegex = /^[\u0600-\u06FF\s]+$/;
@@ -58,7 +60,10 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
   const { addUser, updateUser } = useUserStore();
   const { farms } = useFarmStore();
   const { confirm } = useConfirm();
+  const { addToast } = useToastStore();
   
+  const [createdCreds, setCreatedCreds] = useState<{username: string, password: string} | null>(null);
+
   const { register, handleSubmit, control, watch, reset, setValue, formState: { errors, isSubmitting } } = useForm<UserFormValues>({
     resolver: zodResolver(userSchema),
     defaultValues: {
@@ -73,6 +78,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
 
   useEffect(() => {
     if (isOpen) {
+      setCreatedCreds(null); // Reset credentials view
       if (user) {
         reset({
             fullName: user.fullName,
@@ -98,6 +104,22 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
       }
     }
   }, [user, isOpen, reset]);
+
+  const handleCopyCredentials = () => {
+      if (createdCreds) {
+          const text = `نام کاربری: ${createdCreds.username}\nرمز عبور: ${createdCreds.password}\n\nلطفاً این اطلاعات را در جای امن ذخیره کنید.`;
+          navigator.clipboard.writeText(text).then(() => {
+              addToast('اطلاعات کاربری در حافظه کپی شد', 'success');
+          }).catch(() => {
+              addToast('خطا در کپی اطلاعات', 'error');
+          });
+      }
+  };
+
+  const handleCloseModal = () => {
+      setCreatedCreds(null);
+      onClose();
+  };
 
   const onSubmit = async (data: UserFormValues) => {
     const confirmed = await confirm({
@@ -126,14 +148,66 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
 
         if (user) {
            await updateUser({ ...userData, id: user.id });
+           onClose();
         } else {
-           await addUser({ ...userData, password: data.password });
+           const result = await addUser({ ...userData, password: data.password });
+           if (result.success) {
+               if (result.password) {
+                   // If a password was generated or we want to confirm credentials
+                   setCreatedCreds({
+                       username: cleanUsername,
+                       password: result.password
+                   });
+                   // Keep modal open to show credentials
+               } else {
+                   // If password was manually set and we don't need to show it back
+                   onClose();
+               }
+           }
         }
-        onClose();
     }
   };
 
   const selectClass = "w-full p-3 border-2 rounded-xl bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white focus:border-metro-blue focus:ring-0 outline-none transition-all";
+
+  // If credentials are created, show the success/credentials view instead of the form
+  if (createdCreds) {
+      return (
+          <Modal isOpen={isOpen} onClose={handleCloseModal} title="کاربر با موفقیت ایجاد شد">
+              <div className="space-y-6 py-4 text-center">
+                  <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Icons.Check className="w-8 h-8" />
+                  </div>
+                  <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed px-4">
+                      کاربر جدید با موفقیت ساخته شد. لطفاً اطلاعات ورود زیر را کپی کرده و در اختیار کاربر قرار دهید.
+                      <br/>
+                      <span className="text-red-500 font-bold text-xs mt-1 block">این اطلاعات دیگر نمایش داده نخواهد شد.</span>
+                  </p>
+                  
+                  <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 mx-4 text-right dir-rtl" dir="rtl">
+                      <div className="flex justify-between items-center mb-2 border-b border-gray-200 dark:border-gray-600 pb-2">
+                          <span className="text-gray-500 text-xs font-bold">نام کاربری:</span>
+                          <span className="font-mono text-lg font-bold text-gray-800 dark:text-white select-all">{createdCreds.username}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                          <span className="text-gray-500 text-xs font-bold">رمز عبور:</span>
+                          <span className="font-mono text-lg font-bold text-metro-blue select-all">{createdCreds.password}</span>
+                      </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2 px-4">
+                      <Button onClick={handleCopyCredentials} className="w-full bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200">
+                          <Icons.FileText className="w-4 h-4 ml-2" />
+                          کپی اطلاعات
+                      </Button>
+                      <Button onClick={handleCloseModal} className="w-full">
+                          متوجه شدم / بستن
+                      </Button>
+                  </div>
+              </div>
+          </Modal>
+      );
+  }
 
   return (
     <Modal
@@ -166,12 +240,13 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
             </div>
             <div>
                 <Input 
-                    label="رمز عبور"
+                    label="رمز عبور (اختیاری)"
                     type="password"
                     dir="ltr"
                     {...register('password')}
                     error={errors.password?.message}
                     autoComplete="new-password"
+                    placeholder="تولید خودکار در صورت خالی بودن"
                 />
             </div>
         </div>

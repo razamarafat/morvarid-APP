@@ -76,4 +76,4 @@ export const THEMES = {
 
 // Single Source of Truth: Injected by Vite from package.json via 'define'
 declare const __APP_VERSION__: string;
-export const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '2.9.10-secure';
+export const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '2.9.20-secure';
