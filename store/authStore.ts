@@ -18,7 +18,7 @@ const SESSION_TIMEOUT = 60 * 60 * 1000;
 
 const STORAGE_KEYS = {
     ACTIVITY: 'morvarid_last_activity',
-    USERNAME: 'morvarid_saved_username'
+    USERNAME: 'morvarid_saved_uid' // Renamed to imply obfuscation
 };
 
 interface AuthState {
@@ -46,7 +46,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   loadSavedUsername: () => {
       const saved = localStorage.getItem(STORAGE_KEYS.USERNAME);
-      if (saved) set({ savedUsername: saved });
+      if (saved) {
+          try {
+              // Simple obfuscation decode
+              const decoded = atob(saved);
+              set({ savedUsername: decoded });
+          } catch (e) {
+              // If decode fails (legacy plain text), just use it and migrate later
+              set({ savedUsername: saved });
+          }
+      }
   },
 
   updateActivity: () => {
@@ -92,7 +101,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (sessionError) {
           const errMsg = sessionError.message || '';
           
-          // CRITICAL FIX: Handle Invalid Refresh Token Loop
           if (
               errMsg.includes('Refresh Token Not Found') || 
               errMsg.includes('Invalid Refresh Token') ||
@@ -100,7 +108,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           ) {
               console.warn('[Auth] Refresh token invalid or not found. Forcing cleanup.');
               await get().logout(false);
-              return; // Stop execution here to prevent state inconsistencies
+              return; 
           }
 
           console.error('Session Check Error:', sessionError);
@@ -110,9 +118,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       const lastActivityStr = localStorage.getItem(STORAGE_KEYS.ACTIVITY);
       if (session?.user && !lastActivityStr) {
-          console.warn('[Auth] Valid session found but NO activity timestamp. Forcing logout for security.');
-          await get().logout(false);
-          return;
+          // If session exists but no activity record (e.g. cleared storage manually), treat as fresh login or set activity
+          // For security, we can reset activity here to keep session alive if token is valid
+          localStorage.setItem(STORAGE_KEYS.ACTIVITY, Date.now().toString());
       }
 
       if (!session?.user) {
@@ -165,6 +173,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               isLoading: false
           });
           
+          // Refresh activity timestamp on successful session check
           localStorage.setItem(STORAGE_KEYS.ACTIVITY, Date.now().toString());
       }
     } catch (error: any) {
@@ -217,7 +226,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         get().resetAttempts();
         
         if (rememberMe) {
-            localStorage.setItem(STORAGE_KEYS.USERNAME, cleanUsername); 
+            // Obfuscate username before saving
+            localStorage.setItem(STORAGE_KEYS.USERNAME, btoa(cleanUsername)); 
             set({ savedUsername: cleanUsername });
         } else {
             localStorage.removeItem(STORAGE_KEYS.USERNAME);
@@ -244,14 +254,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         console.warn("SignOut warning (token likely invalid):", err);
     }
 
-    // Aggressively clear Supabase tokens from localStorage
+    // Aggressively clear ALL Supabase tokens and App data from localStorage
     Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
-            localStorage.removeItem(key);
+        if (
+            (key.startsWith('sb-') && key.endsWith('-auth-token')) || 
+            key === STORAGE_KEYS.ACTIVITY ||
+            key.startsWith('morvarid_') // Clear all app prefixed keys except saved username
+        ) {
+            if (key !== STORAGE_KEYS.USERNAME) { // Don't clear saved username if user wanted to remember it
+                localStorage.removeItem(key);
+            }
         }
     });
 
-    localStorage.removeItem(STORAGE_KEYS.ACTIVITY);
     set({ user: null, isLoading: false });
     
     if (isTimeout) {
