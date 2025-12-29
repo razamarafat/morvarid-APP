@@ -15,6 +15,58 @@ import { compareProducts } from '../../utils/sortUtils';
 import JalaliDatePicker from '../common/JalaliDatePicker';
 import PersianNumberInput from '../common/PersianNumberInput';
 import PlateInput from '../common/PlateInput';
+import { FixedSizeList as List } from 'react-window';
+import AutoSizer from 'react-virtualized-auto-sizer';
+
+// Virtualized Row for Invoices
+const InvoiceRow = ({ index, style, data }: { index: number, style: React.CSSProperties, data: any }) => {
+    const { invoices, getProductById, isAdmin, canEdit, handleEditInvoice, handleDeleteInvoice } = data;
+    const inv = invoices[index];
+    if (!inv) return null;
+
+    const prodName = getProductById(inv.productId || '')?.name || 'محصول نامشخص';
+    const isAdminCreated = inv.creatorRole === UserRole.ADMIN;
+    const isEdited = inv.updatedAt && inv.updatedAt > inv.createdAt + 2000;
+
+    return (
+        <div style={style} className="px-1 py-1.5">
+            <div className={`bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border ${isAdminCreated ? 'border-purple-200 bg-purple-50/30' : 'border-gray-100 dark:border-gray-700'} relative h-full flex flex-col justify-between`}>
+                <div className="flex justify-between items-start mb-2">
+                    <div>
+                        <span className="text-xs font-black text-metro-orange block mb-1">حواله {toPersianDigits(inv.invoiceNumber)}</span>
+                        <h4 className="font-bold text-gray-800 dark:text-gray-200 text-sm">{prodName}</h4>
+                        {isAdminCreated && <span className="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold mt-1 inline-block">ثبت توسط مدیر</span>}
+                        {isEdited && <span className="text-[9px] text-orange-500 font-bold mr-1"> (ویرایش شده)</span>}
+                    </div>
+                    <div className="flex gap-2">
+                        {canEdit(inv.createdAt, inv.creatorRole) ? (
+                            <>
+                                <button onClick={() => handleEditInvoice(inv)} className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"><Icons.Edit className="w-4 h-4" /></button>
+                                <button onClick={() => handleDeleteInvoice(inv)} className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Icons.Trash className="w-4 h-4" /></button>
+                            </>
+                        ) : (
+                            <Icons.Lock className="w-4 h-4 text-gray-300" />
+                        )}
+                    </div>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
+                    <span className="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">{toPersianDigits(inv.date)}</span>
+                    {inv.plateNumber && <span className="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded font-mono" dir="ltr">{inv.plateNumber}</span>}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-gray-50 dark:bg-gray-900/50 p-2 rounded-lg text-center">
+                        <span className="block text-[9px] text-gray-400">کارتن</span>
+                        <span className="font-black text-sm">{toPersianDigits(inv.totalCartons)}</span>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-900/50 p-2 rounded-lg text-center">
+                        <span className="block text-[9px] text-gray-400">وزن</span>
+                        <span className="font-black text-sm text-blue-600">{toPersianDigits(inv.totalWeight)}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const RecentRecords: React.FC = () => {
     const { statistics, deleteStatistic, updateStatistic, isLoading: statsLoading } = useStatisticsStore();
@@ -24,18 +76,15 @@ const RecentRecords: React.FC = () => {
     const { addToast } = useToastStore();
     const { confirm } = useConfirm();
     
-    // UI State
     const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
     const [showEditStatModal, setShowEditStatModal] = useState(false);
     const [showEditInvoiceModal, setShowEditInvoiceModal] = useState(false);
 
-    // Filters
     const [startDate, setStartDate] = useState(getTodayJalali());
     const [endDate, setEndDate] = useState(getTodayJalali());
     const [activeTab, setActiveTab] = useState<'stats' | 'invoices'>('stats');
 
-    // Forms
     const [statValues, setStatValues] = useState({ prod: '', prev: '', prodKg: '', prevKg: '' });
     const [invoiceValues, setInvoiceValues] = useState({ 
         invoiceNumber: '',
@@ -53,7 +102,6 @@ const RecentRecords: React.FC = () => {
     const allowedProductIds = user?.assignedFarms?.[0]?.productIds || [];
     const isAdmin = user?.role === UserRole.ADMIN;
 
-    // --- Sort Products (UPDATED) ---
     const sortedProductIds = useMemo(() => {
         if (!allowedProductIds.length) return [];
         return [...allowedProductIds].sort((aId, bId) => {
@@ -64,24 +112,19 @@ const RecentRecords: React.FC = () => {
         });
     }, [allowedProductIds, getProductById]);
 
-    // --- Helpers ---
     const getProductName = (id: string) => products.find(p => p.id === id)?.name || 'محصول نامشخص';
     const isLiquid = (pid: string) => getProductName(pid).includes('مایع');
 
     const canEdit = (createdAt: number, creatorRole?: string) => {
         if (isAdmin) return true;
-        // If created by Admin, normal user CANNOT edit
         if (creatorRole === UserRole.ADMIN) return false;
-        // 5 Hours window for normal users
         const now = Date.now();
         return (now - createdAt) < 18000000; 
     };
 
-    // --- Filtering Data ---
     const filteredStats = useMemo(() => {
         const start = normalizeDate(startDate);
         const end = normalizeDate(endDate);
-        
         return statistics.filter(s => {
             if (s.farmId !== farmId) return false;
             if (!isDateInRange(s.date, start, end)) return false;
@@ -93,7 +136,6 @@ const RecentRecords: React.FC = () => {
     const filteredInvoices = useMemo(() => {
         const start = normalizeDate(startDate);
         const end = normalizeDate(endDate);
-        
         return invoices.filter(i => {
             if (i.farmId !== farmId) return false;
             if (!isDateInRange(i.date, start, end)) return false;
@@ -102,7 +144,6 @@ const RecentRecords: React.FC = () => {
         });
     }, [invoices, farmId, startDate, endDate, isMotefereghe, allowedProductIds]);
 
-    // --- Handlers ---
     const handleDeleteStat = async (stat: DailyStatistic) => {
         const confirmed = await confirm({
             title: 'حذف آمار',
@@ -111,10 +152,14 @@ const RecentRecords: React.FC = () => {
             type: 'danger'
         });
         if (confirmed) {
+            const isOffline = !navigator.onLine; // Check connection status at moment of action
             const result = await deleteStatistic(stat.id);
             if (result.success) {
-                const msg = navigator.onLine ? 'رکورد حذف شد' : 'درخواست حذف در صف آفلاین ذخیره شد';
-                addToast(msg, navigator.onLine ? 'success' : 'warning');
+                if (isOffline) {
+                    addToast('درخواست حذف در صف آفلاین ذخیره شد', 'warning');
+                } else {
+                    addToast('رکورد حذف شد', 'success');
+                }
             } else {
                 addToast('خطا در حذف', 'error');
             }
@@ -142,7 +187,6 @@ const RecentRecords: React.FC = () => {
         const prodKg = Number(statValues.prodKg);
         const prevKg = isMotefereghe ? 0 : Number(statValues.prevKg);
 
-        // Validation: Check if nothing changed
         if (
             prod === targetStat.production && 
             prev === (targetStat.previousBalance || 0) &&
@@ -153,6 +197,7 @@ const RecentRecords: React.FC = () => {
             return;
         }
 
+        const isOffline = !navigator.onLine;
         const result = await updateStatistic(targetStat.id, {
             production: prod,
             previousBalance: prev,
@@ -165,8 +210,11 @@ const RecentRecords: React.FC = () => {
         if (result.success) {
             setShowEditStatModal(false);
             setTargetStat(null);
-            const msg = navigator.onLine ? 'آمار ویرایش شد' : 'ویرایش در صف همگام‌سازی ذخیره شد';
-            addToast(msg, navigator.onLine ? 'success' : 'warning');
+            if (isOffline) {
+                addToast('ویرایش در صف همگام‌سازی ذخیره شد', 'warning');
+            } else {
+                addToast('آمار ویرایش شد', 'success');
+            }
         } else {
             addToast(result.error || 'خطا', 'error');
         }
@@ -180,10 +228,14 @@ const RecentRecords: React.FC = () => {
             type: 'danger'
         });
         if (confirmed) {
+            const isOffline = !navigator.onLine;
             const result = await deleteInvoice(inv.id);
             if (result.success) {
-                const msg = navigator.onLine ? 'حواله حذف شد' : 'درخواست حذف در صف آفلاین ذخیره شد';
-                addToast(msg, navigator.onLine ? 'success' : 'warning');
+                if (isOffline) {
+                    addToast('درخواست حذف در صف آفلاین ذخیره شد', 'warning');
+                } else {
+                    addToast('حواله حذف شد', 'success');
+                }
             } else {
                 addToast('خطا در حذف', 'error');
             }
@@ -208,7 +260,6 @@ const RecentRecords: React.FC = () => {
     const saveInvoiceChanges = async () => {
         if (!selectedInvoice) return;
 
-        // Validation: Check for changes
         const isChanged = 
             invoiceValues.invoiceNumber !== selectedInvoice.invoiceNumber ||
             Number(invoiceValues.cartons) !== selectedInvoice.totalCartons ||
@@ -223,6 +274,7 @@ const RecentRecords: React.FC = () => {
             return;
         }
 
+        const isOffline = !navigator.onLine;
         const result = await updateInvoice(selectedInvoice.id, {
             invoiceNumber: invoiceValues.invoiceNumber,
             totalCartons: Number(invoiceValues.cartons),
@@ -232,17 +284,30 @@ const RecentRecords: React.FC = () => {
             driverPhone: invoiceValues.driverPhone,
             description: invoiceValues.description
         });
+
         if (result.success) {
             setShowEditInvoiceModal(false);
             setSelectedInvoice(null);
-            const msg = navigator.onLine ? 'حواله ویرایش شد' : 'ویرایش در صف همگام‌سازی ذخیره شد';
-            addToast(msg, navigator.onLine ? 'success' : 'warning');
+            if (isOffline) {
+                 addToast('ویرایش در صف همگام‌سازی ذخیره شد', 'warning');
+            } else {
+                 addToast('حواله ویرایش شد', 'success');
+            }
         } else {
             addToast(result.error || 'خطا', 'error');
         }
     };
 
     const inputClasses = "w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl text-center font-black text-xl bg-white dark:bg-gray-700 dark:text-white focus:border-metro-blue outline-none transition-all";
+
+    const invoiceItemData = useMemo(() => ({
+        invoices: filteredInvoices,
+        getProductById,
+        isAdmin,
+        canEdit,
+        handleEditInvoice,
+        handleDeleteInvoice
+    }), [filteredInvoices, getProductById, isAdmin]);
 
     return (
         <div className="pb-24 h-full flex flex-col">
@@ -261,9 +326,9 @@ const RecentRecords: React.FC = () => {
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar px-1">
+            <div className="flex-1 px-1 relative">
                 {activeTab === 'stats' ? (
-                    <div className="space-y-3">
+                    <div className="space-y-3 overflow-y-auto custom-scrollbar h-full absolute inset-0">
                         {sortedProductIds.map(pid => {
                             const product = getProductById(pid);
                             if (!product) return null;
@@ -296,7 +361,7 @@ const RecentRecords: React.FC = () => {
                                         <div className="bg-gray-50 dark:bg-black/20 border-t border-gray-100 dark:border-gray-700 p-3 space-y-3">
                                             {productStats.map(stat => {
                                                 const isAdminCreated = stat.creatorRole === UserRole.ADMIN;
-                                                const showTime = isAdmin || !isAdminCreated; // Hide time if admin created and user is not admin
+                                                const showTime = isAdmin || !isAdminCreated; 
                                                 const isEdited = stat.updatedAt && stat.updatedAt > stat.createdAt + 2000;
 
                                                 return (
@@ -345,60 +410,33 @@ const RecentRecords: React.FC = () => {
                         })}
                     </div>
                 ) : (
-                    <div className="space-y-3">
-                        {filteredInvoices.length === 0 ? (
-                            <div className="text-center py-10 text-gray-400 font-bold">هیچ حواله‌ای یافت نشد</div>
+                    <div className="absolute inset-0">
+                         {filteredInvoices.length === 0 ? (
+                            <div className="text-center py-20 text-gray-400 font-bold flex flex-col items-center justify-center h-full">
+                                <Icons.FileText className="w-16 h-16 mb-2 opacity-20" />
+                                هیچ حواله‌ای یافت نشد
+                            </div>
                         ) : (
-                            filteredInvoices.map(inv => {
-                                const prodName = getProductName(inv.productId || '');
-                                if (inv.productId && !getProductById(inv.productId)) return null;
-                                
-                                const isAdminCreated = inv.creatorRole === UserRole.ADMIN;
-                                const isEdited = inv.updatedAt && inv.updatedAt > inv.createdAt + 2000;
-
-                                return (
-                                <div key={inv.id} className={`bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border ${isAdminCreated ? 'border-purple-200 bg-purple-50/30' : 'border-gray-100 dark:border-gray-700'} relative`}>
-                                    <div className="flex justify-between items-start mb-3">
-                                        <div>
-                                            <span className="text-xs font-black text-metro-orange block mb-1">حواله {toPersianDigits(inv.invoiceNumber)}</span>
-                                            <h4 className="font-bold text-gray-800 dark:text-gray-200">{prodName}</h4>
-                                            {isAdminCreated && <span className="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold mt-1 inline-block">ثبت توسط مدیر</span>}
-                                            {isEdited && <span className="text-[9px] text-orange-500 font-bold mr-1"> (ویرایش شده)</span>}
-                                        </div>
-                                        <div className="flex gap-2">
-                                            {canEdit(inv.createdAt, inv.creatorRole) ? (
-                                                <>
-                                                    <button onClick={() => handleEditInvoice(inv)} className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"><Icons.Edit className="w-4 h-4" /></button>
-                                                    <button onClick={() => handleDeleteInvoice(inv)} className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Icons.Trash className="w-4 h-4" /></button>
-                                                </>
-                                            ) : (
-                                                <Icons.Lock className="w-4 h-4 text-gray-300" />
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-xs text-gray-500 mb-3">
-                                        <span className="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">{toPersianDigits(inv.date)}</span>
-                                        {inv.plateNumber && <span className="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded" dir="ltr">{inv.plateNumber}</span>}
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div className="bg-gray-50 dark:bg-gray-900/50 p-2 rounded-lg text-center">
-                                            <span className="block text-[9px] text-gray-400">کارتن</span>
-                                            <span className="font-black">{toPersianDigits(inv.totalCartons)}</span>
-                                        </div>
-                                        <div className="bg-gray-50 dark:bg-gray-900/50 p-2 rounded-lg text-center">
-                                            <span className="block text-[9px] text-gray-400">وزن</span>
-                                            <span className="font-black text-blue-600">{toPersianDigits(inv.totalWeight)}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            )})
+                            <AutoSizer>
+                                {({ height, width }: { height: number, width: number }) => (
+                                    <List
+                                        height={height}
+                                        itemCount={filteredInvoices.length}
+                                        itemSize={180} // Approx card height
+                                        width={width}
+                                        itemData={invoiceItemData}
+                                        className="custom-scrollbar"
+                                        direction="rtl"
+                                    >
+                                        {InvoiceRow}
+                                    </List>
+                                )}
+                            </AutoSizer>
                         )}
                     </div>
                 )}
             </div>
 
-            {/* Modals are essentially same as before, omitted for brevity but they are present in logic */}
-            {/* ... Modal Code ... */}
             {showEditStatModal && targetStat && (
                 <Modal isOpen={true} onClose={() => setShowEditStatModal(false)} title="ویرایش آمار">
                     <div className="space-y-4 pt-2">

@@ -12,6 +12,8 @@ import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange } from '.
 import { Invoice } from '../../types';
 import Modal from '../common/Modal';
 import { useConfirm } from '../../hooks/useConfirm';
+import Input from '../common/Input';
+import TextArea from '../common/TextArea';
 
 type TabType = 'stats' | 'invoices';
 
@@ -305,17 +307,29 @@ const GlobalRecordManager: React.FC = () => {
                      </div>
                      <div className="grid grid-cols-2 gap-4 lg:gap-6">
                          <div>
-                             <label className="text-sm lg:text-lg font-bold block mb-2 px-1">تولید</label>
-                             <input type="number" value={statForm.prod} onChange={e => setStatForm({...statForm, prod: Number(e.target.value)})} className="w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center font-black lg:text-2xl outline-none focus:border-green-500" />
+                             <Input 
+                                label="تولید"
+                                type="number" 
+                                value={statForm.prod} 
+                                onChange={e => setStatForm({...statForm, prod: Number(e.target.value)})} 
+                             />
                          </div>
                          <div>
-                             <label className="text-sm lg:text-lg font-bold block mb-2 px-1">فروش</label>
-                             <input type="number" value={statForm.sales} onChange={e => setStatForm({...statForm, sales: Number(e.target.value)})} className="w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center font-black lg:text-2xl outline-none focus:border-red-500" />
+                             <Input 
+                                label="فروش"
+                                type="number" 
+                                value={statForm.sales} 
+                                onChange={e => setStatForm({...statForm, sales: Number(e.target.value)})} 
+                             />
                          </div>
                      </div>
                      <div>
-                         <label className="text-sm lg:text-lg font-bold block mb-2 px-1">مانده قبل (اصلاح دستی)</label>
-                         <input type="number" value={statForm.prev} onChange={e => setStatForm({...statForm, prev: Number(e.target.value)})} className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 text-center font-bold lg:text-2xl" />
+                         <Input 
+                            label="مانده قبل (اصلاح دستی)"
+                            type="number" 
+                            value={statForm.prev} 
+                            onChange={e => setStatForm({...statForm, prev: Number(e.target.value)})} 
+                         />
                      </div>
                      <div className="flex justify-end gap-2 mt-8">
                          <Button variant="secondary" onClick={handleCancelStat} className="lg:h-12 lg:px-6">لغو</Button>
@@ -331,46 +345,68 @@ const GlobalRecordManager: React.FC = () => {
                          ویرایش حواله باعث بروزرسانی خودکار موجودی انبار در تاریخ مربوطه خواهد شد.
                      </div>
                      
-                     <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-xl border border-orange-200 dark:border-orange-800">
-                        <label className="block text-sm lg:text-lg font-bold mb-2 text-orange-800 dark:text-orange-300">شماره حواله (اصلاحیه)</label>
-                        <input 
-                            type="text" 
-                            dir="ltr"
-                            maxLength={10}
-                            className="w-full p-4 border-2 border-orange-300 rounded-xl text-center font-black text-2xl lg:text-4xl tracking-[0.2em] bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:border-metro-orange outline-none"
-                            value={invoiceForm.invoiceNumber}
-                            onChange={(e) => setInvoiceForm({ ...invoiceForm, invoiceNumber: e.target.value })}
-                            placeholder=""
-                        />
-                    </div>
+                     <Input 
+                        label="شماره حواله (اصلاحیه)"
+                        type="text" 
+                        dir="ltr"
+                        maxLength={10}
+                        containerClassName="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-xl border border-orange-200 dark:border-orange-800"
+                        className="w-full p-4 border-2 border-orange-300 rounded-xl text-center font-black text-2xl lg:text-4xl tracking-[0.2em] bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:border-metro-orange outline-none"
+                        value={invoiceForm.invoiceNumber}
+                        onChange={(e) => setInvoiceForm({ ...invoiceForm, invoiceNumber: e.target.value })}
+                        placeholder=""
+                    />
 
                      <div className="grid grid-cols-2 gap-4 lg:gap-6">
                          <div>
-                             <label className="text-sm lg:text-lg font-bold block mb-2 px-1">تعداد کارتن</label>
-                             <input type="number" value={invoiceForm.cartons} onChange={e => setInvoiceForm({...invoiceForm, cartons: Number(e.target.value)})} className="w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center font-black lg:text-2xl outline-none focus:border-metro-orange" />
+                             <Input 
+                                label="تعداد کارتن"
+                                type="number" 
+                                value={invoiceForm.cartons} 
+                                onChange={e => setInvoiceForm({...invoiceForm, cartons: Number(e.target.value)})} 
+                             />
                          </div>
                          <div>
-                             <label className="text-sm lg:text-lg font-bold block mb-2 px-1">وزن (Kg)</label>
-                             <input type="number" value={invoiceForm.weight} onChange={e => setInvoiceForm({...invoiceForm, weight: Number(e.target.value)})} className="w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center font-black lg:text-2xl outline-none focus:border-metro-orange" />
+                             <Input 
+                                label="وزن (Kg)"
+                                type="number" 
+                                value={invoiceForm.weight} 
+                                onChange={e => setInvoiceForm({...invoiceForm, weight: Number(e.target.value)})} 
+                             />
                          </div>
                      </div>
                      <div>
-                         <label className="text-sm lg:text-lg font-bold block mb-2 px-1">نام راننده</label>
-                         <input type="text" value={invoiceForm.driver} onChange={e => setInvoiceForm({...invoiceForm, driver: e.target.value})} className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-lg lg:text-xl outline-none focus:border-metro-purple" />
+                         <Input 
+                            label="نام راننده"
+                            type="text" 
+                            value={invoiceForm.driver} 
+                            onChange={e => setInvoiceForm({...invoiceForm, driver: e.target.value})} 
+                         />
                      </div>
                      <div className="grid grid-cols-2 gap-4 lg:gap-6">
                          <div>
-                             <label className="text-sm lg:text-lg font-bold block mb-2 px-1">پلاک</label>
-                             <input type="text" value={invoiceForm.plate} onChange={e => setInvoiceForm({...invoiceForm, plate: e.target.value})} className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center text-lg lg:text-xl outline-none focus:border-metro-purple" />
+                             <Input 
+                                label="پلاک"
+                                type="text" 
+                                value={invoiceForm.plate} 
+                                onChange={e => setInvoiceForm({...invoiceForm, plate: e.target.value})} 
+                             />
                          </div>
                          <div>
-                             <label className="text-sm lg:text-lg font-bold block mb-2 px-1">موبایل</label>
-                             <input type="text" value={invoiceForm.phone} onChange={e => setInvoiceForm({...invoiceForm, phone: e.target.value})} className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-center text-lg lg:text-xl outline-none focus:border-metro-purple" />
+                             <Input 
+                                label="موبایل"
+                                type="text" 
+                                value={invoiceForm.phone} 
+                                onChange={e => setInvoiceForm({...invoiceForm, phone: e.target.value})} 
+                             />
                          </div>
                      </div>
                      <div>
-                         <label className="text-sm lg:text-lg font-bold block mb-2 px-1">توضیحات</label>
-                         <textarea value={invoiceForm.desc} onChange={e => setInvoiceForm({...invoiceForm, desc: e.target.value})} className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 h-24 lg:h-32 text-lg lg:text-xl outline-none focus:border-metro-purple" />
+                         <TextArea 
+                            label="توضیحات"
+                            value={invoiceForm.desc} 
+                            onChange={e => setInvoiceForm({...invoiceForm, desc: e.target.value})} 
+                         />
                      </div>
                      <div className="flex justify-end gap-2 mt-6">
                          <Button variant="secondary" onClick={handleCancelInvoice} className="lg:h-12 lg:px-6">لغو</Button>

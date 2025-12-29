@@ -12,12 +12,14 @@ import { useInvoiceStore } from './store/invoiceStore';
 import { useUserStore } from './store/userStore';
 import { useAlertStore } from './store/alertStore';
 import { usePwaStore } from './store/pwaStore'; 
+import { useLogStore } from './store/logStore';
 import ConfirmDialog from './components/common/ConfirmDialog';
 import ToastContainer from './components/common/Toast';
 import PermissionModal from './components/common/PermissionModal';
 import { useAutoUpdate } from './hooks/useAutoUpdate';
 import { useOfflineSync } from './hooks/useOfflineSync';
 import { useAutoTheme } from './hooks/useAutoTheme';
+import { APP_VERSION } from './constants';
 
 // Helper to safely load lazy components and handle default export issues
 const safeLazy = (importFunc: () => Promise<any>, fallbackName: string) => {
@@ -67,6 +69,9 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("Uncaught error:", error);
     console.error("Component Stack:", errorInfo.componentStack);
+    
+    // Global Error Logging to Supabase
+    useLogStore.getState().logError(error, errorInfo.componentStack);
   }
 
   handleHardReset = () => {
@@ -98,6 +103,8 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
                   {error?.message?.includes('Minified React error') 
                     ? 'خطای داخلی رابط کاربری رخ داده است (306/185). لطفا کنسول را بررسی کنید.' 
                     : 'متأسفانه برنامه با مشکل مواجه شده است.'}
+                  <br/>
+                  <span className="text-xs text-gray-400 mt-2 block">(گزارش خطا برای تیم فنی ارسال شد)</span>
               </p>
               
               <div className="space-y-3">
@@ -139,6 +146,8 @@ function App() {
   useAutoTheme();
 
   useEffect(() => {
+    // Restore Point Marker: v3.9.35 - Post UI Refactor
+    console.log(`[App] Initializing Morvarid System v${APP_VERSION}`);
     document.documentElement.classList.remove('light', 'dark');
     document.documentElement.classList.add(theme);
   }, [theme]);

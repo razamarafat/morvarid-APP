@@ -3,22 +3,21 @@
 export default {
   content: [
     "./index.html",
-    "./App.tsx",
-    "./index.tsx",
-    "./constants.ts",
-    "./pages/**/*.{js,ts,jsx,tsx}",
+    "./*.{js,ts,jsx,tsx}", 
+    "./src/**/*.{js,ts,jsx,tsx}",
     "./components/**/*.{js,ts,jsx,tsx}",
+    "./pages/**/*.{js,ts,jsx,tsx}",
     "./store/**/*.{js,ts,jsx,tsx}",
-    "./utils/**/*.{js,ts,jsx,tsx}",
     "./hooks/**/*.{js,ts,jsx,tsx}",
-    "./lib/**/*.{js,ts,jsx,tsx}",
-    "./src/**/*.{js,ts,jsx,tsx}"
+    "./utils/**/*.{js,ts,jsx,tsx}",
+    "./lib/**/*.{js,ts,jsx,tsx}"
   ],
   darkMode: 'class',
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Vazir', 'Segoe UI', 'Tahoma', 'sans-serif'],
+        sans: ['Vazirmatn', 'Vazir', 'Segoe UI', 'Tahoma', 'sans-serif'],
+        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', "Liberation Mono", "Courier New", 'monospace'],
       },
       colors: {
         metro: {
@@ -53,6 +52,7 @@ export default {
       animation: {
         'wiggle': 'wiggle 6s ease-in-out infinite',
         'bg-pan': 'bgPan 40s linear infinite',
+        'shine': 'shine 3s infinite linear',
       },
       keyframes: {
         wiggle: {
@@ -62,6 +62,9 @@ export default {
         bgPan: {
           '0%': { backgroundPosition: '0% 0%' },
           '100%': { backgroundPosition: '100% 100%' },
+        },
+        shine: {
+          'to': { backgroundPositionX: '-200%' }
         }
       },
       borderRadius: {
@@ -78,6 +81,7 @@ export default {
       const newUtilities = {
         '.persian-nums': {
           'font-feature-settings': '"ss01"',
+          'font-variant-numeric': 'tabular-nums',
         }
       }
       addUtilities(newUtilities)

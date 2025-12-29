@@ -17,9 +17,12 @@ import JalaliDatePicker from '../common/JalaliDatePicker';
 import { motion, AnimatePresence } from 'framer-motion';
 import PersianNumberInput from '../common/PersianNumberInput';
 import PlateInput from '../common/PlateInput';
+import Input from '../common/Input';
+import TextArea from '../common/TextArea';
 import { useSMS, ParsedSMS } from '../../hooks/useSMS';
 import { v4 as uuidv4 } from 'uuid';
 import Modal from '../common/Modal';
+import { useValidation } from '../../hooks/useValidation';
 
 const persianLettersRegex = /^[\u0600-\u06FF\s]+$/;
 const mobileRegex = /^09\d{9}$/;
@@ -52,6 +55,7 @@ export const InvoiceForm: React.FC = () => {
     const { addToast } = useToastStore();
     const { confirm } = useConfirm();
     const { readFromClipboard, parseMultipleInvoices } = useSMS();
+    const { cleanPersianText } = useValidation();
     
     const todayJalali = getTodayJalali();
     const todayDayName = getTodayDayName();
@@ -128,7 +132,6 @@ export const InvoiceForm: React.FC = () => {
 
     const processParsedMessages = (parsed: ParsedSMS[]) => {
         if (parsed.length > 0) {
-            // Filter duplicates already in list
             const uniqueNewDrafts = parsed.filter(p => !smsDrafts.some(d => d.invoiceNumber === p.invoiceNumber));
             
             if (uniqueNewDrafts.length === 0) {
@@ -137,7 +140,6 @@ export const InvoiceForm: React.FC = () => {
             }
 
             const newDrafts = uniqueNewDrafts.map(p => ({ ...p, id: uuidv4() }));
-            // APPEND to existing drafts
             setSmsDrafts(prev => [...prev, ...newDrafts]); 
             addToast(`${toPersianDigits(uniqueNewDrafts.length)} حواله جدید به لیست اضافه شد.`, 'success');
         } else {
@@ -329,7 +331,6 @@ export const InvoiceForm: React.FC = () => {
 
     if (!selectedFarm) return <div className="p-20 text-center font-bold text-gray-400">فارمی یافت نشد.</div>;
 
-    // Apply Sorting to Product IDs
     const sortedProductIds = [...selectedFarm.productIds].sort((aId, bId) => {
         const pA = getProductById(aId);
         const pB = getProductById(bId);
@@ -339,62 +340,56 @@ export const InvoiceForm: React.FC = () => {
 
     return (
         <div className="max-w-4xl mx-auto space-y-6 lg:space-y-10 pb-20">
-            <div className="bg-gradient-to-br from-metro-blue via-blue-600 to-indigo-600 p-6 text-white shadow-xl relative overflow-hidden flex flex-col items-center justify-center gap-3 rounded-b-[32px] border-b-4 border-blue-800/20 gpu-accelerated">
-                 <div className="absolute inset-0 shimmer-bg z-0"></div>
-                 <Icons.FileText className="absolute -right-8 -bottom-8 w-48 h-48 opacity-10 pointer-events-none -rotate-12" />
-                 <div className="relative z-10 flex flex-col items-center w-full">
-                     <div className="flex items-center gap-3 mb-1">
-                        <span className="text-blue-100 font-bold text-sm tracking-widest uppercase bg-black/10 px-3 py-0.5 rounded-full backdrop-blur-sm">
-                             {todayDayName}
-                        </span>
-                        <div className="text-xl font-bold opacity-90 font-sans tabular-nums tracking-wide">{toPersianDigits(currentTime)}</div>
-                     </div>
-                     <div className="flex items-center gap-4">
-                         <h1 className="text-5xl lg:text-6xl font-black font-sans tabular-nums tracking-tighter drop-shadow-lg leading-none">
-                             {toPersianDigits(referenceDate)}
-                         </h1>
-                     </div>
-                     <div className="mt-3 text-white font-black tracking-wide text-lg border-b-2 border-white/20 pb-1">
-                        ثبت حواله فروش
-                     </div>
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden flex flex-col items-center justify-center gap-2 text-center">
+                 <Icons.FileText className="absolute right-4 top-1/2 -translate-y-1/2 w-32 h-32 text-metro-blue opacity-5 pointer-events-none -rotate-12" />
+                 
+                 <div className="flex items-center gap-3 mb-1 relative z-10">
+                    <span className="text-gray-500 dark:text-gray-400 font-bold text-xs tracking-widest uppercase bg-gray-100 dark:bg-gray-700/50 px-3 py-1 rounded-full">
+                         {todayDayName}
+                    </span>
+                    <div className="text-xl font-bold text-gray-400 font-sans tabular-nums tracking-wide">{toPersianDigits(currentTime)}</div>
+                 </div>
+                 
+                 <div className="flex items-center gap-4 relative z-10">
+                     <h1 className="text-5xl lg:text-6xl font-black font-sans tabular-nums tracking-tighter leading-none text-gray-900 dark:text-white">
+                         {toPersianDigits(referenceDate)}
+                     </h1>
+                 </div>
+                 
+                 <div className="mt-2 text-metro-blue font-black tracking-wide text-lg relative z-10">
+                    ثبت حواله فروش
+                 </div>
+                 
+                 <div className="flex gap-2 mt-4 relative z-10">
+                     <button 
+                        onClick={handleReadSMS}
+                        className="bg-metro-blue hover:bg-metro-cobalt text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-md active:scale-95"
+                     >
+                         <Icons.Download className="w-4 h-4" />
+                         خواندن از پیامک
+                     </button>
                      
-                     <div className="flex gap-2 mt-3">
-                         <button 
-                            onClick={handleReadSMS}
-                            className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 backdrop-blur-sm transition-all border border-white/20 active:scale-95"
-                         >
-                             <Icons.Download className="w-4 h-4" />
-                             خواندن از پیامک
-                         </button>
-                         
-                         <button 
-                            onClick={() => setIsPasteModalOpen(true)}
-                            className="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl text-sm font-bold flex items-center gap-2 backdrop-blur-sm transition-all border border-white/10 active:scale-95"
-                            title="ورود دستی / تاریخچه"
-                         >
-                             <Icons.List className="w-4 h-4" />
-                         </button>
-                     </div>
-
-                     <div className="mt-2 text-[10px] text-blue-100 bg-black/20 px-3 py-1 rounded-full flex items-center gap-1 backdrop-blur-md border border-white/10">
-                         <Icons.AlertCircle className="w-3 h-3" />
-                         نکته: برای چندین پیامک، از دکمه تاریخچه استفاده کنید یا جداگانه بخوانید.
-                     </div>
+                     <button 
+                        onClick={() => setIsPasteModalOpen(true)}
+                        className="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all active:scale-95"
+                        title="ورود دستی / تاریخچه"
+                     >
+                         <Icons.List className="w-4 h-4" />
+                     </button>
                  </div>
             </div>
 
-            {/* Paste Modal for History/Bulk */}
             <Modal isOpen={isPasteModalOpen} onClose={() => setIsPasteModalOpen(false)} title="پردازش متن انبوه / تاریخچه">
                 <div className="space-y-4">
                     <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
                         اگر چندین پیامک در تاریخچه کیبورد دارید، همه آن‌ها را در کادر زیر Paste کنید. سیستم تمام حواله‌ها را استخراج می‌کند.
                     </p>
-                    <textarea 
-                        className="w-full h-48 p-4 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:border-metro-blue"
+                    <TextArea 
+                        className="w-full h-48"
                         placeholder="متن پیامک‌ها را اینجا قرار دهید..."
                         value={pastedText}
                         onChange={(e) => setPastedText(e.target.value)}
-                    ></textarea>
+                    />
                     <div className="flex justify-end gap-2">
                         <Button variant="secondary" onClick={() => setIsPasteModalOpen(false)}>انصراف</Button>
                         <Button onClick={handleManualParse}>پردازش متن</Button>
@@ -404,7 +399,7 @@ export const InvoiceForm: React.FC = () => {
 
             <AnimatePresence>
                 {smsDrafts.length > 0 && (
-                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="px-4">
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="px-1">
                         <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-2xl p-4">
                             <h4 className="text-sm font-bold text-blue-800 dark:text-blue-200 mb-3 flex items-center gap-2">
                                 <Icons.Download className="w-4 h-4" />
@@ -445,7 +440,7 @@ export const InvoiceForm: React.FC = () => {
                 )}
             </AnimatePresence>
 
-            <form onSubmit={handleSubmit(handleFinalSubmit)} className="px-4 space-y-8">
+            <form onSubmit={handleSubmit(handleFinalSubmit)} className="px-1 space-y-8">
                 <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 relative border-r-[8px] border-r-metro-orange">
                     <h3 className="font-black text-xl mb-6 text-gray-800 dark:text-white flex items-center gap-2">
                         <Icons.FileText className="w-6 h-6 text-metro-orange" />
@@ -530,7 +525,7 @@ export const InvoiceForm: React.FC = () => {
                                         </div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
-                                                <label className="text-[10px] font-bold text-gray-400 block mb-1">تعداد (کارتن)</label>
+                                                <label className="text-xs font-bold text-gray-400 block mb-1">تعداد (کارتن)</label>
                                                 <PersianNumberInput 
                                                     className="w-full p-3 bg-white dark:bg-gray-800 dark:text-white text-center font-black text-xl rounded-xl outline-none focus:ring-2 focus:ring-metro-blue border-2 border-transparent dark:border-gray-700"
                                                     value={itemsState[pid]?.cartons || ''}
@@ -539,7 +534,7 @@ export const InvoiceForm: React.FC = () => {
                                                 />
                                             </div>
                                             <div>
-                                                <label className="text-[10px] font-bold text-gray-400 block mb-1">وزن (کیلوگرم)</label>
+                                                <label className="text-xs font-bold text-gray-400 block mb-1">وزن (کیلوگرم)</label>
                                                 <PersianNumberInput 
                                                     inputMode="decimal"
                                                     className="w-full p-3 bg-white dark:bg-gray-800 dark:text-white text-center font-black text-xl rounded-xl outline-none focus:ring-2 focus:ring-metro-blue border-b-4 border-metro-blue dark:border-metro-blue"
@@ -565,20 +560,23 @@ export const InvoiceForm: React.FC = () => {
                     <div className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <label className={labelClass}>نام راننده (اختیاری)</label>
-                                <input 
-                                    type="text" 
-                                    {...register('driverName')} 
-                                    className={inputClass} 
-                                    placeholder="" 
-                                    onInput={(e) => {
-                                        e.currentTarget.value = e.currentTarget.value.replace(/[0-9]/g, '');
-                                    }}
+                                <label className={labelClass}>نام راننده (اختیاری - فقط فارسی)</label>
+                                <Controller
+                                    name="driverName"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <Input 
+                                            {...field}
+                                            className={inputClass}
+                                            placeholder="" 
+                                            onChange={(e) => field.onChange(cleanPersianText(e.target.value))}
+                                        />
+                                    )}
                                 />
                                 {errors.driverName && <p className="text-red-500 text-xs font-bold mt-2">{errors.driverName.message}</p>}
                             </div>
                             <div>
-                                <label className={labelClass}>شماره تماس</label>
+                                <label className={labelClass}>شماره تماس (۱۱ رقم - ۰۹)</label>
                                 <Controller
                                     name="contactPhone"
                                     control={control}
@@ -613,8 +611,19 @@ export const InvoiceForm: React.FC = () => {
                         </div>
 
                         <div>
-                            <label className={labelClass}>توضیحات (اختیاری)</label>
-                            <textarea {...register('description')} className="w-full p-4 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white outline-none focus:border-metro-blue h-24 text-right" placeholder=""></textarea>
+                            <label className={labelClass}>توضیحات (اختیاری - فقط فارسی)</label>
+                            <Controller
+                                name="description"
+                                control={control}
+                                render={({ field }) => (
+                                    <TextArea
+                                        {...field}
+                                        className="w-full p-4 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white outline-none focus:border-metro-blue h-24 text-right"
+                                        placeholder=""
+                                        onChange={(e) => field.onChange(cleanPersianText(e.target.value))}
+                                    />
+                                )}
+                            />
                             {errors.description && <p className="text-red-500 text-xs font-bold mt-2">{errors.description.message}</p>}
                         </div>
                     </div>
