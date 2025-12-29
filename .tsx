@@ -1,6 +1,3 @@
 
-/* 
-  !!! FILE MARKED FOR DELETION !!!
-  This file (.tsx) was created erroneously and contains no logic.
-  Please delete this file manually from your file system.
-*/
+// This file is deprecated and marked for deletion.
+// Please remove this file from your project root.

@@ -1,30 +1,52 @@
 
 {
-  "name": "سامانه مدیریت آمار مروارید",
+  "id": "morvarid-mis-v1",
+  "name": "سامانه مدیریت یکپارچه مروارید",
   "short_name": "مروارید",
-  "description": "سیستم یکپارچه مدیریت آمار تولید، فروش و انبارداری فارم‌های مروارید",
+  "description": "سیستم جامع مدیریت آمار تولید، فروش و انبارداری زنجیره تولید مروارید",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait-primary",
+  "orientation": "portrait",
   "background_color": "#1D1D1D",
   "theme_color": "#2D89EF",
+  "dir": "rtl",
+  "lang": "fa-IR",
   "icons": [
     {
-      "src": "/vite.svg",
+      "src": "/icons/icon-192x192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/vite.svg",
+      "src": "/icons/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ],
-  "categories": ["productivity", "business", "utilities"],
-  "dir": "rtl",
-  "lang": "fa-IR",
+  "categories": [
+    "productivity",
+    "business",
+    "utilities",
+    "finance"
+  ],
+  "shortcuts": [
+    {
+      "name": "ثبت آمار",
+      "short_name": "آمار",
+      "description": "ورود به بخش ثبت آمار تولید",
+      "url": "/#/registration?view=stats",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "فروش",
+      "short_name": "فروش",
+      "description": "مشاهده میز کار فروش",
+      "url": "/#/sales",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    }
+  ],
   "prefer_related_applications": false
 }
