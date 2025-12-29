@@ -12,13 +12,6 @@ export default {
     "./utils/**/*.{js,ts,jsx,tsx}",
     "./lib/**/*.{js,ts,jsx,tsx}"
   ],
-  // Ensure dynamic classes in constants.ts are not purged
-  safelist: [
-    'bg-metro-purple', 'bg-metro-darkPurple', 'text-metro-purple', 'border-metro-purple', 'from-metro-purple', 'to-metro-darkPurple',
-    'bg-metro-orange', 'text-metro-orange', 'border-metro-orange', 'from-metro-orange',
-    'bg-metro-blue', 'bg-metro-cobalt', 'text-metro-blue', 'border-metro-blue', 'from-metro-blue', 'to-metro-cobalt',
-    'bg-metro-green', 'text-metro-green', 'bg-metro-teal', 'text-metro-teal', 'bg-metro-red', 'text-metro-red'
-  ],
   darkMode: 'class',
   theme: {
     extend: {

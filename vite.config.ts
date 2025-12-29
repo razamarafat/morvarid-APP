@@ -43,44 +43,21 @@ const generateVersionFile = () => {
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
   // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
+  // Fix: Cast process to any to avoid TS error about missing cwd property in some environments
   const env = loadEnv(mode, (process as any).cwd(), '');
 
   return {
-    // Expose the version as a global constant using __APP_VERSION__
+    // Expose the version as a global constant or environment variable
     define: {
-      '__APP_VERSION__': JSON.stringify(appVersion),
+      'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion),
     },
     plugins: [react(), generateVersionFile()],
-    
-    // Server Configuration for Better Preview/Dev Experience
-    server: {
-      host: true, // Expose to network (for mobile testing)
-      port: 5173,
-      watch: {
-        usePolling: true, // Fix for some environments not detecting file changes
-      }
-    },
-
-    // Dependency Optimization
-    optimizeDeps: {
-      force: true, // Forces dependency pre-bundling, ignoring previously cached files
-    },
-
-    // CSS Configuration
-    css: {
-      devSourcemap: true, // Enable CSS sourcemaps to debug styles in Dev
-    },
-
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './'),
       },
     },
-    
-    // CRITICAL FIX FOR CLOUD PREVIEWS: Use relative base path './' 
-    // This ensures assets are loaded correctly regardless of the proxy path depth
     base: './', 
-    
     build: {
       outDir: 'dist',
       sourcemap: false,
