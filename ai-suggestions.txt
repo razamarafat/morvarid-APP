@@ -1,17 +1,17 @@
 
-AI SUGGESTIONS BACKLOG - V24
+AI SUGGESTIONS BACKLOG - V25
 
 --------------------------------
 1. پیشنهادات امنیت و مدیریت کاربران (Security & Auth)
 --------------------------------
-- [ ] عنوان: Rate Limiting on Login
+- [ ] عنوان: Server-Side User Management (Edge Functions)
   - دسته‌بندی: Security
-  - توضیح: پیاده‌سازی محدودیت تعداد درخواست در `store/authStore` برای جلوگیری از حملات Brute-force.
+  - توضیح: انتقال کامل ساخت/ویرایش کاربر به Supabase Edge Functions با استفاده از Service Role Key برای جلوگیری از هرگونه دستکاری کلاینت.
   - اولویت: High
 
-- [ ] عنوان: Database Audit Logs
-  - دسته‌بندی: Security/Audit
-  - توضیح: ایجاد Webhook یا Trigger در دیتابیس برای ثبت لاگ تغییرات حساس.
+- [ ] عنوان: Force Password Change
+  - دسته‌بندی: Security
+  - توضیح: افزودن فیلد `must_change_password` به پروفایل و اجبار کاربر به تغییر رمز عبور در اولین ورود.
   - اولویت: High
 
 --------------------------------
@@ -35,9 +35,9 @@ AI SUGGESTIONS BACKLOG - V24
 --------------------------------
 3. پیشنهادات رابط کاربری و تجربه کاربری (UI/UX)
 --------------------------------
-- [ ] عنوان: Skeleton Loading States
-  - دسته‌بندی: UX
-  - توضیح: جایگزینی اسپینرهای چرخشی با اسکلت‌های شبیه‌سازی شده (Skeleton Screens) در هنگام بارگذاری داده‌ها.
+- [ ] عنوان: Password Strength Meter
+  - دسته‌بندی: UX/Security
+  - توضیح: نمایش میزان قدرت رمز عبور در فرم ایجاد کاربر جدید.
   - اولویت: Medium
 
 - [ ] عنوان: Interactive Tutorial (Driver.js)
