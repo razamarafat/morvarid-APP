@@ -8,18 +8,24 @@ const env = (import.meta as any).env;
 const supabaseUrl = env.VITE_SUPABASE_URL;
 const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY;
 
-// Fail Fast: Halt application execution if keys are missing
-if (!supabaseUrl || !supabaseAnonKey) {
+// Fail Fast: Halt application execution immediately if critical keys are missing.
+// This prevents the app from running in an undefined state.
+if (!supabaseUrl || !supabaseAnonKey || supabaseUrl.includes('your-project-id')) {
   const errorMsg = 
-    '[CRITICAL SECURITY ERROR] Supabase configuration missing.\n' +
-    'Please create a .env file in the project root with the following keys:\n' +
-    '- VITE_SUPABASE_URL\n' +
-    '- VITE_SUPABASE_ANON_KEY';
+    '\n🔴 [CRITICAL CONFIG ERROR] 🔴\n' +
+    '---------------------------------------------------\n' +
+    'Supabase configuration keys are missing or invalid.\n' +
+    'The application cannot start without a valid database connection.\n\n' +
+    'ACTION REQUIRED:\n' +
+    '1. Create a ".env" file in the project root (use .env.example as a guide).\n' +
+    '2. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.\n' +
+    '3. Restart the development server.\n' +
+    '---------------------------------------------------\n';
   
   // Log to console for developer visibility
   console.error(errorMsg);
   
-  // In development, throw an error to stop execution visually
+  // Throw error to stop execution and show error overlay in development
   throw new Error(errorMsg);
 }
 
