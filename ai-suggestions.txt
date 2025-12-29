@@ -1,5 +1,5 @@
 
-AI SUGGESTIONS BACKLOG - V18
+AI SUGGESTIONS BACKLOG - V20
 
 --------------------------------
 1. پیشنهادات امنیت و مدیریت کاربران (Security & Auth)
@@ -40,10 +40,10 @@ AI SUGGESTIONS BACKLOG - V18
 --------------------------------
 3. پیشنهادات ساختار کد و دواپس (DevOps & Refactoring)
 --------------------------------
-- [ ] عنوان: CSS Dev Sourcemaps
-  - دسته‌بندی: DX (Developer Experience)
-  - توضیح: فعال‌سازی `css.devSourcemap` در `vite.config.ts` برای دیباگ راحت‌تر استایل‌های Tailwind در محیط مرورگر.
-  - اولویت: Medium
+- [ ] عنوان: Tailwind Safelist
+  - دسته‌بندی: Styles/DevOps
+  - توضیح: اضافه کردن کلاس‌های دینامیک استفاده شده در `constants.ts` به لیست امن `tailwind.config.js` برای اطمینان از حذف نشدن آنها در حالت Purge.
+  - اولویت: High (Important for styling issues)
 
 - [ ] عنوان: Automated Version Bumping
   - دسته‌بندی: DevOps
@@ -55,9 +55,9 @@ AI SUGGESTIONS BACKLOG - V18
   - توضیح: اتصال به Sentry برای ردیابی خطاها در پروداکشن و تگ کردن خطاها با شماره نسخه `app_version` برای دیباگ دقیق‌تر.
   - اولویت: High
 
-- [ ] عنوان: Git Hooks (Husky)
+- [ ] عنوان: Dockerized Dev Environment
   - دسته‌بندی: DevOps
-  - توضیح: تنظیم `pre-commit` هوک برای اینکه قبل از کامیت، تست‌ها اجرا شوند و فرمت کدها (Linting) بررسی شود تا کد خراب وارد ریپو نشود.
+  - توضیح: ایجاد `Dockerfile` و `docker-compose.yml` برای یکسان‌سازی محیط توسعه در تمام سیستم‌ها و جلوگیری از مشکلات کش و وابستگی.
   - اولویت: Low
 
 --------------------------------

@@ -2,11 +2,12 @@
 {
   "name": "morvarid-statistics-management",
   "private": true,
-  "version": "2.9.1",
+  "version": "2.9.3",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "reset": "vite --force",
+    "clean": "rm -rf node_modules/.vite dist",
+    "reset": "npm run clean && vite --force",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0"

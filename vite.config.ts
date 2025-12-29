@@ -61,6 +61,11 @@ export default defineConfig(({ mode }) => {
       }
     },
 
+    // Dependency Optimization
+    optimizeDeps: {
+      force: true, // Forces dependency pre-bundling, ignoring previously cached files
+    },
+
     // CSS Configuration
     css: {
       devSourcemap: true, // Enable CSS sourcemaps to debug styles in Dev
@@ -71,7 +76,11 @@ export default defineConfig(({ mode }) => {
         '@': path.resolve(__dirname, './'),
       },
     },
-    base: './', 
+    
+    // CRITICAL FIX: Use absolute path '/' in dev to prevent broken styles in nested cloud preview URLs,
+    // but use relative path './' in production for flexible deployment.
+    base: mode === 'production' ? './' : '/', 
+    
     build: {
       outDir: 'dist',
       sourcemap: false,
