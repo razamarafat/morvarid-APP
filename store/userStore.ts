@@ -196,14 +196,27 @@ export const useUserStore = create<UserState>((set, get) => ({
   deleteUser: async (userId) => {
       set({ isLoading: true });
       try {
-          // Soft Delete: Mark as inactive to preserve data history
-          const { error: profileError } = await supabase.from('profiles').update({ is_active: false }).eq('id', userId);
-          
-          if (profileError) throw profileError;
-          useToastStore.getState().addToast('کاربر غیرفعال شد (اطلاعات حفظ گردید).', 'success');
+          // SECURITY UPGRADE: Use Secure RPC instead of direct table update
+          // This ensures that only authorized admins can perform this action via server-side logic
+          const { error } = await supabase.rpc('soft_delete_user', {
+              target_user_id: userId
+          });
+
+          if (error) {
+              // Handle custom exceptions from RPC
+              if (error.message.includes('Access Denied')) {
+                  throw new Error('شما دسترسی لازم برای حذف کاربر را ندارید.');
+              }
+              if (error.message.includes('own account')) {
+                  throw new Error('شما نمی‌توانید حساب کاربری خودتان را غیرفعال کنید.');
+              }
+              throw error;
+          }
+
+          useToastStore.getState().addToast('کاربر با موفقیت غیرفعال شد.', 'success');
       } catch (error: any) {
           console.error('User Delete Failed:', error);
-          useToastStore.getState().addToast(`خطا در حذف کاربر: ${error.message}`, 'error');
+          useToastStore.getState().addToast(`خطا در حذف کاربر: ${error.message || error.details || 'خطای ناشناخته'}`, 'error');
       } finally {
           await get().fetchUsers();
           set({ isLoading: false });

@@ -6,6 +6,7 @@ import { useStatisticsStore } from './statisticsStore';
 import { normalizeDate } from '../utils/dateUtils';
 import { useSyncStore } from './syncStore';
 import { useAuthStore } from './authStore';
+import { v4 as uuidv4 } from 'uuid';
 
 const mapLegacyProductId = (id: string | number): string => {
     const strId = String(id);
@@ -157,6 +158,27 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
       const currentUser = useAuthStore.getState().user;
       if (!currentUser) return { success: false, error: "کاربر لاگین نیست." };
 
+      // 3. OPTIMISTIC UI UPDATE
+      const tempIds: string[] = [];
+      const optimisticInvoices: Invoice[] = invoicesList.map(inv => {
+          const tempId = uuidv4(); // Generate a temporary UUID for local state
+          tempIds.push(tempId);
+          return {
+              ...inv,
+              id: tempId,
+              createdAt: Date.now(),
+              createdBy: currentUser.id,
+              creatorName: currentUser.fullName,
+              creatorRole: currentUser.role,
+              isPending: true // Flag for UI to show loading state
+          } as Invoice;
+      });
+
+      // Insert Optimistic Invoices at the BEGINNING of the list (assuming descending order)
+      if (!isSyncing) {
+          set(state => ({ invoices: [...optimisticInvoices, ...state.invoices] }));
+      }
+
       try {
           const dbInvoices = invoicesList.map(inv => ({
               farm_id: inv.farmId,
@@ -179,7 +201,10 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
               throw error;
           }
 
-          get().fetchInvoices();
+          // If success, refetch to get real IDs and server timestamps
+          // Ideally we would replace the optimistic items, but fetching fresh list is safer for consistency
+          // The optimistic items will be replaced by the real items from DB
+          await get().fetchInvoices();
           
           const uniqueKeys = new Set<string>();
           invoicesList.forEach(inv => {
@@ -193,6 +218,13 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
           return { success: true };
 
       } catch (error: any) {
+          // ROLLBACK: Remove the optimistic invoices on failure
+          if (!isSyncing) {
+               set(state => ({ 
+                   invoices: state.invoices.filter(inv => !tempIds.includes(inv.id)) 
+               }));
+          }
+
           // If network error during request, add to queue
           if (!isSyncing && (isNetworkError(error) || !navigator.onLine)) {
               invoicesList.forEach(inv => useSyncStore.getState().addToQueue('INVOICE', inv));

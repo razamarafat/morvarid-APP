@@ -75,6 +75,7 @@ export interface Invoice {
     creatorRole?: string;
     updatedAt?: number;
     updatedBy?: string;
+    isPending?: boolean; // Optimistic UI Flag
 }
 
 export interface Backup {

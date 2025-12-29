@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import viteCompression from 'vite-plugin-compression';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -49,7 +50,11 @@ export default defineConfig(({ mode }) => {
     define: {
       '__APP_VERSION__': JSON.stringify(appVersion),
     },
-    plugins: [react(), generateVersionFile()],
+    plugins: [
+        react(), 
+        generateVersionFile(),
+        viteCompression() // Enable Gzip compression
+    ],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './'),
