@@ -1,7 +1,7 @@
 
 import React, { useEffect, ErrorInfo, ReactNode, lazy, Suspense } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
-import SplashPage from './pages/SplashPage';
+import SplashPage from './pages/SplashPage'; // Keep SplashPage static for immediate load
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import { useThemeStore } from './store/themeStore';
 import { UserRole } from './types';
@@ -21,27 +21,12 @@ import { useOfflineSync } from './hooks/useOfflineSync';
 import { useAutoTheme } from './hooks/useAutoTheme';
 import { APP_VERSION } from './constants';
 
-// Helper to safely load lazy components and handle default export issues
-const safeLazy = (importFunc: () => Promise<any>, fallbackName: string) => {
-  return lazy(() => 
-    importFunc().then(module => {
-      if (module.default) return { default: module.default };
-      console.error(`Module ${fallbackName} missing default export. Available:`, Object.keys(module));
-      // Fallback if named export matches the file name context (common mistake)
-      // or return a dummy component to prevent crash #306
-      return { default: () => <div className="p-4 text-red-500 font-bold">Error: Failed to load {fallbackName}</div> };
-    }).catch(err => {
-      console.error(`Failed to load ${fallbackName}:`, err);
-      return { default: () => <div className="p-4 text-red-500 font-bold">Network Error loading {fallbackName}</div> };
-    })
-  );
-};
-
-// Lazy Load Pages with Safe Wrapper
-const LoginPage = safeLazy(() => import('./pages/LoginPage'), 'LoginPage');
-const AdminDashboard = safeLazy(() => import('./pages/AdminDashboard'), 'AdminDashboard');
-const RegistrationDashboard = safeLazy(() => import('./pages/RegistrationDashboard'), 'RegistrationDashboard');
-const SalesDashboard = safeLazy(() => import('./components/sales/SalesDashboard'), 'SalesDashboard');
+// --- Lazy Load Pages ---
+// These components will be split into separate chunks
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const RegistrationDashboard = lazy(() => import('./pages/RegistrationDashboard'));
+const SalesDashboard = lazy(() => import('./components/sales/SalesDashboard'));
 
 interface ErrorBoundaryProps {
   children?: ReactNode;
@@ -101,7 +86,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
               <h1 className="text-2xl font-black text-red-600 mb-2">خطای سیستمی</h1>
               <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm">
                   {error?.message?.includes('Minified React error') 
-                    ? 'خطای داخلی رابط کاربری رخ داده است (306/185). لطفا کنسول را بررسی کنید.' 
+                    ? 'خطای داخلی رابط کاربری رخ داده است. (Lazy Load Error)' 
                     : 'متأسفانه برنامه با مشکل مواجه شده است.'}
                   <br/>
                   <span className="text-xs text-gray-400 mt-2 block">(گزارش خطا برای تیم فنی ارسال شد)</span>
@@ -124,10 +109,14 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 }
 
+// Minimal Loader for Suspense Fallback
 const PageLoader = () => (
-  <div className="flex flex-col items-center justify-center h-screen bg-[#F3F3F3] dark:bg-[#1D1D1D]">
-    <div className="w-12 h-12 border-4 border-metro-blue border-t-transparent rounded-full animate-spin"></div>
-    <p className="mt-4 text-gray-500 font-bold text-sm">در حال بارگذاری...</p>
+  <div className="flex flex-col items-center justify-center h-screen bg-[#F3F3F3] dark:bg-[#1D1D1D] transition-colors duration-300">
+    <div className="relative w-16 h-16">
+        <div className="absolute top-0 left-0 w-full h-full border-4 border-gray-200 dark:border-gray-700 rounded-full"></div>
+        <div className="absolute top-0 left-0 w-full h-full border-4 border-metro-blue border-t-transparent rounded-full animate-spin"></div>
+    </div>
+    <p className="mt-6 text-gray-500 dark:text-gray-400 font-bold text-sm animate-pulse">در حال بارگذاری...</p>
   </div>
 );
 
@@ -146,7 +135,7 @@ function App() {
   useAutoTheme();
 
   useEffect(() => {
-    // Restore Point Marker: v3.9.35 - Post UI Refactor
+    // Restore Point Marker: v2.9.56 - Lazy Loading Implemented
     console.log(`[App] Initializing Morvarid System v${APP_VERSION}`);
     document.documentElement.classList.remove('light', 'dark');
     document.documentElement.classList.add(theme);
@@ -208,6 +197,7 @@ function App() {
 
   useEffect(() => {
     if (user) {
+        // Optimistic pre-fetching of data can happen here while dashboard chunk loads
         fetchFarms();
         fetchProducts();
         fetchStatistics();
