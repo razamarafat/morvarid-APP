@@ -1,5 +1,5 @@
 
-AI SUGGESTIONS BACKLOG - V20
+AI SUGGESTIONS BACKLOG - V21
 
 --------------------------------
 1. پیشنهادات امنیت و مدیریت کاربران (Security & Auth)
@@ -40,11 +40,6 @@ AI SUGGESTIONS BACKLOG - V20
 --------------------------------
 3. پیشنهادات ساختار کد و دواپس (DevOps & Refactoring)
 --------------------------------
-- [ ] عنوان: Tailwind Safelist
-  - دسته‌بندی: Styles/DevOps
-  - توضیح: اضافه کردن کلاس‌های دینامیک استفاده شده در `constants.ts` به لیست امن `tailwind.config.js` برای اطمینان از حذف نشدن آنها در حالت Purge.
-  - اولویت: High (Important for styling issues)
-
 - [ ] عنوان: Automated Version Bumping
   - دسته‌بندی: DevOps
   - توضیح: استفاده از `standard-version` برای آپدیت خودکار نسخه در `package.json` و تولید `CHANGELOG.md` بر اساس کامیت‌ها.
@@ -72,3 +67,8 @@ AI SUGGESTIONS BACKLOG - V20
   - دسته‌بندی: UX
   - توضیح: ذخیره آخرین فارم و محصول انتخاب شده در `localStorage` و انتخاب خودکار آنها در ورود بعدی به فرم‌های ثبت برای افزایش سرعت کار.
   - اولویت: Medium
+
+- [ ] عنوان: Font Subsetting
+  - دسته‌بندی: Performance/Creative
+  - توضیح: استفاده از نسخه Subset فونت وزیرمتن (فقط کاراکترهای فارسی و انگلیسی) برای کاهش حجم فایل فونت و افزایش سرعت لود.
+  - اولویت: Low

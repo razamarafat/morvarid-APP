@@ -51,9 +51,6 @@ typings/
 
 # Optional npm cache directory
 .npm
-node_modules/
-.vite/
-
 
 # Optional eslint cache
 .eslintcache

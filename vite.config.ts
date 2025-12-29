@@ -77,9 +77,9 @@ export default defineConfig(({ mode }) => {
       },
     },
     
-    // CRITICAL FIX: Use absolute path '/' in dev to prevent broken styles in nested cloud preview URLs,
-    // but use relative path './' in production for flexible deployment.
-    base: mode === 'production' ? './' : '/', 
+    // CRITICAL FIX FOR CLOUD PREVIEWS: Use relative base path './' 
+    // This ensures assets are loaded correctly regardless of the proxy path depth
+    base: './', 
     
     build: {
       outDir: 'dist',
