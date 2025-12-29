@@ -4,12 +4,15 @@ import { Icons } from '../common/Icons';
 import Button from '../common/Button';
 import { useConfirm } from '../../hooks/useConfirm';
 import { useToastStore } from '../../store/toastStore';
+import { useAuthStore } from '../../store/authStore';
 import { getTodayJalali } from '../../utils/dateUtils';
 import { supabase } from '../../lib/supabase';
+import { APP_VERSION } from '../../constants';
 
 const BackupManagement: React.FC = () => {
   const { confirm } = useConfirm();
   const { addToast } = useToastStore();
+  const { user } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleCreateBackup = async () => {
@@ -23,14 +26,14 @@ const BackupManagement: React.FC = () => {
     if (confirmed) {
       setIsLoading(true);
       try {
-        // Fetch all data from Supabase Tables
+        // Fetch all data from Supabase Tables with individual error handling
         const [
-            { data: farms },
-            { data: products },
-            { data: profiles },
-            { data: userFarms },
-            { data: stats },
-            { data: invoices }
+            farmsRes,
+            productsRes,
+            profilesRes,
+            userFarmsRes,
+            statsRes,
+            invoicesRes
         ] = await Promise.all([
             supabase.from('farms').select('*'),
             supabase.from('products').select('*'),
@@ -40,16 +43,40 @@ const BackupManagement: React.FC = () => {
             supabase.from('invoices').select('*')
         ]);
 
+        // Strict Validation
+        if (farmsRes.error) throw new Error(`Farms Error: ${farmsRes.error.message}`);
+        if (productsRes.error) throw new Error(`Products Error: ${productsRes.error.message}`);
+        if (profilesRes.error) throw new Error(`Profiles Error: ${profilesRes.error.message}`);
+        if (userFarmsRes.error) throw new Error(`UserFarms Error: ${userFarmsRes.error.message}`);
+        if (statsRes.error) throw new Error(`Stats Error: ${statsRes.error.message}`);
+        if (invoicesRes.error) throw new Error(`Invoices Error: ${invoicesRes.error.message}`);
+
+        const timestamp = new Date().toISOString();
+        const userName = user?.username || 'unknown_admin';
+
         const backupData = {
-          version: '1.0',
-          timestamp: new Date().toISOString(),
+          _metadata: {
+              version: '2.0',
+              appVersion: APP_VERSION,
+              timestamp: timestamp,
+              exportedBy: user?.fullName || 'System Admin',
+              exporterUsername: userName,
+              exporterRole: user?.role || 'ADMIN',
+              recordCounts: {
+                  farms: farmsRes.data?.length || 0,
+                  products: productsRes.data?.length || 0,
+                  users: profilesRes.data?.length || 0,
+                  statistics: statsRes.data?.length || 0,
+                  invoices: invoicesRes.data?.length || 0
+              }
+          },
           data: {
-              farms,
-              products,
-              profiles,
-              userFarms,
-              stats,
-              invoices
+              farms: farmsRes.data,
+              products: productsRes.data,
+              profiles: profilesRes.data,
+              userFarms: userFarmsRes.data,
+              stats: statsRes.data,
+              invoices: invoicesRes.data
           }
         };
 
@@ -57,15 +84,19 @@ const BackupManagement: React.FC = () => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `Morvarid_Cloud_Backup_${getTodayJalali().replace(/\//g, '-')}.json`;
+        // Secure and informative filename
+        const safeDate = getTodayJalali().replace(/\//g, '-');
+        const safeTime = new Date().getHours() + '-' + new Date().getMinutes();
+        a.download = `Morvarid_Backup_${safeDate}_${safeTime}_${userName}.json`;
+        
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
-        addToast('نسخه پشتیبان دیتابیس با موفقیت دانلود شد', 'success');
+        addToast('نسخه پشتیبان کامل با موفقیت دانلود شد', 'success');
       } catch (error: any) {
-          addToast('خطا در دریافت اطلاعات از سرور', 'error');
+          addToast(`خطا در دریافت اطلاعات: ${error.message}`, 'error');
           console.error('Backup Failed:', error);
       } finally {
           setIsLoading(false);
@@ -74,7 +105,7 @@ const BackupManagement: React.FC = () => {
   };
 
   const handleRestoreWarning = () => {
-      alert('بازگردانی نسخه پشتیبان در نسخه وب غیرفعال است. جهت بازگردانی اطلاعات لطفا فایل جیسون را به تیم فنی تحویل دهید تا از طریق پنل دیتابیس اعمال شود.');
+      alert('بازگردانی نسخه پشتیبان در نسخه وب غیرفعال است. جهت بازگردانی اطلاعات لطفا فایل JSON را به تیم فنی تحویل دهید تا از طریق پنل دیتابیس اعمال شود.');
   };
 
   return (
@@ -105,7 +136,7 @@ const BackupManagement: React.FC = () => {
                  <Icons.Check className="w-5 h-5" />
                  <span className="font-bold">اتصال به Supabase برقرار است</span>
              </div>
-             <p className="text-sm text-gray-500">تمامی داده‌ها به صورت خودکار و لحظه‌ای در سرورهای ابری ذخیره می‌شوند.</p>
+             <p className="text-sm text-gray-500">تمامی داده‌ها به صورت خودکار و لحظه‌ای در سرورهای ابری ذخیره می‌شوند. نسخه پشتیبان دستی شامل واترمارک زمانی و نام کاربر است.</p>
         </div>
       </div>
     </div>
