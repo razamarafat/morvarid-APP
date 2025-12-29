@@ -1,5 +1,5 @@
 
-AI SUGGESTIONS BACKLOG - V30
+AI SUGGESTIONS BACKLOG - V31
 
 --------------------------------
 1. پیشنهادات امنیت و مدیریت کاربران (Security & Auth)
@@ -27,9 +27,9 @@ AI SUGGESTIONS BACKLOG - V30
 --------------------------------
 2. پیشنهادات بهره‌وری و پرفورمنس (Performance)
 --------------------------------
-- [ ] عنوان: Service Worker Cache Strategy Tuning
+- [ ] عنوان: Gzip/Brotli Compression (vite-plugin-compression)
   - دسته‌بندی: Performance
-  - توضیح: تفکیک دقیق استراتژی‌های کش (Cache-First برای تصاویر/فونت‌ها و Network-First برای APIها) در فایل sw.js برای بهبود عملکرد آفلاین و سرعت لود.
+  - توضیح: افزودن پلاگین فشرده‌سازی به بیلد Vite برای کاهش حجم فایل‌های JS و CSS نهایی و افزایش سرعت لود.
   - اولویت: High
 
 - [ ] عنوان: Runtime Env Validation (Zod/T3-Env)
@@ -53,12 +53,12 @@ AI SUGGESTIONS BACKLOG - V30
 --------------------------------
 4. پیشنهادات ساختار کد و دواپس (DevOps & Refactoring)
 --------------------------------
-- [ ] عنوان: Sentry Integration
-  - دسته‌بندی: Observability
-  - توضیح: اتصال پروژه به Sentry برای رصد و گزارش‌دهی خودکار خطاهای جاوااسکریپت در محیط کاربر نهایی.
-  - اولویت: Medium
-
-- [ ] عنوان: Typed Supabase Client
-  - دسته‌بندی: DX
-  - توضیح: تولید خودکار تایپ‌های TypeScript از روی دیتابیس با Supabase CLI.
+- [ ] عنوان: Vitest Unit Testing
+  - دسته‌بندی: DevOps/Quality
+  - توضیح: راه‌اندازی فریم‌ورک تست Vitest برای نوشتن تست‌های واحد برای هوک‌ها و کامپوننت‌های ایزوله.
   - اولویت: High
+
+- [ ] عنوان: Husky & Lint-staged
+  - دسته‌بندی: DevOps/Quality
+  - توضیح: تنظیم هوک‌های گیت برای اجرای خودکار لینتر و فرمتر قبل از کامیت کردن کدها.
+  - اولویت: Medium
