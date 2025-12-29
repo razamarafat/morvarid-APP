@@ -1,11 +1,11 @@
 
 /*
  * Morvarid PWA Service Worker
- * Version: 2.8.1
+ * Version: 2.9.0
  * Features: High Priority Notifications, Persistent Caching, Background Sync
  */
 
-const CACHE_NAME = 'morvarid-core-v2.8.1';
+const CACHE_NAME = 'morvarid-core-v2.9.0';
 const ASSETS = [
   './',
   './index.html',

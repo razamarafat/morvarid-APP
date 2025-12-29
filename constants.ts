@@ -7,7 +7,7 @@ export const THEMES = {
       primary: 'bg-metro-purple',
       primaryHover: 'hover:bg-metro-darkPurple',
       primaryText: 'text-metro-purple',
-      background: 'bg-[#FFF8F0]', // Updated to match Login
+      background: 'bg-[#FFF8F0]', 
       surface: 'bg-white',
       text: 'text-gray-900',
       border: 'border-metro-purple',
@@ -18,7 +18,7 @@ export const THEMES = {
       primary: 'bg-metro-orange',
       primaryHover: 'hover:bg-amber-600',
       primaryText: 'text-metro-orange',
-      background: 'bg-[#FFF8F0]', // Updated
+      background: 'bg-[#FFF8F0]', 
       surface: 'bg-white',
       text: 'text-gray-900',
       border: 'border-metro-orange',
@@ -29,7 +29,7 @@ export const THEMES = {
       primary: 'bg-metro-blue',
       primaryHover: 'hover:bg-metro-cobalt',
       primaryText: 'text-metro-blue',
-      background: 'bg-[#FFF8F0]', // Updated
+      background: 'bg-[#FFF8F0]', 
       surface: 'bg-white',
       text: 'text-gray-900',
       border: 'border-metro-blue',
@@ -42,7 +42,7 @@ export const THEMES = {
       primary: 'bg-metro-purple',
       primaryHover: 'hover:opacity-90',
       primaryText: 'text-metro-purple',
-      background: 'bg-[#0f172a]', // Updated to match Login Dark
+      background: 'bg-[#0f172a]', 
       surface: 'bg-[#1e293b]',
       text: 'text-white',
       border: 'border-metro-purple',
@@ -53,7 +53,7 @@ export const THEMES = {
       primary: 'bg-metro-orange',
       primaryHover: 'hover:opacity-90',
       primaryText: 'text-metro-orange',
-      background: 'bg-[#0f172a]', // Updated
+      background: 'bg-[#0f172a]', 
       surface: 'bg-[#1e293b]',
       text: 'text-white',
       border: 'border-metro-orange',
@@ -64,7 +64,7 @@ export const THEMES = {
       primary: 'bg-metro-blue',
       primaryHover: 'hover:opacity-90',
       primaryText: 'text-metro-blue',
-      background: 'bg-[#0f172a]', // Updated
+      background: 'bg-[#0f172a]', 
       surface: 'bg-[#1e293b]',
       text: 'text-white',
       border: 'border-metro-blue',
@@ -74,5 +74,6 @@ export const THEMES = {
   }
 };
 
-// Restore Point Marker
-export const APP_VERSION = '3.9.40';
+// Single Source of Truth: Injected by Vite from package.json via 'define'
+declare const __APP_VERSION__: string;
+export const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '2.9.1-fallback';
