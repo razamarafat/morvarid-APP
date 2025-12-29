@@ -15,105 +15,54 @@
     <meta name="theme-color" content="#1D1D1D">
     <meta name="description" content="سیستم یکپارچه مدیریت آمار تولید، فروش و انبارداری فارم‌های مروارید">
     <link rel="manifest" href="/manifest.json">
-    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/font-face.css" rel="stylesheet" type="text/css" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Vazir', 'Segoe UI', 'Tahoma', 'sans-serif'],
-            },
-            colors: {
-              metro: {
-                teal: '#00ABA9',
-                green: '#00A300',
-                lime: '#8CBF26',
-                blue: '#2D89EF',
-                purple: '#9F00A7',
-                darkPurple: '#603CBA',
-                red: '#EE1111',
-                orange: '#F09609',
-                magenta: '#FF0097',
-                cobalt: '#0050EF',
-                dark: '#1D1D1D',
-                gray: '#555555'
-              },
-              m3: {
-                surface: '#FDFBFF',
-                surfaceVariant: '#E7E0EC',
-                primary: '#2D89EF',
-                onPrimary: '#FFFFFF',
-                primaryContainer: '#D1E4FF',
-                onPrimaryContainer: '#001D36',
-              }
-            },
-            spacing: {
-              'safe-top': 'env(safe-area-inset-top)',
-              'safe-bottom': 'env(safe-area-inset-bottom)',
-              'safe-left': 'env(safe-area-inset-left)',
-              'safe-right': 'env(safe-area-inset-right)'
-            },
-            animation: {
-              'wiggle': 'wiggle 6s ease-in-out infinite',
-              'bg-pan': 'bgPan 40s linear infinite',
-            },
-            keyframes: {
-              wiggle: {
-                '0%, 100%': { transform: 'rotate(-3deg) translateZ(0)' },
-                '50%': { transform: 'rotate(3deg) translateZ(0)' },
-              },
-              bgPan: {
-                '0%': { backgroundPosition: '0% 0%' },
-                '100%': { backgroundPosition: '100% 100%' },
-              }
-            },
-            borderRadius: {
-              'm3-sm': '8px',
-              'm3-md': '12px',
-              'm3-lg': '16px',
-              'm3-xl': '28px',
-              'm3-full': '9999px',
-            }
-          }
-        }
-      }
-    </script>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100..900&display=swap" rel="stylesheet">
+    
     <style>
+      /* Base Global Styles that are not handled by Tailwind */
       * {
         -webkit-tap-highlight-color: transparent;
         box-sizing: border-box;
       }
      
-      body, input, textarea, select, button, table, .font-sans, .font-mono, [class*="text-"] {
-        font-family: 'Vazir', sans-serif !important;
+      body, input, textarea, select, button, table, .font-sans, [class*="text-"] {
+        font-family: 'Vazirmatn', sans-serif !important;
       }
 
-      /* AUTOFILL FIX START */
-      /* Light Mode */
+      body {
+        font-feature-settings: "ss01";
+      }
+
+      [dir="ltr"], .font-mono, .ltr {
+        font-feature-settings: normal !important;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+      }
+
+      /* Autofill Overrides */
       input:-webkit-autofill,
       input:-webkit-autofill:hover, 
       input:-webkit-autofill:focus, 
       input:-webkit-autofill:active {
           -webkit-box-shadow: 0 0 0 30px white inset !important;
-          -webkit-text-fill-color: #111827 !important; /* gray-900 */
+          -webkit-text-fill-color: #111827 !important;
           background-color: white !important;
           color: #111827 !important;
       }
 
-      /* Dark Mode */
       html.dark input:-webkit-autofill,
       html.dark input:-webkit-autofill:hover, 
       html.dark input:-webkit-autofill:focus, 
       html.dark input:-webkit-autofill:active {
-          -webkit-box-shadow: 0 0 0 30px #374151 inset !important; /* gray-700 */
+          -webkit-box-shadow: 0 0 0 30px #374151 inset !important;
           -webkit-text-fill-color: white !important;
           background-color: #374151 !important;
           color: white !important;
       }
-      /* AUTOFILL FIX END */
 
+      /* Layout & Scroll */
       :root {
         --sat: env(safe-area-inset-top);
         --sar: env(safe-area-inset-right);
@@ -123,7 +72,7 @@
      
       html {
         height: 100%;
-        height: 100dvh; /* Dynamic Viewport Height for mobile browsers */
+        height: 100dvh;
         overscroll-behavior: none;
         -webkit-overflow-scrolling: touch;
       }
@@ -138,14 +87,10 @@
         left: 0;
         margin: 0;
         padding: 0;
-        overflow: hidden; /* Prevent body scroll, handle in #root */
+        overflow: hidden;
       }
 
       html, body {
-        background-color: #1D1D1D;
-      }
-
-      html.dark body {
         background-color: #1D1D1D;
       }
 
@@ -158,7 +103,7 @@
         flex-direction: column;
       }
 
-      /* Custom Scrollbar for inner containers */
+      /* Custom Scrollbars */
       .custom-scrollbar::-webkit-scrollbar {
         width: 6px;
         height: 6px;
@@ -173,140 +118,37 @@
       .custom-scrollbar::-webkit-scrollbar-thumb:hover {
         background: rgba(156, 163, 175, 0.8);
       }
-
-      /* Enhanced Seamless Shimmer Effect - GPU Optimized */
-      .shimmer-bg {
-        position: absolute;
-        inset: 0;
-        overflow: hidden;
-        pointer-events: none;
-        will-change: transform; /* Hint to browser */
-        transform: translateZ(0); /* Force GPU layer */
-      }
-
-      .shimmer-bg::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        /* Using a very wide repeating gradient to ensure seamless looping */
-        background: linear-gradient(
-          110deg, 
-          transparent 0%, 
-          transparent 40%, 
-          rgba(255,255,255,0.1) 45%, 
-          rgba(255,255,255,0.2) 50%, 
-          rgba(255,255,255,0.1) 55%, 
-          transparent 60%, 
-          transparent 100%
-        );
-        background-size: 200% 100%;
-        animation: shimmer-flow 6s linear infinite;
-        will-change: background-position;
-      }
-
-      @keyframes shimmer-flow {
-        0% { background-position: 200% 0; }
-        100% { background-position: -200% 0; }
-      }
-
-      /* Star Pulse Animation - GPU Optimized */
-      @keyframes star-pulse {
-        0%, 100% { opacity: 0.3; transform: scale(0.8) translateZ(0); }
-        50% { opacity: 1; transform: scale(1.2) translateZ(0); }
-      }
       
-      .star-anim {
-        animation: star-pulse 3s infinite ease-in-out;
-        will-change: opacity, transform;
-      }
-
-      .strong-shine-overlay {
-        position: absolute;
-        inset: 0;
-        overflow: hidden;
-        border-radius: inherit;
-        pointer-events: none;
-        z-index: 5;
-        transform: translateZ(0);
-      }
-     
-      .strong-shine-overlay::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.3) 50%, transparent 60%);
-        transform: translateX(-150%) skewX(-20deg);
-        animation: shine-slide 4s infinite linear;
-        will-change: transform;
-      }
-     
-      @keyframes shine-slide {
-        0% { transform: translateX(-150%) skewX(-20deg); }
-        100% { transform: translateX(150%) skewX(-20deg); }
-      }
-
-      .shiny-text {
-        background: linear-gradient(110deg, currentColor 35%, rgba(255, 255, 255, 0.9) 50%, currentColor 65%);
-        background-size: 200% 100%;
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
-        animation: shine 3s infinite linear;
-        display: inline-block;
-        will-change: background-position;
-      }
-     
-      @keyframes shine {
-        to { background-position-x: -200%; }
-      }
-
-      .smooth-transition {
-        transition-property: transform, opacity, background-color, height;
-        transition-duration: 0.3s;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-        will-change: transform, opacity;
-      }
-
-      .pt-safe {
-        padding-top: env(safe-area-inset-top);
-      }
-      .pb-safe {
-        padding-bottom: env(safe-area-inset-bottom);
-      }
-      .mt-safe {
-        margin-top: env(safe-area-inset-top);
-      }
-      .mb-safe {
-        margin-bottom: env(safe-area-inset-bottom);
-      }
+      /* Safe Areas */
+      .pt-safe { padding-top: env(safe-area-inset-top); }
+      .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+      .mt-safe { margin-top: env(safe-area-inset-top); }
+      .mb-safe { margin-bottom: env(safe-area-inset-bottom); }
     </style>
 <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react-router-dom": "https://esm.sh/react-router-dom@^7.11.0",
-    "zustand": "https://esm.sh/zustand@^5.0.9",
-    "zustand/": "https://esm.sh/zustand@^5.0.9/",
     "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
-    "framer-motion": "https://esm.sh/framer-motion@^12.23.26",
+    "zustand/": "https://esm.sh/zustand@^5.0.9/",
+    "zustand": "https://esm.sh/zustand@^5.0.9",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "react-hook-form": "https://esm.sh/react-hook-form@^7.69.0",
     "zod": "https://esm.sh/zod@^4.2.1",
-    "@hookform/resolvers/": "https://esm.sh/@hookform/resolvers@^5.2.2/",
+    "framer-motion": "https://esm.sh/framer-motion@^12.23.26",
+    "react-window": "https://esm.sh/react-window@^2.2.3",
     "uuid": "https://esm.sh/uuid@^13.0.0",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.89.0",
-    "xlsx": "https://esm.sh/xlsx@^0.18.5",
-    "vite": "https://esm.sh/vite@^7.3.0",
     "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.11.0",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.89.0",
     "path": "https://esm.sh/path@^0.12.7",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
     "fs": "https://esm.sh/fs@^0.0.1-security",
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "xlsx": "https://esm.sh/xlsx@^0.18.5",
     "url": "https://esm.sh/url@^0.11.4",
-    "react-window": "https://esm.sh/react-window@1.8.10",
-    "react-virtualized-auto-sizer": "https://esm.sh/react-virtualized-auto-sizer@1.0.24"
+    "react-virtualized-auto-sizer": "https://esm.sh/react-virtualized-auto-sizer@^2.0.0",
+    "@hookform/resolvers/": "https://esm.sh/@hookform/resolvers@^5.2.2/"
   }
 }
 </script>

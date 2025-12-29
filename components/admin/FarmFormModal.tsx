@@ -7,6 +7,7 @@ import { Farm, FarmType } from '../../types';
 import { useFarmStore } from '../../store/farmStore';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
+import Input from '../common/Input';
 import { Icons } from '../common/Icons';
 import { useConfirm } from '../../hooks/useConfirm';
 import { useToastStore } from '../../store/toastStore';
@@ -152,16 +153,12 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
       title={farm ? 'ویرایش فارم' : 'ایجاد فارم جدید'}
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <div>
-          <label htmlFor="farmName" className="block text-sm font-bold mb-1.5 dark:text-gray-300 px-1">نام فارم (فقط فارسی)</label>
-          <input 
-            id="farmName" 
-            {...register('name')} 
+        <Input 
+            label="نام فارم (فقط فارسی)"
+            {...register('name')}
+            error={errors.name?.message}
             placeholder=""
-            className="w-full p-3 border-2 rounded-xl bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 dark:text-white focus:border-violet-500 outline-none transition-colors" 
-          />
-          {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>}
-        </div>
+        />
 
         <div>
           <label className="block text-sm font-bold mb-2 dark:text-gray-300 px-1">نوع فارم</label>
@@ -181,7 +178,7 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
               </div>
             )}
           />
-          {errors.type && <p className="text-red-500 text-sm mt-1">{errors.type.message}</p>}
+          {errors.type && <p className="text-red-500 text-xs mt-1 font-bold px-1">{errors.type.message}</p>}
         </div>
         
         <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
@@ -200,7 +197,7 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
                      <input 
                         value={newProductName}
                         onChange={(e) => setNewProductName(e.target.value)}
-                        placeholder=""
+                        placeholder="نام محصول..."
                         className="flex-1 p-2 text-sm border-none bg-transparent outline-none dark:text-white"
                      />
                      <Button size="sm" type="button" onClick={handleSaveProduct} className="rounded-lg">افزودن</Button>
@@ -208,7 +205,7 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
                  </div>
              )}
 
-             {errors.productIds && <p className="text-red-500 text-sm mb-2">{errors.productIds.message}</p>}
+             {errors.productIds && <p className="text-red-500 text-xs mb-2 font-bold px-1">{errors.productIds.message}</p>}
              
              <Controller
                 name="productIds"

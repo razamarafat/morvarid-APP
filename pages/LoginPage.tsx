@@ -12,6 +12,7 @@ import { getTodayJalaliPersian, getCurrentTime, getTodayDayName, toPersianDigits
 import ThemeToggle from '../components/common/ThemeToggle';
 import { motion } from 'framer-motion';
 import Button from '../components/common/Button';
+import Input from '../components/common/Input';
 import { APP_VERSION } from '../constants';
 import { SKETCH_BASE64 } from '../components/common/SketchAsset';
 
@@ -246,7 +247,8 @@ const LoginPage: React.FC = () => {
 
                       <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-3 md:space-y-6">
                           <div className="space-y-1">
-                              <input
+                              {/* Using base Input but overriding className for login specific look */}
+                              <Input
                                   type="text"
                                   dir="ltr"
                                   disabled={isBlocked}
@@ -258,7 +260,7 @@ const LoginPage: React.FC = () => {
                           </div>
 
                           <div className="space-y-1 relative">
-                              <input
+                              <Input
                                   type={showPassword ? "text" : "password"}
                                   dir="ltr"
                                   disabled={isBlocked}

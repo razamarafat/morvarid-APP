@@ -8,6 +8,7 @@ import { useUserStore } from '../../store/userStore';
 import { useFarmStore } from '../../store/farmStore';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
+import Input from '../common/Input';
 import { useConfirm } from '../../hooks/useConfirm';
 
 // Strict Persian Regex (No numbers allowed)
@@ -110,7 +111,6 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
         const finalAssignedIds = data.role === UserRole.REGISTRATION ? data.assignedFarmIds : [];
         const assignedFarms = finalAssignedIds?.map(id => farms.find(f => f.id === id)).filter(Boolean) as any[];
 
-        // TASK FIX: Remove .toLowerCase()
         const cleanUsername = data.username.trim();
 
         const userData: any = {
@@ -133,7 +133,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
     }
   };
 
-  const inputClass = "w-full p-2.5 border rounded-xl bg-white text-gray-900 border-gray-300 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors placeholder-gray-400";
+  const selectClass = "w-full p-3 border-2 rounded-xl bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white focus:border-metro-blue focus:ring-0 outline-none transition-all";
 
   return (
     <Modal
@@ -143,55 +143,49 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" autoComplete="off">
         
-        <div>
-          <label className="block text-sm font-bold mb-1 dark:text-gray-300">نام کامل (فارسی - بدون عدد)</label>
-          <input 
-            {...register('fullName')} 
-            className={inputClass} 
-            placeholder="" 
-            autoComplete="off" 
+        <Input 
+            label="نام کامل (فارسی - بدون عدد)"
+            {...register('fullName')}
+            error={errors.fullName?.message}
+            autoComplete="off"
             onInput={(e) => {
                e.currentTarget.value = e.currentTarget.value.replace(/[0-9]/g, '');
             }}
-          />
-          {errors.fullName && <p className="text-red-500 text-xs mt-1 font-bold">{errors.fullName.message}</p>}
-        </div>
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-                <label className="block text-sm font-bold mb-1 dark:text-gray-300">نام کاربری (حساس به حروف)</label>
-                <input 
-                    dir="ltr" 
-                    {...register('username')} 
-                    className={inputClass}
-                    placeholder="" 
+                <Input 
+                    label="نام کاربری (حساس به حروف)"
+                    dir="ltr"
+                    {...register('username')}
+                    error={errors.username?.message}
                     autoComplete="new-username"
                 />
-                <p className="text-[10px] text-gray-400 mt-1">تغییر نام کاربری ممکن است بر ورود کاربر تاثیر بگذارد.</p>
-                {errors.username && <p className="text-red-500 text-xs mt-1 font-bold">{errors.username.message}</p>}
+                <p className="text-[10px] text-gray-400 mt-1 px-1">تغییر نام کاربری ممکن است بر ورود کاربر تاثیر بگذارد.</p>
             </div>
             <div>
-                <label className="block text-sm font-bold mb-1 dark:text-gray-300">رمز عبور</label>
-                <input 
-                    dir="ltr" 
-                    type="password" 
-                    {...register('password')} 
-                    className={inputClass}
-                    placeholder="" 
+                <Input 
+                    label="رمز عبور"
+                    type="password"
+                    dir="ltr"
+                    {...register('password')}
+                    error={errors.password?.message}
                     autoComplete="new-password"
                 />
-                {errors.password && <p className="text-red-500 text-xs mt-1 font-bold">{errors.password.message}</p>}
             </div>
         </div>
 
-        <div>
-            <label className="block text-sm font-bold mb-1 dark:text-gray-300">شماره تماس</label>
-            <input dir="ltr" {...register('phoneNumber')} className={inputClass} placeholder="" />
-        </div>
+        <Input 
+            label="شماره تماس"
+            dir="ltr"
+            {...register('phoneNumber')}
+            error={errors.phoneNumber?.message}
+        />
 
         <div>
-            <label className="block text-sm font-bold mb-2 dark:text-gray-300">نقش کاربر</label>
-            <select {...register('role')} className={inputClass}>
+            <label className="block text-sm font-bold mb-1.5 px-1 dark:text-gray-300">نقش کاربر</label>
+            <select {...register('role')} className={selectClass}>
                 <option value={UserRole.ADMIN}>مدیر سیستم</option>
                 <option value={UserRole.REGISTRATION}>مسئول ثبت</option>
                 <option value={UserRole.SALES}>مسئول فروش</option>

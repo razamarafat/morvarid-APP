@@ -45,7 +45,6 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
     const [selectedFarmId] = useState<string>(userFarms[0]?.id || '');
     const selectedFarm = userFarms.find(f => f.id === selectedFarmId);
 
-    // --- SORT LOGIC START (UPDATED) ---
     const sortedProductIds = useMemo(() => {
         if (!selectedFarm) return [];
         return [...selectedFarm.productIds].sort((aId, bId) => {
@@ -55,7 +54,6 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
             return compareProducts(pA, pB);
         });
     }, [selectedFarm, getProductById]);
-    // --- SORT LOGIC END ---
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(getCurrentTime(false)), 30000);
@@ -94,10 +92,6 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
         const payloads = [];
 
         for (const pid of selectedFarm.productIds) {
-            // FIX TASK 1: REMOVED THE DUPLICATE CHECK HERE. 
-            // We rely on 'upsert' in the store to handle updates if record exists.
-            // Checking here prevented users from submitting if store had data but UI allowed editing.
-            
             const vals = formsState[pid];
             if (!vals) continue;
 
@@ -107,7 +101,6 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
             const prev = vals.previousBalance === '' ? 0 : Number(vals.previousBalance);
             const prevKg = vals.previousBalanceKg === '' ? 0 : Number(vals.previousBalanceKg);
 
-            // Skip only if EVERYTHING is empty (user didn't touch this product)
             if (vals.production === '' && vals.productionKg === '' && vals.previousBalance === '' && vals.previousBalanceKg === '') continue;
 
             const prodName = getProductById(pid)?.name || 'محصول';
@@ -193,31 +186,29 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
 
     return (
         <div className="max-w-4xl mx-auto pb-24"> 
-            <div className="bg-gradient-to-br from-metro-orange via-orange-500 to-amber-500 p-6 text-white shadow-xl relative overflow-hidden flex flex-col items-center justify-center gap-3 rounded-b-[32px] mb-8 border-b-4 border-orange-700/20 gpu-accelerated">
-                 <div className="absolute inset-0 shimmer-bg z-0"></div>
-                 <Icons.BarChart className="absolute -left-8 -bottom-8 w-48 h-48 text-white opacity-10 pointer-events-none rotate-12" />
-
-                 <div className="relative z-10 flex flex-col items-center w-full">
-                     <div className="flex items-center gap-3 mb-1">
-                        <span className="text-orange-100 font-bold text-sm tracking-widest uppercase bg-black/10 px-3 py-0.5 rounded-full backdrop-blur-sm">
-                             {todayDayName}
-                        </span>
-                        <div className="text-xl font-bold opacity-90 font-sans tabular-nums tracking-wide">{currentTime}</div>
-                     </div>
-                     
-                     <div className="flex items-center gap-4">
-                         <h1 className="text-5xl lg:text-6xl font-black font-sans tabular-nums tracking-tighter drop-shadow-lg leading-none">
-                             {toPersianDigits(normalizedDate)}
-                         </h1>
-                     </div>
-                     
-                     <div className="mt-3 text-white font-black tracking-wide text-lg border-b-2 border-white/20 pb-1">
-                        ثبت آمار تولید
-                     </div>
+            {/* UPDATED HEADER - CLEAN STYLE */}
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 mb-6 flex flex-col items-center justify-center gap-2 text-center relative overflow-hidden">
+                 <Icons.BarChart className="absolute right-4 top-1/2 -translate-y-1/2 w-32 h-32 text-metro-orange opacity-5 pointer-events-none -rotate-12" />
+                 
+                 <div className="flex items-center gap-3 mb-1 relative z-10">
+                    <span className="text-gray-500 dark:text-gray-400 font-bold text-xs tracking-widest uppercase bg-gray-100 dark:bg-gray-700/50 px-3 py-1 rounded-full">
+                         {todayDayName}
+                    </span>
+                    <div className="text-xl font-bold text-gray-400 font-sans tabular-nums tracking-wide">{currentTime}</div>
+                 </div>
+                 
+                 <div className="flex items-center gap-4 relative z-10">
+                     <h1 className="text-5xl lg:text-6xl font-black font-sans tabular-nums tracking-tighter leading-none text-gray-900 dark:text-white">
+                         {toPersianDigits(normalizedDate)}
+                     </h1>
+                 </div>
+                 
+                 <div className="mt-2 text-metro-orange font-black tracking-wide text-lg relative z-10">
+                    ثبت آمار تولید
                  </div>
             </div>
 
-            <div className="px-4 space-y-4">
+            <div className="px-1 space-y-4">
                 {sortedProductIds.map((pid) => {
                     const product = getProductById(pid);
                     if (!product) return null;
@@ -239,18 +230,18 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                                 className="p-5 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 active:bg-gray-100"
                             >
                                 <div className="flex items-center gap-4">
-                                    <div className={`flex items-center justify-center w-8 h-8 rounded-full shadow-sm ring-2 ${isRegistered ? 'bg-green-100 ring-green-50 text-green-600' : 'bg-red-100 ring-red-50 text-red-600'}`}>
-                                        {isRegistered ? <Icons.Check className="w-5 h-5" /> : <Icons.X className="w-5 h-5" />}
+                                    <div className={`flex items-center justify-center w-10 h-10 rounded-full shadow-sm ring-2 ${isRegistered ? 'bg-green-100 ring-green-50 text-green-600' : 'bg-red-100 ring-red-50 text-red-600'}`}>
+                                        {isRegistered ? <Icons.Check className="w-6 h-6" /> : <Icons.X className="w-6 h-6" />}
                                     </div>
 
                                     <div>
-                                        <h3 className="text-xl font-black text-gray-800 dark:text-gray-100 leading-tight">{product.name}</h3>
+                                        <h3 className="text-lg font-black text-gray-800 dark:text-gray-100 leading-tight">{product.name}</h3>
                                         <span className={`text-xs font-bold px-2 py-0.5 rounded-md mt-1 inline-block ${isRegistered ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
                                             {isRegistered ? 'ثبت شده' : 'ثبت نشده'}
                                         </span>
                                     </div>
                                 </div>
-                                <Icons.ChevronDown className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                                <Icons.ChevronDown className={`w-6 h-6 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
                             </div>
                             
                             <AnimatePresence>
@@ -303,7 +294,6 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                                                     </div>
                                                 </div>
                                                 
-                                                {/* CONDITIONAL RENDERING FOR WEIGHT ROW - TASK 5 */}
                                                 {isLiq && (
                                                     <div className="space-y-3 pt-3 border-t border-dashed border-gray-200 dark:border-gray-700">
                                                         <h4 className="text-sm font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">
