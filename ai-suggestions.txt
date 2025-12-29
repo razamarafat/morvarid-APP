@@ -1,5 +1,5 @@
 
-AI SUGGESTIONS BACKLOG - V29
+AI SUGGESTIONS BACKLOG - V30
 
 --------------------------------
 1. پیشنهادات امنیت و مدیریت کاربران (Security & Auth)
@@ -19,6 +19,11 @@ AI SUGGESTIONS BACKLOG - V29
   - توضیح: افزودن ابزار GitGuardian به CI/CD برای اسکن خودکار مخزن جهت یافتن کلیدهای API و Secrets که ممکن است به اشتباه کامیت شده باشند.
   - اولویت: Medium
 
+- [ ] عنوان: Content Security Policy (CSP) Headers
+  - دسته‌بندی: Security
+  - توضیح: تنظیم هدرهای CSP در فایل vercel.json برای محدود کردن منابع مجاز (اسکریپت‌ها، استایل‌ها) و افزایش امنیت در برابر XSS.
+  - اولویت: Low
+
 --------------------------------
 2. پیشنهادات بهره‌وری و پرفورمنس (Performance)
 --------------------------------
@@ -27,9 +32,9 @@ AI SUGGESTIONS BACKLOG - V29
   - توضیح: تفکیک دقیق استراتژی‌های کش (Cache-First برای تصاویر/فونت‌ها و Network-First برای APIها) در فایل sw.js برای بهبود عملکرد آفلاین و سرعت لود.
   - اولویت: High
 
-- [ ] عنوان: Bundle Analyzer
-  - دسته‌بندی: Performance
-  - توضیح: افزودن `rollup-plugin-visualizer` برای آنالیز حجم باندل نهایی.
+- [ ] عنوان: Runtime Env Validation (Zod/T3-Env)
+  - دسته‌بندی: DevOps/Stability
+  - توضیح: استفاده از Zod برای اعتبارسنجی تایپ و فرمت متغیرهای محیطی در زمان اجرا برای جلوگیری از خطاهای پیکربندی خاموش.
   - اولویت: Medium
 
 --------------------------------
@@ -48,9 +53,9 @@ AI SUGGESTIONS BACKLOG - V29
 --------------------------------
 4. پیشنهادات ساختار کد و دواپس (DevOps & Refactoring)
 --------------------------------
-- [ ] عنوان: Automated Dependency Updates (Renovate/Dependabot)
-  - دسته‌بندی: DevOps
-  - توضیح: راه‌اندازی ابزارهایی برای بررسی و آپدیت خودکار وابستگی‌های npm جهت دریافت پچ‌های امنیتی.
+- [ ] عنوان: Sentry Integration
+  - دسته‌بندی: Observability
+  - توضیح: اتصال پروژه به Sentry برای رصد و گزارش‌دهی خودکار خطاهای جاوااسکریپت در محیط کاربر نهایی.
   - اولویت: Medium
 
 - [ ] عنوان: Typed Supabase Client
