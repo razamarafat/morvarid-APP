@@ -1,13 +1,23 @@
 
-AI SUGGESTIONS BACKLOG - V41
+AI SUGGESTIONS BACKLOG - V42
 
 --------------------------------
 1. پیشنهادات امنیت و مدیریت کاربران (Security & Auth)
 --------------------------------
-- [ ] عنوان: Supabase Edge Functions
+- [ ] عنوان: Supabase Edge Functions for User Creation
   - دسته‌بندی: Security/Backend
-  - توضیح: انتقال لاجیک‌های حساس (مثل حذف کاربر یا محاسبات مالی) به Edge Functions برای امنیت بیشتر.
+  - توضیح: انتقال لاجیک ساخت کاربر (`signUp`) به Edge Function برای جلوگیری از ارسال `role` توسط کلاینت و افزایش امنیت.
   - اولویت: High
+
+- [ ] عنوان: Two-Factor Authentication (2FA)
+  - دسته‌بندی: Security
+  - توضیح: پیاده‌سازی احراز هویت دو مرحله‌ای (TOTP) برای نقش‌های مدیریتی (Admin/Sales).
+  - اولویت: High
+
+- [ ] عنوان: Password Strength Meter
+  - دسته‌بندی: Security/UX
+  - توضیح: نمایش میزان قدرت رمز عبور هنگام تعریف یا تغییر رمز توسط ادمین در مودال مدیریت کاربران.
+  - اولویت: Low
 
 - [ ] عنوان: Generic Permission Hook
   - دسته‌بندی: Security/Frontend
@@ -22,11 +32,6 @@ AI SUGGESTIONS BACKLOG - V41
 - [ ] عنوان: Database Audit Logging
   - دسته‌بندی: Security/Backend
   - توضیح: ایجاد جدول audit_logs و تریگرهای دیتابیس برای ثبت خودکار هرگونه تغییر روی جداول حساس.
-  - اولویت: Medium
-
-- [ ] عنوان: Session Invalidation on Role Change
-  - دسته‌بندی: Security
-  - توضیح: ابطال فوری نشست‌های فعال کاربر در صورت تغییر نقش یا غیرفعال شدن حساب توسط ادمین.
   - اولویت: Medium
 
 --------------------------------
@@ -72,7 +77,7 @@ AI SUGGESTIONS BACKLOG - V41
 
 - [ ] عنوان: Admin Action Logs UI
   - دسته‌بندی: UX/Admin
-  - توضیح: ایجاد رابط کاربری برای مشاهده تاریخچه عملیات ادمین‌ها.
+  - توضیح: ایجاد رابط کاربری برای مشاهده تاریخچه عملیات ادمین‌ها (Audit Logs).
   - اولویت: Low
 
 - [ ] عنوان: Adaptive Iconography
