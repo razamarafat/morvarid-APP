@@ -1,3 +1,4 @@
 
-// This file is deprecated and marked for deletion.
-// Please remove this file from your project root.
+// FILE DELETED
+// This file was erroneously created and is now deprecated.
+// It can be safely removed from the file system.

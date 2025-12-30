@@ -1,5 +1,5 @@
 
-AI SUGGESTIONS BACKLOG - V42
+AI SUGGESTIONS BACKLOG - V43
 
 --------------------------------
 1. پیشنهادات امنیت و مدیریت کاربران (Security & Auth)
@@ -37,6 +37,11 @@ AI SUGGESTIONS BACKLOG - V42
 --------------------------------
 2. پیشنهادات بهره‌وری و پرفورمنس (Performance)
 --------------------------------
+- [ ] عنوان: Database Migration Script
+  - دسته‌بندی: DevOps/DB
+  - توضیح: ایجاد اسکریپت Node.js برای اجرای خودکار فایل‌های SQL و مایگریشن‌ها روی Supabase.
+  - اولویت: Medium
+
 - [ ] عنوان: Database RPC Functions
   - دسته‌بندی: Backend/Performance
   - توضیح: انتقال محاسبات سنگین (مانند جمع‌بندی آمارهای ماهانه) به سمت دیتابیس با استفاده از توابع Postgres RPC برای کاهش حجم انتقال داده و افزایش سرعت.
@@ -51,11 +56,6 @@ AI SUGGESTIONS BACKLOG - V42
   - دسته‌بندی: DevOps/Performance
   - توضیح: ایجاد Dockerfile و docker-compose.yml برای استانداردسازی محیط توسعه و استقرار آسان.
   - اولویت: Medium
-
-- [ ] عنوان: Bundle Visualization
-  - دسته‌بندی: DevOps/Performance
-  - توضیح: نصب پلاگین rollup-plugin-visualizer برای آنالیز گرافیکی حجم باندل‌ها.
-  - اولویت: Low
 
 --------------------------------
 3. پیشنهادات رابط کاربری و تجربه کاربری (UI/UX)
@@ -108,6 +108,16 @@ AI SUGGESTIONS BACKLOG - V42
 --------------------------------
 4. پیشنهادات ساختار کد و دواپس (DevOps & Refactoring)
 --------------------------------
+- [ ] عنوان: Type Generation Script
+  - دسته‌بندی: DevOps/TypeScript
+  - توضیح: ایجاد اسکریپت برای تولید خودکار تایپ‌های TypeScript از روی اسکیمای دیتابیس Supabase.
+  - اولویت: Medium
+
+- [ ] عنوان: SQL Linter
+  - دسته‌بندی: DevOps/Quality
+  - توضیح: افزودن لینتر SQL به پایپ‌لاین CI برای جلوگیری از خطاهای سینتکسی در فایل‌های دیتابیس.
+  - اولویت: Low
+
 - [ ] عنوان: Periodic Data Archiving
   - دسته‌بندی: Data/Performance
   - توضیح: ایجاد یک جاب دیتابیس برای آرشیو کردن یا حذف رکوردهای لاگ قدیمی‌تر از ۳ ماه.
@@ -126,9 +136,4 @@ AI SUGGESTIONS BACKLOG - V42
 - [ ] عنوان: Husky & Lint-staged
   - دسته‌بندی: DevOps/Quality
   - توضیح: تنظیم هوک‌های گیت برای اجرای خودکار لینتر و فرمتر قبل از کامیت کردن کدها.
-  - اولویت: Medium
-
-- [ ] عنوان: Network Awareness Error Boundary
-  - دسته‌بندی: UX/Reliability
-  - توضیح: نمایش پیام "Connection unstable" اگر دانلود فایل Lazy Load شده با خطا مواجه شد.
   - اولویت: Medium
