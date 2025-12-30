@@ -24,6 +24,7 @@ import { v4 as uuidv4 } from 'uuid';
 import Modal from '../common/Modal';
 import { useValidation } from '../../hooks/useValidation';
 import { useAutoSave } from '../../hooks/useAutoSave';
+import { sanitizeInput } from '../../utils/sanitizers';
 
 const persianLettersRegex = /^[\u0600-\u06FF\s]+$/;
 const mobileRegex = /^09\d{9}$/;
@@ -305,6 +306,11 @@ export const InvoiceForm: React.FC = () => {
         let successCount = 0;
         let errorsList: string[] = [];
 
+        // SANITIZATION
+        const cleanDriverName = sanitizeInput(globalData.driverName);
+        const cleanDescription = sanitizeInput(globalData.description);
+        const cleanPlate = sanitizeInput(globalData.plateNumber);
+
         for (const pid of selectedProductIds) {
             const item = itemsState[pid];
             const result = await addInvoice({
@@ -314,10 +320,10 @@ export const InvoiceForm: React.FC = () => {
                 totalCartons: Number(item.cartons || 0), 
                 totalWeight: Number(item.weight),
                 productId: pid,
-                driverName: globalData.driverName || '',
+                driverName: cleanDriverName,
                 driverPhone: globalData.contactPhone,
-                plateNumber: globalData.plateNumber,
-                description: globalData.description,
+                plateNumber: cleanPlate,
+                description: cleanDescription,
                 isYesterday: referenceDate !== normalizedDate
             });
 

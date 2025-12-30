@@ -12,6 +12,7 @@ import Input from '../common/Input';
 import { useConfirm } from '../../hooks/useConfirm';
 import { Icons } from '../common/Icons';
 import { useToastStore } from '../../store/toastStore';
+import { sanitizeInput } from '../../utils/sanitizers';
 
 // Strict Persian Regex (No numbers allowed)
 const persianLettersOnlyRegex = /^[\u0600-\u06FF\s]+$/;
@@ -133,17 +134,20 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
         const finalAssignedIds = data.role === UserRole.REGISTRATION ? data.assignedFarmIds : [];
         const assignedFarms = finalAssignedIds?.map(id => farms.find(f => f.id === id)).filter(Boolean) as any[];
 
-        const cleanUsername = data.username.trim();
+        // SANITIZATION
+        const cleanUsername = sanitizeInput(data.username);
+        const cleanFullName = sanitizeInput(data.fullName);
+        const cleanPhone = sanitizeInput(data.phoneNumber);
 
         const userData: any = {
-            fullName: data.fullName,
+            fullName: cleanFullName,
             username: cleanUsername,
             role: data.role,
-            phoneNumber: data.phoneNumber,
+            phoneNumber: cleanPhone,
             isActive: data.isActive,
             assignedFarms: assignedFarms,
             notificationsEnabled: data.notificationsEnabled,
-            ...(data.password ? { password: data.password } : {})
+            ...(data.password ? { password: data.password } : {}) // Password is not sanitized to allow special chars if needed, but validated by regex
         };
 
         if (user) {
