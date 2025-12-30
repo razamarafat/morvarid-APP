@@ -127,3 +127,26 @@ AI SUGGESTIONS BACKLOG - V50
   - دسته‌بندی: Feature/Code
   - توضیح: اضافه کردن قابلیت خروجی CSV برای گزارشات به عنوان یک گزینه سبک‌تر و سازگارتر نسبت به XLSX.
   - اولویت: Low
+
+--------------------------------
+5. پیشنهادات PWA & Mobile (PWA Growth)
+--------------------------------
+- [ ] عنوان: PWA Periodic Background Sync
+  - دسته‌بندی: PWA/Offline
+  - توضیح: استفاده از Background Sync API برای ارسال داده‌های آفلاین به محض اتصال به اینترنت، حتی اگر برنامه بسته باشد.
+  - اولویت: High
+
+- [ ] عنوان: Custom Install Prompt (PWA)
+  - دسته‌بندی: PWA/UX
+  - توضیح: جلوگیری از پرامپت پیش‌فرض مرورگر و نمایش یک دکمه نصب زیبا داخل UI برنامه (`beforeinstallprompt` event).
+  - اولویت: Medium
+
+- [ ] عنوان: Share Target API Integration
+  - دسته‌بندی: PWA/Feature
+  - توضیح: امکان دریافت فایل (مثلاً فکس یا اکسل) از برنامه‌های دیگر (مثل واتس‌اپ) مستقیماً درون اپلیکیشن مروارید.
+  - اولویت: Low
+
+- [ ] عنوان: Navigation Preload Strategy
+  - دسته‌بندی: PWA/Performance
+  - توضیح: فعال‌سازی Navigation Preload در Service Worker برای کاهش تاخیر هنگام لود اولیه صفحه.
+  - اولویت: Medium

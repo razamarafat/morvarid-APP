@@ -1,171 +1,102 @@
 
-/*
- * Morvarid PWA Service Worker
- * Version: 2.9.0
- * Features: High Priority Notifications, Persistent Caching, Background Sync
- */
+importScripts('https://storage.googleapis.com/workbox-cdn/releases/6.4.1/workbox-sw.js');
 
-const CACHE_NAME = 'morvarid-core-v2.9.0';
-const ASSETS = [
-  './',
-  './index.html',
-  './vite.svg',
-  './manifest.json',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png'
-];
+if (workbox) {
+  console.log(`[SW] Workbox loaded`);
 
-self.addEventListener('install', (event) => {
-  self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS);
+  // 1. Force SW to activate immediately
+  workbox.core.skipWaiting();
+  workbox.core.clientsClaim();
+
+  // 2. Precache Core Assets (Manual, or via injectManifest in build)
+  // Since we are manual for now, we use Runtime Caching heavily.
+
+  // 3. Cache Strategy: StaleWhileRevalidate for CSS, JS, HTML
+  workbox.routing.registerRoute(
+    ({ request }) => request.destination === 'script' ||
+      request.destination === 'style' ||
+      request.destination === 'document',
+    new workbox.strategies.StaleWhileRevalidate({
+      cacheName: 'morvarid-static-resources',
     })
   );
-});
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
-      );
+  // 4. Cache Strategy: CacheFirst for Images/Fonts
+  workbox.routing.registerRoute(
+    ({ request }) => request.destination === 'image' ||
+      request.destination === 'font',
+    new workbox.strategies.CacheFirst({
+      cacheName: 'morvarid-images-fonts',
+      plugins: [
+        new workbox.expiration.ExpirationPlugin({
+          maxEntries: 60,
+          maxAgeSeconds: 30 * 24 * 60 * 60, // 30 Days
+        }),
+      ],
     })
   );
-  return self.clients.claim();
-});
 
-self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
-  if (!event.request.url.startsWith(self.location.origin)) return;
-
-  if (event.request.url.includes('version.json')) {
-      event.respondWith(fetch(event.request, { cache: 'no-store' }));
-      return;
-  }
-
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request)
-        .catch(() => caches.match('./index.html'))
-    );
-    return;
-  }
-
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      return cached || fetch(event.request).then(response => {
-          if(response.status === 200) {
-              const clone = response.clone();
-              caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+  // 5. Cache Strategy: NetworkFirst for API (Supabase)
+  workbox.routing.registerRoute(
+    ({ url }) => url.pathname.includes('/rest/v1/'),
+    new workbox.strategies.NetworkFirst({
+      cacheName: 'morvarid-api-cache',
+      bgSync: {
+        name: 'sync-queue',
+        options: {
+          maxRetentionTime: 24 * 60 // Retry for 24 Hours
+        }
+      },
+      plugins: [
+        {
+          // Custom plugin to handle 4xx/5xx errors
+          fetchDidFail: async ({ request }) => {
+            console.error('[SW] API Request Failed', request.url);
           }
-          return response;
-      });
+        }
+      ]
     })
   );
-});
 
-// --- ENHANCED PUSH HANDLER (Critical Alert) ---
+} else {
+  console.log(`[SW] Workbox failed to load`);
+}
+
+// --- PUSH NOTIFICATION HANDLER (Keep existing logic) ---
 self.addEventListener('push', (event) => {
-  console.log('[SW] Push Received');
-  
-  let data = { 
-      title: 'سامانه مروارید', 
-      body: 'پیام جدید دریافت شد', 
-      url: self.location.origin,
-      tag: 'farm-alert'
-  };
-
-  if (event.data) {
-    try {
-        const json = event.data.json();
-        data = { ...data, ...json };
-    } catch(e) {
-        const text = event.data.text();
-        if (text) data.body = text;
+  let data = { title: 'سامانه مروارید', body: 'پیام جدید', url: '/' };
+  try {
+    if (event.data) {
+      const json = event.data.json();
+      data = { ...data, ...json };
     }
+  } catch (e) {
+    if (event.data) data.body = event.data.text();
   }
 
-  if ('setAppBadge' in navigator) {
-      // @ts-ignore
-      navigator.setAppBadge(1).catch(() => {});
-  }
-
-  // Configuration for System Notification
   const options = {
     body: data.body,
-    icon: '/icons/icon-192x192.png', // Must exist in public folder
+    icon: '/icons/icon-192x192.png',
     badge: '/icons/icon-192x192.png',
     dir: 'rtl',
     lang: 'fa-IR',
-    tag: data.tag,
-    renotify: true, 
-    requireInteraction: true, 
-    silent: false,
-    vibrate: [500, 200, 500], // Vibration pattern for mobile
-    data: {
-      url: data.url,
-      timestamp: Date.now()
-    },
-    actions: [
-        { action: 'open', title: 'مشاهده' }
-    ]
+    renotify: true,
+    tag: 'system-alert',
+    data: { url: data.url }
   };
 
-  event.waitUntil(
-    self.registration.showNotification(data.title, options)
-  );
+  event.waitUntil(self.registration.showNotification(data.title, options));
 });
 
 self.addEventListener('notificationclick', (event) => {
-  const notification = event.notification;
-  const action = event.action;
-  
-  notification.close();
-
-  if ('clearAppBadge' in navigator) {
-      // @ts-ignore
-      navigator.clearAppBadge().catch(() => {});
-  }
-
-  const urlToOpen = new URL(notification.data?.url || '/', self.location.origin).href;
-
+  event.notification.close();
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      // Check if there is already a window/tab open with the target URL
-      for (const client of windowClients) {
-        if (client.url.startsWith(self.location.origin) && 'focus' in client) {
-          client.postMessage({ type: 'NOTIFICATION_CLICK', payload: notification.data });
+    clients.matchAll({ type: 'window' }).then(clientList => {
+      for (const client of clientList) {
+        if (client.url.startsWith(self.location.origin) && 'focus' in client)
           return client.focus();
-        }
       }
-      // If not, open a new window
-      if (clients.openWindow) {
-        return clients.openWindow(urlToOpen);
-      }
+      if (clients.openWindow) return clients.openWindow(event.notification.data.url);
     })
   );
-});
-
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'sync-queue') {
-    event.waitUntil(
-        clients.matchAll({ type: 'window' }).then(clientList => {
-            clientList.forEach(client => {
-                client.postMessage({ type: 'PROCESS_QUEUE_BACKGROUND' });
-            });
-        })
-    );
-  }
-});
-
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
-  
-  if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
-      const { title, options } = event.data.payload;
-      self.registration.showNotification(title, options);
-  }
 });
