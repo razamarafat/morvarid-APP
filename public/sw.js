@@ -1,6 +1,12 @@
 
 importScripts('https://storage.googleapis.com/workbox-cdn/releases/6.4.1/workbox-sw.js');
 
+const CACHE_PREFIX = 'morvarid';
+const CURRENT_CACHE_ID = 'v3.0.7'; // Change this manually or via build script to invalidate caches
+const STATIC_CACHE = `${CACHE_PREFIX}-static-${CURRENT_CACHE_ID}`;
+const IMAGE_CACHE = `${CACHE_PREFIX}-images-${CURRENT_CACHE_ID}`;
+const API_CACHE = `${CACHE_PREFIX}-api-${CURRENT_CACHE_ID}`;
+
 if (workbox) {
   console.log(`[SW] Workbox loaded`);
 
@@ -8,25 +14,49 @@ if (workbox) {
   workbox.core.skipWaiting();
   workbox.core.clientsClaim();
 
-  // 2. Precache Core Assets (Manual, or via injectManifest in build)
-  // Since we are manual for now, we use Runtime Caching heavily.
+  // 2. Cleanup Old Caches on Activate
+  self.addEventListener('activate', (event) => {
+    event.waitUntil(
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            // Delete caches that start with our prefix but don't match current ID
+            if (cacheName.startsWith(CACHE_PREFIX) && !cacheName.includes(CURRENT_CACHE_ID)) {
+              console.log('[SW] Deleting old cache:', cacheName);
+              return caches.delete(cacheName);
+            }
+          })
+        );
+      })
+    );
+  });
 
-  // 3. Cache Strategy: StaleWhileRevalidate for CSS, JS, HTML
+  // 3. Cache Strategy: StaleWhileRevalidate for Hashed Assets (Vite)
+  // These files have hashes in filenames, so we could theoretically use CacheFirst,
+  // but StaleWhileRevalidate ensures we never get stuck with a broken version if hash collision happens (rare).
+  workbox.routing.registerRoute(
+    ({ request, url }) => url.pathname.includes('/assets/'),
+    new workbox.strategies.StaleWhileRevalidate({
+      cacheName: STATIC_CACHE,
+    })
+  );
+
+  // 4. Cache Strategy: StaleWhileRevalidate for Core Files (HTML, Root JS)
   workbox.routing.registerRoute(
     ({ request }) => request.destination === 'script' ||
       request.destination === 'style' ||
       request.destination === 'document',
     new workbox.strategies.StaleWhileRevalidate({
-      cacheName: 'morvarid-static-resources',
+      cacheName: STATIC_CACHE,
     })
   );
 
-  // 4. Cache Strategy: CacheFirst for Images/Fonts
+  // 5. Cache Strategy: CacheFirst for Images/Fonts
   workbox.routing.registerRoute(
     ({ request }) => request.destination === 'image' ||
       request.destination === 'font',
     new workbox.strategies.CacheFirst({
-      cacheName: 'morvarid-images-fonts',
+      cacheName: IMAGE_CACHE,
       plugins: [
         new workbox.expiration.ExpirationPlugin({
           maxEntries: 60,
@@ -36,11 +66,11 @@ if (workbox) {
     })
   );
 
-  // 5. Cache Strategy: NetworkFirst for API (Supabase)
+  // 6. Cache Strategy: NetworkFirst for API (Supabase)
   workbox.routing.registerRoute(
     ({ url }) => url.pathname.includes('/rest/v1/'),
     new workbox.strategies.NetworkFirst({
-      cacheName: 'morvarid-api-cache',
+      cacheName: API_CACHE,
       bgSync: {
         name: 'sync-queue',
         options: {
