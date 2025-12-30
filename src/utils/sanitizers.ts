@@ -32,9 +32,12 @@ export const sanitizeInput = (input: string | undefined | null): string => {
 export const sanitizeObject = <T extends Record<string, any>>(obj: T): T => {
   const newObj = { ...obj };
   for (const key in newObj) {
-    if (typeof newObj[key] === 'string') {
-      // @ts-ignore
-      newObj[key] = sanitizeInput(newObj[key]);
+    if (Object.prototype.hasOwnProperty.call(newObj, key)) {
+      const value = newObj[key];
+      if (typeof value === 'string') {
+        // Safe casting because we checked typeof
+        (newObj as any)[key] = sanitizeInput(value);
+      }
     }
   }
   return newObj;
