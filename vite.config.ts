@@ -24,19 +24,19 @@ const generateVersionFile = () => {
       };
       const filePath = path.resolve(__dirname, 'dist', 'version.json');
       if (fs.existsSync(path.resolve(__dirname, 'dist'))) {
-          fs.writeFileSync(filePath, JSON.stringify(versionInfo));
-          console.log(`[Version] version.json generated: ${JSON.stringify(versionInfo)}`);
+        fs.writeFileSync(filePath, JSON.stringify(versionInfo));
+        console.log(`[Version] version.json generated: ${JSON.stringify(versionInfo)}`);
       }
     },
     configureServer(server) {
-       server.middlewares.use((req, res, next) => {
-           if (req.url === '/version.json') {
-               res.setHeader('Content-Type', 'application/json');
-               res.end(JSON.stringify({ buildDate: Date.now(), version: appVersion + '-dev' }));
-               return;
-           }
-           next();
-       });
+      server.middlewares.use((req, res, next) => {
+        if (req.url === '/version.json') {
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ buildDate: Date.now(), version: appVersion + '-dev' }));
+          return;
+        }
+        next();
+      });
     }
   };
 };
@@ -51,16 +51,16 @@ export default defineConfig(({ mode }) => {
       '__APP_VERSION__': JSON.stringify(appVersion),
     },
     plugins: [
-        react(), 
-        generateVersionFile(),
-        viteCompression() // Enable Gzip compression
+      react(),
+      generateVersionFile(),
+      viteCompression() // Enable Gzip compression
     ],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './'),
       },
     },
-    base: './', 
+    base: './',
     build: {
       outDir: 'dist',
       sourcemap: false,
@@ -72,7 +72,7 @@ export default defineConfig(({ mode }) => {
             'vendor-utils': ['zustand', 'date-fns', 'date-fns-jalali', 'uuid', 'zod', 'react-hook-form'],
             'vendor-ui': ['framer-motion', 'lucide-react', 'react-window', 'react-virtualized-auto-sizer'],
             'vendor-supabase': ['@supabase/supabase-js'],
-            'vendor-xlsx': ['xlsx'],
+            'vendor-exceljs': ['exceljs'],
           }
         }
       }
