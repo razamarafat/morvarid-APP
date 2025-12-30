@@ -1,17 +1,17 @@
 
-AI SUGGESTIONS BACKLOG - V39
+AI SUGGESTIONS BACKLOG - V40
 
 --------------------------------
 1. پیشنهادات امنیت و مدیریت کاربران (Security & Auth)
 --------------------------------
-- [ ] عنوان: Enforce Strong Passwords
-  - دسته‌بندی: Security
-  - توضیح: اجباری کردن پیچیدگی رمز عبور (حروف بزرگ، کوچک، عدد) هنگام ساخت کاربر جدید.
+- [ ] عنوان: Supabase Edge Functions
+  - دسته‌بندی: Security/Backend
+  - توضیح: انتقال لاجیک‌های حساس (مثل حذف کاربر یا محاسبات مالی) به Edge Functions برای امنیت بیشتر.
   - اولویت: High
 
-- [ ] عنوان: HTTP Only Cookies for Auth
-  - دسته‌بندی: Security
-  - توضیح: تغییر مکانیزم ذخیره‌سازی توکن‌ها از LocalStorage به کوکی‌های HTTP-Only برای جلوگیری کامل از حملات XSS.
+- [ ] عنوان: Generic Permission Hook
+  - دسته‌بندی: Security/Frontend
+  - توضیح: ایجاد هوک usePermission برای مدیریت متمرکز دسترسی‌ها در کامپوننت‌ها.
   - اولویت: Medium
 
 - [ ] عنوان: Secure Column Policy
@@ -103,6 +103,11 @@ AI SUGGESTIONS BACKLOG - V39
 --------------------------------
 4. پیشنهادات ساختار کد و دواپس (DevOps & Refactoring)
 --------------------------------
+- [ ] عنوان: Periodic Data Archiving
+  - دسته‌بندی: Data/Performance
+  - توضیح: ایجاد یک جاب دیتابیس برای آرشیو کردن یا حذف رکوردهای لاگ قدیمی‌تر از ۳ ماه.
+  - اولویت: Low
+
 - [ ] عنوان: AI-driven Anomaly Detection
   - دسته‌بندی: AI/Data
   - توضیح: پیاده‌سازی الگوریتم ساده برای تشخیص داده‌های پرت (مثلاً وزن غیرعادی نسبت به تعداد کارتن) و نمایش هشدار هوشمند قبل از ثبت نهایی.
