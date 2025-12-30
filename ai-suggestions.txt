@@ -1,5 +1,5 @@
 
-AI SUGGESTIONS BACKLOG - V46
+AI SUGGESTIONS BACKLOG - V47
 
 --------------------------------
 1. پیشنهادات امنیت و مدیریت کاربران (Security & Auth)
@@ -73,9 +73,14 @@ AI SUGGESTIONS BACKLOG - V46
 --------------------------------
 4. پیشنهادات ساختار کد و دواپس (DevOps & Refactoring)
 --------------------------------
-- [ ] عنوان: Seed Script for Initial Admin
-  - دسته‌بندی: DevOps/DB
-  - توضیح: ایجاد یک اسکریپت SQL (Seed) که در صورت خالی بودن جدول کاربران، یک ادمین پیش‌فرض بسازد.
+- [ ] عنوان: Coverage Thresholds in Vitest
+  - دسته‌بندی: DevOps/Quality
+  - توضیح: تنظیم حداقل درصد پوشش کد (مثلاً 80%) در vitest.config.ts برای اطمینان از کیفیت تست‌ها.
+  - اولویت: Low
+
+- [ ] عنوان: Snapshot Testing for UI
+  - دسته‌بندی: Testing
+  - توضیح: استفاده از قابلیت Snapshot تست Vitest برای کامپوننت‌های UI حساس مثل فرم‌ها و کارت‌ها جهت جلوگیری از تغییرات ناخواسته.
   - اولویت: Medium
 
 - [ ] عنوان: Invoice Number Sequence Table
