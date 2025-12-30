@@ -1,5 +1,5 @@
 
-import './src/index.css'; // Vital: Tailwind CSS Import (Moved to top for priority)
+import './index.css'; // Vital: Tailwind CSS Import (Moved to top for priority)
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
