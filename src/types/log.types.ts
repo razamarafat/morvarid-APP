@@ -1,6 +1,6 @@
 
 // LOGGING SYSTEM DELETED
-export type LogLevel = any;
-export type LogCategory = any;
-export interface LogEntry {}
+export type LogLevel = 'INFO';
+export type LogCategory = 'SYSTEM';
+export interface LogEntry { id: string; }
 export interface LogFilterState {}

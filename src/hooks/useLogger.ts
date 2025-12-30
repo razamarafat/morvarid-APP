@@ -1,10 +1,11 @@
 
-export function useLogger() {
+// Simplified Logger - Console Only
+export const useLogger = () => {
   return {
-    info: (category?: any, message?: any, metadata?: any) => {},
-    success: (category?: any, message?: any, metadata?: any) => {},
-    warning: (category?: any, message?: any, metadata?: any) => {},
-    error: (category?: any, message?: any, error?: any, metadata?: any) => { console.error(category, message, error); },
-    log: (entry?: any) => {}
+    info: (msg: string, cat?: string, det?: any) => console.log(`[INFO] ${cat || ''}: ${msg}`, det),
+    success: (msg: string, cat?: string, det?: any) => console.log(`[SUCCESS] ${cat || ''}: ${msg}`, det),
+    warn: (msg: string, cat?: string, det?: any) => console.warn(`[WARN] ${cat || ''}: ${msg}`, det),
+    error: (msg: string, cat?: string, det?: any) => console.error(`[ERROR] ${cat || ''}: ${msg}`, det),
+    log: (msg: string) => console.log(msg)
   };
-}
+};

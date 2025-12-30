@@ -1,5 +1,5 @@
 
-AI SUGGESTIONS BACKLOG - V49
+AI SUGGESTIONS BACKLOG - V50
 
 --------------------------------
 1. پیشنهادات امنیت و مدیریت کاربران (Security & Auth)
@@ -78,6 +78,26 @@ AI SUGGESTIONS BACKLOG - V49
 --------------------------------
 4. پیشنهادات ساختار کد و دواپس (DevOps & Refactoring)
 --------------------------------
+- [ ] عنوان: Strict File Structure Linting
+  - دسته‌بندی: DevOps/Code Quality
+  - توضیح: افزودن eslint-plugin-project-structure برای جلوگیری از ایجاد فایل در روت پروژه و اجبار به رعایت ساختار src.
+  - اولویت: Medium
+
+- [ ] عنوان: Barrel Exports Implementation
+  - دسته‌بندی: Refactoring
+  - توضیح: ایجاد فایل‌های index.ts در هر پوشه (components, hooks, etc.) برای تمیز کردن ایمپورت‌ها و کپسوله‌سازی ماژول‌ها.
+  - اولویت: Low
+
+- [ ] عنوان: Path Alias Enforcement Rule
+  - دسته‌بندی: Code Quality
+  - توضیح: اضافه کردن قانون ESLint برای جلوگیری از ایمپورت‌های نسبی طولانی (../../) و اجبار به استفاده از alias (@/).
+  - اولویت: Low
+
+- [ ] عنوان: Automatic Unused File Cleanup
+  - دسته‌بندی: Maintenance
+  - توضیح: ایجاد اسکریپت یا استفاده از ابزار knip برای شناسایی و حذف فایل‌های یتیم و بدون استفاده در پروژه.
+  - اولویت: Low
+
 - [ ] عنوان: Coverage Thresholds in Vitest
   - دسته‌بندی: DevOps/Quality
   - توضیح: تنظیم حداقل درصد پوشش کد (مثلاً 80%) در vitest.config.ts برای اطمینان از کیفیت تست‌ها.

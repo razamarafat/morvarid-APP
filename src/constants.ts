@@ -7,7 +7,7 @@ export const THEMES = {
       primary: 'bg-metro-purple',
       primaryHover: 'hover:bg-metro-darkPurple',
       primaryText: 'text-metro-purple',
-      background: 'bg-[#FFF8F0]', 
+      background: 'bg-[#FFF8F0]',
       surface: 'bg-white',
       text: 'text-gray-900',
       border: 'border-metro-purple',
@@ -18,7 +18,7 @@ export const THEMES = {
       primary: 'bg-metro-orange',
       primaryHover: 'hover:bg-amber-600',
       primaryText: 'text-metro-orange',
-      background: 'bg-[#FFF8F0]', 
+      background: 'bg-[#FFF8F0]',
       surface: 'bg-white',
       text: 'text-gray-900',
       border: 'border-metro-orange',
@@ -29,7 +29,7 @@ export const THEMES = {
       primary: 'bg-metro-blue',
       primaryHover: 'hover:bg-metro-cobalt',
       primaryText: 'text-metro-blue',
-      background: 'bg-[#FFF8F0]', 
+      background: 'bg-[#FFF8F0]',
       surface: 'bg-white',
       text: 'text-gray-900',
       border: 'border-metro-blue',
@@ -42,7 +42,7 @@ export const THEMES = {
       primary: 'bg-metro-purple',
       primaryHover: 'hover:opacity-90',
       primaryText: 'text-metro-purple',
-      background: 'bg-[#0f172a]', 
+      background: 'bg-[#0f172a]',
       surface: 'bg-[#1e293b]',
       text: 'text-white',
       border: 'border-metro-purple',
@@ -53,7 +53,7 @@ export const THEMES = {
       primary: 'bg-metro-orange',
       primaryHover: 'hover:opacity-90',
       primaryText: 'text-metro-orange',
-      background: 'bg-[#0f172a]', 
+      background: 'bg-[#0f172a]',
       surface: 'bg-[#1e293b]',
       text: 'text-white',
       border: 'border-metro-orange',
@@ -64,7 +64,7 @@ export const THEMES = {
       primary: 'bg-metro-blue',
       primaryHover: 'hover:opacity-90',
       primaryText: 'text-metro-blue',
-      background: 'bg-[#0f172a]', 
+      background: 'bg-[#0f172a]',
       surface: 'bg-[#1e293b]',
       text: 'text-white',
       border: 'border-metro-blue',
@@ -89,4 +89,4 @@ export const THEMES = {
  * NOTE: Provide 'package.json' update in every XML output to keep sync.
  */
 declare const __APP_VERSION__: string;
-export const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '3.0.0';
+export const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '3.0.1';
