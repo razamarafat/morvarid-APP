@@ -89,4 +89,4 @@ export const THEMES = {
  * NOTE: Provide 'package.json' update in every XML output to keep sync.
  */
 declare const __APP_VERSION__: string;
-export const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '3.0.4';
+export const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '3.0.5';

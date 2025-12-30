@@ -16,7 +16,9 @@ const STORAGE_KEYS = {
     ACTIVITY: 'morvarid_last_activity',
     REMEMBERED_FLAG: 'morvarid_remember_flag', // Only stores boolean flag
     ENCRYPTED_UID: 'morvarid_encrypted_uid',   // Encrypted username (AES-GCM)
-    CRYPTO_IV: 'morvarid_crypto_iv'            // Initialization vector
+    CRYPTO_IV: 'morvarid_crypto_iv',            // Initialization vector
+    LOGIN_ATTEMPTS: 'morvarid_login_attempts',
+    BLOCK_UNTIL: 'morvarid_block_until'
 };
 
 // --- Secure Crypto Utilities ---
@@ -101,8 +103,8 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set, get) => ({
     user: null,
     isLoading: true,
-    loginAttempts: 0,
-    blockUntil: null,
+    loginAttempts: parseInt(localStorage.getItem('morvarid_login_attempts') || '0'),
+    blockUntil: localStorage.getItem('morvarid_block_until') ? parseInt(localStorage.getItem('morvarid_block_until')!) : null,
     savedUsername: '',
 
     loadSavedUsername: async () => {
@@ -374,11 +376,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     recordFailedAttempt: () => set((state) => {
         const newAttempts = state.loginAttempts + 1;
+        localStorage.setItem(STORAGE_KEYS.LOGIN_ATTEMPTS, String(newAttempts));
+
         if (newAttempts >= 5) {
-            return { loginAttempts: newAttempts, blockUntil: Date.now() + 15 * 60 * 1000 };
+            const blockTime = Date.now() + 15 * 60 * 1000;
+            localStorage.setItem(STORAGE_KEYS.BLOCK_UNTIL, String(blockTime));
+            return { loginAttempts: newAttempts, blockUntil: blockTime };
         }
         return { loginAttempts: newAttempts };
     }),
 
-    resetAttempts: () => set({ loginAttempts: 0, blockUntil: null }),
+    resetAttempts: () => {
+        localStorage.removeItem(STORAGE_KEYS.LOGIN_ATTEMPTS);
+        localStorage.removeItem(STORAGE_KEYS.BLOCK_UNTIL);
+        set({ loginAttempts: 0, blockUntil: null });
+    },
 }));
