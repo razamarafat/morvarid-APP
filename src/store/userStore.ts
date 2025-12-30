@@ -4,11 +4,7 @@ import { supabase } from '../lib/supabase';
 import { User, UserRole } from '../types';
 import { useToastStore } from './toastStore';
 
-const mapLegacyProductId = (id: string): string => {
-    if (id === '1') return '11111111-1111-1111-1111-111111111111';
-    if (id === '2') return '22222222-2222-2222-2222-222222222222';
-    return id;
-};
+import { mapLegacyProductId } from '../utils/productUtils';
 
 // Security: Generate a random string for initial passwords if not provided
 const generateSecurePassword = (length = 12): string => {
@@ -30,188 +26,188 @@ const generateSecurePassword = (length = 12): string => {
 };
 
 interface UserState {
-  users: User[];
-  isLoading: boolean;
-  fetchUsers: () => Promise<void>;
-  addUser: (user: Omit<User, 'id'> & { password?: string }) => Promise<{ success: boolean; error?: string; password?: string }>;
-  updateUser: (user: User) => Promise<void>;
-  deleteUser: (userId: string) => Promise<void>;
+    users: User[];
+    isLoading: boolean;
+    fetchUsers: () => Promise<void>;
+    addUser: (user: Omit<User, 'id'> & { password?: string }) => Promise<{ success: boolean; error?: string; password?: string }>;
+    updateUser: (user: User) => Promise<void>;
+    deleteUser: (userId: string) => Promise<void>;
 }
 
 export const useUserStore = create<UserState>((set, get) => ({
-  users: [],
-  isLoading: false,
+    users: [],
+    isLoading: false,
 
-  fetchUsers: async () => {
-      set({ isLoading: true });
-      try {
-          const { data: profiles, error: profilesError } = await supabase.from('profiles').select('*');
-          if (profilesError) throw profilesError;
+    fetchUsers: async () => {
+        set({ isLoading: true });
+        try {
+            const { data: profiles, error: profilesError } = await supabase.from('profiles').select('*');
+            if (profilesError) throw profilesError;
 
-          const { data: userFarmsData, error: userFarmsError } = await supabase.from('user_farms').select('user_id, farm_id');
-          if (userFarmsError) console.warn("Error fetching user_farms:", userFarmsError);
+            const { data: userFarmsData, error: userFarmsError } = await supabase.from('user_farms').select('user_id, farm_id');
+            if (userFarmsError) console.warn("Error fetching user_farms:", userFarmsError);
 
-          if (profiles) {
-              const { data: allFarms } = await supabase.from('farms').select('*');
-              const mappedUsers = profiles.map((p: any) => {
-                  const assignedFarmIds = userFarmsData 
-                    ? userFarmsData.filter((uf: any) => uf.user_id === p.id).map((uf: any) => uf.farm_id) 
-                    : [];
-                  
-                  const assignedFarms = allFarms 
-                    ? allFarms.filter((f: any) => assignedFarmIds.includes(f.id)).map((f:any) => ({
-                        ...f, 
-                        productIds: (f.product_ids || []).map(mapLegacyProductId)
-                      })) 
-                    : [];
+            if (profiles) {
+                const { data: allFarms } = await supabase.from('farms').select('*');
+                const mappedUsers = profiles.map((p: any) => {
+                    const assignedFarmIds = userFarmsData
+                        ? userFarmsData.filter((uf: any) => uf.user_id === p.id).map((uf: any) => uf.farm_id)
+                        : [];
 
-                  return {
-                      id: p.id,
-                      username: p.username,
-                      fullName: p.full_name,
-                      role: p.role as UserRole,
-                      isActive: p.is_active,
-                      phoneNumber: p.phone_number,
-                      createdAt: p.created_at,
-                      assignedFarms: assignedFarms
-                  };
-              });
-              set({ users: mappedUsers, isLoading: false });
-          } else {
-              set({ isLoading: false });
-          }
-      } catch (error: any) {
-           console.error('Fetch Users Failed:', error);
-           set({ isLoading: false });
-      }
-  },
+                    const assignedFarms = allFarms
+                        ? allFarms.filter((f: any) => assignedFarmIds.includes(f.id)).map((f: any) => ({
+                            ...f,
+                            productIds: (f.product_ids || []).map(mapLegacyProductId)
+                        }))
+                        : [];
 
-  addUser: async (userData) => {
-      const rawUsername = userData.username || '';
-      const sanitizedUsername = rawUsername.trim(); 
-      
-      if (!sanitizedUsername || sanitizedUsername.length < 3) {
-          useToastStore.getState().addToast('نام کاربری باید شامل حداقل ۳ کاراکتر باشد', 'error');
-          return { success: false, error: 'نام کاربری کوتاه است' };
-      }
-      
-      const email = `${sanitizedUsername}@morvarid.com`; 
-      
-      // 🚨 SECURITY: PASSWORD HANDLING
-      const isAutoGenerated = !userData.password;
-      const password = userData.password || generateSecurePassword(16); 
+                    return {
+                        id: p.id,
+                        username: p.username,
+                        fullName: p.full_name,
+                        role: p.role as UserRole,
+                        isActive: p.is_active,
+                        phoneNumber: p.phone_number,
+                        createdAt: p.created_at,
+                        assignedFarms: assignedFarms
+                    };
+                });
+                set({ users: mappedUsers, isLoading: false });
+            } else {
+                set({ isLoading: false });
+            }
+        } catch (error: any) {
+            console.error('Fetch Users Failed:', error);
+            set({ isLoading: false });
+        }
+    },
 
-      set({ isLoading: true });
-      try {
-          // 🚀 SECURITY UPGRADE: Use Database RPC 'create_new_user'
-          // Instead of client-side signUp (which exposes role manipulation), we call a secure
-          // Postgres function. This function checks if the caller is an ADMIN before creating the user.
-          
-          const { data: newUserId, error: rpcError } = await supabase.rpc('create_new_user', {
-              email: email,
-              password: password,
-              user_metadata: { 
-                  username: sanitizedUsername, 
-                  full_name: userData.fullName, 
-                  role: userData.role 
-              }
-          });
+    addUser: async (userData) => {
+        const rawUsername = userData.username || '';
+        const sanitizedUsername = rawUsername.trim();
 
-          if (rpcError) {
-              console.error('RPC Create User Error:', rpcError);
-              if (rpcError.message.includes('Access Denied')) {
-                  useToastStore.getState().addToast('شما دسترسی لازم برای ساخت کاربر را ندارید.', 'error');
-              } else if (rpcError.message.includes('unique')) {
-                  useToastStore.getState().addToast('این نام کاربری قبلاً در سیستم ثبت شده است.', 'error');
-              } else {
-                  useToastStore.getState().addToast(`خطا در ساخت کاربر: ${rpcError.message}`, 'error');
-              }
-              return { success: false, error: rpcError.message };
-          }
+        if (!sanitizedUsername || sanitizedUsername.length < 3) {
+            useToastStore.getState().addToast('نام کاربری باید شامل حداقل ۳ کاراکتر باشد', 'error');
+            return { success: false, error: 'نام کاربری کوتاه است' };
+        }
 
-          if (newUserId) {
-              // Handle farm assignments manually
-              if (userData.assignedFarms && userData.assignedFarms.length > 0) {
-                  const inserts = userData.assignedFarms.map(f => ({ user_id: newUserId, farm_id: f.id }));
-                  await supabase.from('user_farms').insert(inserts);
-              }
-              
-              useToastStore.getState().addToast(`کاربر ${userData.fullName} با موفقیت ایجاد شد`, 'success');
-              
-              // Refresh user list
-              await get().fetchUsers();
+        const email = `${sanitizedUsername}@morvarid.com`;
 
-              // Return password to UI for display
-              return { success: true, password: isAutoGenerated ? password : undefined };
-          }
-          return { success: false, error: 'User ID missing from response' };
+        // 🚨 SECURITY: PASSWORD HANDLING
+        const isAutoGenerated = !userData.password;
+        const password = userData.password || generateSecurePassword(16);
 
-      } catch (err: any) {
-          console.error('User Add Exception:', err);
-          useToastStore.getState().addToast(`خطای غیرمنتظره: ${err.message}`, 'error');
-          return { success: false, error: err.message };
-      } finally {
-          set({ isLoading: false });
-      }
-  },
+        set({ isLoading: true });
+        try {
+            // 🚀 SECURITY UPGRADE: Use Database RPC 'create_new_user'
+            // Instead of client-side signUp (which exposes role manipulation), we call a secure
+            // Postgres function. This function checks if the caller is an ADMIN before creating the user.
 
-  updateUser: async (user) => {
-      set({ isLoading: true });
-      try {
-          const { error: profileError } = await supabase.from('profiles').update({
-              username: user.username, 
-              full_name: user.fullName,
-              role: user.role,
-              is_active: user.isActive,
-              phone_number: user.phoneNumber
-          }).eq('id', user.id);
+            const { data: newUserId, error: rpcError } = await supabase.rpc('create_new_user', {
+                email: email,
+                password: password,
+                user_metadata: {
+                    username: sanitizedUsername,
+                    full_name: userData.fullName,
+                    role: userData.role
+                }
+            });
 
-          if (profileError) throw profileError;
+            if (rpcError) {
+                console.error('RPC Create User Error:', rpcError);
+                if (rpcError.message.includes('Access Denied')) {
+                    useToastStore.getState().addToast('شما دسترسی لازم برای ساخت کاربر را ندارید.', 'error');
+                } else if (rpcError.message.includes('unique')) {
+                    useToastStore.getState().addToast('این نام کاربری قبلاً در سیستم ثبت شده است.', 'error');
+                } else {
+                    useToastStore.getState().addToast(`خطا در ساخت کاربر: ${rpcError.message}`, 'error');
+                }
+                return { success: false, error: rpcError.message };
+            }
 
-          const { error: deleteError } = await supabase.from('user_farms').delete().eq('user_id', user.id);
-          if (!deleteError && user.assignedFarms && user.assignedFarms.length > 0) {
-              const inserts = user.assignedFarms.map(f => ({ user_id: user.id, farm_id: f.id }));
-              await supabase.from('user_farms').insert(inserts);
-          }
-          useToastStore.getState().addToast('ویرایش کاربر با موفقیت ثبت شد', 'success');
-      } catch (error: any) {
-          console.error('User Update Failed:', error);
-          if (error.code === '23505') {
-              useToastStore.getState().addToast('این نام کاربری قبلاً استفاده شده است.', 'error');
-          } else {
-              useToastStore.getState().addToast(`خطا در ویرایش کاربر: ${error.message}`, 'error');
-          }
-      } finally {
-          await get().fetchUsers();
-          set({ isLoading: false });
-      }
-  },
+            if (newUserId) {
+                // Handle farm assignments manually
+                if (userData.assignedFarms && userData.assignedFarms.length > 0) {
+                    const inserts = userData.assignedFarms.map(f => ({ user_id: newUserId, farm_id: f.id }));
+                    await supabase.from('user_farms').insert(inserts);
+                }
 
-  deleteUser: async (userId) => {
-      set({ isLoading: true });
-      try {
-          // SECURITY: Use Secure RPC instead of direct table update
-          const { error } = await supabase.rpc('soft_delete_user', {
-              target_user_id: userId
-          });
+                useToastStore.getState().addToast(`کاربر ${userData.fullName} با موفقیت ایجاد شد`, 'success');
 
-          if (error) {
-              if (error.message.includes('Access Denied')) {
-                  throw new Error('شما دسترسی لازم برای حذف کاربر را ندارید.');
-              }
-              if (error.message.includes('own account')) {
-                  throw new Error('شما نمی‌توانید حساب کاربری خودتان را غیرفعال کنید.');
-              }
-              throw error;
-          }
+                // Refresh user list
+                await get().fetchUsers();
 
-          useToastStore.getState().addToast('کاربر با موفقیت غیرفعال شد.', 'success');
-      } catch (error: any) {
-          console.error('User Delete Failed:', error);
-          useToastStore.getState().addToast(`خطا در حذف کاربر: ${error.message || error.details || 'خطای ناشناخته'}`, 'error');
-      } finally {
-          await get().fetchUsers();
-          set({ isLoading: false });
-      }
-  }
+                // Return password to UI for display
+                return { success: true, password: isAutoGenerated ? password : undefined };
+            }
+            return { success: false, error: 'User ID missing from response' };
+
+        } catch (err: any) {
+            console.error('User Add Exception:', err);
+            useToastStore.getState().addToast(`خطای غیرمنتظره: ${err.message}`, 'error');
+            return { success: false, error: err.message };
+        } finally {
+            set({ isLoading: false });
+        }
+    },
+
+    updateUser: async (user) => {
+        set({ isLoading: true });
+        try {
+            const { error: profileError } = await supabase.from('profiles').update({
+                username: user.username,
+                full_name: user.fullName,
+                role: user.role,
+                is_active: user.isActive,
+                phone_number: user.phoneNumber
+            }).eq('id', user.id);
+
+            if (profileError) throw profileError;
+
+            const { error: deleteError } = await supabase.from('user_farms').delete().eq('user_id', user.id);
+            if (!deleteError && user.assignedFarms && user.assignedFarms.length > 0) {
+                const inserts = user.assignedFarms.map(f => ({ user_id: user.id, farm_id: f.id }));
+                await supabase.from('user_farms').insert(inserts);
+            }
+            useToastStore.getState().addToast('ویرایش کاربر با موفقیت ثبت شد', 'success');
+        } catch (error: any) {
+            console.error('User Update Failed:', error);
+            if (error.code === '23505') {
+                useToastStore.getState().addToast('این نام کاربری قبلاً استفاده شده است.', 'error');
+            } else {
+                useToastStore.getState().addToast(`خطا در ویرایش کاربر: ${error.message}`, 'error');
+            }
+        } finally {
+            await get().fetchUsers();
+            set({ isLoading: false });
+        }
+    },
+
+    deleteUser: async (userId) => {
+        set({ isLoading: true });
+        try {
+            // SECURITY: Use Secure RPC instead of direct table update
+            const { error } = await supabase.rpc('soft_delete_user', {
+                target_user_id: userId
+            });
+
+            if (error) {
+                if (error.message.includes('Access Denied')) {
+                    throw new Error('شما دسترسی لازم برای حذف کاربر را ندارید.');
+                }
+                if (error.message.includes('own account')) {
+                    throw new Error('شما نمی‌توانید حساب کاربری خودتان را غیرفعال کنید.');
+                }
+                throw error;
+            }
+
+            useToastStore.getState().addToast('کاربر با موفقیت غیرفعال شد.', 'success');
+        } catch (error: any) {
+            console.error('User Delete Failed:', error);
+            useToastStore.getState().addToast(`خطا در حذف کاربر: ${error.message || error.details || 'خطای ناشناخته'}`, 'error');
+        } finally {
+            await get().fetchUsers();
+            set({ isLoading: false });
+        }
+    }
 }));
