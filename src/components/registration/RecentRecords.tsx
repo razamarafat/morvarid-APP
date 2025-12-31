@@ -75,7 +75,7 @@ const RecentRecords: React.FC = () => {
     const { products, getProductById } = useFarmStore();
     const { addToast } = useToastStore();
     const { confirm } = useConfirm();
-    
+
     const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
     const [showEditStatModal, setShowEditStatModal] = useState(false);
@@ -86,9 +86,9 @@ const RecentRecords: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'stats' | 'invoices'>('stats');
 
     const [statValues, setStatValues] = useState({ prod: '', prev: '', prodKg: '', prevKg: '' });
-    const [invoiceValues, setInvoiceValues] = useState({ 
+    const [invoiceValues, setInvoiceValues] = useState({
         invoiceNumber: '',
-        cartons: '', 
+        cartons: '',
         weight: '',
         driverName: '',
         driverPhone: '',
@@ -119,7 +119,7 @@ const RecentRecords: React.FC = () => {
         if (isAdmin) return true;
         if (creatorRole === UserRole.ADMIN) return false;
         const now = Date.now();
-        return (now - createdAt) < 18000000; 
+        return (now - createdAt) < 18000000;
     };
 
     const filteredStats = useMemo(() => {
@@ -129,6 +129,8 @@ const RecentRecords: React.FC = () => {
             if (s.farmId !== farmId) return false;
             if (!isDateInRange(s.date, start, end)) return false;
             if (isMotefereghe && !allowedProductIds.includes(s.productId)) return false;
+            // Filter by creator for non-admins (Registration workers)
+            if (!isAdmin && s.createdBy !== user?.id) return false;
             return true;
         });
     }, [statistics, farmId, startDate, endDate, isMotefereghe, allowedProductIds]);
@@ -140,6 +142,8 @@ const RecentRecords: React.FC = () => {
             if (i.farmId !== farmId) return false;
             if (!isDateInRange(i.date, start, end)) return false;
             if (isMotefereghe && i.productId && !allowedProductIds.includes(i.productId)) return false;
+            // Filter by creator for non-admins (Registration workers)
+            if (!isAdmin && i.createdBy !== user?.id) return false;
             return true;
         });
     }, [invoices, farmId, startDate, endDate, isMotefereghe, allowedProductIds]);
@@ -188,7 +192,7 @@ const RecentRecords: React.FC = () => {
         const prevKg = isMotefereghe ? 0 : Number(statValues.prevKg);
 
         if (
-            prod === targetStat.production && 
+            prod === targetStat.production &&
             prev === (targetStat.previousBalance || 0) &&
             prodKg === (targetStat.productionKg || 0) &&
             prevKg === (targetStat.previousBalanceKg || 0)
@@ -260,7 +264,7 @@ const RecentRecords: React.FC = () => {
     const saveInvoiceChanges = async () => {
         if (!selectedInvoice) return;
 
-        const isChanged = 
+        const isChanged =
             invoiceValues.invoiceNumber !== selectedInvoice.invoiceNumber ||
             Number(invoiceValues.cartons) !== selectedInvoice.totalCartons ||
             Number(invoiceValues.weight) !== selectedInvoice.totalWeight ||
@@ -289,9 +293,9 @@ const RecentRecords: React.FC = () => {
             setShowEditInvoiceModal(false);
             setSelectedInvoice(null);
             if (isOffline) {
-                 addToast('ویرایش در صف همگام‌سازی ذخیره شد', 'warning');
+                addToast('ویرایش در صف همگام‌سازی ذخیره شد', 'warning');
             } else {
-                 addToast('حواله ویرایش شد', 'success');
+                addToast('حواله ویرایش شد', 'success');
             }
         } else {
             addToast(result.error || 'خطا', 'error');
@@ -339,7 +343,7 @@ const RecentRecords: React.FC = () => {
 
                             return (
                                 <div key={pid} className={`bg-white dark:bg-gray-800 rounded-2xl shadow-sm border-2 overflow-hidden transition-all duration-300 ${hasStats ? 'border-green-100 dark:border-green-900/30' : 'border-gray-100 dark:border-gray-700 opacity-60'}`}>
-                                    <div 
+                                    <div
                                         onClick={() => hasStats ? setSelectedProductId(isExpanded ? null : pid) : null}
                                         className={`p-4 flex items-center justify-between ${hasStats ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30' : 'cursor-not-allowed'}`}
                                     >
@@ -361,48 +365,49 @@ const RecentRecords: React.FC = () => {
                                         <div className="bg-gray-50 dark:bg-black/20 border-t border-gray-100 dark:border-gray-700 p-3 space-y-3">
                                             {productStats.map(stat => {
                                                 const isAdminCreated = stat.creatorRole === UserRole.ADMIN;
-                                                const showTime = isAdmin || !isAdminCreated; 
+                                                const showTime = isAdmin || !isAdminCreated;
                                                 const isEdited = stat.updatedAt && stat.updatedAt > stat.createdAt + 2000;
 
                                                 return (
-                                                <div key={stat.id} className={`bg-white dark:bg-gray-800 p-3 rounded-xl border ${isAdminCreated ? 'border-purple-200 dark:border-purple-900/30 bg-purple-50/30' : 'border-gray-200 dark:border-gray-600'} relative`}>
-                                                    <div className="flex justify-between items-center mb-2">
-                                                        <div className="flex gap-2 items-center">
-                                                            <span className="text-xs font-bold bg-blue-50 dark:bg-blue-900/20 text-blue-600 px-2 py-1 rounded-md">
-                                                                {toPersianDigits(stat.date)}
-                                                            </span>
-                                                            {isAdminCreated && <span className="text-[10px] font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">ثبت توسط مدیر</span>}
+                                                    <div key={stat.id} className={`bg-white dark:bg-gray-800 p-3 rounded-xl border ${isAdminCreated ? 'border-purple-200 dark:border-purple-900/30 bg-purple-50/30' : 'border-gray-200 dark:border-gray-600'} relative`}>
+                                                        <div className="flex justify-between items-center mb-2">
+                                                            <div className="flex gap-2 items-center">
+                                                                <span className="text-xs font-bold bg-blue-50 dark:bg-blue-900/20 text-blue-600 px-2 py-1 rounded-md">
+                                                                    {toPersianDigits(stat.date)}
+                                                                </span>
+                                                                {isAdminCreated && <span className="text-[10px] font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">ثبت توسط مدیر</span>}
+                                                            </div>
+                                                            <div className="flex gap-2">
+                                                                {canEdit(stat.createdAt, stat.creatorRole) ? (
+                                                                    <>
+                                                                        <button onClick={() => onEditStatClick(stat)} className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"><Icons.Edit className="w-4 h-4" /></button>
+                                                                        <button onClick={() => handleDeleteStat(stat)} className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Icons.Trash className="w-4 h-4" /></button>
+                                                                    </>
+                                                                ) : (
+                                                                    <Icons.Lock className="w-4 h-4 text-gray-300" />
+                                                                )}
+                                                            </div>
                                                         </div>
-                                                        <div className="flex gap-2">
-                                                            {canEdit(stat.createdAt, stat.creatorRole) ? (
-                                                                <>
-                                                                    <button onClick={() => onEditStatClick(stat)} className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"><Icons.Edit className="w-4 h-4" /></button>
-                                                                    <button onClick={() => handleDeleteStat(stat)} className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Icons.Trash className="w-4 h-4" /></button>
-                                                                </>
-                                                            ) : (
-                                                                <Icons.Lock className="w-4 h-4 text-gray-300" />
-                                                            )}
+                                                        {isEdited && showTime && <span className="text-[9px] text-orange-500 font-bold block mb-1">ویرایش شده</span>}
+                                                        <div className="flex justify-between items-center text-sm">
+                                                            <div className="flex flex-col items-center">
+                                                                <span className="text-[10px] text-gray-400">تولید</span>
+                                                                <span className="font-black">{toPersianDigits(stat.production)}</span>
+                                                            </div>
+                                                            <div className="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
+                                                            <div className="flex flex-col items-center">
+                                                                <span className="text-[10px] text-gray-400">فروش</span>
+                                                                <span className="font-black text-red-500">{toPersianDigits(stat.sales)}</span>
+                                                            </div>
+                                                            <div className="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
+                                                            <div className="flex flex-col items-center">
+                                                                <span className="text-[10px] text-gray-400">مانده</span>
+                                                                <span className="font-black text-blue-600">{toPersianDigits(stat.currentInventory)}</span>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                    {isEdited && showTime && <span className="text-[9px] text-orange-500 font-bold block mb-1">ویرایش شده</span>}
-                                                    <div className="flex justify-between items-center text-sm">
-                                                        <div className="flex flex-col items-center">
-                                                            <span className="text-[10px] text-gray-400">تولید</span>
-                                                            <span className="font-black">{toPersianDigits(stat.production)}</span>
-                                                        </div>
-                                                        <div className="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
-                                                        <div className="flex flex-col items-center">
-                                                            <span className="text-[10px] text-gray-400">فروش</span>
-                                                            <span className="font-black text-red-500">{toPersianDigits(stat.sales)}</span>
-                                                        </div>
-                                                        <div className="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
-                                                        <div className="flex flex-col items-center">
-                                                            <span className="text-[10px] text-gray-400">مانده</span>
-                                                            <span className="font-black text-blue-600">{toPersianDigits(stat.currentInventory)}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )})}
+                                                )
+                                            })}
                                         </div>
                                     )}
                                 </div>
@@ -411,7 +416,7 @@ const RecentRecords: React.FC = () => {
                     </div>
                 ) : (
                     <div className="absolute inset-0">
-                         {filteredInvoices.length === 0 ? (
+                        {filteredInvoices.length === 0 ? (
                             <div className="text-center py-20 text-gray-400 font-bold flex flex-col items-center justify-center h-full">
                                 <Icons.FileText className="w-16 h-16 mb-2 opacity-20" />
                                 هیچ حواله‌ای یافت نشد
@@ -441,13 +446,13 @@ const RecentRecords: React.FC = () => {
                 <Modal isOpen={true} onClose={() => setShowEditStatModal(false)} title="ویرایش آمار">
                     <div className="space-y-4 pt-2">
                         <div className="grid grid-cols-2 gap-4">
-                            <div><label className="block text-xs font-bold mb-1">تولید (کارتن)</label><PersianNumberInput className={inputClasses} value={statValues.prod} onChange={v => setStatValues({...statValues, prod: v})} /></div>
-                            {!isMotefereghe && <div><label className="block text-xs font-bold mb-1">موجودی قبل</label><PersianNumberInput className={inputClasses} value={statValues.prev} onChange={v => setStatValues({...statValues, prev: v})} /></div>}
+                            <div><label className="block text-xs font-bold mb-1">تولید (کارتن)</label><PersianNumberInput className={inputClasses} value={statValues.prod} onChange={v => setStatValues({ ...statValues, prod: v })} /></div>
+                            {!isMotefereghe && <div><label className="block text-xs font-bold mb-1">موجودی قبل</label><PersianNumberInput className={inputClasses} value={statValues.prev} onChange={v => setStatValues({ ...statValues, prev: v })} /></div>}
                         </div>
                         {isLiquid(targetStat.productId) && (
                             <div className="grid grid-cols-2 gap-4">
-                                <div><label className="block text-xs font-bold mb-1 text-blue-600">تولید (وزن)</label><PersianNumberInput inputMode="decimal" className={`${inputClasses} border-blue-200`} value={statValues.prodKg} onChange={v => setStatValues({...statValues, prodKg: v})} /></div>
-                                {!isMotefereghe && <div><label className="block text-xs font-bold mb-1 text-blue-600">وزن قبل</label><PersianNumberInput inputMode="decimal" className={`${inputClasses} border-blue-200`} value={statValues.prevKg} onChange={v => setStatValues({...statValues, prevKg: v})} /></div>}
+                                <div><label className="block text-xs font-bold mb-1 text-blue-600">تولید (وزن)</label><PersianNumberInput inputMode="decimal" className={`${inputClasses} border-blue-200`} value={statValues.prodKg} onChange={v => setStatValues({ ...statValues, prodKg: v })} /></div>
+                                {!isMotefereghe && <div><label className="block text-xs font-bold mb-1 text-blue-600">وزن قبل</label><PersianNumberInput inputMode="decimal" className={`${inputClasses} border-blue-200`} value={statValues.prevKg} onChange={v => setStatValues({ ...statValues, prevKg: v })} /></div>}
                             </div>
                         )}
                         <div className="flex justify-end gap-3 pt-4">
@@ -461,13 +466,13 @@ const RecentRecords: React.FC = () => {
             {showEditInvoiceModal && selectedInvoice && (
                 <Modal isOpen={true} onClose={() => setShowEditInvoiceModal(false)} title="ویرایش حواله">
                     <div className="space-y-4 pt-2 overflow-y-auto max-h-[60vh]">
-                        <div><label className="block text-xs font-bold mb-1">شماره حواله</label><PersianNumberInput className={inputClasses} value={invoiceValues.invoiceNumber} onChange={v => setInvoiceValues({...invoiceValues, invoiceNumber: v})} /></div>
+                        <div><label className="block text-xs font-bold mb-1">شماره حواله</label><PersianNumberInput className={inputClasses} value={invoiceValues.invoiceNumber} onChange={v => setInvoiceValues({ ...invoiceValues, invoiceNumber: v })} /></div>
                         <div className="grid grid-cols-2 gap-4">
-                            <div><label className="block text-xs font-bold mb-1">تعداد کارتن</label><PersianNumberInput className={inputClasses} value={invoiceValues.cartons} onChange={v => setInvoiceValues({...invoiceValues, cartons: v})} /></div>
-                            <div><label className="block text-xs font-bold mb-1">وزن (Kg)</label><PersianNumberInput inputMode="decimal" className={inputClasses} value={invoiceValues.weight} onChange={v => setInvoiceValues({...invoiceValues, weight: v})} /></div>
+                            <div><label className="block text-xs font-bold mb-1">تعداد کارتن</label><PersianNumberInput className={inputClasses} value={invoiceValues.cartons} onChange={v => setInvoiceValues({ ...invoiceValues, cartons: v })} /></div>
+                            <div><label className="block text-xs font-bold mb-1">وزن (Kg)</label><PersianNumberInput inputMode="decimal" className={inputClasses} value={invoiceValues.weight} onChange={v => setInvoiceValues({ ...invoiceValues, weight: v })} /></div>
                         </div>
-                        <div><label className="block text-xs font-bold mb-1">راننده</label><input type="text" className="w-full p-3 border-2 rounded-xl dark:bg-gray-700 dark:text-white" value={invoiceValues.driverName} onChange={e => setInvoiceValues({...invoiceValues, driverName: e.target.value})} /></div>
-                        <div><label className="block text-xs font-bold mb-1">پلاک</label><PlateInput value={invoiceValues.plateNumber} onChange={v => setInvoiceValues({...invoiceValues, plateNumber: v})} /></div>
+                        <div><label className="block text-xs font-bold mb-1">راننده</label><input type="text" className="w-full p-3 border-2 rounded-xl dark:bg-gray-700 dark:text-white" value={invoiceValues.driverName} onChange={e => setInvoiceValues({ ...invoiceValues, driverName: e.target.value })} /></div>
+                        <div><label className="block text-xs font-bold mb-1">پلاک</label><PlateInput value={invoiceValues.plateNumber} onChange={v => setInvoiceValues({ ...invoiceValues, plateNumber: v })} /></div>
                         <div className="flex justify-end gap-3 pt-4">
                             <Button variant="secondary" onClick={() => setShowEditInvoiceModal(false)}>انصراف</Button>
                             <Button onClick={saveInvoiceChanges}>ذخیره تغییرات</Button>
