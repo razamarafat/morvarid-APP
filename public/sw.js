@@ -2,7 +2,7 @@
 importScripts('https://storage.googleapis.com/workbox-cdn/releases/6.4.1/workbox-sw.js');
 
 const CACHE_PREFIX = 'morvarid';
-const CURRENT_CACHE_ID = 'v3.0.7'; // Change this manually or via build script to invalidate caches
+const CURRENT_CACHE_ID = 'v3.0.8'; // Change this manually or via build script to invalidate caches
 const STATIC_CACHE = `${CACHE_PREFIX}-static-${CURRENT_CACHE_ID}`;
 const IMAGE_CACHE = `${CACHE_PREFIX}-images-${CURRENT_CACHE_ID}`;
 const API_CACHE = `${CACHE_PREFIX}-api-${CURRENT_CACHE_ID}`;
