@@ -48,28 +48,16 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
     fetchStatistics: async () => {
         set({ isLoading: true });
         try {
+            // Enterprise pattern: Single relational query instead of multiple serial calls
             const { data: statsData, error: statsError } = await supabase
                 .from('daily_statistics')
-                .select('*')
+                .select('*, profiles:created_by(full_name, role)')
                 .order('date', { ascending: false })
                 .limit(3000);
 
             if (statsError) throw statsError;
 
             if (statsData) {
-                const creatorIds = Array.from(new Set(statsData.map((s: any) => s.created_by).filter(Boolean)));
-                let profileMap: Record<string, { name: string, role: string }> = {};
-
-                if (creatorIds.length > 0) {
-                    const { data: profilesData } = await supabase.from('profiles').select('id, full_name, role').in('id', creatorIds);
-                    if (profilesData) {
-                        profileMap = profilesData.reduce((acc: any, p: any) => ({
-                            ...acc,
-                            [p.id]: { name: p.full_name, role: p.role }
-                        }), {});
-                    }
-                }
-
                 const uniqueStatsMap = new Map<string, any>();
                 statsData.forEach((s: any) => {
                     const key = `${s.farm_id}_${normalizeDate(s.date)}_${mapLegacyProductId(s.product_id)}`;
@@ -98,16 +86,17 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                     currentInventoryKg: s.current_inventory_kg || 0,
                     createdAt: s.created_at ? new Date(s.created_at).getTime() : Date.now(),
                     updatedAt: s.updated_at ? new Date(s.updated_at).getTime() : undefined,
-                    creatorName: profileMap[s.created_by]?.name || 'ناشناس',
-                    creatorRole: profileMap[s.created_by]?.role,
-                    createdBy: s.created_by
+                    createdBy: s.created_by,
+                    // Directly access joined profile data
+                    creatorName: s.profiles?.full_name || 'کاربر حذف شده',
+                    creatorRole: s.profiles?.role
                 }));
                 set({ statistics: mappedStats, isLoading: false });
             } else {
-                set({ isLoading: false });
+                set({ statistics: [], isLoading: false });
             }
         } catch (e) {
-            console.error("Fetch Stats Failed", e);
+            console.error("Fetch Statistics Failed:", e);
             set({ isLoading: false });
         }
     },

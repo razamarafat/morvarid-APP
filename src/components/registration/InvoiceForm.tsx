@@ -28,7 +28,7 @@ import { sanitizeInput } from '../../utils/sanitizers';
 
 const persianLettersRegex = /^[\u0600-\u06FF\s]+$/;
 const mobileRegex = /^09\d{9}$/;
-const invoiceNumberRegex = /^(17|18)\d{8}$/; 
+const invoiceNumberRegex = /^(17|18)\d{8}$/;
 
 const invoiceGlobalSchema = z.object({
     invoiceNumber: z.string()
@@ -61,12 +61,12 @@ export const InvoiceForm: React.FC = () => {
     const { user } = useAuthStore();
     const { getProductById } = useFarmStore();
     const { addInvoice } = useInvoiceStore();
-    const { statistics } = useStatisticsStore(); 
+    const { statistics } = useStatisticsStore();
     const { addToast } = useToastStore();
     const { confirm } = useConfirm();
     const { readFromClipboard, parseMultipleInvoices } = useSMS();
     const { cleanPersianText } = useValidation();
-    
+
     const todayJalali = getTodayJalali();
     const todayDayName = getTodayDayName();
     const normalizedDate = normalizeDate(todayJalali);
@@ -75,19 +75,19 @@ export const InvoiceForm: React.FC = () => {
     const userFarms = user?.assignedFarms || [];
     const [selectedFarmId] = useState<string>(userFarms[0]?.id || '');
     const selectedFarm = userFarms.find(f => f.id === selectedFarmId);
-    
+
     const [referenceDate, setReferenceDate] = useState(normalizedDate);
     const [currentTime, setCurrentTime] = useState(getCurrentTime(false));
-    
+
     const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
     const [itemsState, setItemsState] = useState<Record<string, { cartons: string; weight: string }>>({});
-    
+
     const [isProductSelectorOpen, setIsProductSelectorOpen] = useState(false);
     const [plateError, setPlateError] = useState<string | null>(null);
 
     const [smsDrafts, setSmsDrafts] = useState<SMSDraft[]>([]);
     const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
-    const [pendingDraftData, setPendingDraftData] = useState<{cartons: number, weight: number} | null>(null);
+    const [pendingDraftData, setPendingDraftData] = useState<{ cartons: number, weight: number } | null>(null);
 
     // Manual Paste Modal State
     const [isPasteModalOpen, setIsPasteModalOpen] = useState(false);
@@ -167,14 +167,14 @@ export const InvoiceForm: React.FC = () => {
     const processParsedMessages = (parsed: ParsedSMS[]) => {
         if (parsed.length > 0) {
             const uniqueNewDrafts = parsed.filter(p => !smsDrafts.some(d => d.invoiceNumber === p.invoiceNumber));
-            
+
             if (uniqueNewDrafts.length === 0) {
                 addToast('این پیامک(ها) قبلاً در لیست موجود هستند.', 'warning');
                 return;
             }
 
             const newDrafts = uniqueNewDrafts.map(p => ({ ...p, id: uuidv4() }));
-            setSmsDrafts(prev => [...prev, ...newDrafts]); 
+            setSmsDrafts(prev => [...prev, ...newDrafts]);
             addToast(`${toPersianDigits(uniqueNewDrafts.length)} حواله جدید به لیست اضافه شد.`, 'success');
         } else {
             addToast('هیچ الگوی معتبری یافت نشد.', 'warning');
@@ -186,7 +186,7 @@ export const InvoiceForm: React.FC = () => {
         if (draft.date) {
             setReferenceDate(normalizeDate(draft.date));
         }
-        
+
         setPendingDraftData({ cartons: draft.cartons, weight: draft.weight });
         setActiveDraftId(draft.id);
 
@@ -259,7 +259,7 @@ export const InvoiceForm: React.FC = () => {
             const item = itemsState[pid];
             const product = getProductById(pid);
             const name = product?.name || 'محصول';
-            
+
             const weightVal = Number(item.weight);
             const cartonsVal = Number(item.cartons);
 
@@ -286,7 +286,7 @@ export const InvoiceForm: React.FC = () => {
                 addToast(`خطا: آمار تولید برای "${name}" یافت نشد.`, 'error');
                 return;
             }
-            
+
             if (statRecord.currentInventory < cartonsVal) {
                 addToast(`خطا: موجودی "${name}" کافی نیست. (موجود: ${statRecord.currentInventory})`, 'error');
                 return;
@@ -304,7 +304,7 @@ export const InvoiceForm: React.FC = () => {
 
         setIsSubmitting(true);
         let successCount = 0;
-        let errorsList: string[] = [];
+        const errorsList: string[] = [];
 
         // SANITIZATION
         const cleanDriverName = sanitizeInput(globalData.driverName);
@@ -315,9 +315,9 @@ export const InvoiceForm: React.FC = () => {
             const item = itemsState[pid];
             const result = await addInvoice({
                 farmId: selectedFarmId,
-                date: referenceDate, 
+                date: referenceDate,
                 invoiceNumber: globalData.invoiceNumber,
-                totalCartons: Number(item.cartons || 0), 
+                totalCartons: Number(item.cartons || 0),
                 totalWeight: Number(item.weight),
                 productId: pid,
                 driverName: cleanDriverName,
@@ -344,14 +344,14 @@ export const InvoiceForm: React.FC = () => {
             } else {
                 addToast(`خطا در ثبت: ${errorsList[0]}`, 'error');
             }
-        } 
-        
+        }
+
         if (successCount > 0) {
             addToast(`${toPersianDigits(successCount)} آیتم با موفقیت ثبت شد.`, 'success');
-            
+
             // CLEAR AUTO SAVE
             clearDraft();
-            
+
             if (activeDraftId) {
                 removeDraft(activeDraftId);
             }
@@ -383,42 +383,42 @@ export const InvoiceForm: React.FC = () => {
     return (
         <div className="max-w-4xl mx-auto space-y-6 lg:space-y-10 pb-20">
             <div className="bg-white dark:bg-gray-800 p-6 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden flex flex-col items-center justify-center gap-2 text-center">
-                 <Icons.FileText className="absolute right-4 top-1/2 -translate-y-1/2 w-32 h-32 text-metro-blue opacity-5 pointer-events-none -rotate-12" />
-                 
-                 <div className="flex items-center gap-3 mb-1 relative z-10">
+                <Icons.FileText className="absolute right-4 top-1/2 -translate-y-1/2 w-32 h-32 text-metro-blue opacity-5 pointer-events-none -rotate-12" />
+
+                <div className="flex items-center gap-3 mb-1 relative z-10">
                     <span className="text-gray-500 dark:text-gray-400 font-bold text-xs tracking-widest uppercase bg-gray-100 dark:bg-gray-700/50 px-3 py-1 rounded-full">
-                         {todayDayName}
+                        {todayDayName}
                     </span>
                     <div className="text-xl font-bold text-gray-400 font-sans tabular-nums tracking-wide">{toPersianDigits(currentTime)}</div>
-                 </div>
-                 
-                 <div className="flex items-center gap-4 relative z-10">
-                     <h1 className="text-5xl lg:text-6xl font-black font-sans tabular-nums tracking-tighter leading-none text-gray-900 dark:text-white">
-                         {toPersianDigits(referenceDate)}
-                     </h1>
-                 </div>
-                 
-                 <div className="mt-2 text-metro-blue font-black tracking-wide text-lg relative z-10">
+                </div>
+
+                <div className="flex items-center gap-4 relative z-10">
+                    <h1 className="text-5xl lg:text-6xl font-black font-sans tabular-nums tracking-tighter leading-none text-gray-900 dark:text-white">
+                        {toPersianDigits(referenceDate)}
+                    </h1>
+                </div>
+
+                <div className="mt-2 text-metro-blue font-black tracking-wide text-lg relative z-10">
                     ثبت حواله فروش
-                 </div>
-                 
-                 <div className="flex gap-2 mt-4 relative z-10">
-                     <button 
+                </div>
+
+                <div className="flex gap-2 mt-4 relative z-10">
+                    <button
                         onClick={handleReadSMS}
                         className="bg-metro-blue hover:bg-metro-cobalt text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-md active:scale-95"
-                     >
-                         <Icons.Download className="w-4 h-4" />
-                         خواندن از پیامک
-                     </button>
-                     
-                     <button 
+                    >
+                        <Icons.Download className="w-4 h-4" />
+                        خواندن از پیامک
+                    </button>
+
+                    <button
                         onClick={() => setIsPasteModalOpen(true)}
                         className="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all active:scale-95"
                         title="ورود دستی / تاریخچه"
-                     >
-                         <Icons.List className="w-4 h-4" />
-                     </button>
-                 </div>
+                    >
+                        <Icons.List className="w-4 h-4" />
+                    </button>
+                </div>
             </div>
 
             <Modal isOpen={isPasteModalOpen} onClose={() => setIsPasteModalOpen(false)} title="پردازش متن انبوه / تاریخچه">
@@ -426,7 +426,7 @@ export const InvoiceForm: React.FC = () => {
                     <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
                         اگر چندین پیامک در تاریخچه کیبورد دارید، همه آن‌ها را در کادر زیر Paste کنید. سیستم تمام حواله‌ها را استخراج می‌کند.
                     </p>
-                    <TextArea 
+                    <TextArea
                         className="w-full h-48"
                         placeholder="متن پیامک‌ها را اینجا قرار دهید..."
                         value={pastedText}
@@ -488,7 +488,7 @@ export const InvoiceForm: React.FC = () => {
                         <Icons.FileText className="w-6 h-6 text-metro-orange" />
                         اطلاعات پایه
                     </h3>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label className={labelClass}>رمز حواله (۱۰ رقم)</label>
@@ -507,7 +507,7 @@ export const InvoiceForm: React.FC = () => {
                             />
                             {errors.invoiceNumber && <p className="text-red-500 text-xs font-bold mt-2 mr-1">{errors.invoiceNumber.message}</p>}
                         </div>
-                        
+
                         <div>
                             <label className={labelClass}>تاریخ صدور</label>
                             <div className="h-16 relative z-10">
@@ -536,7 +536,7 @@ export const InvoiceForm: React.FC = () => {
                                         const p = getProductById(pid);
                                         const isSelected = selectedProductIds.includes(pid);
                                         return (
-                                            <button 
+                                            <button
                                                 key={pid}
                                                 type="button"
                                                 onClick={() => handleProductToggle(pid)}
@@ -568,7 +568,7 @@ export const InvoiceForm: React.FC = () => {
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <label className="text-xs font-bold text-gray-400 block mb-1">تعداد (کارتن)</label>
-                                                <PersianNumberInput 
+                                                <PersianNumberInput
                                                     className="w-full p-3 bg-white dark:bg-gray-800 dark:text-white text-center font-black text-xl rounded-xl outline-none focus:ring-2 focus:ring-metro-blue border-2 border-transparent dark:border-gray-700"
                                                     value={itemsState[pid]?.cartons || ''}
                                                     onChange={val => handleItemChange(pid, 'cartons', val)}
@@ -577,7 +577,7 @@ export const InvoiceForm: React.FC = () => {
                                             </div>
                                             <div>
                                                 <label className="text-xs font-bold text-gray-400 block mb-1">وزن (کیلوگرم)</label>
-                                                <PersianNumberInput 
+                                                <PersianNumberInput
                                                     inputMode="decimal"
                                                     className="w-full p-3 bg-white dark:bg-gray-800 dark:text-white text-center font-black text-xl rounded-xl outline-none focus:ring-2 focus:ring-metro-blue border-b-4 border-metro-blue dark:border-metro-blue"
                                                     value={itemsState[pid]?.weight || ''}
@@ -607,10 +607,10 @@ export const InvoiceForm: React.FC = () => {
                                     name="driverName"
                                     control={control}
                                     render={({ field }) => (
-                                        <Input 
+                                        <Input
                                             {...field}
                                             className={inputClass}
-                                            placeholder="" 
+                                            placeholder=""
                                             onChange={(e) => field.onChange(cleanPersianText(e.target.value))}
                                         />
                                     )}
@@ -643,10 +643,10 @@ export const InvoiceForm: React.FC = () => {
                                 name="plateNumber"
                                 control={control}
                                 render={({ field }) => (
-                                    <PlateInput 
-                                        value={field.value} 
-                                        onChange={field.onChange} 
-                                        onError={setPlateError} 
+                                    <PlateInput
+                                        value={field.value}
+                                        onChange={field.onChange}
+                                        onError={setPlateError}
                                     />
                                 )}
                             />

@@ -9,68 +9,65 @@ export const toEnglishDigits = (str: string): string => {
 };
 
 export const toPersianDigits = (str: string | number): string => {
-    if (str === undefined || str === null) return '';
-    const s = String(str);
-    return s.replace(/[0-9]/g, (d) => String.fromCharCode(d.charCodeAt(0) + 1728));
+  if (str === undefined || str === null) return '';
+  const s = String(str);
+  return s.replace(/[0-9]/g, (d) => String.fromCharCode(d.charCodeAt(0) + 1728));
 };
 
 export const normalizeDate = (dateStr: string): string => {
   if (!dateStr) return '';
-  
+
   // 1. Convert to English Digits
   let english = toEnglishDigits(dateStr);
-  
+
   // 2. Remove invisible control characters (LTR/RTL marks, zero-width spaces)
   english = english.replace(/[\u200B-\u200D\uFEFF]/g, '');
 
   // 3. Remove anything that is not a digit or a separator
   english = english.replace(/[^\d/\\-]/g, '');
-  
-  // 4. Normalize separators to forward slash
+
+  // 4. Normalize separators to forward slash (remove useless escape on pipe if present, though here it looks fine, let's just clean it up)
   english = english.replace(/[-|\\]/g, '/').trim();
 
   // 5. Pad Month and Day with zeros (e.g., 1403/5/1 -> 1403/05/01)
   const parts = english.split('/');
   if (parts.length === 3) {
-      const y = parts[0];
-      const m = parts[1].padStart(2, '0');
-      const d = parts[2].padStart(2, '0');
-      return `${y}/${m}/${d}`; 
+    const y = parts[0];
+    const m = parts[1].padStart(2, '0');
+    const d = parts[2].padStart(2, '0');
+    return `${y}/${m}/${d}`;
   }
-  
+
   return english;
 };
 
 export const getTodayJalali = (): string => {
   const date = new Date();
-  const options: Intl.DateTimeFormatOptions = { 
-      year: 'numeric', 
-      month: '2-digit', 
-      day: '2-digit',
-      // @ts-ignore
-      calendar: 'persian',
-      numberingSystem: 'latn'
+  const options: Intl.DateTimeFormatOptions = {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    calendar: 'persian',
+    numberingSystem: 'latn'
   };
   const faDate = new Intl.DateTimeFormat('fa-IR', options).format(date);
   return normalizeDate(faDate);
 };
 
 export const getTodayDayName = (): string => {
-    const date = new Date();
-    // @ts-ignore
-    return new Intl.DateTimeFormat('fa-IR', { weekday: 'long', calendar: 'persian' }).format(date);
+  const date = new Date();
+  return new Intl.DateTimeFormat('fa-IR', { weekday: 'long', calendar: 'persian' }).format(date);
 };
 
 export const formatJalali = (date: Date | string | number): string => {
   if (!date) return '';
   const d = new Date(date);
-  const options: Intl.DateTimeFormatOptions = { 
-      year: 'numeric', 
-      month: '2-digit', 
-      day: '2-digit',
-      // @ts-ignore
-      calendar: 'persian',
-      numberingSystem: 'latn'
+  const options: Intl.DateTimeFormatOptions = {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    calendar: 'persian',
+    numberingSystem: 'latn'
   };
   try {
     return normalizeDate(new Intl.DateTimeFormat('fa-IR', options).format(d));
@@ -80,23 +77,23 @@ export const formatJalali = (date: Date | string | number): string => {
 };
 
 export const getCurrentTime = (withSeconds: boolean = true): string => {
-    // Return time with Persian digits
-    const date = new Date();
-    const options: Intl.DateTimeFormatOptions = { 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        hour12: false
-    };
-    if (withSeconds) {
-        options.second = '2-digit';
-    }
-    const timeStr = date.toLocaleTimeString('fa-IR', options);
-    return toPersianDigits(timeStr);
+  // Return time with Persian digits
+  const date = new Date();
+  const options: Intl.DateTimeFormatOptions = {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  };
+  if (withSeconds) {
+    options.second = '2-digit';
+  }
+  const timeStr = date.toLocaleTimeString('fa-IR', options);
+  return toPersianDigits(timeStr);
 };
 
 export const getTodayJalaliPersian = (): string => {
-    const enDate = getTodayJalali();
-    return toPersianDigits(enDate);
+  const enDate = getTodayJalali();
+  return toPersianDigits(enDate);
 };
 
 export const isDateInRange = (date: string, startDate: string, endDate: string): boolean => {

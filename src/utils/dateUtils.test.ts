@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { toEnglishDigits, toPersianDigits, normalizeDate } from './dateUtils';
 
 describe('Utility Functions', () => {
-  
+
   describe('toEnglishDigits', () => {
     it('should convert Persian digits to English digits', () => {
       expect(toEnglishDigits('۱۲۳۴۵۶۷۸۹۰')).toBe('1234567890');
@@ -19,7 +19,8 @@ describe('Utility Functions', () => {
 
     it('should handle empty or null input', () => {
       expect(toEnglishDigits('')).toBe('');
-      // @ts-ignore
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-expect-error
       expect(toEnglishDigits(null)).toBe('');
     });
   });
@@ -53,7 +54,7 @@ describe('Utility Functions', () => {
 
     it('should remove invisible characters', () => {
       // Simulate input with RTL marks often found in copy-paste
-      const dirtyDate = '1403/05/20\u200C'; 
+      const dirtyDate = '1403/05/20\u200C';
       expect(normalizeDate(dirtyDate)).toBe('1403/05/20');
     });
 

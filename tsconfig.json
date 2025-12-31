@@ -24,10 +24,12 @@
       ]
     },
     "allowImportingTsExtensions": true,
-    "noEmit": true
+    "noEmit": true,
+    "strict": true
   },
   "include": [
-    "src"
+    "src",
+    "src/vite-env.d.ts"
   ],
   "exclude": [
     "node_modules",

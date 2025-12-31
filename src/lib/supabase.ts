@@ -4,8 +4,8 @@ import { createClient } from '@supabase/supabase-js';
 // We directy access Vite environment variables.
 // If they are missing, the application MUST crash immediately to prevent insecure usage.
 // Fix: Type casting import.meta to any to resolve TS error 'Property env does not exist on type ImportMeta'
-const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
-const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(

@@ -1,3 +1,0 @@
-
-// LOGGING SYSTEM DELETED
-export const LOG_MESSAGES = {};

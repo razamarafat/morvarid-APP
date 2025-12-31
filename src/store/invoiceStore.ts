@@ -45,26 +45,16 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     fetchInvoices: async () => {
         set({ isLoading: true });
         try {
+            // Standard relational query: fetch invoices and join profiles in one trip
             const { data, error } = await supabase
                 .from('invoices')
-                .select('*')
+                .select('*, profiles:created_by(full_name, role)')
                 .order('date', { ascending: false })
                 .limit(2000);
 
             if (error) throw error;
 
             if (data) {
-                const creatorIds = Array.from(new Set(data.map((i: any) => i.created_by).filter(Boolean)));
-                let profileMap: Record<string, { name: string, role: string }> = {};
-
-                if (creatorIds.length > 0) {
-                    const { data: profiles } = await supabase.from('profiles').select('id, full_name, role').in('id', creatorIds);
-                    if (profiles) profileMap = profiles.reduce((acc: any, p: any) => ({
-                        ...acc,
-                        [p.id]: { name: p.full_name, role: p.role }
-                    }), {});
-                }
-
                 const mapped = data.map((i: any) => ({
                     id: i.id,
                     farmId: i.farm_id,
@@ -81,12 +71,13 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
                     createdAt: i.created_at ? new Date(i.created_at).getTime() : Date.now(),
                     updatedAt: i.updated_at ? new Date(i.updated_at).getTime() : undefined,
                     createdBy: i.created_by,
-                    creatorName: profileMap[i.created_by]?.name || 'کاربر حذف شده',
-                    creatorRole: profileMap[i.created_by]?.role
+                    // Relation data is automatically nested under the 'profiles' key (or alias)
+                    creatorName: i.profiles?.full_name || 'کاربر حذف شده',
+                    creatorRole: i.profiles?.role
                 }));
                 set({ invoices: mapped, isLoading: false });
             } else {
-                set({ isLoading: false });
+                set({ invoices: [], isLoading: false });
             }
         } catch (e) {
             console.error("Fetch Invoices Failed:", e);

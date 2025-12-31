@@ -11,7 +11,7 @@ import { useStatisticsStore } from './store/statisticsStore';
 import { useInvoiceStore } from './store/invoiceStore';
 import { useUserStore } from './store/userStore';
 import { useAlertStore } from './store/alertStore';
-import { usePwaStore } from './store/pwaStore'; 
+import { usePwaStore } from './store/pwaStore';
 import { useLogStore } from './store/logStore';
 import ConfirmDialog from './components/common/ConfirmDialog';
 import ToastContainer from './components/common/Toast';
@@ -54,25 +54,25 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("Uncaught error:", error);
     console.error("Component Stack:", errorInfo.componentStack);
-    
+
     // Global Error Logging to Supabase
-    useLogStore.getState().logError(error, errorInfo.componentStack);
+    useLogStore.getState().logError(error, errorInfo.componentStack || undefined);
   }
 
   handleHardReset = () => {
-      localStorage.clear();
-      sessionStorage.clear();
-      if ('caches' in window) {
-          caches.keys().then(names => {
-              for (let name of names) caches.delete(name);
-          });
-      }
-      if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.getRegistrations().then(registrations => {
-              for(let registration of registrations) registration.unregister();
-          });
-      }
-      window.location.reload();
+    localStorage.clear();
+    sessionStorage.clear();
+    if ('caches' in window) {
+      caches.keys().then(names => {
+        for (const name of names) caches.delete(name);
+      });
+    }
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        for (const registration of registrations) registration.unregister();
+      });
+    }
+    window.location.reload();
   };
 
   render(): ReactNode {
@@ -83,28 +83,28 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
       return (
         <div className="flex flex-col items-center justify-center h-screen bg-gray-100 dark:bg-gray-900 text-center p-6">
           <div className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-xl max-w-sm w-full border border-gray-200 dark:border-gray-700">
-              <h1 className="text-2xl font-black text-red-600 mb-2">خطای سیستمی</h1>
-              <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm">
-                  {error?.message?.includes('Minified React error') 
-                    ? 'خطای داخلی رابط کاربری رخ داده است. (Lazy Load Error)' 
-                    : 'متأسفانه برنامه با مشکل مواجه شده است.'}
-                  <br/>
-                  <span className="text-xs text-gray-400 mt-2 block">(گزارش خطا برای تیم فنی ارسال شد)</span>
-              </p>
-              
-              <div className="space-y-3">
-                  <button onClick={() => window.location.reload()} className="w-full px-6 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-all active:scale-95">
-                    تلاش مجدد
-                  </button>
-                  <button onClick={this.handleHardReset} className="w-full px-6 py-3 bg-red-100 text-red-600 border border-red-200 rounded-xl font-bold text-sm hover:bg-red-200 transition-all">
-                    بازنشانی کامل (رفع خرابی)
-                  </button>
-              </div>
+            <h1 className="text-2xl font-black text-red-600 mb-2">خطای سیستمی</h1>
+            <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm">
+              {error?.message?.includes('Minified React error')
+                ? 'خطای داخلی رابط کاربری رخ داده است. (Lazy Load Error)'
+                : 'متأسفانه برنامه با مشکل مواجه شده است.'}
+              <br />
+              <span className="text-xs text-gray-400 mt-2 block">(گزارش خطا برای تیم فنی ارسال شد)</span>
+            </p>
+
+            <div className="space-y-3">
+              <button onClick={() => window.location.reload()} className="w-full px-6 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-all active:scale-95">
+                تلاش مجدد
+              </button>
+              <button onClick={this.handleHardReset} className="w-full px-6 py-3 bg-red-100 text-red-600 border border-red-200 rounded-xl font-bold text-sm hover:bg-red-200 transition-all">
+                بازنشانی کامل (رفع خرابی)
+              </button>
+            </div>
           </div>
         </div>
       );
     }
-    
+
     return children;
   }
 }
@@ -113,8 +113,8 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 const PageLoader = () => (
   <div className="flex flex-col items-center justify-center h-screen bg-[#F3F3F3] dark:bg-[#1D1D1D] transition-colors duration-300">
     <div className="relative w-16 h-16">
-        <div className="absolute top-0 left-0 w-full h-full border-4 border-gray-200 dark:border-gray-700 rounded-full"></div>
-        <div className="absolute top-0 left-0 w-full h-full border-4 border-metro-blue border-t-transparent rounded-full animate-spin"></div>
+      <div className="absolute top-0 left-0 w-full h-full border-4 border-gray-200 dark:border-gray-700 rounded-full"></div>
+      <div className="absolute top-0 left-0 w-full h-full border-4 border-metro-blue border-t-transparent rounded-full animate-spin"></div>
     </div>
     <p className="mt-6 text-gray-500 dark:text-gray-400 font-bold text-sm animate-pulse">در حال بارگذاری...</p>
   </div>
@@ -129,7 +129,7 @@ function App() {
   const { fetchUsers } = useUserStore();
   const { initListener } = useAlertStore();
   const { setIsInstalled } = usePwaStore();
-  
+
   useAutoUpdate();
   useOfflineSync();
   useAutoTheme();
@@ -143,19 +143,19 @@ function App() {
 
   useEffect(() => {
     const init = async () => {
-        await checkSession();
-        initListener();
+      await checkSession();
+      initListener();
     };
     init();
 
     let activityTimeout: ReturnType<typeof setTimeout> | null = null;
     const handleUserActivity = () => {
-        if (!activityTimeout) {
-            activityTimeout = setTimeout(() => {
-                updateActivity();
-                activityTimeout = null;
-            }, 10000); 
-        }
+      if (!activityTimeout) {
+        activityTimeout = setTimeout(() => {
+          updateActivity();
+          activityTimeout = null;
+        }, 10000);
+      }
     };
 
     window.addEventListener('mousemove', handleUserActivity);
@@ -165,13 +165,13 @@ function App() {
     window.addEventListener('scroll', handleUserActivity);
 
     const inactivityInterval = setInterval(() => {
-        checkInactivity();
+      checkInactivity();
     }, 60 * 1000);
 
     const handleVisibilityChange = () => {
-        if (document.visibilityState === 'visible') {
-            checkInactivity();
-        }
+      if (document.visibilityState === 'visible') {
+        checkInactivity();
+      }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
@@ -179,33 +179,33 @@ function App() {
     setIsInstalled(isStandalone);
 
     const handleAppInstalled = () => {
-        setIsInstalled(true);
+      setIsInstalled(true);
     };
     window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
-        window.removeEventListener('mousemove', handleUserActivity);
-        window.removeEventListener('click', handleUserActivity);
-        window.removeEventListener('keydown', handleUserActivity);
-        window.removeEventListener('touchstart', handleUserActivity);
-        window.removeEventListener('scroll', handleUserActivity);
-        window.removeEventListener('appinstalled', handleAppInstalled);
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-        clearInterval(inactivityInterval);
+      window.removeEventListener('mousemove', handleUserActivity);
+      window.removeEventListener('click', handleUserActivity);
+      window.removeEventListener('keydown', handleUserActivity);
+      window.removeEventListener('touchstart', handleUserActivity);
+      window.removeEventListener('scroll', handleUserActivity);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(inactivityInterval);
     };
   }, []);
 
   useEffect(() => {
     if (user) {
-        // Optimistic pre-fetching of data can happen here while dashboard chunk loads
-        fetchFarms();
-        fetchProducts();
-        fetchStatistics();
-        fetchInvoices();
-        if (user.role === UserRole.ADMIN) fetchUsers();
+      // Optimistic pre-fetching of data can happen here while dashboard chunk loads
+      fetchFarms();
+      fetchProducts();
+      fetchStatistics();
+      fetchInvoices();
+      if (user.role === UserRole.ADMIN) fetchUsers();
     }
   }, [user]);
-  
+
   const HomeRedirect = () => {
     if (!user) return <Navigate to="/login" />;
     switch (user.role) {

@@ -9,27 +9,26 @@ import { supabase } from '../lib/supabase';
 const MAX_RETRIES = 5;
 
 export const useOfflineSync = () => {
-    const { 
-        queue, 
-        removeFromQueue, 
-        incrementRetry, 
-        updateItemAttempt, 
-        addSyncLog, 
-        isProcessing, 
-        setIsProcessing 
+    const {
+        queue,
+        removeFromQueue,
+        incrementRetry,
+        updateItemAttempt,
+        addSyncLog,
+        isProcessing,
+        setIsProcessing
     } = useSyncStore();
-    
+
     const { bulkAddInvoices, updateInvoice, deleteInvoice } = useInvoiceStore();
     const { bulkUpsertStatistics, updateStatistic, deleteStatistic } = useStatisticsStore();
     const { addToast } = useToastStore();
-    
+
     const processingRef = useRef(false);
 
     useEffect(() => {
         if (queue.length > 0 && 'serviceWorker' in navigator && 'SyncManager' in window) {
             navigator.serviceWorker.ready.then(registration => {
-                // @ts-ignore
-                return registration.sync.register('sync-queue');
+                return (registration as any).sync.register('sync-queue');
             }).catch(err => {
                 console.warn('[Sync] Background sync registration failed:', err);
             });
@@ -54,7 +53,7 @@ export const useOfflineSync = () => {
         };
 
         window.addEventListener('online', handleOnline);
-        
+
         if (navigator.onLine && queue.length > 0) {
             processQueue();
         }
@@ -69,18 +68,18 @@ export const useOfflineSync = () => {
             const serverTime = new Date(data.updated_at).getTime();
             return serverTime > offlineTime;
         } catch (e) {
-            return false; 
+            return false;
         }
     };
 
     const processQueue = async (force: boolean = false) => {
         if (isProcessing || processingRef.current || queue.length === 0 || !navigator.onLine) return;
-        
+
         try {
             setIsProcessing(true);
             processingRef.current = true;
 
-            const queueSnapshot = [...queue]; 
+            const queueSnapshot = [...queue];
             let successCount = 0;
             let conflictCount = 0;
             let failCount = 0;
@@ -97,13 +96,13 @@ export const useOfflineSync = () => {
                     });
                     removeFromQueue(item.id);
                     deadLetterCount++;
-                    continue; 
+                    continue;
                 }
 
                 if (!force && item.retryCount > 0 && item.lastAttempt) {
-                    const backoffDelay = 2000 * Math.pow(2, Math.min(item.retryCount, 6)); 
+                    const backoffDelay = 2000 * Math.pow(2, Math.min(item.retryCount, 6));
                     const timeSinceLast = Date.now() - item.lastAttempt;
-                    if (timeSinceLast < backoffDelay) continue; 
+                    if (timeSinceLast < backoffDelay) continue;
                 }
 
                 let result: { success: boolean; error?: string } = { success: false };
@@ -126,7 +125,7 @@ export const useOfflineSync = () => {
                     }
 
                     if (isConflict) {
-                        removeFromQueue(item.id); 
+                        removeFromQueue(item.id);
                         conflictCount++;
                         addSyncLog({
                             itemId: item.id,

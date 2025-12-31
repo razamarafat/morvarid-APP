@@ -22,7 +22,7 @@ interface AlertPayload {
     targetFarmId: string;
     farmName: string;
     message: string;
-    action: string; 
+    action: string;
     senderId?: string;
     sentAt: number;
 }
@@ -34,16 +34,16 @@ interface AlertState {
     permissionStatus: NotificationPermission;
     pushSubscription: PushSubscription | null;
     notifications: NotificationItem[];
-    
+
     initListener: () => void;
     checkAndRequestPermission: () => Promise<boolean>;
     requestPermissionManual: () => Promise<void>;
     sendAlert: (farmId: string, farmName: string, message: string) => Promise<{ success: boolean; detail: string }>;
     triggerTestNotification: () => Promise<void>;
-    
+
     triggerSystemNotification: (title: string, body: string, tag?: string) => Promise<boolean>;
     sendLocalNotification: (title: string, body: string, tag?: string) => Promise<boolean>;
-    
+
     subscribeToPushNotifications: () => Promise<void>;
     saveSubscriptionToDb: (sub: PushSubscription) => Promise<void>;
     addLog: (msg: string) => void;
@@ -53,14 +53,14 @@ interface AlertState {
 }
 
 const urlBase64ToUint8Array = (base64String: string) => {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
 };
 
 export const useAlertStore = create<AlertState>()(
@@ -112,7 +112,7 @@ export const useAlertStore = create<AlertState>()(
                 }
                 const status = Notification.permission;
                 set({ permissionStatus: status });
-                
+
                 // Sync with central store
                 const centralStatus = status === 'default' ? 'prompt' : status;
                 usePermissionStore.getState().setPermissionStatus('notifications', centralStatus);
@@ -129,15 +129,15 @@ export const useAlertStore = create<AlertState>()(
                 try {
                     const permission = await Notification.requestPermission();
                     set({ permissionStatus: permission });
-                    
+
                     // Sync with central store
                     const centralStatus = permission === 'default' ? 'prompt' : permission;
                     usePermissionStore.getState().setPermissionStatus('notifications', centralStatus);
-                    
+
                     if (permission === 'granted') {
                         useToastStore.getState().addToast('اعلان‌ها فعال شدند.', 'success');
                         await get().triggerSystemNotification('سامانه مروارید', 'سیستم اعلان‌ها فعال شد. از این پس پیام‌ها را دریافت خواهید کرد.');
-                        await get().subscribeToPushNotifications(); 
+                        await get().subscribeToPushNotifications();
                     } else {
                         useToastStore.getState().addToast('مجوز اعلان رد شد.', 'warning');
                     }
@@ -178,14 +178,14 @@ export const useAlertStore = create<AlertState>()(
 
             subscribeToPushNotifications: async () => {
                 if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-                
+
                 try {
                     const registration = await navigator.serviceWorker.ready;
                     let sub = await registration.pushManager.getSubscription();
-                    
+
                     if (!sub) {
                         const options: any = { userVisibleOnly: true };
-                        
+
                         if (VAPID_PUBLIC_KEY && !VAPID_PUBLIC_KEY.includes('PLACEHOLDER')) {
                             options.applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
                         } else {
@@ -195,12 +195,12 @@ export const useAlertStore = create<AlertState>()(
 
                         sub = await registration.pushManager.subscribe(options);
                     }
-                    
+
                     set({ pushSubscription: sub });
                     if (sub) {
                         await get().saveSubscriptionToDb(sub);
                     }
-                    
+
                 } catch (e: any) {
                     console.warn('[Alert] Push Subscription failed:', e);
                     get().addLog(`خطا در اشتراک Push: ${e.message || String(e)}`);
@@ -222,15 +222,15 @@ export const useAlertStore = create<AlertState>()(
                         const gain = ctx.createGain();
                         osc.connect(gain);
                         gain.connect(ctx.destination);
-                        
+
                         osc.type = 'triangle';
                         osc.frequency.setValueAtTime(500, ctx.currentTime);
                         osc.frequency.linearRampToValueAtTime(1000, ctx.currentTime + 0.1);
                         osc.frequency.linearRampToValueAtTime(500, ctx.currentTime + 0.2);
-                        
+
                         gain.gain.setValueAtTime(0.5, ctx.currentTime);
                         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-                        
+
                         osc.start();
                         osc.stop(ctx.currentTime + 0.5);
                     }
@@ -262,8 +262,8 @@ export const useAlertStore = create<AlertState>()(
 
                 // 3. Fallback
                 try {
-                    new Notification(title, { 
-                        body, 
+                    new Notification(title, {
+                        body,
                         icon: '/icons/icon-192x192.png',
                         requireInteraction: true,
                         dir: 'rtl'
@@ -282,10 +282,10 @@ export const useAlertStore = create<AlertState>()(
             triggerTestNotification: async () => {
                 const hasPerm = await get().checkAndRequestPermission();
                 if (hasPerm) {
-                     await get().triggerSystemNotification("تست سامانه مروارید", "این یک پیام آزمایشی سیستمی است که باید در نوار وضعیت نمایش داده شود.");
-                     get().addLog('تست ارسال شد.');
+                    await get().triggerSystemNotification("تست سامانه مروارید", "این یک پیام آزمایشی سیستمی است که باید در نوار وضعیت نمایش داده شود.");
+                    get().addLog('تست ارسال شد.');
                 } else {
-                     useToastStore.getState().addToast('مجوز نوتیفیکیشن وجود ندارد.', 'warning');
+                    useToastStore.getState().addToast('مجوز نوتیفیکیشن وجود ندارد.', 'warning');
                 }
             },
 
@@ -293,7 +293,7 @@ export const useAlertStore = create<AlertState>()(
                 if (get().isListening) return;
 
                 get().checkAndRequestPermission();
-                get().subscribeToPushNotifications(); 
+                get().subscribeToPushNotifications();
 
                 const channel = supabase.channel('app_alerts', {
                     config: { broadcast: { self: false } }
@@ -306,9 +306,9 @@ export const useAlertStore = create<AlertState>()(
                         async (event) => {
                             const payload = event.payload as AlertPayload;
                             const currentUser = useAuthStore.getState().user;
-                            
+
                             if (!currentUser) return;
-                            
+
                             if (payload.senderId === currentUser.id) {
                                 return;
                             }
@@ -318,10 +318,10 @@ export const useAlertStore = create<AlertState>()(
 
                             if (isRelevant) {
                                 useToastStore.getState().addToast(`پیام فوری: ${payload.message}`, 'error');
-                                
+
                                 await get().triggerSystemNotification(
-                                    `⚠️ هشدار: ${payload.farmName}`, 
-                                    payload.message, 
+                                    `⚠️ هشدار: ${payload.farmName}`,
+                                    payload.message,
                                     'critical-alert'
                                 );
                             }
@@ -333,7 +333,7 @@ export const useAlertStore = create<AlertState>()(
                             console.log('[Alert] Listening for broadcasts...');
                         }
                     });
-                    
+
                 set({ channel });
             },
 
@@ -343,27 +343,27 @@ export const useAlertStore = create<AlertState>()(
 
                 let channel = get().channel;
                 if (!channel) { get().initListener(); channel = get().channel; }
-                
+
                 if (channel?.state !== 'joined') {
-                     await new Promise(r => setTimeout(r, 1500));
+                    await new Promise(r => setTimeout(r, 1500));
                 }
 
-                const payload = { 
-                    targetFarmId: farmId, 
-                    farmName, 
-                    message, 
-                    senderId: user.id, 
-                    sentAt: Date.now(), 
-                    action: 'missing_stats' 
+                const payload = {
+                    targetFarmId: farmId,
+                    farmName,
+                    message,
+                    senderId: user.id,
+                    sentAt: Date.now(),
+                    action: 'missing_stats'
                 };
-                
+
                 const socketResult = await channel?.send({ type: 'broadcast', event: 'farm_alert', payload });
-                
+
                 try {
                     const { error } = await supabase.functions.invoke('send-push', {
                         body: payload
                     });
-                    
+
                     if (error) {
                         console.warn('[Alert] Push Function Error:', error);
                         get().addLog('خطا در ارسال Push: ' + error.message);

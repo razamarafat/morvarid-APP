@@ -34,7 +34,7 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
     });
 
     const handleSendAlert = async (farmId: string, farmName: string, e: React.MouseEvent) => {
-        e.stopPropagation(); 
+        e.stopPropagation();
         setAlertLoading(farmId);
         const message = `عدم ثبت آمار برای فارم ${farmName} در تاریخ ${normalizedSelectedDate}`;
         const result = await sendAlert(farmId, farmName, message);
@@ -49,7 +49,7 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
 
     return (
         <div className="mb-6">
-            <div 
+            <div
                 onClick={() => setIsOpen(!isOpen)}
                 className={`flex items-center justify-between p-4 mb-4 cursor-pointer bg-white dark:bg-gray-800 rounded-[20px] shadow-sm border border-gray-100 dark:border-gray-700 transition-all hover:shadow-md ${isOpen ? 'ring-2 ring-gray-100 dark:ring-gray-700' : ''}`}
             >
@@ -67,9 +67,9 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
 
             <AnimatePresence>
                 {isOpen && (
-                    <motion.div 
-                        initial={{ height: 0, opacity: 0 }} 
-                        animate={{ height: 'auto', opacity: 1 }} 
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         className="space-y-4 overflow-hidden pl-2 lg:pl-4 mr-4"
                     >
@@ -87,14 +87,14 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
                                 }
                             });
                             const dedupedStats = Array.from(uniqueMap.values());
-                            
+
                             const sortedFarmStats = [...dedupedStats].sort((a, b) => {
                                 const pA = products.find((p: any) => p.id === a.productId);
                                 const pB = products.find((p: any) => p.id === b.productId);
                                 if (!pA || !pB) return 0;
                                 return compareProducts(pA, pB);
                             });
-                            
+
                             const hasStats = sortedFarmStats.length > 0;
                             const isExpanded = expandedFarmId === farm.id;
                             const isMotefereghe = farm.type === FarmType.MOTEFEREGHE;
@@ -131,33 +131,34 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
                                                                 {valK > 0 && <span className="text-[10px] text-gray-400">{toPersianDigits(valK)} Kg</span>}
                                                             </div>
                                                         );
-                                                        
+
                                                         const isAdminCreated = stat.creatorRole === UserRole.ADMIN;
                                                         const showTime = !isAdminCreated;
 
                                                         return (
-                                                        <div key={stat.id} className={`bg-white dark:bg-gray-800 p-4 rounded-[20px] shadow-sm border ${isAdminCreated ? 'border-purple-300 dark:border-purple-800 bg-purple-50/30' : 'border-gray-100 dark:border-gray-700'}`}>
-                                                            <div className="flex justify-between items-center mb-3">
-                                                                <div className="flex items-center gap-2">
-                                                                    <h5 className="font-bold text-gray-800 dark:text-white">{prod?.name}</h5>
-                                                                    {isAdminCreated && <span className="text-[10px] font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">ثبت توسط مدیر</span>}
-                                                                </div>
-                                                                {showTime && (
-                                                                    <div className="text-[10px] text-gray-400 font-bold flex items-center gap-2">
-                                                                        <span>ساعت: {toPersianDigits(new Date(stat.createdAt).toLocaleTimeString('fa-IR', {hour: '2-digit', minute:'2-digit'}))}</span>
-                                                                        <span className="w-1 h-1 rounded-full bg-gray-300"></span>
-                                                                        <span>مسئول: {stat.creatorName || 'نامشخص'}</span>
+                                                            <div key={stat.id} className={`bg-white dark:bg-gray-800 p-4 rounded-[20px] shadow-sm border ${isAdminCreated ? 'border-purple-300 dark:border-purple-800 bg-purple-50/30' : 'border-gray-100 dark:border-gray-700'}`}>
+                                                                <div className="flex justify-between items-center mb-3">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <h5 className="font-bold text-gray-800 dark:text-white">{prod?.name}</h5>
+                                                                        {isAdminCreated && <span className="text-[10px] font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">ثبت توسط مدیر</span>}
                                                                     </div>
-                                                                )}
+                                                                    {showTime && (
+                                                                        <div className="text-[10px] text-gray-400 font-bold flex items-center gap-2">
+                                                                            <span>ساعت: {toPersianDigits(new Date(stat.createdAt).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }))}</span>
+                                                                            <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                                                                            <span>مسئول: {stat.creatorName || 'نامشخص'}</span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                                <div className={`grid gap-2 text-center ${isMotefereghe ? 'grid-cols-3' : 'grid-cols-4'}`}>
+                                                                    {!isMotefereghe && <div className="p-2 bg-gray-50 dark:bg-gray-700/30 rounded-xl"><span className="text-[10px] text-gray-400 block">قبل</span>{renderVal(stat.previousBalance, stat.previousBalanceKg || 0, 'text-gray-600 dark:text-gray-300')}</div>}
+                                                                    <div className="p-2 bg-green-50 dark:bg-green-900/10 rounded-xl"><span className="text-[10px] text-green-600 block">تولید</span>{renderVal(stat.production, stat.productionKg || 0, 'text-green-600')}</div>
+                                                                    <div className="p-2 bg-red-50 dark:bg-red-900/10 rounded-xl"><span className="text-[10px] text-red-500 block">فروش</span>{renderVal(stat.sales, stat.salesKg || 0, 'text-red-500')}</div>
+                                                                    <div className="p-2 bg-blue-50 dark:bg-blue-900/10 rounded-xl"><span className="text-[10px] text-blue-600 block">مانده</span>{renderVal(stat.currentInventory, stat.currentInventoryKg || 0, 'text-blue-600')}</div>
+                                                                </div>
                                                             </div>
-                                                            <div className={`grid gap-2 text-center ${isMotefereghe ? 'grid-cols-3' : 'grid-cols-4'}`}>
-                                                                {!isMotefereghe && <div className="p-2 bg-gray-50 dark:bg-gray-700/30 rounded-xl"><span className="text-[10px] text-gray-400 block">قبل</span>{renderVal(stat.previousBalance, stat.previousBalanceKg || 0, 'text-gray-600 dark:text-gray-300')}</div>}
-                                                                <div className="p-2 bg-green-50 dark:bg-green-900/10 rounded-xl"><span className="text-[10px] text-green-600 block">تولید</span>{renderVal(stat.production, stat.productionKg || 0, 'text-green-600')}</div>
-                                                                <div className="p-2 bg-red-50 dark:bg-red-900/10 rounded-xl"><span className="text-[10px] text-red-500 block">فروش</span>{renderVal(stat.sales, stat.salesKg || 0, 'text-red-500')}</div>
-                                                                <div className="p-2 bg-blue-50 dark:bg-blue-900/10 rounded-xl"><span className="text-[10px] text-blue-600 block">مانده</span>{renderVal(stat.currentInventory, stat.currentInventoryKg || 0, 'text-blue-600')}</div>
-                                                            </div>
-                                                        </div>
-                                                    )})}
+                                                        )
+                                                    })}
                                                 </div>
                                             </motion.div>
                                         )}
@@ -174,10 +175,10 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
 
 const FarmStatistics = React.memo(() => {
     const { statistics, fetchStatistics, subscribeToStatistics, isLoading } = useStatisticsStore();
-    const { farms, products } = useFarmStore(); 
+    const { farms, products } = useFarmStore();
     const { fetchInvoices } = useInvoiceStore();
     const { addToast } = useToastStore();
-    
+
     const todayJalali = getTodayJalali();
     const normalizedSelectedDate = useMemo(() => normalizeDate(todayJalali), [todayJalali]);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -197,10 +198,6 @@ const FarmStatistics = React.memo(() => {
         addToast('اطلاعات بروزرسانی شد', 'success');
     };
 
-    if (isLoading && statistics.length === 0) {
-        return <div className="space-y-4"><SkeletonRow height="h-24" /><SkeletonRow height="h-24" /></div>;
-    }
-
     const filteredFarms = useMemo(() => {
         if (!searchTerm) return farms;
         return farms.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -208,6 +205,10 @@ const FarmStatistics = React.memo(() => {
 
     const morvaridiFarms = filteredFarms.filter(f => f.type === FarmType.MORVARIDI);
     const moteferegheFarms = filteredFarms.filter(f => f.type === FarmType.MOTEFEREGHE);
+
+    if (isLoading && statistics.length === 0) {
+        return <div className="space-y-4"><SkeletonRow height="h-24" /><SkeletonRow height="h-24" /></div>;
+    }
 
     return (
         <div className="space-y-6">
@@ -219,7 +220,7 @@ const FarmStatistics = React.memo(() => {
                     <div className="w-full md:w-1/3">
                         <div className="relative">
                             <Icons.Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <input 
+                            <input
                                 type="text"
                                 placeholder="جستجوی فارم..."
                                 className="w-full h-10 pr-9 pl-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-bold focus:outline-none focus:border-metro-blue"
@@ -236,19 +237,19 @@ const FarmStatistics = React.memo(() => {
                 </div>
             </div>
 
-            <FarmGroup 
-                title="فارم‌های مرواریدی" 
-                farms={morvaridiFarms} 
-                statistics={statistics} 
-                normalizedSelectedDate={normalizedSelectedDate} 
+            <FarmGroup
+                title="فارم‌های مرواریدی"
+                farms={morvaridiFarms}
+                statistics={statistics}
+                normalizedSelectedDate={normalizedSelectedDate}
                 products={products}
             />
 
-            <FarmGroup 
-                title="فارم‌های متفرقه" 
-                farms={moteferegheFarms} 
-                statistics={statistics} 
-                normalizedSelectedDate={normalizedSelectedDate} 
+            <FarmGroup
+                title="فارم‌های متفرقه"
+                farms={moteferegheFarms}
+                statistics={statistics}
+                normalizedSelectedDate={normalizedSelectedDate}
                 products={products}
             />
         </div>
@@ -259,22 +260,22 @@ const FarmStatistics = React.memo(() => {
 const VirtualizedInvoiceRow = ({ index, style, data }: { index: number, style: React.CSSProperties, data: { invoices: Invoice[], farms: any[], products: any[], renderInvoiceNumber: any } }) => {
     const invoice = data.invoices[index];
     const { farms, products, renderInvoiceNumber } = data;
-    
+
     if (!invoice) return null;
 
     const productName = products.find((p: any) => p.id === invoice.productId)?.name || '-';
     const isEdited = invoice.updatedAt && invoice.updatedAt > invoice.createdAt + 2000;
     const isAdminCreated = invoice.creatorRole === UserRole.ADMIN;
-    
+
     // Optimistic UI Styling
     const isPending = invoice.isPending;
     const rowOpacity = isPending ? 'opacity-60 grayscale-[0.3]' : '';
     const pendingPulse = isPending ? 'animate-pulse' : '';
 
-    const displayTime = isAdminCreated 
-        ? '---' 
+    const displayTime = isAdminCreated
+        ? '---'
         : new Date(isEdited ? invoice.updatedAt! : invoice.createdAt).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
-    
+
     const farmName = farms.find((f: any) => f.id === invoice.farmId)?.name || 'نامشخص';
 
     return (
@@ -283,41 +284,41 @@ const VirtualizedInvoiceRow = ({ index, style, data }: { index: number, style: R
             <div className="font-black tracking-tight text-center truncate">
                 {toPersianDigits(invoice.date)}
             </div>
-            
+
             {/* 2. Invoice Num */}
             <div className="text-center font-mono font-bold scale-95 truncate relative" dir="ltr">
                 {renderInvoiceNumber(invoice.invoiceNumber)}
                 {isPending && (
                     <div className="absolute top-1/2 left-0 -translate-y-1/2 -ml-2">
-                         <Icons.Clock className="w-3 h-3 text-orange-500 animate-spin" />
+                        <Icons.Clock className="w-3 h-3 text-orange-500 animate-spin" />
                     </div>
                 )}
             </div>
-            
+
             {/* 3. Farm */}
             <div className="font-bold text-right truncate text-xs lg:text-sm" title={farmName}>
                 {farmName}
             </div>
-            
+
             {/* 4. Product */}
             <div className="font-bold text-gray-700 dark:text-gray-200 text-xs leading-tight truncate" title={productName}>
                 {productName}
             </div>
-            
+
             {/* 5. Count */}
             <div className="text-center">
                 <span className={`font-black text-base bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded shadow-sm inline-block min-w-[40px] ${pendingPulse}`}>
                     {toPersianDigits(invoice.totalCartons)}
                 </span>
             </div>
-            
+
             {/* 6. Weight */}
             <div className="text-center">
                 <span className={`font-black text-metro-blue text-base bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded shadow-sm inline-block min-w-[50px] ${pendingPulse}`}>
                     {toPersianDigits(invoice.totalWeight)}
                 </span>
             </div>
-            
+
             {/* 7. Registrar */}
             <div className="text-center">
                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold truncate inline-block max-w-[90%] ${isAdminCreated ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 dark:bg-gray-700'}`}>
@@ -338,12 +339,12 @@ const VirtualizedInvoiceRow = ({ index, style, data }: { index: number, style: R
 
 const InvoiceList = React.memo(() => {
     const { invoices, fetchInvoices, isLoading } = useInvoiceStore();
-    const { farms, products } = useFarmStore(); 
+    const { farms, products } = useFarmStore();
     const { addToast } = useToastStore();
     const [selectedFarmId, setSelectedFarmId] = useState<string>('all');
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    
+
     const today = getTodayJalali();
     const normalizedToday = normalizeDate(today);
 
@@ -353,14 +354,14 @@ const InvoiceList = React.memo(() => {
 
     const filteredInvoices = useMemo(() => {
         const term = searchTerm.trim().toLowerCase();
-        
+
         const results = invoices
             .filter(i => {
                 const itemDate = normalizeDate(i.date);
                 const dateMatch = itemDate === normalizedToday;
                 const farmMatch = selectedFarmId === 'all' || i.farmId === selectedFarmId;
                 const searchMatch = !term || (
-                    i.invoiceNumber.includes(term) || 
+                    i.invoiceNumber.includes(term) ||
                     i.driverName?.toLowerCase().includes(term) ||
                     i.plateNumber?.includes(term)
                 );
@@ -414,23 +415,23 @@ const InvoiceList = React.memo(() => {
 
     return (
         <div className="space-y-4 lg:space-y-6 flex flex-col h-full">
-             <div className="bg-white/80 dark:bg-black/40 backdrop-blur-md p-4 lg:p-6 shadow-sm border-l-4 border-metro-orange flex flex-col md:flex-row gap-4 lg:gap-6 items-end rounded-xl shrink-0">
+            <div className="bg-white/80 dark:bg-black/40 backdrop-blur-md p-4 lg:p-6 shadow-sm border-l-4 border-metro-orange flex flex-col md:flex-row gap-4 lg:gap-6 items-end rounded-xl shrink-0">
                 <div className="w-full md:w-1/3">
                     <label className="block text-sm font-bold mb-1 lg:mb-2 text-gray-700 dark:text-gray-300">جستجو در حواله‌های امروز</label>
                     <div className="flex items-center gap-2">
-                        <input 
-                            type="text" 
-                            placeholder="شماره حواله، راننده، پلاک..." 
+                        <input
+                            type="text"
+                            placeholder="شماره حواله، راننده، پلاک..."
                             className="w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 dark:text-white font-bold outline-none focus:border-metro-orange transition-all"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
                 </div>
-                
+
                 <div className="w-full md:w-1/3">
                     <label className="block text-sm font-bold mb-1 lg:mb-2 text-gray-700 dark:text-gray-300">فیلتر بر اساس فارم</label>
-                    <select 
+                    <select
                         className="w-full p-3 border-2 border-gray-300 bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white font-black outline-none focus:border-metro-orange h-[50px] rounded-lg lg:text-lg"
                         value={selectedFarmId}
                         onChange={(e) => setSelectedFarmId(e.target.value)}
@@ -439,7 +440,7 @@ const InvoiceList = React.memo(() => {
                         {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                     </select>
                 </div>
-                
+
                 <div className="flex gap-2 w-full md:w-auto">
                     <Button onClick={handleRefresh} disabled={isRefreshing} className="bg-metro-orange h-[50px] px-6 font-black w-full lg:text-lg">
                         <Icons.Refresh className={`w-4 h-4 lg:w-6 lg:h-6 ml-2 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -458,7 +459,7 @@ const InvoiceList = React.memo(() => {
                         {toPersianDigits(filteredInvoices.length)} مورد
                     </span>
                 </div>
-                
+
                 {/* Virtualized List Container */}
                 <div className="flex-1 w-full relative">
                     {/* Header Row - Sticky */}
@@ -474,7 +475,7 @@ const InvoiceList = React.memo(() => {
                     </div>
 
                     <div className="absolute top-[45px] bottom-0 left-0 right-0">
-                         {isLoading && invoices.length === 0 ? (
+                        {isLoading && invoices.length === 0 ? (
                             <div className="p-4 space-y-4">
                                 <SkeletonRow cols={8} />
                                 <SkeletonRow cols={8} />
@@ -504,7 +505,7 @@ const InvoiceList = React.memo(() => {
                         )}
                     </div>
                 </div>
-                    
+
                 {filteredInvoices.length > 0 && (
                     <div className="bg-gray-100 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-4 flex justify-end items-center gap-6 shrink-0 z-20 shadow-md">
                         <div className="text-sm font-bold text-gray-600 dark:text-gray-400">جمع کل امروز:</div>
@@ -538,9 +539,9 @@ const SalesDashboard: React.FC = () => {
     const { isLoading } = useAuthStore();
 
     const getTitle = () => {
-        if(currentView === 'farm-stats') return 'پایش آمار لحظه‌ای';
-        if(currentView === 'invoices') return 'جدول فروش امروز';
-        if(currentView === 'reports') return 'گزارشات فروش';
+        if (currentView === 'farm-stats') return 'پایش آمار لحظه‌ای';
+        if (currentView === 'invoices') return 'جدول فروش امروز';
+        if (currentView === 'reports') return 'گزارشات فروش';
         return 'میز کار آمار و فروش';
     }
 
