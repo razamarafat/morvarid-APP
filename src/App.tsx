@@ -19,6 +19,7 @@ import PermissionModal from './components/common/PermissionModal';
 import { useAutoUpdate } from './hooks/useAutoUpdate';
 import { useOfflineSync } from './hooks/useOfflineSync';
 import { useAutoTheme } from './hooks/useAutoTheme';
+import { useDoubleBackExit } from './hooks/useDoubleBackExit';
 import { APP_VERSION } from './constants';
 
 // --- Lazy Load Pages ---
@@ -120,6 +121,11 @@ const PageLoader = () => (
   </div>
 );
 
+const NavigationManager = () => {
+  useDoubleBackExit();
+  return null;
+};
+
 function App() {
   const { theme } = useThemeStore();
   const { checkSession, user, updateActivity, checkInactivity } = useAuthStore();
@@ -219,6 +225,7 @@ function App() {
   return (
     <ErrorBoundary>
       <HashRouter>
+        <NavigationManager />
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/" element={<SplashPage />} />
