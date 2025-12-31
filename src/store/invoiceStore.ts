@@ -48,7 +48,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
             // Standard relational query: fetch invoices and join profiles in one trip
             const { data, error } = await supabase
                 .from('invoices')
-                .select('*, profiles:created_by(full_name, role)')
+                .select('*, profiles!created_by(full_name, role)')
                 .order('date', { ascending: false })
                 .limit(2000);
 

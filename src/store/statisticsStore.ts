@@ -51,7 +51,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
             // Enterprise pattern: Single relational query instead of multiple serial calls
             const { data: statsData, error: statsError } = await supabase
                 .from('daily_statistics')
-                .select('*, profiles:created_by(full_name, role)')
+                .select('*, profiles!created_by(full_name, role)')
                 .order('date', { ascending: false })
                 .limit(3000);
 
