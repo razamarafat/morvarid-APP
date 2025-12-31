@@ -37,13 +37,13 @@ const DeviceManagement: React.FC = () => {
                 user_id,
                 user_agent,
                 created_at,
-                profiles (full_name, username, role)
+                profiles!user_id (full_name, username, role)
             `)
             .order('created_at', { ascending: false });
 
         if (error) {
             console.error('Fetch Devices Error:', error.message || error);
-            
+
             if (error.code === '42P01') {
                 addToast('جدول اشتراک‌ها (push_subscriptions) یافت نشد. لطفاً اسکریپت SQL را اجرا کنید.', 'error');
             } else if (error.code === 'PGRST200') {
@@ -90,7 +90,7 @@ const DeviceManagement: React.FC = () => {
     };
 
     const getRoleBadge = (role: string) => {
-        switch(role) {
+        switch (role) {
             case 'ADMIN': return <span className="bg-purple-100 text-purple-800 text-xs px-2 py-0.5 rounded">مدیر</span>;
             case 'REGISTRATION': return <span className="bg-orange-100 text-orange-800 text-xs px-2 py-0.5 rounded">ثبت</span>;
             case 'SALES': return <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">فروش</span>;
@@ -156,7 +156,7 @@ const DeviceManagement: React.FC = () => {
                                             {new Date(dev.created_at).toLocaleDateString('fa-IR')} - {new Date(dev.created_at).toLocaleTimeString('fa-IR')}
                                         </td>
                                         <td className="px-6 py-4 text-center">
-                                            <button 
+                                            <button
                                                 onClick={() => handleDelete(dev.id, dev.profiles?.full_name)}
                                                 className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
                                                 title="حذف دستگاه"
@@ -171,10 +171,10 @@ const DeviceManagement: React.FC = () => {
                     </table>
                 </div>
             </div>
-            
+
             <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl text-xs text-blue-800 dark:text-blue-300 border border-blue-100 dark:border-blue-800 leading-loose">
                 <strong>نکته فنی:</strong> لیست بالا شامل دستگاه‌هایی است که اجازه دریافت نوتیفیکیشن را در مرورگر تایید کرده‌اند.
-                <br/>
+                <br />
                 اگر خطای "relation does not exist" دریافت کردید، فایل <code>supabase_setup.sql</code> موجود در روت پروژه را در SQL Editor پنل Supabase اجرا کنید.
             </div>
         </div>
