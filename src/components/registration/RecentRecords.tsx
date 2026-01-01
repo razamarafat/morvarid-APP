@@ -17,7 +17,7 @@ import PersianNumberInput from '../common/PersianNumberInput';
 import PlateInput from '../common/PlateInput';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
-import { fetchUserRecords } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase';
 
 // Virtualized Row for Invoices
 const InvoiceRow = ({ index, style, data }: { index: number, style: React.CSSProperties, data: any }) => {
@@ -70,8 +70,8 @@ const InvoiceRow = ({ index, style, data }: { index: number, style: React.CSSPro
 };
 
 const RecentRecords: React.FC = () => {
-    const { statistics, fetchStatistics, deleteStatistic, updateStatistic, isLoading: statsLoading } = useStatisticsStore();
-    const { invoices, fetchInvoices, deleteInvoice, updateInvoice, isLoading: invLoading } = useInvoiceStore();
+    const { fetchStatistics, deleteStatistic, updateStatistic, isLoading: statsLoading } = useStatisticsStore();
+    const { fetchInvoices, deleteInvoice, updateInvoice, isLoading: invLoading } = useInvoiceStore();
     const { user } = useAuthStore();
     const { products, getProductById } = useFarmStore();
     const { addToast } = useToastStore();
@@ -89,6 +89,10 @@ const RecentRecords: React.FC = () => {
     const [showEditStatModal, setShowEditStatModal] = useState(false);
     const [showEditInvoiceModal, setShowEditInvoiceModal] = useState(false);
 
+    // Local copies of records (component-scoped) — populated by direct queries for non-admin users
+    const [invoices, setInvoices] = useState<Invoice[]>([]);
+    const [statistics, setStatistics] = useState<DailyStatistic[]>([]);
+
     // Default to last 7 days
     const defaultStartDate = useMemo(() => {
         const d = new Date();
@@ -99,6 +103,31 @@ const RecentRecords: React.FC = () => {
     const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(getTodayJalali());
     const [activeTab, setActiveTab] = useState<'stats' | 'invoices'>('stats');
+
+    const fetchUserRecords = async (userId: string, type: string, startDate: string, endDate: string) => {
+        try {
+            console.log(
+              `[RecentRecords] 🔄 Fetching own records for user ${userId} from ${startDate} to ${endDate}`
+            );
+
+            const response = await supabase
+                .from(type === 'invoices' ? 'invoices' : 'daily_statistics')
+                .select('*')
+                .eq('created_by', userId)
+                .gte('created_at', startDate)
+                .lte('created_at', endDate)
+                .order('created_at', { ascending: false });
+
+            if (response.error) {
+                throw new Error(response.error.message);
+            }
+
+            return response.data;
+        } catch (error) {
+            console.error(error);
+            return [];
+        }
+    };
 
     // ✅ NEW: Direct fetch from Supabase for user's own records with debugging
     useEffect(() => {
@@ -119,8 +148,12 @@ const RecentRecords: React.FC = () => {
                     fetchUserRecords(user.id, 'daily_statistics', startDate, endDate)
                 ]);
 
+                // Populate local component state
+                setInvoices(fetchedInvoices || []);
+                setStatistics(fetchedStats || []);
+
                 console.log(
-                  `[RecentRecords] ✅ Direct fetch complete: ${fetchedInvoices.length} invoices, ${fetchedStats.length} stats`
+                  `[RecentRecords] ✅ Direct fetch complete: ${fetchedInvoices?.length || 0} invoices, ${fetchedStats?.length || 0} stats`
                 );
             } catch (error) {
                 console.error('[RecentRecords] ❌ Error fetching records:', error);

@@ -33,18 +33,18 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
  * Fetch records created by a specific user with date range filter.
  * Handles RLS policies and type casting for UUID comparison.
  */
-export async function fetchUserRecords(
+export const fetchUserRecords = async (
   userId: string,
   entityType: 'invoices' | 'daily_statistics',
   startDate: string,
   endDate: string
-) {
+) => {
   try {
     console.log(
       `[fetchUserRecords] 🔍 Querying ${entityType} for user ${userId} from ${startDate} to ${endDate}`
     );
 
-    const query = supabase
+    const response = await supabase
       .from(entityType)
       .select('*')
       .eq('created_by', userId)
@@ -52,22 +52,20 @@ export async function fetchUserRecords(
       .lte('created_at', endDate)
       .order('created_at', { ascending: false });
 
-    const { data, error } = await query;
-
-    if (error) {
+    if (response.error) {
       console.error(
         `[fetchUserRecords] ❌ Database error for ${entityType}:`,
-        { message: error.message, details: error.details, hint: error.hint }
+        { message: response.error.message, details: response.error.details, hint: response.error.hint }
       );
-      throw error;
+      throw response.error;
     }
 
     console.log(
-      `[fetchUserRecords] ✅ Success: Fetched ${data?.length || 0} ${entityType} records`
+      `[fetchUserRecords] ✅ Success: Fetched ${response.data?.length || 0} ${entityType} records`
     );
-    return data || [];
+    return response.data || [];
   } catch (error: any) {
     console.error(`[fetchUserRecords] ❌ Exception:`, error);
     return [];
   }
-}
+};
