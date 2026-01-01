@@ -163,7 +163,7 @@ const RecentRecords: React.FC = () => {
     const filteredStats = useMemo(() => {
         const start = normalizeDate(startDate);
         const end = normalizeDate(endDate);
-            return statistics.filter(s => {
+        return statistics.filter(s => {
             // Filter by farm if selected
             if (selectedFarmId && s.farmId !== selectedFarmId) return false;
             // If admin and no farm selected, show all (for registration we expect a farm)
@@ -174,6 +174,16 @@ const RecentRecords: React.FC = () => {
             // Support both camelCase (createdBy) and snake_case (created_by) field names
             const creatorId = (s as any).createdBy ?? (s as any).created_by ?? null;
             if (!isAdmin && creatorId !== user?.id) return false;
+            return true;
+        });
+    }, [statistics, selectedFarmId, startDate, endDate, isAdmin, user?.id]);
+
+    const sortedProductIds = useMemo(() => {
+        // Show all products that have data in the current view PLUS allowed products
+        const dataProductIds = new Set(filteredStats.map(s => s.productId));
+        const allTargetIds = Array.from(new Set([...allowedProductIds, ...Array.from(dataProductIds)]));
+
+        if (!allTargetIds.length) return [];
         return allTargetIds.sort((aId, bId) => {
             const pA = getProductById(aId);
             const pB = getProductById(bId);
