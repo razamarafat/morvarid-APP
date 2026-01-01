@@ -77,7 +77,7 @@ export const THEMES = {
 /**
  * APPLICATION VERSION CONTROL
  * ---------------------------
- * Current Version: 3.0.0
+ * Current Version: 3.1.2
  * 
  * UPDATE LOGIC (Strict SemVer):
  * 1. PATCH (z): Increments on bug fixes/minor tweaks (e.g., 3.0.0 -> 3.0.1).
@@ -89,4 +89,4 @@ export const THEMES = {
  * NOTE: Provide 'package.json' update in every XML output to keep sync.
  */
 declare const __APP_VERSION__: string;
-export const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '3.1.1';
+export const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '3.1.2';
