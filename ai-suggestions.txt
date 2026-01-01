@@ -349,4 +349,27 @@ AI SUGGESTIONS BACKLOG - V54
   - توضیح: امکان ذخیره قالب‌های پرکاربرد (preset fields) برای ثبت حواله تا کاربران بتوانند با یک کلیک فرم را پر و ثبت کنند.
   - اولویت: Medium
 
+--------------------------------
+15. پیشنهادات توسط Recent Records Deep Fix (V3.2.1)
+--------------------------------
+- [ ] عنوان: Real-time Record Sync Badge
+  - دسته‌بندی: UI/UX
+  - توضیح: نمایش وضعیت sync (تایید شده/pending/خطا) بر روی هر رکورد در لیست سوابق.
+  - اولویت: Medium
+
+- [ ] عنوان: Debounced Date Range Filter
+  - دسته‌بندی: Performance
+  - توضیح: تاخیر کوتاه در فچ کردن هنگام تغییر تاریخ تا جلوگیری از درخواست‌های اضافی و بهبود پرفورمنس.
+  - اولویت: High
+
+- [ ] عنوان: Comprehensive Logging System for Query Debugging
+  - دسته‌بندی: DevOps
+  - توضیح: سیستم لاگ مرکزی برای تمام کوئری‌های Supabase جهت سهولت عیب‌یابی مسائل داده.
+  - اولویت: Medium
+
+- [ ] عنوان: Bulk Export Recent Records as PDF/CSV
+  - دسته‌بندی: Feature/Reporting
+  - توضیح: خروجی دسته‌ای سوابق فیلتر‌شده به صورت PDF یا CSV برای گزارش‌دهی و بایگانی.
+  - اولویت: High
+
 ```

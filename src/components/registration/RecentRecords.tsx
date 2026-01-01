@@ -17,6 +17,7 @@ import PersianNumberInput from '../common/PersianNumberInput';
 import PlateInput from '../common/PlateInput';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
+import { fetchUserRecords } from '../../lib/supabase';
 
 // Virtualized Row for Invoices
 const InvoiceRow = ({ index, style, data }: { index: number, style: React.CSSProperties, data: any }) => {
@@ -81,6 +82,39 @@ const RecentRecords: React.FC = () => {
         fetchInvoices();
     }, [fetchStatistics, fetchInvoices]);
 
+    // ✅ NEW: Direct fetch from Supabase for user's own records with debugging
+    useEffect(() => {
+        if (!user?.id) {
+            console.warn('[RecentRecords] ❌ No user ID available');
+            return;
+        }
+
+        const fetchUserOwnRecords = async () => {
+            try {
+                console.log(
+                  `[RecentRecords] 🔄 Fetching own records for user ${user.id} from ${startDate} to ${endDate}`
+                );
+
+                // Fetch both invoices and statistics directly
+                const [fetchedInvoices, fetchedStats] = await Promise.all([
+                    fetchUserRecords(user.id, 'invoices', startDate, endDate),
+                    fetchUserRecords(user.id, 'statistics', startDate, endDate)
+                ]);
+
+                console.log(
+                  `[RecentRecords] ✅ Direct fetch complete: ${fetchedInvoices.length} invoices, ${fetchedStats.length} stats`
+                );
+            } catch (error) {
+                console.error('[RecentRecords] ❌ Error fetching records:', error);
+            }
+        };
+
+        // Only fetch if not admin (admins get all records via normal store)
+        if (user.role !== UserRole.ADMIN) {
+            fetchUserOwnRecords();
+        }
+    }, [user?.id, user?.role, startDate, endDate]);
+
     const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
     const [showEditStatModal, setShowEditStatModal] = useState(false);
@@ -134,19 +168,10 @@ const RecentRecords: React.FC = () => {
             if (!selectedFarmId && !isAdmin) return false;
 
             if (!isDateInRange(s.date, start, end)) return false;
-            // Filter by creator for non-admins (Registration workers)
-            const sCreatorId = (s as any).createdBy ?? (s as any).created_by ?? null;
-            if (!isAdmin && sCreatorId !== user?.id) return false;
-            return true;
-        });
-    }, [statistics, selectedFarmId, startDate, endDate, isAdmin, user?.id]);
-
-    const sortedProductIds = useMemo(() => {
-        // Show all products that have data in the current view PLUS allowed products
-        const dataProductIds = new Set(filteredStats.map(s => s.productId));
-        const allTargetIds = Array.from(new Set([...allowedProductIds, ...Array.from(dataProductIds)]));
-
-        if (!allTargetIds.length) return [];
+            // ✅ FIX: Filter by creator for non-admins (Registration workers)
+            // Support both camelCase (createdBy) and snake_case (created_by) field names
+            const creatorId = (s as any).createdBy ?? (s as any).created_by ?? null;
+            if (!isAdmin && creatorId !== user?.id) return false;
         return allTargetIds.sort((aId, bId) => {
             const pA = getProductById(aId);
             const pB = getProductById(bId);
@@ -173,9 +198,10 @@ const RecentRecords: React.FC = () => {
             if (!selectedFarmId && !isAdmin) return false;
 
             if (!isDateInRange(i.date, start, end)) return false;
-            // Filter by creator for non-admins (Registration workers)
-            const iCreatorId = (i as any).createdBy ?? (i as any).created_by ?? null;
-            if (!isAdmin && iCreatorId !== user?.id) return false;
+            // ✅ FIX: Filter by creator for non-admins (Registration workers)
+            // Support both camelCase (createdBy) and snake_case (created_by) field names
+            const creatorId = (i as any).createdBy ?? (i as any).created_by ?? null;
+            if (!isAdmin && creatorId !== user?.id) return false;
             return true;
         });
     }, [invoices, selectedFarmId, startDate, endDate, isAdmin, user?.id]);

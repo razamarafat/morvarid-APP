@@ -28,3 +28,46 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     headers: { 'x-application-name': 'morvarid-mis-client-v2.9.62-fix' },
   },
 });
+
+/**
+ * Fetch records created by a specific user with date range filter.
+ * Handles RLS policies and type casting for UUID comparison.
+ */
+export async function fetchUserRecords(
+  userId: string,
+  entityType: 'invoices' | 'statistics',
+  startDate: string,
+  endDate: string
+) {
+  try {
+    console.log(
+      `[fetchUserRecords] 🔍 Querying ${entityType} for user ${userId} from ${startDate} to ${endDate}`
+    );
+
+    const query = supabase
+      .from(entityType)
+      .select('*')
+      .eq('created_by', userId)
+      .gte('created_at', startDate)
+      .lte('created_at', endDate)
+      .order('created_at', { ascending: false });
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error(
+        `[fetchUserRecords] ❌ Database error for ${entityType}:`,
+        { message: error.message, details: error.details, hint: error.hint }
+      );
+      throw error;
+    }
+
+    console.log(
+      `[fetchUserRecords] ✅ Success: Fetched ${data?.length || 0} ${entityType} records`
+    );
+    return data || [];
+  } catch (error: any) {
+    console.error(`[fetchUserRecords] ❌ Exception:`, error);
+    return [];
+  }
+}
