@@ -10,7 +10,7 @@ import { useConfirm } from '../../hooks/useConfirm';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 import { useToastStore } from '../../store/toastStore';
-import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange } from '../../utils/dateUtils';
+import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange, formatJalali } from '../../utils/dateUtils';
 import { compareProducts } from '../../utils/sortUtils';
 import JalaliDatePicker from '../common/JalaliDatePicker';
 import PersianNumberInput from '../common/PersianNumberInput';
@@ -86,9 +86,27 @@ const RecentRecords: React.FC = () => {
     const [showEditStatModal, setShowEditStatModal] = useState(false);
     const [showEditInvoiceModal, setShowEditInvoiceModal] = useState(false);
 
-    const [startDate, setStartDate] = useState(getTodayJalali());
+    // Default to last 7 days
+    const defaultStartDate = useMemo(() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 7);
+        return formatJalali(d);
+    }, []);
+
+    const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(getTodayJalali());
     const [activeTab, setActiveTab] = useState<'stats' | 'invoices'>('stats');
+
+    // Farm Selection
+    const assignedFarms = user?.assignedFarms || [];
+    const [selectedFarmId, setSelectedFarmId] = useState<string | null>(assignedFarms[0]?.id || null);
+
+    // Update selected farm if assigned farms change
+    useEffect(() => {
+        if (assignedFarms.length > 0 && !selectedFarmId) {
+            setSelectedFarmId(assignedFarms[0].id);
+        }
+    }, [assignedFarms, selectedFarmId]);
 
     const [statValues, setStatValues] = useState({ prod: '', prev: '', prodKg: '', prevKg: '' });
     const [invoiceValues, setInvoiceValues] = useState({
@@ -101,24 +119,26 @@ const RecentRecords: React.FC = () => {
         plateNumber: ''
     });
 
-    const farmId = user?.assignedFarms?.[0]?.id;
-    const farmType = user?.assignedFarms?.[0]?.type;
-    const isMotefereghe = farmType === FarmType.MOTEFEREGHE;
-    const allowedProductIds = user?.assignedFarms?.[0]?.productIds || [];
+    const selectedFarm = assignedFarms.find(f => f.id === selectedFarmId);
+    const isMotefereghe = selectedFarm?.type === FarmType.MOTEFEREGHE;
+    const allowedProductIds = selectedFarm?.productIds || [];
     const isAdmin = user?.role === UserRole.ADMIN;
 
     const filteredStats = useMemo(() => {
         const start = normalizeDate(startDate);
         const end = normalizeDate(endDate);
         return statistics.filter(s => {
-            // Only filter by farm if user has assigned farms (Admins might not)
-            if (farmId && s.farmId !== farmId) return false;
+            // Filter by farm if selected
+            if (selectedFarmId && s.farmId !== selectedFarmId) return false;
+            // If admin and no farm selected, show all (for registration we expect a farm)
+            if (!selectedFarmId && !isAdmin) return false;
+
             if (!isDateInRange(s.date, start, end)) return false;
             // Filter by creator for non-admins (Registration workers)
             if (!isAdmin && s.createdBy !== user?.id) return false;
             return true;
         });
-    }, [statistics, farmId, startDate, endDate, isAdmin, user?.id]);
+    }, [statistics, selectedFarmId, startDate, endDate, isAdmin, user?.id]);
 
     const sortedProductIds = useMemo(() => {
         // Show all products that have data in the current view PLUS allowed products
@@ -148,14 +168,15 @@ const RecentRecords: React.FC = () => {
         const start = normalizeDate(startDate);
         const end = normalizeDate(endDate);
         return invoices.filter(i => {
-            // Only filter by farm if user has assigned farms
-            if (farmId && i.farmId !== farmId) return false;
+            if (selectedFarmId && i.farmId !== selectedFarmId) return false;
+            if (!selectedFarmId && !isAdmin) return false;
+
             if (!isDateInRange(i.date, start, end)) return false;
             // Filter by creator for non-admins (Registration workers)
             if (!isAdmin && i.createdBy !== user?.id) return false;
             return true;
         });
-    }, [invoices, farmId, startDate, endDate, isAdmin, user?.id]);
+    }, [invoices, selectedFarmId, startDate, endDate, isAdmin, user?.id]);
 
     const handleDeleteStat = async (stat: DailyStatistic) => {
         const confirmed = await confirm({
@@ -337,6 +358,23 @@ const RecentRecords: React.FC = () => {
                     <div className="flex-1"><JalaliDatePicker value={startDate} onChange={setStartDate} label="از تاریخ" /></div>
                     <div className="flex-1"><JalaliDatePicker value={endDate} onChange={setEndDate} label="تا تاریخ" /></div>
                 </div>
+
+                {assignedFarms.length > 1 && (
+                    <div className="mt-4 flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
+                        {assignedFarms.map(f => (
+                            <button
+                                key={f.id}
+                                onClick={() => setSelectedFarmId(f.id)}
+                                className={`px-4 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all border-2 ${selectedFarmId === f.id
+                                    ? 'bg-metro-blue text-white border-metro-blue shadow-lg shadow-blue-500/20'
+                                    : 'bg-gray-50 dark:bg-gray-700 text-gray-500 border-transparent hover:border-gray-200'
+                                    }`}
+                            >
+                                {f.name}
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
 
             <div className="flex-1 px-1 relative">
