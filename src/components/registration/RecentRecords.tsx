@@ -411,8 +411,66 @@ const RecentRecords: React.FC = () => {
                                     fetchUserRecords(user.id, 'invoices', startDate, endDate),
                                     fetchUserRecords(user.id, 'daily_statistics', startDate, endDate)
                                 ]);
+
                                 setDebugFetched({ invoices: inv as any[], stats: stats as any[] });
                                 console.log('[RecentRecords] Manual fetch result:', { invoices: inv, stats });
+
+                                // DEBUG: map raw DB rows into store shape and set them into zustand stores
+                                try {
+                                    const mappedInv = (inv || []).map((i: any) => ({
+                                        id: i.id,
+                                        farmId: i.farm_id,
+                                        date: normalizeDate(i.date),
+                                        invoiceNumber: i.invoice_number,
+                                        totalCartons: i.total_cartons,
+                                        totalWeight: i.total_weight,
+                                        productId: i.product_id,
+                                        driverName: i.driver_name,
+                                        driverPhone: i.driver_phone,
+                                        plateNumber: i.plate_number,
+                                        description: i.description,
+                                        isYesterday: i.is_yesterday,
+                                        createdAt: i.created_at ? new Date(i.created_at).getTime() : Date.now(),
+                                        updatedAt: i.updated_at ? new Date(i.updated_at).getTime() : undefined,
+                                        createdBy: i.created_by,
+                                        creatorName: i.profiles?.full_name || 'کاربر حذف شده',
+                                        creatorRole: i.profiles?.role
+                                    }));
+
+                                    const mappedStats = (stats || []).map((s: any) => ({
+                                        id: s.id,
+                                        farmId: s.farm_id,
+                                        date: normalizeDate(s.date),
+                                        productId: s.product_id,
+                                        previousBalance: s.previous_balance || 0,
+                                        production: s.production || 0,
+                                        sales: s.sales || 0,
+                                        currentInventory: s.current_inventory || 0,
+                                        previousBalanceKg: s.previous_balance_kg || 0,
+                                        productionKg: s.production_kg || 0,
+                                        salesKg: s.sales_kg || 0,
+                                        currentInventoryKg: s.current_inventory_kg || 0,
+                                        createdAt: s.created_at ? new Date(s.created_at).getTime() : Date.now(),
+                                        updatedAt: s.updated_at ? new Date(s.updated_at).getTime() : undefined,
+                                        createdBy: s.created_by,
+                                        creatorName: s.profiles?.full_name || 'کاربر حذف شده',
+                                        creatorRole: s.profiles?.role
+                                    }));
+
+                                    // Temporarily overwrite stores with debug data so UI can render immediately
+                                    try {
+                                        // @ts-ignore - using zustand setState for debug purpose
+                                        useInvoiceStore.setState({ invoices: mappedInv });
+                                        // @ts-ignore
+                                        useStatisticsStore.setState({ statistics: mappedStats });
+                                        console.log('[RecentRecords] ✅ Injected debug data into stores');
+                                    } catch (setErr) {
+                                        console.warn('[RecentRecords] Could not set store state directly:', setErr);
+                                    }
+                                } catch (mapErr) {
+                                    console.error('[RecentRecords] Error mapping debug rows into store shape:', mapErr);
+                                }
+
                                 addToast(`دریافت انجام شد: ${inv.length} حواله، ${stats.length} آمار`, 'success');
                             } catch (err) {
                                 console.error('[RecentRecords] Manual fetch error:', err);
