@@ -107,15 +107,32 @@ const RecentRecords: React.FC = () => {
     const allowedProductIds = user?.assignedFarms?.[0]?.productIds || [];
     const isAdmin = user?.role === UserRole.ADMIN;
 
+    const filteredStats = useMemo(() => {
+        const start = normalizeDate(startDate);
+        const end = normalizeDate(endDate);
+        return statistics.filter(s => {
+            // Only filter by farm if user has assigned farms (Admins might not)
+            if (farmId && s.farmId !== farmId) return false;
+            if (!isDateInRange(s.date, start, end)) return false;
+            // Filter by creator for non-admins (Registration workers)
+            if (!isAdmin && s.createdBy !== user?.id) return false;
+            return true;
+        });
+    }, [statistics, farmId, startDate, endDate, isAdmin, user?.id]);
+
     const sortedProductIds = useMemo(() => {
-        if (!allowedProductIds.length) return [];
-        return [...allowedProductIds].sort((aId, bId) => {
+        // Show all products that have data in the current view PLUS allowed products
+        const dataProductIds = new Set(filteredStats.map(s => s.productId));
+        const allTargetIds = Array.from(new Set([...allowedProductIds, ...Array.from(dataProductIds)]));
+
+        if (!allTargetIds.length) return [];
+        return allTargetIds.sort((aId, bId) => {
             const pA = getProductById(aId);
             const pB = getProductById(bId);
             if (!pA || !pB) return 0;
             return compareProducts(pA, pB);
         });
-    }, [allowedProductIds, getProductById]);
+    }, [allowedProductIds, getProductById, filteredStats]);
 
     const getProductName = (id: string) => products.find(p => p.id === id)?.name || 'محصول نامشخص';
     const isLiquid = (pid: string) => getProductName(pid).includes('مایع');
@@ -127,31 +144,18 @@ const RecentRecords: React.FC = () => {
         return (now - createdAt) < 18000000;
     };
 
-    const filteredStats = useMemo(() => {
-        const start = normalizeDate(startDate);
-        const end = normalizeDate(endDate);
-        return statistics.filter(s => {
-            if (s.farmId !== farmId) return false;
-            if (!isDateInRange(s.date, start, end)) return false;
-            if (isMotefereghe && !allowedProductIds.includes(s.productId)) return false;
-            // Filter by creator for non-admins (Registration workers)
-            if (!isAdmin && s.createdBy !== user?.id) return false;
-            return true;
-        });
-    }, [statistics, farmId, startDate, endDate, isMotefereghe, allowedProductIds, isAdmin, user?.id]);
-
     const filteredInvoices = useMemo(() => {
         const start = normalizeDate(startDate);
         const end = normalizeDate(endDate);
         return invoices.filter(i => {
-            if (i.farmId !== farmId) return false;
+            // Only filter by farm if user has assigned farms
+            if (farmId && i.farmId !== farmId) return false;
             if (!isDateInRange(i.date, start, end)) return false;
-            if (isMotefereghe && i.productId && !allowedProductIds.includes(i.productId)) return false;
             // Filter by creator for non-admins (Registration workers)
             if (!isAdmin && i.createdBy !== user?.id) return false;
             return true;
         });
-    }, [invoices, farmId, startDate, endDate, isMotefereghe, allowedProductIds, isAdmin, user?.id]);
+    }, [invoices, farmId, startDate, endDate, isAdmin, user?.id]);
 
     const handleDeleteStat = async (stat: DailyStatistic) => {
         const confirmed = await confirm({
@@ -338,90 +342,107 @@ const RecentRecords: React.FC = () => {
             <div className="flex-1 px-1 relative">
                 {activeTab === 'stats' ? (
                     <div className="space-y-3 overflow-y-auto custom-scrollbar h-full absolute inset-0">
-                        {sortedProductIds.map(pid => {
-                            const product = getProductById(pid);
-                            if (!product) return null;
+                        {statsLoading ? (
+                            <div className="flex flex-col items-center justify-center h-64 text-gray-400 font-bold">
+                                <Icons.Refresh className="w-10 h-10 mb-4 animate-spin opacity-20" />
+                                در حال بارگذاری آمار...
+                            </div>
+                        ) : sortedProductIds.length === 0 ? (
+                            <div className="text-center py-20 text-gray-400 font-bold flex flex-col items-center justify-center h-full">
+                                <Icons.BarChart className="w-16 h-16 mb-2 opacity-20" />
+                                هیچ آماری یافت نشد
+                            </div>
+                        ) : (
+                            sortedProductIds.map(pid => {
+                                const product = getProductById(pid);
+                                if (!product) return null;
 
-                            const productStats = filteredStats.filter(s => s.productId === pid);
-                            const hasStats = productStats.length > 0;
-                            const isExpanded = selectedProductId === pid;
+                                const productStats = filteredStats.filter(s => s.productId === pid);
+                                const hasStats = productStats.length > 0;
+                                const isExpanded = selectedProductId === pid;
 
-                            return (
-                                <div key={pid} className={`bg-white dark:bg-gray-800 rounded-2xl shadow-sm border-2 overflow-hidden transition-all duration-300 ${hasStats ? 'border-green-100 dark:border-green-900/30' : 'border-gray-100 dark:border-gray-700 opacity-60'}`}>
-                                    <div
-                                        onClick={() => hasStats ? setSelectedProductId(isExpanded ? null : pid) : null}
-                                        className={`p-4 flex items-center justify-between ${hasStats ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30' : 'cursor-not-allowed'}`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${hasStats ? 'bg-green-100 text-green-600 dark:bg-green-900/20' : 'bg-gray-100 text-gray-400 dark:bg-gray-700'}`}>
-                                                <Icons.BarChart className="w-5 h-5" />
+                                return (
+                                    <div key={pid} className={`bg-white dark:bg-gray-800 rounded-2xl shadow-sm border-2 overflow-hidden transition-all duration-300 ${hasStats ? 'border-green-100 dark:border-green-900/30' : 'border-gray-100 dark:border-gray-700 opacity-60'}`}>
+                                        <div
+                                            onClick={() => hasStats ? setSelectedProductId(isExpanded ? null : pid) : null}
+                                            className={`p-4 flex items-center justify-between ${hasStats ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30' : 'cursor-not-allowed'}`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${hasStats ? 'bg-green-100 text-green-600 dark:bg-green-900/20' : 'bg-gray-100 text-gray-400 dark:bg-gray-700'}`}>
+                                                    <Icons.BarChart className="w-5 h-5" />
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-bold text-gray-800 dark:text-gray-200">{product.name}</h4>
+                                                    <span className="text-xs font-bold text-gray-400">
+                                                        {hasStats ? `${toPersianDigits(productStats.length)} رکورد یافت شد` : 'بدون رکورد در این بازه'}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <h4 className="font-bold text-gray-800 dark:text-gray-200">{product.name}</h4>
-                                                <span className="text-xs font-bold text-gray-400">
-                                                    {hasStats ? `${toPersianDigits(productStats.length)} رکورد یافت شد` : 'بدون رکورد در این بازه'}
-                                                </span>
-                                            </div>
+                                            {hasStats && <Icons.ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />}
                                         </div>
-                                        {hasStats && <Icons.ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />}
+
+                                        {isExpanded && (
+                                            <div className="bg-gray-50 dark:bg-black/20 border-t border-gray-100 dark:border-gray-700 p-3 space-y-3">
+                                                {productStats.map(stat => {
+                                                    const isAdminCreated = stat.creatorRole === UserRole.ADMIN;
+                                                    const showTime = isAdmin || !isAdminCreated;
+                                                    const isEdited = stat.updatedAt && stat.updatedAt > stat.createdAt + 2000;
+
+                                                    return (
+                                                        <div key={stat.id} className={`bg-white dark:bg-gray-800 p-3 rounded-xl border ${isAdminCreated ? 'border-purple-200 dark:border-purple-900/30 bg-purple-50/30' : 'border-gray-200 dark:border-gray-600'} relative`}>
+                                                            <div className="flex justify-between items-center mb-2">
+                                                                <div className="flex gap-2 items-center">
+                                                                    <span className="text-xs font-bold bg-blue-50 dark:bg-blue-900/20 text-blue-600 px-2 py-1 rounded-md">
+                                                                        {toPersianDigits(stat.date)}
+                                                                    </span>
+                                                                    {isAdminCreated && <span className="text-[10px] font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">ثبت توسط مدیر</span>}
+                                                                </div>
+                                                                <div className="flex gap-2">
+                                                                    {canEdit(stat.createdAt, stat.creatorRole) ? (
+                                                                        <>
+                                                                            <button onClick={() => onEditStatClick(stat)} className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"><Icons.Edit className="w-4 h-4" /></button>
+                                                                            <button onClick={() => handleDeleteStat(stat)} className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Icons.Trash className="w-4 h-4" /></button>
+                                                                        </>
+                                                                    ) : (
+                                                                        <Icons.Lock className="w-4 h-4 text-gray-300" />
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            {isEdited && showTime && <span className="text-[9px] text-orange-500 font-bold block mb-1">ویرایش شده</span>}
+                                                            <div className="flex justify-between items-center text-sm">
+                                                                <div className="flex flex-col items-center">
+                                                                    <span className="text-[10px] text-gray-400">تولید</span>
+                                                                    <span className="font-black">{toPersianDigits(stat.production)}</span>
+                                                                </div>
+                                                                <div className="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
+                                                                <div className="flex flex-col items-center">
+                                                                    <span className="text-[10px] text-gray-400">فروش</span>
+                                                                    <span className="font-black text-red-500">{toPersianDigits(stat.sales)}</span>
+                                                                </div>
+                                                                <div className="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
+                                                                <div className="flex flex-col items-center">
+                                                                    <span className="text-[10px] text-gray-400">مانده</span>
+                                                                    <span className="font-black text-blue-600">{toPersianDigits(stat.currentInventory)}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
-
-                                    {isExpanded && (
-                                        <div className="bg-gray-50 dark:bg-black/20 border-t border-gray-100 dark:border-gray-700 p-3 space-y-3">
-                                            {productStats.map(stat => {
-                                                const isAdminCreated = stat.creatorRole === UserRole.ADMIN;
-                                                const showTime = isAdmin || !isAdminCreated;
-                                                const isEdited = stat.updatedAt && stat.updatedAt > stat.createdAt + 2000;
-
-                                                return (
-                                                    <div key={stat.id} className={`bg-white dark:bg-gray-800 p-3 rounded-xl border ${isAdminCreated ? 'border-purple-200 dark:border-purple-900/30 bg-purple-50/30' : 'border-gray-200 dark:border-gray-600'} relative`}>
-                                                        <div className="flex justify-between items-center mb-2">
-                                                            <div className="flex gap-2 items-center">
-                                                                <span className="text-xs font-bold bg-blue-50 dark:bg-blue-900/20 text-blue-600 px-2 py-1 rounded-md">
-                                                                    {toPersianDigits(stat.date)}
-                                                                </span>
-                                                                {isAdminCreated && <span className="text-[10px] font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">ثبت توسط مدیر</span>}
-                                                            </div>
-                                                            <div className="flex gap-2">
-                                                                {canEdit(stat.createdAt, stat.creatorRole) ? (
-                                                                    <>
-                                                                        <button onClick={() => onEditStatClick(stat)} className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"><Icons.Edit className="w-4 h-4" /></button>
-                                                                        <button onClick={() => handleDeleteStat(stat)} className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Icons.Trash className="w-4 h-4" /></button>
-                                                                    </>
-                                                                ) : (
-                                                                    <Icons.Lock className="w-4 h-4 text-gray-300" />
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                        {isEdited && showTime && <span className="text-[9px] text-orange-500 font-bold block mb-1">ویرایش شده</span>}
-                                                        <div className="flex justify-between items-center text-sm">
-                                                            <div className="flex flex-col items-center">
-                                                                <span className="text-[10px] text-gray-400">تولید</span>
-                                                                <span className="font-black">{toPersianDigits(stat.production)}</span>
-                                                            </div>
-                                                            <div className="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
-                                                            <div className="flex flex-col items-center">
-                                                                <span className="text-[10px] text-gray-400">فروش</span>
-                                                                <span className="font-black text-red-500">{toPersianDigits(stat.sales)}</span>
-                                                            </div>
-                                                            <div className="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
-                                                            <div className="flex flex-col items-center">
-                                                                <span className="text-[10px] text-gray-400">مانده</span>
-                                                                <span className="font-black text-blue-600">{toPersianDigits(stat.currentInventory)}</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                )
-                                            })}
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
+                                );
+                            })
+                        )}
                     </div>
                 ) : (
                     <div className="absolute inset-0">
-                        {filteredInvoices.length === 0 ? (
+                        {invLoading ? (
+                            <div className="flex flex-col items-center justify-center h-64 text-gray-400 font-bold">
+                                <Icons.Refresh className="w-10 h-10 mb-4 animate-spin opacity-20" />
+                                در حال بارگذاری حواله‌ها...
+                            </div>
+                        ) : filteredInvoices.length === 0 ? (
                             <div className="text-center py-20 text-gray-400 font-bold flex flex-col items-center justify-center h-full">
                                 <Icons.FileText className="w-16 h-16 mb-2 opacity-20" />
                                 هیچ حواله‌ای یافت نشد
