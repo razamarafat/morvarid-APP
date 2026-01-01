@@ -127,7 +127,7 @@ const RecentRecords: React.FC = () => {
     const filteredStats = useMemo(() => {
         const start = normalizeDate(startDate);
         const end = normalizeDate(endDate);
-        return statistics.filter(s => {
+            return statistics.filter(s => {
             // Filter by farm if selected
             if (selectedFarmId && s.farmId !== selectedFarmId) return false;
             // If admin and no farm selected, show all (for registration we expect a farm)
@@ -135,7 +135,8 @@ const RecentRecords: React.FC = () => {
 
             if (!isDateInRange(s.date, start, end)) return false;
             // Filter by creator for non-admins (Registration workers)
-            if (!isAdmin && s.createdBy !== user?.id) return false;
+            const sCreatorId = (s as any).createdBy ?? (s as any).created_by ?? null;
+            if (!isAdmin && sCreatorId !== user?.id) return false;
             return true;
         });
     }, [statistics, selectedFarmId, startDate, endDate, isAdmin, user?.id]);
@@ -173,7 +174,8 @@ const RecentRecords: React.FC = () => {
 
             if (!isDateInRange(i.date, start, end)) return false;
             // Filter by creator for non-admins (Registration workers)
-            if (!isAdmin && i.createdBy !== user?.id) return false;
+            const iCreatorId = (i as any).createdBy ?? (i as any).created_by ?? null;
+            if (!isAdmin && iCreatorId !== user?.id) return false;
             return true;
         });
     }, [invoices, selectedFarmId, startDate, endDate, isAdmin, user?.id]);

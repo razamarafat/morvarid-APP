@@ -311,11 +311,6 @@ AI SUGGESTIONS BACKLOG - V54
 --------------------------------
 13. پیشنهادات جدید (Recent Records & Filtering)
 --------------------------------
-- [ ] عنوان: Multi-User Record Filtering
-  - دسته‌بندی: Feature/UX
-  - توضیح: امکان فیلتر کردن سوابق بر اساس کاربر ثبت‌کننده (ویژه ادمین) در بخش Recent Records.
-  - اولویت: Medium
-
 - [ ] عنوان: Export Recent Records to PDF/Excel
   - دسته‌بندی: UX/Reporting
   - توضیح: دکمه خروجی گرفتن سریع از لیست سوابق نمایش داده شده در تب Recent Records.
