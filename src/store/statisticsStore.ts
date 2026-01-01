@@ -48,14 +48,26 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
     fetchStatistics: async () => {
         set({ isLoading: true });
         try {
-            // Enterprise pattern: Single relational query instead of multiple serial calls
-            const { data: statsData, error: statsError } = await supabase
-                .from('daily_statistics')
-                .select('*, profiles!created_by(full_name, role)')
-                .order('date', { ascending: false })
-                .limit(3000);
-
-            if (statsError) throw statsError;
+            // Try relational query first; if it fails (RLS/join restrictions), retry simple select
+            let statsData: any = null;
+            try {
+                const rel = await supabase
+                    .from('daily_statistics')
+                    .select('*, profiles!created_by(full_name, role)')
+                    .order('date', { ascending: false })
+                    .limit(3000);
+                if (rel.error) throw rel.error;
+                statsData = rel.data;
+            } catch (relErr) {
+                console.warn('[StatisticsStore] Relational select failed, retrying simple select', relErr);
+                const simple = await supabase
+                    .from('daily_statistics')
+                    .select('*')
+                    .order('date', { ascending: false })
+                    .limit(3000);
+                if (simple.error) throw simple.error;
+                statsData = simple.data;
+            }
 
             if (statsData) {
                 const uniqueStatsMap = new Map<string, any>();
@@ -87,9 +99,9 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                     createdAt: s.created_at ? new Date(s.created_at).getTime() : Date.now(),
                     updatedAt: s.updated_at ? new Date(s.updated_at).getTime() : undefined,
                     createdBy: s.created_by,
-                    // Directly access joined profile data
-                    creatorName: s.profiles?.full_name || 'کاربر حذف شده',
-                    creatorRole: s.profiles?.role
+                    // If relational data present use it, otherwise fall back
+                    creatorName: s.profiles?.full_name || s.creator_name || 'کاربر حذف شده',
+                    creatorRole: s.profiles?.role || s.creator_role
                 }));
                 set({ statistics: mappedStats, isLoading: false });
             } else {
@@ -97,7 +109,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
             }
         } catch (e) {
             console.error("Fetch Statistics Failed:", e);
-            set({ isLoading: false });
+            set({ statistics: [], isLoading: false });
         }
     },
 

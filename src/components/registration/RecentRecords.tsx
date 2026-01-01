@@ -17,7 +17,7 @@ import PersianNumberInput from '../common/PersianNumberInput';
 import PlateInput from '../common/PlateInput';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
-import { supabase } from '../../lib/supabase';
+import { fetchUserRecords } from '../../lib/supabase';
 
 // Virtualized Row for Invoices
 const InvoiceRow = ({ index, style, data }: { index: number, style: React.CSSProperties, data: any }) => {
@@ -70,8 +70,8 @@ const InvoiceRow = ({ index, style, data }: { index: number, style: React.CSSPro
 };
 
 const RecentRecords: React.FC = () => {
-    const { fetchStatistics, deleteStatistic, updateStatistic, isLoading: statsLoading } = useStatisticsStore();
-    const { fetchInvoices, deleteInvoice, updateInvoice, isLoading: invLoading } = useInvoiceStore();
+    const { statistics, fetchStatistics, deleteStatistic, updateStatistic, isLoading: statsLoading } = useStatisticsStore();
+    const { invoices, fetchInvoices, deleteInvoice, updateInvoice, isLoading: invLoading } = useInvoiceStore();
     const { user } = useAuthStore();
     const { products, getProductById } = useFarmStore();
     const { addToast } = useToastStore();
@@ -89,10 +89,6 @@ const RecentRecords: React.FC = () => {
     const [showEditStatModal, setShowEditStatModal] = useState(false);
     const [showEditInvoiceModal, setShowEditInvoiceModal] = useState(false);
 
-    // Local copies of records (component-scoped) — populated by direct queries for non-admin users
-    const [invoices, setInvoices] = useState<Invoice[]>([]);
-    const [statistics, setStatistics] = useState<DailyStatistic[]>([]);
-
     // Default to last 7 days
     const defaultStartDate = useMemo(() => {
         const d = new Date();
@@ -104,30 +100,8 @@ const RecentRecords: React.FC = () => {
     const [endDate, setEndDate] = useState(getTodayJalali());
     const [activeTab, setActiveTab] = useState<'stats' | 'invoices'>('stats');
 
-    const fetchUserRecords = async (userId: string, type: string, startDate: string, endDate: string) => {
-        try {
-            console.log(
-              `[RecentRecords] 🔄 Fetching own records for user ${userId} from ${startDate} to ${endDate}`
-            );
-
-            const response = await supabase
-                .from(type === 'invoices' ? 'invoices' : 'daily_statistics')
-                .select('*')
-                .eq('created_by', userId)
-                .gte('created_at', startDate)
-                .lte('created_at', endDate)
-                .order('created_at', { ascending: false });
-
-            if (response.error) {
-                throw new Error(response.error.message);
-            }
-
-            return response.data;
-        } catch (error) {
-            console.error(error);
-            return [];
-        }
-    };
+    // Debug: store raw direct-fetch results for troubleshooting RLS / mapping
+    const [debugFetched, setDebugFetched] = useState<{ invoices: any[]; stats: any[] }>({ invoices: [], stats: [] });
 
     // ✅ NEW: Direct fetch from Supabase for user's own records with debugging
     useEffect(() => {
@@ -148,12 +122,8 @@ const RecentRecords: React.FC = () => {
                     fetchUserRecords(user.id, 'daily_statistics', startDate, endDate)
                 ]);
 
-                // Populate local component state
-                setInvoices(fetchedInvoices || []);
-                setStatistics(fetchedStats || []);
-
                 console.log(
-                  `[RecentRecords] ✅ Direct fetch complete: ${fetchedInvoices?.length || 0} invoices, ${fetchedStats?.length || 0} stats`
+                  `[RecentRecords] ✅ Direct fetch complete: ${fetchedInvoices.length} invoices, ${fetchedStats.length} stats`
                 );
             } catch (error) {
                 console.error('[RecentRecords] ❌ Error fetching records:', error);
@@ -431,6 +401,30 @@ const RecentRecords: React.FC = () => {
                     <div className="flex-1"><JalaliDatePicker value={startDate} onChange={setStartDate} label="از تاریخ" /></div>
                     <div className="flex-1"><JalaliDatePicker value={endDate} onChange={setEndDate} label="تا تاریخ" /></div>
                 </div>
+                <div className="mt-3 flex items-center gap-2">
+                    <button
+                        onClick={async () => {
+                            if (!user?.id) return addToast('کاربر شناسایی نشده است', 'warning');
+                            try {
+                                addToast('در حال دریافت مستقیم رکوردها...', 'info');
+                                const [inv, stats] = await Promise.all([
+                                    fetchUserRecords(user.id, 'invoices', startDate, endDate),
+                                    fetchUserRecords(user.id, 'daily_statistics', startDate, endDate)
+                                ]);
+                                setDebugFetched({ invoices: inv as any[], stats: stats as any[] });
+                                console.log('[RecentRecords] Manual fetch result:', { invoices: inv, stats });
+                                addToast(`دریافت انجام شد: ${inv.length} حواله، ${stats.length} آمار`, 'success');
+                            } catch (err) {
+                                console.error('[RecentRecords] Manual fetch error:', err);
+                                addToast('خطا در دریافت رکوردها', 'error');
+                            }
+                        }}
+                        className="px-3 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-sm font-bold"
+                    >
+                        دریافت رکوردهای من (رفع اشکال)
+                    </button>
+                    <span className="text-xs text-gray-500">(برای دیباگ RLS و فیلترها)</span>
+                </div>
 
                 {assignedFarms.length > 1 && (
                     <div className="mt-4 flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
@@ -578,6 +572,19 @@ const RecentRecords: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {/* Debug panel showing raw fetched data for troubleshooting RLS/mapping */}
+            {(debugFetched.invoices.length > 0 || debugFetched.stats.length > 0) && (
+                <div className="p-4 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-100 dark:border-yellow-800 rounded-2xl my-3">
+                    <div className="flex items-center justify-between mb-2">
+                        <strong className="text-sm">Debug: نتایج دریافت مستقیم</strong>
+                        <button className="text-xs text-red-600" onClick={() => setDebugFetched({ invoices: [], stats: [] })}>پاک کردن</button>
+                    </div>
+                    <div className="max-h-52 overflow-auto text-xs font-mono text-gray-700 dark:text-gray-200">
+                        <pre className="whitespace-pre-wrap break-words">{JSON.stringify(debugFetched, null, 2)}</pre>
+                    </div>
+                </div>
+            )}
 
             {showEditStatModal && targetStat && (
                 <Modal isOpen={true} onClose={() => setShowEditStatModal(false)} title="ویرایش آمار">

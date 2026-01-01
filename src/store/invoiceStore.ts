@@ -45,14 +45,26 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     fetchInvoices: async () => {
         set({ isLoading: true });
         try {
-            // Standard relational query: fetch invoices and join profiles in one trip
-            const { data, error } = await supabase
-                .from('invoices')
-                .select('*, profiles!created_by(full_name, role)')
-                .order('date', { ascending: false })
-                .limit(2000);
-
-            if (error) throw error;
+            // Try relational query first (fetch invoices and join profiles in one trip)
+            let data: any = null;
+            try {
+                const rel = await supabase
+                    .from('invoices')
+                    .select('*, profiles!created_by(full_name, role)')
+                    .order('date', { ascending: false })
+                    .limit(2000);
+                if (rel.error) throw rel.error;
+                data = rel.data;
+            } catch (relErr) {
+                console.warn('[InvoiceStore] Relational select failed, retrying simple select', relErr);
+                const simple = await supabase
+                    .from('invoices')
+                    .select('*')
+                    .order('date', { ascending: false })
+                    .limit(2000);
+                if (simple.error) throw simple.error;
+                data = simple.data;
+            }
 
             if (data) {
                 const mapped = data.map((i: any) => ({
@@ -71,9 +83,9 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
                     createdAt: i.created_at ? new Date(i.created_at).getTime() : Date.now(),
                     updatedAt: i.updated_at ? new Date(i.updated_at).getTime() : undefined,
                     createdBy: i.created_by,
-                    // Relation data is automatically nested under the 'profiles' key (or alias)
-                    creatorName: i.profiles?.full_name || 'کاربر حذف شده',
-                    creatorRole: i.profiles?.role
+                    // If relational select succeeded, relation data is nested under 'profiles'. If not, fall back to placeholders.
+                    creatorName: i.profiles?.full_name || i.creator_name || 'کاربر حذف شده',
+                    creatorRole: i.profiles?.role || i.creator_role
                 }));
                 set({ invoices: mapped, isLoading: false });
             } else {
@@ -81,7 +93,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
             }
         } catch (e) {
             console.error("Fetch Invoices Failed:", e);
-            set({ isLoading: false });
+            set({ invoices: [], isLoading: false });
         }
     },
 

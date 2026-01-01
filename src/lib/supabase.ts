@@ -33,39 +33,44 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
  * Fetch records created by a specific user with date range filter.
  * Handles RLS policies and type casting for UUID comparison.
  */
-export const fetchUserRecords = async (
+export async function fetchUserRecords(
   userId: string,
   entityType: 'invoices' | 'daily_statistics',
   startDate: string,
   endDate: string
-) => {
+) {
   try {
     console.log(
       `[fetchUserRecords] 🔍 Querying ${entityType} for user ${userId} from ${startDate} to ${endDate}`
     );
 
-    const response = await supabase
+    // Use record 'date' field for UI date-range filtering (created_at is the DB timestamp)
+    const query = supabase
       .from(entityType)
       .select('*')
       .eq('created_by', userId)
-      .gte('created_at', startDate)
-      .lte('created_at', endDate)
-      .order('created_at', { ascending: false });
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date', { ascending: false });
 
-    if (response.error) {
+    const { data, error } = await query;
+
+    if (error) {
       console.error(
         `[fetchUserRecords] ❌ Database error for ${entityType}:`,
-        { message: response.error.message, details: response.error.details, hint: response.error.hint }
+        { message: error.message, details: error.details, hint: error.hint }
       );
-      throw response.error;
+      throw error;
     }
 
-    console.log(
-      `[fetchUserRecords] ✅ Success: Fetched ${response.data?.length || 0} ${entityType} records`
-    );
-    return response.data || [];
+    console.log(`[fetchUserRecords] ✅ Success: Fetched ${data?.length || 0} ${entityType} records`);
+    // Log a sample of returned shape so front-end mapping can be validated
+    if (data && data.length) {
+      console.log('[fetchUserRecords] sample row:', JSON.parse(JSON.stringify(data[0])));
+    }
+    return data || [];
   } catch (error: any) {
     console.error(`[fetchUserRecords] ❌ Exception:`, error);
     return [];
   }
-};
+}
