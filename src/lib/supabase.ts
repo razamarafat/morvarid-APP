@@ -35,7 +35,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
  */
 export async function fetchUserRecords(
   userId: string,
-  entityType: 'invoices' | 'statistics',
+  entityType: 'invoices' | 'daily_statistics',
   startDate: string,
   endDate: string
 ) {

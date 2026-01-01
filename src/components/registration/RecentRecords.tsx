@@ -82,38 +82,7 @@ const RecentRecords: React.FC = () => {
         fetchInvoices();
     }, [fetchStatistics, fetchInvoices]);
 
-    // ✅ NEW: Direct fetch from Supabase for user's own records with debugging
-    useEffect(() => {
-        if (!user?.id) {
-            console.warn('[RecentRecords] ❌ No user ID available');
-            return;
-        }
-
-        const fetchUserOwnRecords = async () => {
-            try {
-                console.log(
-                  `[RecentRecords] 🔄 Fetching own records for user ${user.id} from ${startDate} to ${endDate}`
-                );
-
-                // Fetch both invoices and statistics directly
-                const [fetchedInvoices, fetchedStats] = await Promise.all([
-                    fetchUserRecords(user.id, 'invoices', startDate, endDate),
-                    fetchUserRecords(user.id, 'statistics', startDate, endDate)
-                ]);
-
-                console.log(
-                  `[RecentRecords] ✅ Direct fetch complete: ${fetchedInvoices.length} invoices, ${fetchedStats.length} stats`
-                );
-            } catch (error) {
-                console.error('[RecentRecords] ❌ Error fetching records:', error);
-            }
-        };
-
-        // Only fetch if not admin (admins get all records via normal store)
-        if (user.role !== UserRole.ADMIN) {
-            fetchUserOwnRecords();
-        }
-    }, [user?.id, user?.role, startDate, endDate]);
+    // NOTE: Direct fetch of user's own records moved below after date state initialization
 
     const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
@@ -130,6 +99,39 @@ const RecentRecords: React.FC = () => {
     const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(getTodayJalali());
     const [activeTab, setActiveTab] = useState<'stats' | 'invoices'>('stats');
+
+    // ✅ NEW: Direct fetch from Supabase for user's own records with debugging
+    useEffect(() => {
+        if (!user?.id) {
+            console.warn('[RecentRecords] ❌ No user ID available');
+            return;
+        }
+
+        const fetchUserOwnRecords = async () => {
+            try {
+                console.log(
+                  `[RecentRecords] 🔄 Fetching own records for user ${user.id} from ${startDate} to ${endDate}`
+                );
+
+                // Fetch both invoices and statistics directly
+                const [fetchedInvoices, fetchedStats] = await Promise.all([
+                    fetchUserRecords(user.id, 'invoices', startDate, endDate),
+                    fetchUserRecords(user.id, 'daily_statistics', startDate, endDate)
+                ]);
+
+                console.log(
+                  `[RecentRecords] ✅ Direct fetch complete: ${fetchedInvoices.length} invoices, ${fetchedStats.length} stats`
+                );
+            } catch (error) {
+                console.error('[RecentRecords] ❌ Error fetching records:', error);
+            }
+        };
+
+        // Only fetch if not admin (admins get all records via normal store)
+        if (user.role !== UserRole.ADMIN) {
+            fetchUserOwnRecords();
+        }
+    }, [user?.id, user?.role, startDate, endDate]);
 
     // Farm Selection
     const assignedFarms = user?.assignedFarms || [];
