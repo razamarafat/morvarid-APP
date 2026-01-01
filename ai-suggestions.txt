@@ -1,5 +1,5 @@
 
-AI SUGGESTIONS BACKLOG - V53
+AI SUGGESTIONS BACKLOG - V54
 
 --------------------------------
 1. پیشنهادات امنیت و مدیریت کاربران (Security & Auth)
@@ -306,4 +306,27 @@ AI SUGGESTIONS BACKLOG - V53
 - [ ] عنوان: Local Data Comparison
   - دسته‌بندی: Performance/Sync
   - توضیح: مقایسه نسخه‌ی دیتای محلی با سرور قبل از شروع همگام‌سازی برای کاهش ترافیک مصرفی.
+  - اولویت: Low
+
+--------------------------------
+13. پیشنهادات جدید (Recent Records & Filtering)
+--------------------------------
+- [ ] عنوان: Multi-User Record Filtering
+  - دسته‌بندی: Feature/UX
+  - توضیح: امکان فیلتر کردن سوابق بر اساس کاربر ثبت‌کننده (ویژه ادمین) در بخش Recent Records.
+  - اولویت: Medium
+
+- [ ] عنوان: Export Recent Records to PDF/Excel
+  - دسته‌بندی: UX/Reporting
+  - توضیح: دکمه خروجی گرفتن سریع از لیست سوابق نمایش داده شده در تب Recent Records.
+  - اولویت: High
+
+- [ ] عنوان: Record Search bar
+  - دسته‌بندی: UI/UX
+  - توضیح: افزودن نوار جستجو در بالای Recent Records برای پیدا کردن سریع یک حواله بر اساس شماره یا نام محصول.
+  - اولویت: Medium
+
+- [ ] عنوان: Advanced Date Picker (Relative Dates)
+  - دسته‌بندی: UI/UX
+  - توضیح: افزودن گزینه‌های "امروز"، "دیروز"، "۷ روز اخیر" به انتخابگر تاریخ برای سرعت عمل بیشتر.
   - اولویت: Low

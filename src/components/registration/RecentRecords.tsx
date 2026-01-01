@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useStatisticsStore, DailyStatistic } from '../../store/statisticsStore';
 import { useInvoiceStore } from '../../store/invoiceStore';
 import { useFarmStore } from '../../store/farmStore';
@@ -69,12 +69,17 @@ const InvoiceRow = ({ index, style, data }: { index: number, style: React.CSSPro
 };
 
 const RecentRecords: React.FC = () => {
-    const { statistics, deleteStatistic, updateStatistic, isLoading: statsLoading } = useStatisticsStore();
-    const { invoices, deleteInvoice, updateInvoice, isLoading: invLoading } = useInvoiceStore();
+    const { statistics, fetchStatistics, deleteStatistic, updateStatistic, isLoading: statsLoading } = useStatisticsStore();
+    const { invoices, fetchInvoices, deleteInvoice, updateInvoice, isLoading: invLoading } = useInvoiceStore();
     const { user } = useAuthStore();
     const { products, getProductById } = useFarmStore();
     const { addToast } = useToastStore();
     const { confirm } = useConfirm();
+
+    useEffect(() => {
+        fetchStatistics();
+        fetchInvoices();
+    }, [fetchStatistics, fetchInvoices]);
 
     const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
@@ -133,7 +138,7 @@ const RecentRecords: React.FC = () => {
             if (!isAdmin && s.createdBy !== user?.id) return false;
             return true;
         });
-    }, [statistics, farmId, startDate, endDate, isMotefereghe, allowedProductIds]);
+    }, [statistics, farmId, startDate, endDate, isMotefereghe, allowedProductIds, isAdmin, user?.id]);
 
     const filteredInvoices = useMemo(() => {
         const start = normalizeDate(startDate);
@@ -146,7 +151,7 @@ const RecentRecords: React.FC = () => {
             if (!isAdmin && i.createdBy !== user?.id) return false;
             return true;
         });
-    }, [invoices, farmId, startDate, endDate, isMotefereghe, allowedProductIds]);
+    }, [invoices, farmId, startDate, endDate, isMotefereghe, allowedProductIds, isAdmin, user?.id]);
 
     const handleDeleteStat = async (stat: DailyStatistic) => {
         const confirmed = await confirm({
