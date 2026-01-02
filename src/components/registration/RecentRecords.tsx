@@ -393,31 +393,33 @@ const RecentRecords: React.FC = () => {
                     <div className="flex-1"><JalaliDatePicker value={endDate} onChange={setEndDate} label="تا تاریخ" /></div>
                 </div>
 
-                <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar no-scrollbar">
-                    {availableFarms.length > 1 && (
-                        <button
-                            onClick={() => setSelectedFarmId('all')}
-                            className={`px-4 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all border-2 ${selectedFarmId === 'all'
-                                ? 'bg-metro-blue text-white border-metro-blue'
-                                : 'bg-gray-50 dark:bg-gray-700 text-gray-500 border-transparent hover:border-gray-200'
-                                }`}
-                        >
-                            همه فارم‌ها
-                        </button>
-                    )}
-                    {availableFarms.map(f => (
-                        <button
-                            key={f.id}
-                            onClick={() => setSelectedFarmId(f.id)}
-                            className={`px-4 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all border-2 ${selectedFarmId === f.id
-                                ? 'bg-metro-blue text-white border-metro-blue'
-                                : 'bg-gray-50 dark:bg-gray-700 text-gray-500 border-transparent hover:border-gray-200'
-                                }`}
-                        >
-                            {f.name}
-                        </button>
-                    ))}
-                </div>
+                {availableFarms.length > 1 && (
+                    <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar no-scrollbar">
+                        {availableFarms.length > 1 && (
+                            <button
+                                onClick={() => setSelectedFarmId('all')}
+                                className={`px-4 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all border-2 ${selectedFarmId === 'all'
+                                    ? 'bg-metro-blue text-white border-metro-blue'
+                                    : 'bg-gray-50 dark:bg-gray-700 text-gray-500 border-transparent hover:border-gray-200'
+                                    }`}
+                            >
+                                همه فارم‌ها
+                            </button>
+                        )}
+                        {availableFarms.map(f => (
+                            <button
+                                key={f.id}
+                                onClick={() => setSelectedFarmId(f.id)}
+                                className={`px-4 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all border-2 ${selectedFarmId === f.id
+                                    ? 'bg-metro-blue text-white border-metro-blue'
+                                    : 'bg-gray-50 dark:bg-gray-700 text-gray-500 border-transparent hover:border-gray-200'
+                                    }`}
+                            >
+                                {f.name}
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
 
             <div className="flex-1 px-1">
@@ -514,21 +516,23 @@ const RecentRecords: React.FC = () => {
                 </Modal>
             )}
             {/* TECHNICAL DEBUG INFO - FOR TROUBLESHOOTING */}
-            <div className="mt-12 p-4 bg-gray-100 dark:bg-gray-800 rounded-xl text-[10px] font-mono opacity-50 space-y-1">
-                <p>--- DEBUG INFO ---</p>
-                <p>User: {user?.fullName} ({user?.role})</p>
-                <p>User ID: {user?.id}</p>
-                <p>Assigned Farms: {assignedFarmIds.length} ({assignedFarmIds.join(', ')})</p>
-                <p>Selected Farm: {selectedFarmId}</p>
-                <p>Date Range: {startDate} to {endDate}</p>
-                <p>Stats in Store: {statistics.length}</p>
-                <p>Invoices in Store: {invoices.length}</p>
-                <p>Products Loaded: {products.length}</p>
-                <p>Loaded Filters: {filteredStats.length} Stats / {filteredInvoices.length} Invoices</p>
-                {statistics.length > 0 && !filteredStats.length && (
-                    <p className="text-red-500 font-bold">WARN: Records exist in store but are filtered out. Check date/creator/farm matching.</p>
-                )}
-            </div>
+            {isAdmin && (
+                <div className="mt-12 p-4 bg-gray-100 dark:bg-gray-800 rounded-xl text-[10px] font-mono opacity-50 space-y-1">
+                    <p>--- DEBUG INFO ---</p>
+                    <p>User: {user?.fullName} ({user?.role})</p>
+                    <p>User ID: {user?.id}</p>
+                    <p>Assigned Farms: {assignedFarmIds.length} ({assignedFarmIds.join(', ')})</p>
+                    <p>Selected Farm: {selectedFarmId}</p>
+                    <p>Date Range: {startDate} to {endDate}</p>
+                    <p>Stats in Store: {statistics.length}</p>
+                    <p>Invoices in Store: {invoices.length}</p>
+                    <p>Products Loaded: {products.length}</p>
+                    <p>Loaded Filters: {filteredStats.length} Stats / {filteredInvoices.length} Invoices</p>
+                    {statistics.length > 0 && !filteredStats.length && (
+                        <p className="text-red-500 font-bold">WARN: Records exist in store but are filtered out. Check date/creator/farm matching.</p>
+                    )}
+                </div>
+            )}
         </div>
     );
 };

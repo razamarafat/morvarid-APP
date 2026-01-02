@@ -60,7 +60,7 @@ interface InvoiceDraftState {
 export const InvoiceForm: React.FC = () => {
     const { user } = useAuthStore();
     const { getProductById } = useFarmStore();
-    const { addInvoice } = useInvoiceStore();
+    const { bulkAddInvoices } = useInvoiceStore();
     const { statistics } = useStatisticsStore();
     const { addToast } = useToastStore();
     const { confirm } = useConfirm();
@@ -303,21 +303,20 @@ export const InvoiceForm: React.FC = () => {
         if (!confirmed) return;
 
         setIsSubmitting(true);
-        let successCount = 0;
-        const errorsList: string[] = [];
 
         // SANITIZATION
         const cleanDriverName = sanitizeInput(globalData.driverName);
         const cleanDescription = sanitizeInput(globalData.description);
         const cleanPlate = sanitizeInput(globalData.plateNumber);
 
-        for (const pid of selectedProductIds) {
+        // Prepare bulk insert list
+        const invoicesToRegister = selectedProductIds.map(pid => {
             const item = itemsState[pid];
-            const result = await addInvoice({
+            return {
                 farmId: selectedFarmId,
                 date: referenceDate,
                 invoiceNumber: globalData.invoiceNumber,
-                totalCartons: Number(item.cartons || 0),
+                totalCartons: Math.floor(Number(item.cartons || 0)),
                 totalWeight: Number(item.weight),
                 productId: pid,
                 driverName: cleanDriverName,
@@ -325,48 +324,44 @@ export const InvoiceForm: React.FC = () => {
                 plateNumber: cleanPlate,
                 description: cleanDescription,
                 isYesterday: referenceDate !== normalizedDate
-            });
+            };
+        });
 
-            if (result.success) {
-                successCount++;
-            } else {
-                errorsList.push(result.error || 'Unknown error');
-            }
-        }
-
+        const result = await bulkAddInvoices(invoicesToRegister);
         setIsSubmitting(false);
 
-        if (errorsList.length > 0) {
-            if (errorsList.some(e => e.includes('تکراری') || e.includes('Duplicate'))) {
-                addToast('این شماره حواله قبلاً برای این محصول ثبت شده است.', 'error');
-            } else if (errorsList.some(e => e.includes('فارم دیگر'))) {
+        if (!result.success) {
+            const err = result.error || '';
+            if (err.includes('تکراری') || err.includes('Duplicate')) {
+                addToast('این شماره حواله قبلاً ثبت شده است (احتمالاً برای یکی از این محصولات).', 'error');
+            } else if (err.includes('فارم دیگر')) {
                 addToast('این شماره حواله متعلق به فارم دیگری است.', 'error');
             } else {
-                addToast(`خطا در ثبت: ${errorsList[0]}`, 'error');
+                addToast(`خطا در ثبت: ${err}`, 'error');
             }
+            return;
         }
 
-        if (successCount > 0) {
-            addToast(`${toPersianDigits(successCount)} آیتم با موفقیت ثبت شد.`, 'success');
+        // SUCCESS PATH
+        addToast(`${toPersianDigits(invoicesToRegister.length)} آیتم با موفقیت ثبت شد.`, 'success');
 
-            // CLEAR AUTO SAVE
-            clearDraft();
+        // CLEAR AUTO SAVE
+        clearDraft();
 
-            if (activeDraftId) {
-                removeDraft(activeDraftId);
-            }
-
-            setSelectedProductIds([]);
-            setItemsState({});
-            setValue('invoiceNumber', '');
-            setValue('contactPhone', '');
-            setValue('driverName', '');
-            setValue('description', '');
-            setValue('plateNumber', '');
-            setPendingDraftData(null);
-            setActiveDraftId(null);
+        if (activeDraftId) {
+            removeDraft(activeDraftId);
         }
-    };
+
+        setSelectedProductIds([]);
+        setItemsState({});
+        setValue('invoiceNumber', '');
+        setValue('contactPhone', '');
+        setValue('driverName', '');
+        setValue('description', '');
+        setValue('plateNumber', '');
+        setPendingDraftData(null);
+        setActiveDraftId(null);
+    }
 
     const inputClass = "w-full p-4 border-2 border-gray-200 bg-white dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white font-black text-center focus:border-metro-blue outline-none transition-all text-xl rounded-xl shadow-sm";
     const labelClass = "block text-sm font-black text-gray-500 dark:text-gray-400 mb-1.5 uppercase text-right px-1";
