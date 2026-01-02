@@ -10,6 +10,7 @@ import Modal from '../common/Modal';
 import Button from '../common/Button';
 import { useToastStore } from '../../store/toastStore';
 import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange, formatJalali } from '../../utils/dateUtils';
+import { formatPlateNumber } from '../../utils/formatUtils';
 import { compareProducts } from '../../utils/sortUtils';
 import JalaliDatePicker from '../common/JalaliDatePicker';
 import PersianNumberInput from '../common/PersianNumberInput';
@@ -27,12 +28,12 @@ const StatRecordCard = ({ stat, getProductName, canEdit, onEdit, onDelete }: { s
     return (
         <div className={`bg-white dark:bg-gray-800 p-4 rounded-xl border-2 ${isAdminCreated ? 'border-purple-200 dark:border-purple-900/30 bg-purple-50/30' : 'border-gray-100 dark:border-gray-700'} relative shadow-sm`}>
             <div className="flex justify-between items-center mb-3">
-                <div className="flex gap-2 items-center">
-                    <span className="text-[10px] font-black bg-blue-50 dark:bg-blue-900/20 text-blue-600 px-2 py-1 rounded-md">
+                <div className="flex gap-2 lg:gap-4 items-center">
+                    <span className="text-[10px] lg:text-xs font-black bg-blue-50 dark:bg-blue-900/20 text-blue-600 px-2 py-1 lg:px-3 lg:py-1.5 rounded-md lg:rounded-lg">
                         {toPersianDigits(stat.date)}
                     </span>
-                    <span className="text-xs font-bold text-gray-700 dark:text-gray-300">{prodName}</span>
-                    {isAdminCreated && <span className="text-[9px] font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">ثبت مدیر</span>}
+                    <span className="text-xs lg:text-lg font-bold text-gray-700 dark:text-gray-300">{prodName}</span>
+                    {isAdminCreated && <span className="text-[9px] lg:text-xs font-bold bg-purple-100 text-purple-700 px-2 py-0.5 lg:px-3 lg:py-1 rounded-full">ثبت مدیر</span>}
                 </div>
                 <div className="flex gap-2">
                     {canEdit(stat.createdAt, stat.creatorRole) ? (
@@ -47,23 +48,23 @@ const StatRecordCard = ({ stat, getProductName, canEdit, onEdit, onDelete }: { s
             </div>
 
             <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="bg-gray-50 dark:bg-gray-900/50 p-2 rounded-lg">
-                    <span className="block text-[9px] text-gray-400">تولید</span>
-                    <span className="font-black text-sm">{toPersianDigits(stat.production)}</span>
+                <div className="bg-gray-50 dark:bg-gray-900/50 p-2 lg:p-4 rounded-lg lg:rounded-2xl">
+                    <span className="block text-[9px] lg:text-xs text-gray-400 font-bold mb-1">تولید</span>
+                    <span className="font-black text-sm lg:text-2xl">{toPersianDigits(stat.production)}</span>
                 </div>
-                <div className="bg-red-50 dark:bg-red-900/10 p-2 rounded-lg">
-                    <span className="block text-[9px] text-red-300">فروش</span>
-                    <span className="font-black text-sm text-red-600">{toPersianDigits(stat.sales)}</span>
+                <div className="bg-red-50 dark:bg-red-900/10 p-2 lg:p-4 rounded-lg lg:rounded-2xl">
+                    <span className="block text-[9px] lg:text-xs text-red-300 font-bold mb-1">فروش</span>
+                    <span className="font-black text-sm lg:text-2xl text-red-600">{toPersianDigits(stat.sales)}</span>
                 </div>
-                <div className="bg-blue-50 dark:bg-blue-900/10 p-2 rounded-lg">
-                    <span className="block text-[9px] text-blue-300">موجودی</span>
-                    <span className="font-black text-sm text-blue-700">{toPersianDigits(stat.currentInventory)}</span>
+                <div className="bg-blue-50 dark:bg-blue-900/10 p-2 lg:p-4 rounded-lg lg:rounded-2xl">
+                    <span className="block text-[9px] lg:text-xs text-blue-300 font-bold mb-1">موجودی</span>
+                    <span className="font-black text-sm lg:text-2xl text-black dark:text-white">{toPersianDigits(stat.currentInventory)}</span>
                 </div>
             </div>
 
-            <div className="mt-3 pt-2 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center text-[9px] text-gray-400">
+            <div className="mt-3 pt-2 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center text-[9px] lg:text-xs text-gray-400 font-bold">
                 <span>مسئول ثبت: {stat.creatorName || 'ناشناس'}</span>
-                {isEdited && <span className="text-orange-500 font-bold">● ویرایش شده</span>}
+                {isEdited && <span className="text-orange-500 font-black">● ویرایش شده</span>}
             </div>
         </div>
     );
@@ -79,10 +80,10 @@ const InvoiceRecordCard = ({ inv, getProductName, canEdit, onEdit, onDelete }: {
         <div className={`bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border-2 ${isAdminCreated ? 'border-purple-200 bg-purple-50/30' : 'border-gray-100 dark:border-gray-700'} relative`}>
             <div className="flex justify-between items-start mb-3">
                 <div>
-                    <span className="text-[10px] font-black text-metro-orange block mb-1">حواله {toPersianDigits(inv.invoiceNumber)}</span>
-                    <h4 className="font-bold text-gray-800 dark:text-gray-200 text-sm">{prodName}</h4>
-                    {isAdminCreated && <span className="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold mt-1 inline-block">ثبت توسط مدیر</span>}
-                    {isEdited && <span className="text-[9px] text-orange-500 font-bold mr-1"> (ویرایش شده)</span>}
+                    <span className="text-[10px] lg:text-xs font-black text-metro-orange block mb-1">حواله {toPersianDigits(inv.invoiceNumber)}</span>
+                    <h4 className="font-bold text-gray-800 dark:text-gray-200 text-sm lg:text-lg">{prodName}</h4>
+                    {isAdminCreated && <span className="text-[9px] lg:text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 lg:px-3 lg:py-1 rounded font-bold mt-1 inline-block">ثبت توسط مدیر</span>}
+                    {isEdited && <span className="text-[9px] lg:text-xs text-orange-500 font-bold mr-1"> (ویرایش شده)</span>}
                 </div>
                 <div className="flex gap-2">
                     {canEdit(inv.createdAt, inv.creatorRole) ? (
@@ -96,20 +97,20 @@ const InvoiceRecordCard = ({ inv, getProductName, canEdit, onEdit, onDelete }: {
                 </div>
             </div>
 
-            <div className="flex items-center gap-2 text-[10px] text-gray-500 mb-3 bg-gray-50 dark:bg-gray-900/50 p-2 rounded-lg">
-                <span className="font-bold">{toPersianDigits(inv.date)}</span>
-                {inv.plateNumber && <span className="font-mono border-r pr-2 border-gray-300" dir="ltr">{inv.plateNumber}</span>}
-                <span className="flex-1 text-left">{inv.creatorName}</span>
+            <div className="flex items-center gap-2 text-[10px] lg:text-xs text-gray-500 mb-3 bg-gray-50 dark:bg-gray-900/50 p-2 lg:p-3 rounded-lg lg:rounded-xl">
+                <span className="font-black bg-white dark:bg-gray-800 px-2 py-1 rounded shadow-sm">{toPersianDigits(inv.date)}</span>
+                {inv.plateNumber && <span className="font-mono border-r pr-2 border-gray-300 lg:text-sm" dir="ltr">{formatPlateNumber(inv.plateNumber)}</span>}
+                <span className="flex-1 text-left font-bold">{inv.creatorName}</span>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-                <div className="bg-gray-50 dark:bg-gray-950/20 p-2 rounded-xl text-center border border-gray-100 dark:border-gray-800">
-                    <span className="block text-[10px] text-gray-400 font-bold">کارتن</span>
-                    <span className="font-black text-lg">{toPersianDigits(inv.totalCartons)}</span>
+                <div className="bg-gray-50 dark:bg-gray-950/20 p-2 lg:p-4 rounded-xl lg:rounded-3xl text-center border border-gray-100 dark:border-gray-800">
+                    <span className="block text-[10px] lg:text-xs text-gray-400 font-black">کارتن</span>
+                    <span className="font-black text-lg lg:text-2xl">{toPersianDigits(inv.totalCartons)}</span>
                 </div>
-                <div className="bg-blue-50 dark:bg-blue-950/20 p-2 rounded-xl text-center border border-blue-100 dark:border-blue-900/20">
-                    <span className="block text-[10px] text-blue-400 font-bold">وزن</span>
-                    <span className="font-black text-lg text-blue-600">{toPersianDigits(inv.totalWeight)}</span>
+                <div className="bg-blue-50 dark:bg-blue-950/20 p-2 lg:p-4 rounded-xl lg:rounded-3xl text-center border border-blue-100 dark:border-blue-900/20">
+                    <span className="block text-[10px] lg:text-xs text-blue-400 font-black">وزن</span>
+                    <span className="font-black text-lg lg:text-2xl text-blue-600">{toPersianDigits(inv.totalWeight)}</span>
                 </div>
             </div>
         </div>
@@ -136,12 +137,8 @@ const RecentRecords: React.FC = () => {
     const [showEditStatModal, setShowEditStatModal] = useState(false);
     const [showEditInvoiceModal, setShowEditInvoiceModal] = useState(false);
 
-    // Default to last 7 days
-    const defaultStartDate = useMemo(() => {
-        const d = new Date();
-        d.setDate(d.getDate() - 7);
-        return formatJalali(d);
-    }, []);
+    // Default to Today only
+    const defaultStartDate = useMemo(() => getTodayJalali(), []);
 
     const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(getTodayJalali());

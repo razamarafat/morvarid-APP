@@ -9,6 +9,7 @@ import { Icons } from '../common/Icons';
 import Button from '../common/Button';
 import JalaliDatePicker from '../common/JalaliDatePicker';
 import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange } from '../../utils/dateUtils';
+import { formatPlateNumber } from '../../utils/formatUtils';
 import { Invoice } from '../../types';
 import Modal from '../common/Modal';
 import { useConfirm } from '../../hooks/useConfirm';
@@ -26,7 +27,7 @@ const GlobalRecordManager: React.FC = () => {
     const { confirm } = useConfirm();
 
     const [activeTab, setActiveTab] = useState<TabType>('stats');
-    
+
     // Filters
     const [selectedFarmId, setSelectedFarmId] = useState<string>('all');
     const [startDate, setStartDate] = useState(getTodayJalali());
@@ -35,17 +36,17 @@ const GlobalRecordManager: React.FC = () => {
     // Editing State
     const [editingStat, setEditingStat] = useState<DailyStatistic | null>(null);
     const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
-    
+
     // Form Values
     const [statForm, setStatForm] = useState({ prod: 0, sales: 0, prev: 0 });
-    const [invoiceForm, setInvoiceForm] = useState({ 
+    const [invoiceForm, setInvoiceForm] = useState({
         invoiceNumber: '',
-        cartons: 0, 
-        weight: 0, 
-        driver: '', 
-        plate: '', 
-        phone: '', 
-        desc: '' 
+        cartons: 0,
+        weight: 0,
+        driver: '',
+        plate: '',
+        phone: '',
+        desc: ''
     });
 
     // --- Helpers ---
@@ -80,7 +81,7 @@ const GlobalRecordManager: React.FC = () => {
     }, [invoices, selectedFarmId, startDate, endDate]);
 
     // --- Handlers ---
-    
+
     const handleDeleteStat = async (id: string) => {
         const yes = await confirm({ title: 'حذف دائمی آمار', message: 'مدیر گرامی، آیا از حذف این رکورد اطمینان دارید؟', type: 'danger', confirmText: 'حذف اجباری' });
         if (yes) {
@@ -138,14 +139,14 @@ const GlobalRecordManager: React.FC = () => {
 
     const handleCancelInvoice = () => {
         setEditingInvoice(null);
-        setInvoiceForm({ 
+        setInvoiceForm({
             invoiceNumber: '',
-            cartons: 0, 
-            weight: 0, 
-            driver: '', 
-            plate: '', 
-            phone: '', 
-            desc: '' 
+            cartons: 0,
+            weight: 0,
+            driver: '',
+            plate: '',
+            phone: '',
+            desc: ''
         });
     };
 
@@ -181,9 +182,9 @@ const GlobalRecordManager: React.FC = () => {
             <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-[24px] shadow-sm border-t-4 border-metro-purple grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
                 <div>
                     <label className="text-xs lg:text-sm font-bold text-gray-500 mb-1.5 block px-1">فیلتر فارم</label>
-                    <select 
-                        value={selectedFarmId} 
-                        onChange={(e) => setSelectedFarmId(e.target.value)} 
+                    <select
+                        value={selectedFarmId}
+                        onChange={(e) => setSelectedFarmId(e.target.value)}
                         className="w-full p-4 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white text-base lg:text-lg font-bold outline-none focus:border-metro-purple transition-colors"
                     >
                         <option value="all">همه فارم‌ها</option>
@@ -192,15 +193,15 @@ const GlobalRecordManager: React.FC = () => {
                 </div>
                 <div><JalaliDatePicker value={startDate} onChange={setStartDate} label="از تاریخ" /></div>
                 <div><JalaliDatePicker value={endDate} onChange={setEndDate} label="تا تاریخ" /></div>
-                
+
                 <div className="flex bg-gray-100 dark:bg-gray-700 p-1.5 rounded-xl h-[60px]">
-                    <button 
+                    <button
                         onClick={() => setActiveTab('stats')}
                         className={`flex-1 rounded-lg text-sm lg:text-lg font-bold transition-all flex items-center justify-center ${activeTab === 'stats' ? 'bg-metro-purple text-white shadow-sm' : 'text-gray-500 dark:text-gray-300'}`}
                     >
                         آمار تولید
                     </button>
-                    <button 
+                    <button
                         onClick={() => setActiveTab('invoices')}
                         className={`flex-1 rounded-lg text-sm lg:text-lg font-bold transition-all flex items-center justify-center ${activeTab === 'invoices' ? 'bg-metro-orange text-white shadow-sm' : 'text-gray-500 dark:text-gray-300'}`}
                     >
@@ -243,54 +244,54 @@ const GlobalRecordManager: React.FC = () => {
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                             {activeTab === 'stats' ? (
                                 filteredStats.length === 0 ? <tr><td colSpan={8} className="text-center py-12 lg:py-24 text-gray-400 font-bold lg:text-xl">رکوردی یافت نشد</td></tr> :
-                                filteredStats.map(stat => (
-                                    <tr key={stat.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                        <td className="px-6 py-5 font-mono lg:text-xl font-bold">{toPersianDigits(stat.date)}</td>
-                                        <td className="px-6 py-5 text-sm lg:text-base font-bold text-gray-500">{new Date(stat.createdAt).toLocaleTimeString('fa-IR')}</td>
-                                        <td className="px-6 py-5">
-                                            <div className="font-black dark:text-white lg:text-xl">{getFarmName(stat.farmId)}</div>
-                                            <div className="text-sm lg:text-base text-gray-500 font-medium">{getProductName(stat.productId)}</div>
-                                        </td>
-                                        <td className="px-6 py-5 text-center font-black text-green-600 lg:text-2xl">+{toPersianDigits(stat.production)}</td>
-                                        <td className="px-6 py-5 text-center font-black text-red-500 lg:text-2xl">{toPersianDigits(stat.sales || 0)}</td>
-                                        <td className="px-6 py-5 text-center font-black text-blue-600 lg:text-2xl">{toPersianDigits(stat.currentInventory)}</td>
-                                        <td className="px-6 py-5 text-sm lg:text-lg">
-                                            <span className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full font-bold text-gray-700 dark:text-gray-300">{stat.creatorName}</span>
-                                        </td>
-                                        <td className="px-6 py-5 flex justify-center gap-2">
-                                            <button onClick={() => openStatEdit(stat)} className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"><Icons.Edit className="w-5 h-5"/></button>
-                                            <button onClick={() => handleDeleteStat(stat.id)} className="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-full hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"><Icons.Trash className="w-5 h-5"/></button>
-                                        </td>
-                                    </tr>
-                                ))
+                                    filteredStats.map(stat => (
+                                        <tr key={stat.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                            <td className="px-6 py-5 font-mono lg:text-xl font-bold">{toPersianDigits(stat.date)}</td>
+                                            <td className="px-6 py-5 text-sm lg:text-base font-bold text-gray-500">{new Date(stat.createdAt).toLocaleTimeString('fa-IR')}</td>
+                                            <td className="px-6 py-5">
+                                                <div className="font-black dark:text-white lg:text-xl">{getFarmName(stat.farmId)}</div>
+                                                <div className="text-sm lg:text-base text-gray-500 font-medium">{getProductName(stat.productId)}</div>
+                                            </td>
+                                            <td className="px-6 py-5 text-center font-black text-green-600 lg:text-2xl">+{toPersianDigits(stat.production)}</td>
+                                            <td className="px-6 py-5 text-center font-black text-red-500 lg:text-2xl">{toPersianDigits(stat.sales || 0)}</td>
+                                            <td className="px-6 py-5 text-center font-black text-blue-600 lg:text-2xl">{toPersianDigits(stat.currentInventory)}</td>
+                                            <td className="px-6 py-5 text-sm lg:text-lg">
+                                                <span className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full font-bold text-gray-700 dark:text-gray-300">{stat.creatorName}</span>
+                                            </td>
+                                            <td className="px-6 py-5 flex justify-center gap-2">
+                                                <button onClick={() => openStatEdit(stat)} className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"><Icons.Edit className="w-5 h-5" /></button>
+                                                <button onClick={() => handleDeleteStat(stat.id)} className="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-full hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"><Icons.Trash className="w-5 h-5" /></button>
+                                            </td>
+                                        </tr>
+                                    ))
                             ) : (
                                 filteredInvoices.length === 0 ? <tr><td colSpan={8} className="text-center py-12 lg:py-24 text-gray-400 font-bold lg:text-xl">حواله‌ای یافت نشد</td></tr> :
-                                filteredInvoices.map(inv => (
-                                    <tr key={inv.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                        <td className="px-6 py-5 text-center font-black text-metro-orange lg:text-2xl tracking-widest">{toPersianDigits(inv.invoiceNumber)}</td>
-                                        <td className="px-6 py-5">
-                                            <div className="font-mono text-base lg:text-xl font-bold">{toPersianDigits(inv.date)}</div>
-                                            <div className="text-sm lg:text-base font-bold text-gray-500">{new Date(inv.createdAt).toLocaleTimeString('fa-IR')}</div>
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <div className="font-black dark:text-white lg:text-xl">{getFarmName(inv.farmId)}</div>
-                                            <div className="text-sm lg:text-base text-gray-500 font-medium">{getProductName(inv.productId)}</div>
-                                        </td>
-                                        <td className="px-6 py-5 text-center font-bold lg:text-2xl">{toPersianDigits(inv.totalCartons)}</td>
-                                        <td className="px-6 py-5 text-center font-bold text-blue-600 lg:text-2xl">{toPersianDigits(inv.totalWeight)}</td>
-                                        <td className="px-6 py-5 text-sm lg:text-base">
-                                            <div className="font-bold">{inv.driverName || '-'}</div>
-                                            <div className="font-mono text-gray-500 lg:text-lg">{toPersianDigits(inv.plateNumber || '')}</div>
-                                        </td>
-                                        <td className="px-6 py-5 text-sm lg:text-lg">
-                                             <span className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full font-bold text-gray-700 dark:text-gray-300">{getUserName(inv.createdBy)}</span>
-                                        </td>
-                                        <td className="px-6 py-5 flex justify-center gap-2">
-                                            <button onClick={() => openInvoiceEdit(inv)} className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"><Icons.Edit className="w-5 h-5"/></button>
-                                            <button onClick={() => handleDeleteInvoice(inv.id)} className="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-full hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"><Icons.Trash className="w-5 h-5"/></button>
-                                        </td>
-                                    </tr>
-                                ))
+                                    filteredInvoices.map(inv => (
+                                        <tr key={inv.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                            <td className="px-6 py-5 text-center font-black text-metro-orange lg:text-2xl tracking-widest">{toPersianDigits(inv.invoiceNumber)}</td>
+                                            <td className="px-6 py-5">
+                                                <div className="font-mono text-base lg:text-xl font-bold">{toPersianDigits(inv.date)}</div>
+                                                <div className="text-sm lg:text-base font-bold text-gray-500">{new Date(inv.createdAt).toLocaleTimeString('fa-IR')}</div>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <div className="font-black dark:text-white lg:text-xl">{getFarmName(inv.farmId)}</div>
+                                                <div className="text-sm lg:text-base text-gray-500 font-medium">{getProductName(inv.productId)}</div>
+                                            </td>
+                                            <td className="px-6 py-5 text-center font-bold lg:text-2xl">{toPersianDigits(inv.totalCartons)}</td>
+                                            <td className="px-6 py-5 text-center font-bold text-blue-600 lg:text-2xl">{toPersianDigits(inv.totalWeight)}</td>
+                                            <td className="px-6 py-5 text-sm lg:text-base">
+                                                <div className="font-bold">{inv.driverName || '-'}</div>
+                                                <div className="font-mono text-gray-500 lg:text-lg" dir="ltr">{formatPlateNumber(inv.plateNumber)}</div>
+                                            </td>
+                                            <td className="px-6 py-5 text-sm lg:text-lg">
+                                                <span className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full font-bold text-gray-700 dark:text-gray-300">{getUserName(inv.createdBy)}</span>
+                                            </td>
+                                            <td className="px-6 py-5 flex justify-center gap-2">
+                                                <button onClick={() => openInvoiceEdit(inv)} className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"><Icons.Edit className="w-5 h-5" /></button>
+                                                <button onClick={() => handleDeleteInvoice(inv.id)} className="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-full hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"><Icons.Trash className="w-5 h-5" /></button>
+                                            </td>
+                                        </tr>
+                                    ))
                             )}
                         </tbody>
                     </table>
@@ -298,56 +299,56 @@ const GlobalRecordManager: React.FC = () => {
             </div>
 
             {/* --- Modals --- */}
-            
+
             {/* Stat Edit Modal */}
             <Modal isOpen={!!editingStat} onClose={handleCancelStat} title="ویرایش آمار (مدیریت)">
                 <div className="space-y-6">
-                     <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl text-sm font-bold text-purple-800 dark:text-purple-300 border border-purple-100 dark:border-purple-800">
-                         شما در حال ویرایش با دسترسی مدیر هستید. هیچ محدودیت زمانی اعمال نمی‌شود.
-                     </div>
-                     <div className="grid grid-cols-2 gap-4 lg:gap-6">
-                         <div>
-                             <Input 
+                    <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl text-sm font-bold text-purple-800 dark:text-purple-300 border border-purple-100 dark:border-purple-800">
+                        شما در حال ویرایش با دسترسی مدیر هستید. هیچ محدودیت زمانی اعمال نمی‌شود.
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 lg:gap-6">
+                        <div>
+                            <Input
                                 label="تولید"
-                                type="number" 
-                                value={statForm.prod} 
-                                onChange={e => setStatForm({...statForm, prod: Number(e.target.value)})} 
-                             />
-                         </div>
-                         <div>
-                             <Input 
+                                type="number"
+                                value={statForm.prod}
+                                onChange={e => setStatForm({ ...statForm, prod: Number(e.target.value) })}
+                            />
+                        </div>
+                        <div>
+                            <Input
                                 label="فروش"
-                                type="number" 
-                                value={statForm.sales} 
-                                onChange={e => setStatForm({...statForm, sales: Number(e.target.value)})} 
-                             />
-                         </div>
-                     </div>
-                     <div>
-                         <Input 
+                                type="number"
+                                value={statForm.sales}
+                                onChange={e => setStatForm({ ...statForm, sales: Number(e.target.value) })}
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <Input
                             label="مانده قبل (اصلاح دستی)"
-                            type="number" 
-                            value={statForm.prev} 
-                            onChange={e => setStatForm({...statForm, prev: Number(e.target.value)})} 
-                         />
-                     </div>
-                     <div className="flex justify-end gap-2 mt-8">
-                         <Button variant="secondary" onClick={handleCancelStat} className="lg:h-12 lg:px-6">لغو</Button>
-                         <Button onClick={saveStatEdit} className="lg:h-12 lg:px-6">ذخیره تغییرات</Button>
-                     </div>
+                            type="number"
+                            value={statForm.prev}
+                            onChange={e => setStatForm({ ...statForm, prev: Number(e.target.value) })}
+                        />
+                    </div>
+                    <div className="flex justify-end gap-2 mt-8">
+                        <Button variant="secondary" onClick={handleCancelStat} className="lg:h-12 lg:px-6">لغو</Button>
+                        <Button onClick={saveStatEdit} className="lg:h-12 lg:px-6">ذخیره تغییرات</Button>
+                    </div>
                 </div>
             </Modal>
 
-             {/* Invoice Edit Modal */}
-             <Modal isOpen={!!editingInvoice} onClose={handleCancelInvoice} title="ویرایش حواله (مدیریت)">
+            {/* Invoice Edit Modal */}
+            <Modal isOpen={!!editingInvoice} onClose={handleCancelInvoice} title="ویرایش حواله (مدیریت)">
                 <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1 custom-scrollbar">
-                     <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl text-sm font-bold text-purple-800 dark:text-purple-300 border border-purple-100 dark:border-purple-800">
-                         ویرایش حواله باعث بروزرسانی خودکار موجودی انبار در تاریخ مربوطه خواهد شد.
-                     </div>
-                     
-                     <Input 
+                    <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl text-sm font-bold text-purple-800 dark:text-purple-300 border border-purple-100 dark:border-purple-800">
+                        ویرایش حواله باعث بروزرسانی خودکار موجودی انبار در تاریخ مربوطه خواهد شد.
+                    </div>
+
+                    <Input
                         label="شماره حواله (اصلاحیه)"
-                        type="text" 
+                        type="text"
                         dir="ltr"
                         maxLength={10}
                         containerClassName="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-xl border border-orange-200 dark:border-orange-800"
@@ -357,61 +358,61 @@ const GlobalRecordManager: React.FC = () => {
                         placeholder=""
                     />
 
-                     <div className="grid grid-cols-2 gap-4 lg:gap-6">
-                         <div>
-                             <Input 
+                    <div className="grid grid-cols-2 gap-4 lg:gap-6">
+                        <div>
+                            <Input
                                 label="تعداد کارتن"
-                                type="number" 
-                                value={invoiceForm.cartons} 
-                                onChange={e => setInvoiceForm({...invoiceForm, cartons: Number(e.target.value)})} 
-                             />
-                         </div>
-                         <div>
-                             <Input 
+                                type="number"
+                                value={invoiceForm.cartons}
+                                onChange={e => setInvoiceForm({ ...invoiceForm, cartons: Number(e.target.value) })}
+                            />
+                        </div>
+                        <div>
+                            <Input
                                 label="وزن (Kg)"
-                                type="number" 
-                                value={invoiceForm.weight} 
-                                onChange={e => setInvoiceForm({...invoiceForm, weight: Number(e.target.value)})} 
-                             />
-                         </div>
-                     </div>
-                     <div>
-                         <Input 
+                                type="number"
+                                value={invoiceForm.weight}
+                                onChange={e => setInvoiceForm({ ...invoiceForm, weight: Number(e.target.value) })}
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <Input
                             label="نام راننده"
-                            type="text" 
-                            value={invoiceForm.driver} 
-                            onChange={e => setInvoiceForm({...invoiceForm, driver: e.target.value})} 
-                         />
-                     </div>
-                     <div className="grid grid-cols-2 gap-4 lg:gap-6">
-                         <div>
-                             <Input 
+                            type="text"
+                            value={invoiceForm.driver}
+                            onChange={e => setInvoiceForm({ ...invoiceForm, driver: e.target.value })}
+                        />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 lg:gap-6">
+                        <div>
+                            <Input
                                 label="پلاک"
-                                type="text" 
-                                value={invoiceForm.plate} 
-                                onChange={e => setInvoiceForm({...invoiceForm, plate: e.target.value})} 
-                             />
-                         </div>
-                         <div>
-                             <Input 
+                                type="text"
+                                value={invoiceForm.plate}
+                                onChange={e => setInvoiceForm({ ...invoiceForm, plate: e.target.value })}
+                            />
+                        </div>
+                        <div>
+                            <Input
                                 label="موبایل"
-                                type="text" 
-                                value={invoiceForm.phone} 
-                                onChange={e => setInvoiceForm({...invoiceForm, phone: e.target.value})} 
-                             />
-                         </div>
-                     </div>
-                     <div>
-                         <TextArea 
+                                type="text"
+                                value={invoiceForm.phone}
+                                onChange={e => setInvoiceForm({ ...invoiceForm, phone: e.target.value })}
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <TextArea
                             label="توضیحات"
-                            value={invoiceForm.desc} 
-                            onChange={e => setInvoiceForm({...invoiceForm, desc: e.target.value})} 
-                         />
-                     </div>
-                     <div className="flex justify-end gap-2 mt-6">
-                         <Button variant="secondary" onClick={handleCancelInvoice} className="lg:h-12 lg:px-6">لغو</Button>
-                         <Button onClick={saveInvoiceEdit} className="lg:h-12 lg:px-6">ذخیره تغییرات</Button>
-                     </div>
+                            value={invoiceForm.desc}
+                            onChange={e => setInvoiceForm({ ...invoiceForm, desc: e.target.value })}
+                        />
+                    </div>
+                    <div className="flex justify-end gap-2 mt-6">
+                        <Button variant="secondary" onClick={handleCancelInvoice} className="lg:h-12 lg:px-6">لغو</Button>
+                        <Button onClick={saveInvoiceEdit} className="lg:h-12 lg:px-6">ذخیره تغییرات</Button>
+                    </div>
                 </div>
             </Modal>
         </div>

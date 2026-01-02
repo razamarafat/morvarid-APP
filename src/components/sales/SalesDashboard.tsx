@@ -11,6 +11,7 @@ import { useToastStore } from '../../store/toastStore';
 import { useAuthStore } from '../../store/authStore';
 import { useAlertStore } from '../../store/alertStore';
 import { getTodayJalali, normalizeDate, toPersianDigits } from '../../utils/dateUtils';
+import { formatPlateNumber } from '../../utils/formatUtils';
 import { compareProducts } from '../../utils/sortUtils';
 import Button from '../common/Button';
 import MetroTile from '../common/MetroTile';
@@ -354,7 +355,8 @@ const InvoiceList = React.memo(() => {
                 const searchMatch = !term || (
                     i.invoiceNumber.includes(term) ||
                     i.driverName?.toLowerCase().includes(term) ||
-                    i.plateNumber?.includes(term)
+                    i.plateNumber?.includes(term) ||
+                    formatPlateNumber(i.plateNumber).includes(term)
                 );
 
                 return dateMatch && farmMatch && searchMatch;

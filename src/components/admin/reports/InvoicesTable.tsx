@@ -2,6 +2,7 @@ import React from 'react';
 import { Farm, Product, UserRole } from '../../../types';
 import { Icons } from '../../common/Icons';
 import { toPersianDigits } from '../../../utils/dateUtils';
+import { formatPlateNumber } from '../../../utils/formatUtils';
 
 interface InvoicesTableProps {
     data: any[];
@@ -22,12 +23,7 @@ const InvoicesTable: React.FC<InvoicesTableProps> = ({
     onEdit,
     onDelete
 }) => {
-    const formatPlateVisual = (plate: string) => {
-        if (!plate || !plate.includes('-')) return plate || '-';
-        const parts = plate.split('-');
-        if (parts.length === 4) return `${toPersianDigits(parts[3])} - ${toPersianDigits(parts[2])} ${parts[1]} ${toPersianDigits(parts[0])}`;
-        return plate;
-    };
+    const formatPlateVisual = (plate: string) => formatPlateNumber(plate) || '-';
 
     return (
         <div className="bg-white dark:bg-gray-800 rounded-[28px] shadow-md overflow-hidden border border-gray-100 dark:border-gray-700 relative">
