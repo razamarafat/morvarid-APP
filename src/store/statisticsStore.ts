@@ -48,25 +48,57 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
     fetchStatistics: async () => {
         set({ isLoading: true });
         try {
-            // Try relational query first; if it fails (RLS/join restrictions), retry simple select
-            let statsData: any = null;
-            try {
-                const rel = await supabase
-                    .from('daily_statistics')
-                    .select('*, profiles!created_by(full_name, role)')
-                    .order('date', { ascending: false })
-                    .limit(3000);
-                if (rel.error) throw rel.error;
-                statsData = rel.data;
-            } catch (relErr) {
-                console.warn('[StatisticsStore] Relational select failed, retrying simple select', relErr);
-                const simple = await supabase
+            const currentUser = useAuthStore.getState().user;
+
+            let query = supabase
+                .from('daily_statistics')
+                .select('*, profiles!created_by(full_name, role)')
+                .order('date', { ascending: false })
+                .limit(3000);
+
+            // If the user is not an admin, only fetch their own records.
+            if (currentUser && currentUser.role !== 'ADMIN') {
+                query = query.eq('created_by', currentUser.id);
+            }
+
+            const { data: statsData, error } = await query;
+
+            if (error) {
+                 // Fallback for relational query failure
+                console.warn('[StatisticsStore] Relational select failed, retrying simple select', error);
+                let simpleQuery = supabase
                     .from('daily_statistics')
                     .select('*')
                     .order('date', { ascending: false })
                     .limit(3000);
+
+                if (currentUser && currentUser.role !== 'ADMIN') {
+                    simpleQuery = simpleQuery.eq('created_by', currentUser.id);
+                }
+                const simple = await simpleQuery;
                 if (simple.error) throw simple.error;
-                statsData = simple.data;
+                
+                const mappedStats = simple.data.map((s: any) => ({
+                    id: s.id,
+                    farmId: s.farm_id,
+                    date: normalizeDate(s.date),
+                    productId: mapLegacyProductId(s.product_id),
+                    previousBalance: s.previous_balance || 0,
+                    production: s.production || 0,
+                    sales: s.sales || 0,
+                    currentInventory: s.current_inventory || 0,
+                    previousBalanceKg: s.previous_balance_kg || 0,
+                    productionKg: s.production_kg || 0,
+                    salesKg: s.sales_kg || 0,
+                    currentInventoryKg: s.current_inventory_kg || 0,
+                    createdAt: s.created_at ? new Date(s.created_at).getTime() : Date.now(),
+                    updatedAt: s.updated_at ? new Date(s.updated_at).getTime() : undefined,
+                    createdBy: s.created_by,
+                    creatorName: 'شما', // Simplified fallback
+                    creatorRole: currentUser?.role,
+                }));
+                set({ statistics: mappedStats, isLoading: false });
+                return;
             }
 
             if (statsData) {
@@ -99,8 +131,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                     createdAt: s.created_at ? new Date(s.created_at).getTime() : Date.now(),
                     updatedAt: s.updated_at ? new Date(s.updated_at).getTime() : undefined,
                     createdBy: s.created_by,
-                    // If relational data present use it, otherwise fall back
-                    creatorName: s.profiles?.full_name || s.creator_name || 'کاربر حذف شده',
+                    creatorName: s.profiles?.full_name || (s.created_by === currentUser?.id ? 'شما' : 'کاربر حذف شده'),
                     creatorRole: s.profiles?.role || s.creator_role
                 }));
                 set({ statistics: mappedStats, isLoading: false });

@@ -1,10 +1,9 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { useStatisticsStore, DailyStatistic } from '../../store/statisticsStore';
 import { useInvoiceStore } from '../../store/invoiceStore';
 import { useFarmStore } from '../../store/farmStore';
 import { useAuthStore } from '../../store/authStore';
-import { UserRole, FarmType, Invoice } from '../../types';
+import { UserRole, Invoice } from '../../types';
 import { Icons } from '../common/Icons';
 import { useConfirm } from '../../hooks/useConfirm';
 import Modal from '../common/Modal';
@@ -17,7 +16,6 @@ import PersianNumberInput from '../common/PersianNumberInput';
 import PlateInput from '../common/PlateInput';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
-import { fetchUserRecords } from '../../lib/supabase';
 
 // Virtualized Row for Invoices
 const InvoiceRow = ({ index, style, data }: { index: number, style: React.CSSProperties, data: any }) => {
@@ -73,7 +71,7 @@ const RecentRecords: React.FC = () => {
     const { statistics, fetchStatistics, deleteStatistic, updateStatistic, isLoading: statsLoading } = useStatisticsStore();
     const { invoices, fetchInvoices, deleteInvoice, updateInvoice, isLoading: invLoading } = useInvoiceStore();
     const { user } = useAuthStore();
-    const { products, getProductById } = useFarmStore();
+    const { products, getProductById, farms } = useFarmStore();
     const { addToast } = useToastStore();
     const { confirm } = useConfirm();
 
@@ -81,8 +79,6 @@ const RecentRecords: React.FC = () => {
         fetchStatistics();
         fetchInvoices();
     }, [fetchStatistics, fetchInvoices]);
-
-    // NOTE: Direct fetch of user's own records moved below after date state initialization
 
     const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
@@ -100,52 +96,27 @@ const RecentRecords: React.FC = () => {
     const [endDate, setEndDate] = useState(getTodayJalali());
     const [activeTab, setActiveTab] = useState<'stats' | 'invoices'>('stats');
 
-    // Debug: store raw direct-fetch results for troubleshooting RLS / mapping
-    const [debugFetched, setDebugFetched] = useState<{ invoices: any[]; stats: any[] }>({ invoices: [], stats: [] });
+    // Role-based logic
+    const isAdmin = user?.role === UserRole.ADMIN;
+    const isRegistration = user?.role === UserRole.REGISTRATION;
 
-    // ✅ NEW: Direct fetch from Supabase for user's own records with debugging
-    useEffect(() => {
-        if (!user?.id) {
-            console.warn('[RecentRecords] ❌ No user ID available');
-            return;
-        }
+    // Get assigned farm IDs
+    const assignedFarmIds = useMemo(() =>
+        (user?.assignedFarms || []).map(f => f.id)
+        , [user?.assignedFarms]);
 
-        const fetchUserOwnRecords = async () => {
-            try {
-                console.log(
-                  `[RecentRecords] 🔄 Fetching own records for user ${user.id} from ${startDate} to ${endDate}`
-                );
+    // Available farms for filtering (Admin sees all, others see assigned)
+    const availableFarms = isAdmin ? farms : (user?.assignedFarms || []);
 
-                // Fetch both invoices and statistics directly
-                const [fetchedInvoices, fetchedStats] = await Promise.all([
-                    fetchUserRecords(user.id, 'invoices', startDate, endDate),
-                    fetchUserRecords(user.id, 'daily_statistics', startDate, endDate)
-                ]);
-
-                console.log(
-                  `[RecentRecords] ✅ Direct fetch complete: ${fetchedInvoices.length} invoices, ${fetchedStats.length} stats`
-                );
-            } catch (error) {
-                console.error('[RecentRecords] ❌ Error fetching records:', error);
-            }
-        };
-
-        // Only fetch if not admin (admins get all records via normal store)
-        if (user.role !== UserRole.ADMIN) {
-            fetchUserOwnRecords();
-        }
-    }, [user?.id, user?.role, startDate, endDate]);
-
-    // Farm Selection
-    const assignedFarms = user?.assignedFarms || [];
-    const [selectedFarmId, setSelectedFarmId] = useState<string | null>(assignedFarms[0]?.id || null);
+    // Farm ID Selection
+    const [selectedFarmId, setSelectedFarmId] = useState<string>('all');
 
     // Update selected farm if assigned farms change
     useEffect(() => {
-        if (assignedFarms.length > 0 && !selectedFarmId) {
-            setSelectedFarmId(assignedFarms[0].id);
+        if (!isAdmin && assignedFarmIds.length > 0 && selectedFarmId === 'all') {
+            setSelectedFarmId(assignedFarmIds[0]);
         }
-    }, [assignedFarms, selectedFarmId]);
+    }, [assignedFarmIds, isAdmin, selectedFarmId]);
 
     const [statValues, setStatValues] = useState({ prod: '', prev: '', prodKg: '', prevKg: '' });
     const [invoiceValues, setInvoiceValues] = useState({
@@ -158,42 +129,22 @@ const RecentRecords: React.FC = () => {
         plateNumber: ''
     });
 
-    const selectedFarm = assignedFarms.find(f => f.id === selectedFarmId);
-    const isMotefereghe = selectedFarm?.type === FarmType.MOTEFEREGHE;
-    const allowedProductIds = selectedFarm?.productIds || [];
-    const isAdmin = user?.role === UserRole.ADMIN;
-
     const filteredStats = useMemo(() => {
         const start = normalizeDate(startDate);
         const end = normalizeDate(endDate);
         return statistics.filter(s => {
-            // Filter by farm if selected
-            if (selectedFarmId && s.farmId !== selectedFarmId) return false;
-            // If admin and no farm selected, show all (for registration we expect a farm)
-            if (!selectedFarmId && !isAdmin) return false;
+            // Farm Filter
+            if (selectedFarmId !== 'all' && s.farmId !== selectedFarmId) return false;
+            if (selectedFarmId === 'all' && !isAdmin && !assignedFarmIds.includes(s.farmId)) return false;
 
             if (!isDateInRange(s.date, start, end)) return false;
-            // ✅ FIX: Filter by creator for non-admins (Registration workers)
-            // Support both camelCase (createdBy) and snake_case (created_by) field names
-            const creatorId = (s as any).createdBy ?? (s as any).created_by ?? null;
-            if (!isAdmin && creatorId !== user?.id) return false;
+
+            // Creator Filter: Only Registration workers are restricted to their own entries
+            if (isRegistration && s.createdBy !== user?.id) return false;
+
             return true;
         });
-    }, [statistics, selectedFarmId, startDate, endDate, isAdmin, user?.id]);
-
-    const sortedProductIds = useMemo(() => {
-        // Show all products that have data in the current view PLUS allowed products
-        const dataProductIds = new Set(filteredStats.map(s => s.productId));
-        const allTargetIds = Array.from(new Set([...allowedProductIds, ...Array.from(dataProductIds)]));
-
-        if (!allTargetIds.length) return [];
-        return allTargetIds.sort((aId, bId) => {
-            const pA = getProductById(aId);
-            const pB = getProductById(bId);
-            if (!pA || !pB) return 0;
-            return compareProducts(pA, pB);
-        });
-    }, [allowedProductIds, getProductById, filteredStats]);
+    }, [statistics, selectedFarmId, assignedFarmIds, startDate, endDate, isAdmin, isRegistration, user?.id]);
 
     const getProductName = (id: string) => products.find(p => p.id === id)?.name || 'محصول نامشخص';
     const isLiquid = (pid: string) => getProductName(pid).includes('مایع');
@@ -201,25 +152,27 @@ const RecentRecords: React.FC = () => {
     const canEdit = (createdAt: number, creatorRole?: string) => {
         if (isAdmin) return true;
         if (creatorRole === UserRole.ADMIN) return false;
+        const FIVE_HOURS_IN_MS = 5 * 60 * 60 * 1000;
         const now = Date.now();
-        return (now - createdAt) < 18000000;
+        return (now - createdAt) < FIVE_HOURS_IN_MS;
     };
 
     const filteredInvoices = useMemo(() => {
         const start = normalizeDate(startDate);
         const end = normalizeDate(endDate);
         return invoices.filter(i => {
-            if (selectedFarmId && i.farmId !== selectedFarmId) return false;
-            if (!selectedFarmId && !isAdmin) return false;
+            // Farm Filter
+            if (selectedFarmId !== 'all' && i.farmId !== selectedFarmId) return false;
+            if (selectedFarmId === 'all' && !isAdmin && !assignedFarmIds.includes(i.farmId)) return false;
 
             if (!isDateInRange(i.date, start, end)) return false;
-            // ✅ FIX: Filter by creator for non-admins (Registration workers)
-            // Support both camelCase (createdBy) and snake_case (created_by) field names
-            const creatorId = (i as any).createdBy ?? (i as any).created_by ?? null;
-            if (!isAdmin && creatorId !== user?.id) return false;
+
+            // Creator Filter: Only Registration workers are restricted to their own entries
+            if (isRegistration && i.createdBy !== user?.id) return false;
+
             return true;
         });
-    }, [invoices, selectedFarmId, startDate, endDate, isAdmin, user?.id]);
+    }, [invoices, selectedFarmId, assignedFarmIds, startDate, endDate, isAdmin, isRegistration, user?.id]);
 
     const handleDeleteStat = async (stat: DailyStatistic) => {
         const confirmed = await confirm({
@@ -229,7 +182,7 @@ const RecentRecords: React.FC = () => {
             type: 'danger'
         });
         if (confirmed) {
-            const isOffline = !navigator.onLine; // Check connection status at moment of action
+            const isOffline = !navigator.onLine;
             const result = await deleteStatistic(stat.id);
             if (result.success) {
                 if (isOffline) {
@@ -260,21 +213,10 @@ const RecentRecords: React.FC = () => {
     const saveStatChanges = async () => {
         if (!targetStat) return;
         const prod = Number(statValues.prod);
-        const prev = isMotefereghe ? 0 : Number(statValues.prev);
+        const prev = Number(statValues.prev);
         const prodKg = Number(statValues.prodKg);
-        const prevKg = isMotefereghe ? 0 : Number(statValues.prevKg);
+        const prevKg = Number(statValues.prevKg);
 
-        if (
-            prod === targetStat.production &&
-            prev === (targetStat.previousBalance || 0) &&
-            prodKg === (targetStat.productionKg || 0) &&
-            prevKg === (targetStat.previousBalanceKg || 0)
-        ) {
-            addToast('هیچ تغییری داده نشده است.', 'warning');
-            return;
-        }
-
-        const isOffline = !navigator.onLine;
         const result = await updateStatistic(targetStat.id, {
             production: prod,
             previousBalance: prev,
@@ -287,13 +229,9 @@ const RecentRecords: React.FC = () => {
         if (result.success) {
             setShowEditStatModal(false);
             setTargetStat(null);
-            if (isOffline) {
-                addToast('ویرایش در صف همگام‌سازی ذخیره شد', 'warning');
-            } else {
-                addToast('آمار ویرایش شد', 'success');
-            }
+            addToast('آمار بروزرسانی شد', 'success');
         } else {
-            addToast(result.error || 'خطا', 'error');
+            addToast(result.error || 'خطا در بروزرسانی', 'error');
         }
     };
 
@@ -305,17 +243,9 @@ const RecentRecords: React.FC = () => {
             type: 'danger'
         });
         if (confirmed) {
-            const isOffline = !navigator.onLine;
             const result = await deleteInvoice(inv.id);
-            if (result.success) {
-                if (isOffline) {
-                    addToast('درخواست حذف در صف آفلاین ذخیره شد', 'warning');
-                } else {
-                    addToast('حواله حذف شد', 'success');
-                }
-            } else {
-                addToast('خطا در حذف', 'error');
-            }
+            if (result.success) addToast('حواله حذف شد', 'success');
+            else addToast('خطا در حذف', 'error');
         }
     };
 
@@ -337,21 +267,6 @@ const RecentRecords: React.FC = () => {
     const saveInvoiceChanges = async () => {
         if (!selectedInvoice) return;
 
-        const isChanged =
-            invoiceValues.invoiceNumber !== selectedInvoice.invoiceNumber ||
-            Number(invoiceValues.cartons) !== selectedInvoice.totalCartons ||
-            Number(invoiceValues.weight) !== selectedInvoice.totalWeight ||
-            invoiceValues.driverName !== (selectedInvoice.driverName || '') ||
-            invoiceValues.driverPhone !== (selectedInvoice.driverPhone || '') ||
-            invoiceValues.plateNumber !== (selectedInvoice.plateNumber || '') ||
-            invoiceValues.description !== (selectedInvoice.description || '');
-
-        if (!isChanged) {
-            addToast('هیچ تغییری داده نشده است.', 'warning');
-            return;
-        }
-
-        const isOffline = !navigator.onLine;
         const result = await updateInvoice(selectedInvoice.id, {
             invoiceNumber: invoiceValues.invoiceNumber,
             totalCartons: Number(invoiceValues.cartons),
@@ -365,13 +280,9 @@ const RecentRecords: React.FC = () => {
         if (result.success) {
             setShowEditInvoiceModal(false);
             setSelectedInvoice(null);
-            if (isOffline) {
-                addToast('ویرایش در صف همگام‌سازی ذخیره شد', 'warning');
-            } else {
-                addToast('حواله ویرایش شد', 'success');
-            }
+            addToast('حواله ویرایش شد', 'success');
         } else {
-            addToast(result.error || 'خطا', 'error');
+            addToast(result.error || 'خطا در ویرایش', 'error');
         }
     };
 
@@ -386,6 +297,15 @@ const RecentRecords: React.FC = () => {
         handleDeleteInvoice
     }), [filteredInvoices, getProductById, isAdmin]);
 
+    const sortedProductIds = useMemo(() => {
+        const ids = Array.from(new Set(filteredStats.map(s => s.productId)));
+        return ids.sort((a, b) => {
+            const pA = products.find(p => p.id === a);
+            const pB = products.find(p => p.id === b);
+            return compareProducts(pA, pB);
+        });
+    }, [filteredStats, products]);
+
     return (
         <div className="pb-24 h-full flex flex-col">
             <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 mb-4 sticky top-0 z-20">
@@ -397,112 +317,39 @@ const RecentRecords: React.FC = () => {
                         <Icons.FileText className="w-4 h-4" /> حواله‌ها
                     </button>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 mb-4">
                     <div className="flex-1"><JalaliDatePicker value={startDate} onChange={setStartDate} label="از تاریخ" /></div>
                     <div className="flex-1"><JalaliDatePicker value={endDate} onChange={setEndDate} label="تا تاریخ" /></div>
                 </div>
-                <div className="mt-3 flex items-center gap-2">
-                    <button
-                        onClick={async () => {
-                            if (!user?.id) return addToast('کاربر شناسایی نشده است', 'warning');
-                            try {
-                                addToast('در حال دریافت مستقیم رکوردها...', 'info');
-                                const [inv, stats] = await Promise.all([
-                                    fetchUserRecords(user.id, 'invoices', startDate, endDate),
-                                    fetchUserRecords(user.id, 'daily_statistics', startDate, endDate)
-                                ]);
 
-                                setDebugFetched({ invoices: inv as any[], stats: stats as any[] });
-                                console.log('[RecentRecords] Manual fetch result:', { invoices: inv, stats });
-
-                                // DEBUG: map raw DB rows into store shape and set them into zustand stores
-                                try {
-                                    const mappedInv = (inv || []).map((i: any) => ({
-                                        id: i.id,
-                                        farmId: i.farm_id,
-                                        date: normalizeDate(i.date),
-                                        invoiceNumber: i.invoice_number,
-                                        totalCartons: i.total_cartons,
-                                        totalWeight: i.total_weight,
-                                        productId: i.product_id,
-                                        driverName: i.driver_name,
-                                        driverPhone: i.driver_phone,
-                                        plateNumber: i.plate_number,
-                                        description: i.description,
-                                        isYesterday: i.is_yesterday,
-                                        createdAt: i.created_at ? new Date(i.created_at).getTime() : Date.now(),
-                                        updatedAt: i.updated_at ? new Date(i.updated_at).getTime() : undefined,
-                                        createdBy: i.created_by,
-                                        creatorName: i.profiles?.full_name || 'کاربر حذف شده',
-                                        creatorRole: i.profiles?.role
-                                    }));
-
-                                    const mappedStats = (stats || []).map((s: any) => ({
-                                        id: s.id,
-                                        farmId: s.farm_id,
-                                        date: normalizeDate(s.date),
-                                        productId: s.product_id,
-                                        previousBalance: s.previous_balance || 0,
-                                        production: s.production || 0,
-                                        sales: s.sales || 0,
-                                        currentInventory: s.current_inventory || 0,
-                                        previousBalanceKg: s.previous_balance_kg || 0,
-                                        productionKg: s.production_kg || 0,
-                                        salesKg: s.sales_kg || 0,
-                                        currentInventoryKg: s.current_inventory_kg || 0,
-                                        createdAt: s.created_at ? new Date(s.created_at).getTime() : Date.now(),
-                                        updatedAt: s.updated_at ? new Date(s.updated_at).getTime() : undefined,
-                                        createdBy: s.created_by,
-                                        creatorName: s.profiles?.full_name || 'کاربر حذف شده',
-                                        creatorRole: s.profiles?.role
-                                    }));
-
-                                    // Temporarily overwrite stores with debug data so UI can render immediately
-                                    try {
-                                        // @ts-ignore - using zustand setState for debug purpose
-                                        useInvoiceStore.setState({ invoices: mappedInv });
-                                        // @ts-ignore
-                                        useStatisticsStore.setState({ statistics: mappedStats });
-                                        console.log('[RecentRecords] ✅ Injected debug data into stores');
-                                    } catch (setErr) {
-                                        console.warn('[RecentRecords] Could not set store state directly:', setErr);
-                                    }
-                                } catch (mapErr) {
-                                    console.error('[RecentRecords] Error mapping debug rows into store shape:', mapErr);
-                                }
-
-                                addToast(`دریافت انجام شد: ${inv.length} حواله، ${stats.length} آمار`, 'success');
-                            } catch (err) {
-                                console.error('[RecentRecords] Manual fetch error:', err);
-                                addToast('خطا در دریافت رکوردها', 'error');
-                            }
-                        }}
-                        className="px-3 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-sm font-bold"
-                    >
-                        دریافت رکوردهای من (رفع اشکال)
-                    </button>
-                    <span className="text-xs text-gray-500">(برای دیباگ RLS و فیلترها)</span>
+                <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar no-scrollbar">
+                    {availableFarms.length > 1 && (
+                        <button
+                            onClick={() => setSelectedFarmId('all')}
+                            className={`px-4 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all border-2 ${selectedFarmId === 'all'
+                                ? 'bg-metro-blue text-white border-metro-blue'
+                                : 'bg-gray-50 dark:bg-gray-700 text-gray-500 border-transparent hover:border-gray-200'
+                                }`}
+                        >
+                            همه فارم‌ها
+                        </button>
+                    )}
+                    {availableFarms.map(f => (
+                        <button
+                            key={f.id}
+                            onClick={() => setSelectedFarmId(f.id)}
+                            className={`px-4 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all border-2 ${selectedFarmId === f.id
+                                ? 'bg-metro-blue text-white border-metro-blue'
+                                : 'bg-gray-50 dark:bg-gray-700 text-gray-500 border-transparent hover:border-gray-200'
+                                }`}
+                        >
+                            {f.name}
+                        </button>
+                    ))}
                 </div>
-
-                {assignedFarms.length > 1 && (
-                    <div className="mt-4 flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
-                        {assignedFarms.map(f => (
-                            <button
-                                key={f.id}
-                                onClick={() => setSelectedFarmId(f.id)}
-                                className={`px-4 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all border-2 ${selectedFarmId === f.id
-                                    ? 'bg-metro-blue text-white border-metro-blue shadow-lg shadow-blue-500/20'
-                                    : 'bg-gray-50 dark:bg-gray-700 text-gray-500 border-transparent hover:border-gray-200'
-                                    }`}
-                            >
-                                {f.name}
-                            </button>
-                        ))}
-                    </div>
-                )}
             </div>
 
-            <div className="flex-1 px-1 relative">
+            <div className="flex-1 px-1 relative min-h-0">
                 {activeTab === 'stats' ? (
                     <div className="space-y-3 overflow-y-auto custom-scrollbar h-full absolute inset-0">
                         {statsLoading ? (
@@ -537,7 +384,7 @@ const RecentRecords: React.FC = () => {
                                                 <div>
                                                     <h4 className="font-bold text-gray-800 dark:text-gray-200">{product.name}</h4>
                                                     <span className="text-xs font-bold text-gray-400">
-                                                        {hasStats ? `${toPersianDigits(productStats.length)} رکورد یافت شد` : 'بدون رکورد در این بازه'}
+                                                        {hasStats ? `${toPersianDigits(productStats.length)} رکورد یافت شد` : 'بدون رکورد'}
                                                     </span>
                                                 </div>
                                             </div>
@@ -548,7 +395,6 @@ const RecentRecords: React.FC = () => {
                                             <div className="bg-gray-50 dark:bg-black/20 border-t border-gray-100 dark:border-gray-700 p-3 space-y-3">
                                                 {productStats.map(stat => {
                                                     const isAdminCreated = stat.creatorRole === UserRole.ADMIN;
-                                                    const showTime = isAdmin || !isAdminCreated;
                                                     const isEdited = stat.updatedAt && stat.updatedAt > stat.createdAt + 2000;
 
                                                     return (
@@ -558,35 +404,36 @@ const RecentRecords: React.FC = () => {
                                                                     <span className="text-xs font-bold bg-blue-50 dark:bg-blue-900/20 text-blue-600 px-2 py-1 rounded-md">
                                                                         {toPersianDigits(stat.date)}
                                                                     </span>
-                                                                    {isAdminCreated && <span className="text-[10px] font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">ثبت توسط مدیر</span>}
+                                                                    {isAdminCreated && <span className="text-[10px] font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">ثبت مدیر</span>}
                                                                 </div>
                                                                 <div className="flex gap-2">
                                                                     {canEdit(stat.createdAt, stat.creatorRole) ? (
                                                                         <>
-                                                                            <button onClick={() => onEditStatClick(stat)} className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"><Icons.Edit className="w-4 h-4" /></button>
-                                                                            <button onClick={() => handleDeleteStat(stat)} className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Icons.Trash className="w-4 h-4" /></button>
+                                                                            <button onClick={() => onEditStatClick(stat)} className="p-1.5 bg-blue-50 text-blue-600 rounded-lg"><Icons.Edit className="w-4 h-4" /></button>
+                                                                            <button onClick={() => handleDeleteStat(stat)} className="p-1.5 bg-red-50 text-red-600 rounded-lg"><Icons.Trash className="w-4 h-4" /></button>
                                                                         </>
                                                                     ) : (
                                                                         <Icons.Lock className="w-4 h-4 text-gray-300" />
                                                                     )}
                                                                 </div>
                                                             </div>
-                                                            {isEdited && showTime && <span className="text-[9px] text-orange-500 font-bold block mb-1">ویرایش شده</span>}
                                                             <div className="flex justify-between items-center text-sm">
                                                                 <div className="flex flex-col items-center">
                                                                     <span className="text-[10px] text-gray-400">تولید</span>
                                                                     <span className="font-black">{toPersianDigits(stat.production)}</span>
                                                                 </div>
-                                                                <div className="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
-                                                                <div className="flex flex-col items-center">
+                                                                <div className="flex flex-col items-center text-red-500">
                                                                     <span className="text-[10px] text-gray-400">فروش</span>
-                                                                    <span className="font-black text-red-500">{toPersianDigits(stat.sales)}</span>
+                                                                    <span className="font-black">{toPersianDigits(stat.sales)}</span>
                                                                 </div>
-                                                                <div className="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
-                                                                <div className="flex flex-col items-center">
+                                                                <div className="flex flex-col items-center text-blue-600">
                                                                     <span className="text-[10px] text-gray-400">مانده</span>
-                                                                    <span className="font-black text-blue-600">{toPersianDigits(stat.currentInventory)}</span>
+                                                                    <span className="font-black">{toPersianDigits(stat.currentInventory)}</span>
                                                                 </div>
+                                                            </div>
+                                                            <div className="mt-2 text-[10px] text-gray-400 font-bold flex justify-between">
+                                                                <span>مسئول: {stat.creatorName || 'ناشناس'}</span>
+                                                                {isEdited && <span className="text-orange-500">ویرایش شده</span>}
                                                             </div>
                                                         </div>
                                                     )
@@ -616,7 +463,7 @@ const RecentRecords: React.FC = () => {
                                     <List
                                         height={height}
                                         itemCount={filteredInvoices.length}
-                                        itemSize={180} // Approx card height
+                                        itemSize={180}
                                         width={width}
                                         itemData={invoiceItemData}
                                         className="custom-scrollbar"
@@ -631,30 +478,18 @@ const RecentRecords: React.FC = () => {
                 )}
             </div>
 
-            {/* Debug panel showing raw fetched data for troubleshooting RLS/mapping */}
-            {(debugFetched.invoices.length > 0 || debugFetched.stats.length > 0) && (
-                <div className="p-4 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-100 dark:border-yellow-800 rounded-2xl my-3">
-                    <div className="flex items-center justify-between mb-2">
-                        <strong className="text-sm">Debug: نتایج دریافت مستقیم</strong>
-                        <button className="text-xs text-red-600" onClick={() => setDebugFetched({ invoices: [], stats: [] })}>پاک کردن</button>
-                    </div>
-                    <div className="max-h-52 overflow-auto text-xs font-mono text-gray-700 dark:text-gray-200">
-                        <pre className="whitespace-pre-wrap break-words">{JSON.stringify(debugFetched, null, 2)}</pre>
-                    </div>
-                </div>
-            )}
-
+            {/* Modals */}
             {showEditStatModal && targetStat && (
                 <Modal isOpen={true} onClose={() => setShowEditStatModal(false)} title="ویرایش آمار">
                     <div className="space-y-4 pt-2">
                         <div className="grid grid-cols-2 gap-4">
-                            <div><label className="block text-xs font-bold mb-1">تولید (کارتن)</label><PersianNumberInput className={inputClasses} value={statValues.prod} onChange={v => setStatValues({ ...statValues, prod: v })} /></div>
-                            {!isMotefereghe && <div><label className="block text-xs font-bold mb-1">موجودی قبل</label><PersianNumberInput className={inputClasses} value={statValues.prev} onChange={v => setStatValues({ ...statValues, prev: v })} /></div>}
+                            <div><label className="block text-xs font-bold mb-1">تولید</label><PersianNumberInput className={inputClasses} value={statValues.prod} onChange={v => setStatValues({ ...statValues, prod: v })} /></div>
+                            <div><label className="block text-xs font-bold mb-1">موجودی قبل</label><PersianNumberInput className={inputClasses} value={statValues.prev} onChange={v => setStatValues({ ...statValues, prev: v })} /></div>
                         </div>
                         {isLiquid(targetStat.productId) && (
                             <div className="grid grid-cols-2 gap-4">
-                                <div><label className="block text-xs font-bold mb-1 text-blue-600">تولید (وزن)</label><PersianNumberInput inputMode="decimal" className={`${inputClasses} border-blue-200`} value={statValues.prodKg} onChange={v => setStatValues({ ...statValues, prodKg: v })} /></div>
-                                {!isMotefereghe && <div><label className="block text-xs font-bold mb-1 text-blue-600">وزن قبل</label><PersianNumberInput inputMode="decimal" className={`${inputClasses} border-blue-200`} value={statValues.prevKg} onChange={v => setStatValues({ ...statValues, prevKg: v })} /></div>}
+                                <div><label className="block text-xs font-bold mb-1 text-blue-600">وزن تولید</label><PersianNumberInput inputMode="decimal" className={inputClasses} value={statValues.prodKg} onChange={v => setStatValues({ ...statValues, prodKg: v })} /></div>
+                                <div><label className="block text-xs font-bold mb-1 text-blue-600">وزن قبل</label><PersianNumberInput inputMode="decimal" className={inputClasses} value={statValues.prevKg} onChange={v => setStatValues({ ...statValues, prevKg: v })} /></div>
                             </div>
                         )}
                         <div className="flex justify-end gap-3 pt-4">
@@ -670,14 +505,14 @@ const RecentRecords: React.FC = () => {
                     <div className="space-y-4 pt-2 overflow-y-auto max-h-[60vh]">
                         <div><label className="block text-xs font-bold mb-1">شماره حواله</label><PersianNumberInput className={inputClasses} value={invoiceValues.invoiceNumber} onChange={v => setInvoiceValues({ ...invoiceValues, invoiceNumber: v })} /></div>
                         <div className="grid grid-cols-2 gap-4">
-                            <div><label className="block text-xs font-bold mb-1">تعداد کارتن</label><PersianNumberInput className={inputClasses} value={invoiceValues.cartons} onChange={v => setInvoiceValues({ ...invoiceValues, cartons: v })} /></div>
+                            <div><label className="block text-xs font-bold mb-1">کارتن</label><PersianNumberInput className={inputClasses} value={invoiceValues.cartons} onChange={v => setInvoiceValues({ ...invoiceValues, cartons: v })} /></div>
                             <div><label className="block text-xs font-bold mb-1">وزن (Kg)</label><PersianNumberInput inputMode="decimal" className={inputClasses} value={invoiceValues.weight} onChange={v => setInvoiceValues({ ...invoiceValues, weight: v })} /></div>
                         </div>
                         <div><label className="block text-xs font-bold mb-1">راننده</label><input type="text" className="w-full p-3 border-2 rounded-xl dark:bg-gray-700 dark:text-white" value={invoiceValues.driverName} onChange={e => setInvoiceValues({ ...invoiceValues, driverName: e.target.value })} /></div>
                         <div><label className="block text-xs font-bold mb-1">پلاک</label><PlateInput value={invoiceValues.plateNumber} onChange={v => setInvoiceValues({ ...invoiceValues, plateNumber: v })} /></div>
                         <div className="flex justify-end gap-3 pt-4">
                             <Button variant="secondary" onClick={() => setShowEditInvoiceModal(false)}>انصراف</Button>
-                            <Button onClick={saveInvoiceChanges}>ذخیره تغییرات</Button>
+                            <Button onClick={saveInvoiceChanges}>ذخیره</Button>
                         </div>
                     </div>
                 </Modal>

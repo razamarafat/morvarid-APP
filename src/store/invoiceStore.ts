@@ -45,25 +45,56 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     fetchInvoices: async () => {
         set({ isLoading: true });
         try {
-            // Try relational query first (fetch invoices and join profiles in one trip)
-            let data: any = null;
-            try {
-                const rel = await supabase
-                    .from('invoices')
-                    .select('*, profiles!created_by(full_name, role)')
-                    .order('date', { ascending: false })
-                    .limit(2000);
-                if (rel.error) throw rel.error;
-                data = rel.data;
-            } catch (relErr) {
-                console.warn('[InvoiceStore] Relational select failed, retrying simple select', relErr);
-                const simple = await supabase
+            const currentUser = useAuthStore.getState().user;
+
+            let query = supabase
+                .from('invoices')
+                .select('*, profiles!created_by(full_name, role)')
+                .order('created_at', { ascending: false })
+                .limit(2000);
+            
+            // If the user is not an admin, only fetch their own records.
+            if (currentUser && currentUser.role !== 'ADMIN') {
+                query = query.eq('created_by', currentUser.id);
+            }
+
+            const { data, error } = await query;
+
+            if (error) {
+                console.warn('[InvoiceStore] Relational select failed, retrying simple select', error);
+                let simpleQuery = supabase
                     .from('invoices')
                     .select('*')
-                    .order('date', { ascending: false })
+                    .order('created_at', { ascending: false })
                     .limit(2000);
+
+                if (currentUser && currentUser.role !== 'ADMIN') {
+                    simpleQuery = simpleQuery.eq('created_by', currentUser.id);
+                }
+                const simple = await simpleQuery;
                 if (simple.error) throw simple.error;
-                data = simple.data;
+
+                const mapped = simple.data.map((i: any) => ({
+                    id: i.id,
+                    farmId: i.farm_id,
+                    date: normalizeDate(i.date),
+                    invoiceNumber: i.invoice_number,
+                    totalCartons: i.total_cartons,
+                    totalWeight: i.total_weight,
+                    productId: i.product_id ? mapLegacyProductId(i.product_id) : i.product_id,
+                    driverName: i.driver_name,
+                    driverPhone: i.driver_phone,
+                    plateNumber: i.plate_number,
+                    description: i.description,
+                    isYesterday: i.is_yesterday,
+                    createdAt: i.created_at ? new Date(i.created_at).getTime() : Date.now(),
+                    updatedAt: i.updated_at ? new Date(i.updated_at).getTime() : undefined,
+                    createdBy: i.created_by,
+                    creatorName: 'شما',
+                    creatorRole: currentUser?.role,
+                }));
+                set({ invoices: mapped, isLoading: false });
+                return;
             }
 
             if (data) {
@@ -83,8 +114,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
                     createdAt: i.created_at ? new Date(i.created_at).getTime() : Date.now(),
                     updatedAt: i.updated_at ? new Date(i.updated_at).getTime() : undefined,
                     createdBy: i.created_by,
-                    // If relational select succeeded, relation data is nested under 'profiles'. If not, fall back to placeholders.
-                    creatorName: i.profiles?.full_name || i.creator_name || 'کاربر حذف شده',
+                    creatorName: i.profiles?.full_name || (i.created_by === currentUser?.id ? 'شما' : 'کاربر حذف شده'),
                     creatorRole: i.profiles?.role || i.creator_role
                 }));
                 set({ invoices: mapped, isLoading: false });
