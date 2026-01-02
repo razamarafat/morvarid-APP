@@ -56,15 +56,26 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                 .order('date', { ascending: false })
                 .limit(3000);
 
-            // If the user is not an admin, only fetch their own records.
-            if (currentUser && currentUser.role !== 'ADMIN') {
+            // Role-based filtering
+            if (currentUser && currentUser.role === 'REGISTRATION') {
+                // Registration workers only see what they created
                 query = query.eq('created_by', currentUser.id);
+            } else if (currentUser && currentUser.role === 'SALES') {
+                // Sales users see all records for their assigned farms
+                const farmIds = (currentUser.assignedFarms || []).map(f => f.id);
+                if (farmIds.length > 0) {
+                    query = query.in('farm_id', farmIds);
+                } else {
+                    // No farms, no stats
+                    set({ statistics: [], isLoading: false });
+                    return;
+                }
             }
 
             const { data: statsData, error } = await query;
 
             if (error) {
-                 // Fallback for relational query failure
+                // Fallback for relational query failure
                 console.warn('[StatisticsStore] Relational select failed, retrying simple select', error);
                 let simpleQuery = supabase
                     .from('daily_statistics')
@@ -77,7 +88,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                 }
                 const simple = await simpleQuery;
                 if (simple.error) throw simple.error;
-                
+
                 const mappedStats = simple.data.map((s: any) => ({
                     id: s.id,
                     farmId: s.farm_id,

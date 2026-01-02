@@ -5,6 +5,7 @@ import { Icons } from '../common/Icons';
 import Reports from '../admin/Reports';
 import { useStatisticsStore, DailyStatistic } from '../../store/statisticsStore';
 import { useInvoiceStore } from '../../store/invoiceStore';
+import RecentRecords from '../registration/RecentRecords';
 import { useFarmStore } from '../../store/farmStore';
 import { useToastStore } from '../../store/toastStore';
 import { useAuthStore } from '../../store/authStore';
@@ -516,7 +517,8 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 lg:gap-6">
             <MetroTile title="پایش آمار فارم‌ها" icon={Icons.BarChart} color="bg-metro-blue" size="wide" onClick={() => onNavigate('farm-stats')} />
             <MetroTile title="لیست حواله‌های فروش" icon={Icons.List} color="bg-metro-orange" size="wide" onClick={() => onNavigate('invoices')} />
-            <MetroTile title="گزارشات اکسل جامع" icon={Icons.FileText} color="bg-metro-green" size="wide" onClick={() => onNavigate('reports')} />
+            <MetroTile title="سوابق و ویرایش" icon={Icons.Refresh} color="bg-metro-green" size="wide" onClick={() => onNavigate('recent')} />
+            <MetroTile title="گزارشات اکسل جامع" icon={Icons.FileText} color="bg-metro-purple" size="wide" onClick={() => onNavigate('reports')} />
         </div>
     );
 };
@@ -529,6 +531,7 @@ const SalesDashboard: React.FC = () => {
         if (currentView === 'farm-stats') return 'پایش آمار لحظه‌ای';
         if (currentView === 'invoices') return 'جدول فروش امروز';
         if (currentView === 'reports') return 'گزارشات فروش';
+        if (currentView === 'recent') return 'سوابق و ویرایش';
         return 'میز کار آمار و فروش';
     }
 
@@ -547,6 +550,7 @@ const SalesDashboard: React.FC = () => {
             case 'farm-stats': return <FarmStatistics />;
             case 'invoices': return <InvoiceList />;
             case 'reports': return <Reports />;
+            case 'recent': return <RecentRecords />;
             default: return <DashboardHome onNavigate={setCurrentView} />;
         }
     };

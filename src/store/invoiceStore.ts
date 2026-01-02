@@ -52,10 +52,21 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
                 .select('*, profiles!created_by(full_name, role)')
                 .order('created_at', { ascending: false })
                 .limit(2000);
-            
-            // If the user is not an admin, only fetch their own records.
-            if (currentUser && currentUser.role !== 'ADMIN') {
+
+            // Role-based filtering
+            if (currentUser && currentUser.role === 'REGISTRATION') {
+                // Registration workers only see what they created
                 query = query.eq('created_by', currentUser.id);
+            } else if (currentUser && currentUser.role === 'SALES') {
+                // Sales users see all records for their assigned farms
+                const farmIds = (currentUser.assignedFarms || []).map(f => f.id);
+                if (farmIds.length > 0) {
+                    query = query.in('farm_id', farmIds);
+                } else {
+                    // No farms, no invoices
+                    set({ invoices: [], isLoading: false });
+                    return;
+                }
             }
 
             const { data, error } = await query;
