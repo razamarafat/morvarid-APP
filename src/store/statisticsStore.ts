@@ -56,17 +56,14 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                 .order('date', { ascending: false })
                 .limit(3000);
 
-            // Role-based filtering
-            if (currentUser && currentUser.role === 'REGISTRATION') {
-                // Registration workers only see what they created
-                query = query.eq('created_by', currentUser.id);
-            } else if (currentUser && currentUser.role === 'SALES') {
-                // Sales users see all records for their assigned farms
+            // Role-based filtering for fetching
+            if (currentUser && currentUser.role !== 'ADMIN') {
+                // Fetch records for all assigned farms to ensure visibility
                 const farmIds = (currentUser.assignedFarms || []).map(f => f.id);
                 if (farmIds.length > 0) {
                     query = query.in('farm_id', farmIds);
-                } else {
-                    // No farms, no stats
+                } else if (currentUser.role === 'SALES' || currentUser.role === 'REGISTRATION') {
+                    // If no farms assigned, they can't see anything anyway
                     set({ statistics: [], isLoading: false });
                     return;
                 }

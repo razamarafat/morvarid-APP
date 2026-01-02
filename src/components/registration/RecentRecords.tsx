@@ -132,19 +132,34 @@ const RecentRecords: React.FC = () => {
     const filteredStats = useMemo(() => {
         const start = normalizeDate(startDate);
         const end = normalizeDate(endDate);
-        return statistics.filter(s => {
-            // Farm Filter
-            if (selectedFarmId !== 'all' && s.farmId !== selectedFarmId) return false;
-            if (selectedFarmId === 'all' && !isAdmin && !assignedFarmIds.includes(s.farmId)) return false;
 
+        return statistics.filter(s => {
+            // 1. Date Range Filter
             if (!isDateInRange(s.date, start, end)) return false;
 
-            // Creator Filter: Only Registration workers are restricted to their own entries
-            if (isRegistration && s.createdBy !== user?.id) return false;
+            // 2. Farm Filter
+            if (selectedFarmId !== 'all') {
+                if (s.farmId !== selectedFarmId) return false;
+            } else {
+                // If 'all' is selected, Admin sees all, Sales/Reg see assigned
+                if (!isAdmin && !assignedFarmIds.includes(s.farmId)) return false;
+            }
+
+            // 3. Creator Filter: Only Registration workers are restricted to their own entries
+            // NOTE: We check s.createdBy (UUID) against user.id (UUID)
+            if (isRegistration && s.createdBy !== user?.id) {
+                return false;
+            }
 
             return true;
+        }).sort((a, b) => {
+            // Sort by date desc, then by product priority
+            if (a.date !== b.date) return b.date.localeCompare(a.date);
+            const pA = products.find(p => p.id === a.productId) || { name: '' };
+            const pB = products.find(p => p.id === b.productId) || { name: '' };
+            return compareProducts(pA, pB);
         });
-    }, [statistics, selectedFarmId, assignedFarmIds, startDate, endDate, isAdmin, isRegistration, user?.id]);
+    }, [statistics, selectedFarmId, assignedFarmIds, startDate, endDate, isAdmin, isRegistration, user?.id, products]);
 
     const getProductName = (id: string) => products.find(p => p.id === id)?.name || 'محصول نامشخص';
     const isLiquid = (pid: string) => getProductName(pid).includes('مایع');
@@ -160,17 +175,25 @@ const RecentRecords: React.FC = () => {
     const filteredInvoices = useMemo(() => {
         const start = normalizeDate(startDate);
         const end = normalizeDate(endDate);
-        return invoices.filter(i => {
-            // Farm Filter
-            if (selectedFarmId !== 'all' && i.farmId !== selectedFarmId) return false;
-            if (selectedFarmId === 'all' && !isAdmin && !assignedFarmIds.includes(i.farmId)) return false;
 
+        return invoices.filter(i => {
+            // 1. Date Range Filter
             if (!isDateInRange(i.date, start, end)) return false;
 
-            // Creator Filter: Only Registration workers are restricted to their own entries
+            // 2. Farm Filter
+            if (selectedFarmId !== 'all') {
+                if (i.farmId !== selectedFarmId) return false;
+            } else {
+                if (!isAdmin && !assignedFarmIds.includes(i.farmId)) return false;
+            }
+
+            // 3. Creator Filter
             if (isRegistration && i.createdBy !== user?.id) return false;
 
             return true;
+        }).sort((a, b) => {
+            // Sort by created_at desc (newest first)
+            return b.createdAt - a.createdAt;
         });
     }, [invoices, selectedFarmId, assignedFarmIds, startDate, endDate, isAdmin, isRegistration, user?.id]);
 
@@ -517,6 +540,21 @@ const RecentRecords: React.FC = () => {
                     </div>
                 </Modal>
             )}
+            {/* TECHNICAL DEBUG INFO - FOR TROUBLESHOOTING */}
+            <div className="mt-12 p-4 bg-gray-100 dark:bg-gray-800 rounded-xl text-[10px] font-mono opacity-50 space-y-1">
+                <p>--- DEBUG INFO ---</p>
+                <p>User: {user?.fullName} ({user?.role})</p>
+                <p>User ID: {user?.id}</p>
+                <p>Assigned Farms: {assignedFarmIds.length} ({assignedFarmIds.join(', ')})</p>
+                <p>Selected Farm: {selectedFarmId}</p>
+                <p>Date Range: {startDate} to {endDate}</p>
+                <p>Stats in Store: {statistics.length}</p>
+                <p>Invoices in Store: {invoices.length}</p>
+                <p>Loaded Filters: {filteredStats.length} Stats / {filteredInvoices.length} Invoices</p>
+                {statistics.length > 0 && !filteredStats.length && (
+                    <p className="text-red-500 font-bold">WARN: Records exist in store but are filtered out. Check date/creator/farm matching.</p>
+                )}
+            </div>
         </div>
     );
 };

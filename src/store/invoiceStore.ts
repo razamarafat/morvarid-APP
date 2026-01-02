@@ -53,17 +53,13 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
                 .order('created_at', { ascending: false })
                 .limit(2000);
 
-            // Role-based filtering
-            if (currentUser && currentUser.role === 'REGISTRATION') {
-                // Registration workers only see what they created
-                query = query.eq('created_by', currentUser.id);
-            } else if (currentUser && currentUser.role === 'SALES') {
-                // Sales users see all records for their assigned farms
+            // Role-based filtering for fetching
+            if (currentUser && currentUser.role !== 'ADMIN') {
+                // Fetch records for all assigned farms
                 const farmIds = (currentUser.assignedFarms || []).map(f => f.id);
                 if (farmIds.length > 0) {
                     query = query.in('farm_id', farmIds);
-                } else {
-                    // No farms, no invoices
+                } else if (currentUser.role === 'SALES' || currentUser.role === 'REGISTRATION') {
                     set({ invoices: [], isLoading: false });
                     return;
                 }
