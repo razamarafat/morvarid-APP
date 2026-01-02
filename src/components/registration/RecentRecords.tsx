@@ -300,8 +300,8 @@ const RecentRecords: React.FC = () => {
     const sortedProductIds = useMemo(() => {
         const ids = Array.from(new Set(filteredStats.map(s => s.productId)));
         return ids.sort((a, b) => {
-            const pA = products.find(p => p.id === a);
-            const pB = products.find(p => p.id === b);
+            const pA = products.find(p => p.id === a) || { name: '' };
+            const pB = products.find(p => p.id === b) || { name: '' };
             return compareProducts(pA, pB);
         });
     }, [filteredStats, products]);
