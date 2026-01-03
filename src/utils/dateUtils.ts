@@ -23,11 +23,11 @@ export const normalizeDate = (dateStr: string): string => {
   // 2. Remove invisible control characters (LTR/RTL marks, zero-width spaces)
   english = english.replace(/[\u200B-\u200D\uFEFF]/g, '');
 
-  // 3. Remove anything that is not a digit or a separator
-  english = english.replace(/[^\d/\\-]/g, '');
+  // 3. Remove anything that is not a digit or a separator (added dot)
+  english = english.replace(/[^\d/\\.-]/g, '');
 
-  // 4. Normalize separators to forward slash (remove useless escape on pipe if present, though here it looks fine, let's just clean it up)
-  english = english.replace(/[-|\\]/g, '/').trim();
+  // 4. Normalize separators to forward slash (e.g., -, ., \, |)
+  english = english.replace(/[-.\\|]/g, '/').trim();
 
   // 5. Pad Month and Day with zeros (e.g., 1403/5/1 -> 1403/05/01)
   const parts = english.split('/');

@@ -11,6 +11,7 @@ import { useToastStore } from '../../store/toastStore';
 import { useAuthStore } from '../../store/authStore';
 import { useAlertStore } from '../../store/alertStore';
 import { getTodayJalali, normalizeDate, toPersianDigits } from '../../utils/dateUtils';
+import { useSyncStore, SyncItem } from '../../store/syncStore';
 import { formatPlateNumber } from '../../utils/formatUtils';
 import { compareProducts } from '../../utils/sortUtils';
 import Button from '../common/Button';
@@ -371,8 +372,8 @@ const InvoiceList = React.memo(() => {
         // 2. Add queued invoices
         const currentUser = useAuthStore.getState().user;
         const queuedInvoices: Invoice[] = queue
-            .filter(item => item.type === 'INVOICE')
-            .map(item => ({
+            .filter((item: SyncItem) => item.type === 'INVOICE')
+            .map((item: SyncItem) => ({
                 ...item.payload,
                 id: item.id,
                 createdAt: item.timestamp,
@@ -381,7 +382,7 @@ const InvoiceList = React.memo(() => {
                 creatorName: currentUser?.fullName || 'شما',
                 creatorRole: currentUser?.role
             }))
-            .filter(i => {
+            .filter((i: Invoice) => {
                 const itemDate = normalizeDate(i.date);
                 const dateMatch = itemDate === normalizedToday;
                 const farmMatch = selectedFarmId === 'all' || i.farmId === selectedFarmId;

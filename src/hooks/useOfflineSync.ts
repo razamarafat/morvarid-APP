@@ -37,7 +37,7 @@ export const useOfflineSync = () => {
 
     useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
-            if (event.data && event.data.type === 'PROCESS_QUEUE_BACKGROUND') {
+            if (event.data && (event.data.type === 'PROCESS_QUEUE_BACKGROUND' || event.data.type === 'TRIGGER_SYNC')) {
                 processQueue();
             }
         };

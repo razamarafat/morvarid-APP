@@ -4,6 +4,10 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { usePwaStore } from './store/pwaStore';
+import { monitor } from './utils/monitor';
+
+// Initialize Global Monitoring
+monitor.logInfo('Application started');
 
 // --- PWA INSTALLATION DIAGNOSTICS ---
 const manifestLink = document.querySelector('link[rel="manifest"]');
@@ -45,6 +49,29 @@ if ('serviceWorker' in navigator) {
             } else if (registration.active) {
                 console.log('[PWA] Service Worker active!');
                 usePwaStore.getState().logEvent('Service Worker active');
+
+                // --- PERIODIC SYNC REGISTRATION ---
+                if ('periodicSync' in registration) {
+                    try {
+                        const status = await navigator.permissions.query({
+                            // @ts-ignore - periodic-background-sync is a modern permission
+                            name: 'periodic-background-sync',
+                        });
+
+                        if (status.state === 'granted') {
+                            // Register every 12 hours (min interval)
+                            // @ts-ignore
+                            await registration.periodicSync.register('sync-data', {
+                                minInterval: 12 * 60 * 60 * 1000,
+                            });
+                            console.log('[PWA] Periodic Sync registered successfully');
+                        } else {
+                            console.warn('[PWA] Periodic Sync permission denied');
+                        }
+                    } catch (error) {
+                        console.error('[PWA Error] Periodic Sync Registration failed:', error);
+                    }
+                }
             }
         } catch (error: any) {
             console.error('[PWA Error] Service Worker Registration Failed:', error);

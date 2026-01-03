@@ -4,6 +4,7 @@ import { useInvoiceStore } from '../../store/invoiceStore';
 import { useFarmStore } from '../../store/farmStore';
 import { useAuthStore } from '../../store/authStore';
 import { UserRole, Invoice } from '../../types';
+import { useSyncStore, SyncItem } from '../../store/syncStore';
 import { Icons } from '../common/Icons';
 import { useConfirm } from '../../hooks/useConfirm';
 import Modal from '../common/Modal';
@@ -226,8 +227,8 @@ const RecentRecords: React.FC = () => {
 
         // 2. Add queued statistics
         const queuedStats: DailyStatistic[] = queue
-            .filter(item => item.type === 'STAT')
-            .map(item => ({
+            .filter((item: SyncItem) => item.type === 'STAT')
+            .map((item: SyncItem) => ({
                 ...item.payload,
                 id: item.id,
                 createdAt: item.timestamp,
@@ -236,7 +237,7 @@ const RecentRecords: React.FC = () => {
                 creatorName: user?.fullName || 'شما',
                 creatorRole: user?.role
             }))
-            .filter(s => {
+            .filter((s: DailyStatistic) => {
                 if (normalizeDate(s.date) !== normalized) return false;
                 if (selectedFarmId !== 'all') {
                     if (s.farmId !== selectedFarmId) return false;
@@ -261,7 +262,7 @@ const RecentRecords: React.FC = () => {
             if (a.date !== b.date) return b.date.localeCompare(a.date);
             const pA = products.find(p => p.id === a.productId) || { name: '' };
             const pB = products.find(p => p.id === b.productId) || { name: '' };
-            return compareProducts(pA.name, pB.name);
+            return compareProducts(pA, pB);
         });
     }, [statistics, selectedFarmId, assignedFarmIds, selectedDate, isAdmin, isRegistration, user?.id, user?.fullName, user?.role, products]);
 
@@ -294,8 +295,8 @@ const RecentRecords: React.FC = () => {
 
         // 2. Get queued invoices from SyncStore
         const queuedInvoices: Invoice[] = queue
-            .filter(item => item.type === 'INVOICE')
-            .map(item => ({
+            .filter((item: SyncItem) => item.type === 'INVOICE')
+            .map((item: SyncItem) => ({
                 ...item.payload,
                 id: item.id,
                 createdAt: item.timestamp,
@@ -304,7 +305,7 @@ const RecentRecords: React.FC = () => {
                 creatorName: user?.fullName || 'شما',
                 creatorRole: user?.role
             }))
-            .filter(i => {
+            .filter((i: Invoice) => {
                 if (normalizeDate(i.date) !== normalized) return false;
                 if (selectedFarmId !== 'all') {
                     if (i.farmId !== selectedFarmId) return false;

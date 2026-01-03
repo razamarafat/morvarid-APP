@@ -129,3 +129,21 @@ self.addEventListener('notificationclick', (event) => {
     })
   );
 });
+
+// --- PERIODIC BACKGROUND SYNC HANDLER ---
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag === 'sync-data') {
+    console.log('[SW] Periodic Sync triggered:', event.tag);
+    event.waitUntil(syncDataInBackground());
+  }
+});
+
+async function syncDataInBackground() {
+  console.log('[SW] Starting background data synchronization...');
+  // Note: Since SW doesn't have direct access to Zustand, 
+  // we trigger a message to all clients to start their internal sync processes.
+  const allClients = await clients.matchAll({ type: 'window' });
+  for (const client of allClients) {
+    client.postMessage({ type: 'TRIGGER_SYNC' });
+  }
+}
