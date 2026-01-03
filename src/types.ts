@@ -30,14 +30,14 @@ export interface User {
 }
 
 export interface Product {
-    id: string;
-    name: string;
-    description?: string;
-    nameEnglish?: string;
-    unit: ProductUnit;
-    hasKilogramUnit: boolean;
-    isDefault: boolean;
-    isCustom: boolean;
+  id: string;
+  name: string;
+  description?: string;
+  nameEnglish?: string;
+  unit: ProductUnit;
+  hasKilogramUnit: boolean;
+  isDefault: boolean;
+  isCustom: boolean;
 }
 
 export interface Farm {
@@ -57,25 +57,26 @@ export interface DeviceInfo {
 }
 
 export interface Invoice {
-    id: string;
-    farmId: string;
-    date: string;
-    invoiceNumber: string;
-    totalCartons: number;
-    totalWeight: number;
-    productId?: string;
-    driverName?: string;
-    driverPhone?: string;
-    plateNumber?: string;
-    description?: string;
-    isYesterday: boolean;
-    createdAt: number;
-    createdBy?: string;
-    creatorName?: string;
-    creatorRole?: string;
-    updatedAt?: number;
-    updatedBy?: string;
-    isPending?: boolean; // Optimistic UI Flag
+  id: string;
+  farmId: string;
+  date: string;
+  invoiceNumber: string;
+  totalCartons: number;
+  totalWeight: number;
+  productId?: string;
+  driverName?: string;
+  driverPhone?: string;
+  plateNumber?: string;
+  description?: string;
+  isYesterday: boolean;
+  createdAt: number;
+  createdBy?: string;
+  creatorName?: string;
+  creatorRole?: string;
+  updatedAt?: number;
+  updatedBy?: string;
+  isPending?: boolean; // Optimistic UI Flag
+  isOffline?: boolean; // Offline Queue Flag
 }
 
 export interface Backup {
@@ -87,10 +88,10 @@ export interface Backup {
 }
 
 export interface NotificationItem {
-    id: string;
-    title: string;
-    message: string;
-    timestamp: number;
-    read: boolean;
-    type: 'info' | 'warning' | 'error' | 'success';
+  id: string;
+  title: string;
+  message: string;
+  timestamp: number;
+  read: boolean;
+  type: 'info' | 'warning' | 'error' | 'success';
 }

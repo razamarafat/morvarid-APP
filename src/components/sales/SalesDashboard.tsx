@@ -268,6 +268,8 @@ const VirtualizedInvoiceRow = ({ index, style, data }: { index: number, style: R
     const productName = products.find((p: any) => p.id === invoice.productId)?.name || '-';
     const isEdited = invoice.updatedAt && invoice.updatedAt > invoice.createdAt + 2000;
     const isAdminCreated = invoice.creatorRole === UserRole.ADMIN;
+    const isPending = invoice.isPending;
+    const isOffline = invoice.isOffline;
 
     const displayTime = isAdminCreated
         ? '---'
@@ -276,14 +278,16 @@ const VirtualizedInvoiceRow = ({ index, style, data }: { index: number, style: R
     const farmName = farms.find((f: any) => f.id === invoice.farmId)?.name || 'نامشخص';
 
     return (
-        <div style={style} className={`grid grid-cols-[0.8fr_1fr_1.2fr_1.5fr_0.8fr_0.8fr_1fr_0.8fr] gap-2 items-center px-4 text-gray-800 dark:text-gray-200 text-sm border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors ${index % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-900/30'} ${isAdminCreated ? 'bg-purple-50/20' : ''}`}>
+        <div style={style} className={`grid grid-cols-[0.8fr_1fr_1.2fr_1.5fr_0.8fr_0.8fr_1fr_0.8fr] gap-2 items-center px-4 text-gray-800 dark:text-gray-200 text-sm border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors ${index % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-900/30'} ${isAdminCreated ? 'bg-purple-50/20' : ''} ${isPending ? 'bg-blue-50/50 animate-pulse' : ''} ${isOffline ? 'bg-orange-50/30' : ''}`}>
             {/* 1. Date */}
-            <div className="font-black tracking-tight text-center truncate">
+            <div className={`font-black tracking-tight text-center truncate ${isPending ? 'text-blue-500' : isOffline ? 'text-orange-600' : ''}`}>
                 {toPersianDigits(invoice.date)}
             </div>
 
             {/* 2. Invoice Num */}
-            <div className="text-center font-mono font-bold scale-95 truncate" dir="ltr">
+            <div className="text-center font-mono font-bold scale-95 truncate flex items-center justify-center gap-1" dir="ltr">
+                {isPending && <Icons.Refresh className="w-3 h-3 animate-spin text-blue-500" />}
+                {isOffline && <Icons.Clock className="w-3 h-3 text-orange-500" />}
                 {renderInvoiceNumber(invoice.invoiceNumber)}
             </div>
 
@@ -299,22 +303,22 @@ const VirtualizedInvoiceRow = ({ index, style, data }: { index: number, style: R
 
             {/* 5. Count */}
             <div className="text-center">
-                <span className="font-black text-base bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded shadow-sm inline-block min-w-[40px]">
+                <span className={`font-black text-base px-2 py-0.5 rounded shadow-sm inline-block min-w-[40px] ${isOffline ? 'bg-orange-100 text-orange-700' : isPending ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 dark:bg-gray-700'}`}>
                     {toPersianDigits(invoice.totalCartons)}
                 </span>
             </div>
 
             {/* 6. Weight */}
             <div className="text-center">
-                <span className="font-black text-metro-blue text-base bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded shadow-sm inline-block min-w-[50px]">
+                <span className={`font-black text-base px-2 py-0.5 rounded shadow-sm inline-block min-w-[50px] ${isOffline ? 'bg-orange-50 text-orange-600' : isPending ? 'bg-blue-50 text-blue-500' : 'bg-blue-50 dark:bg-blue-900/20 text-metro-blue'}`}>
                     {toPersianDigits(invoice.totalWeight)}
                 </span>
             </div>
 
             {/* 7. Registrar */}
             <div className="text-center">
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold truncate inline-block max-w-[90%] ${isAdminCreated ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 dark:bg-gray-700'}`}>
-                    {isAdminCreated ? 'مدیر' : (invoice.creatorName || 'ناشناس')}
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold truncate inline-block max-w-[90%] ${isOffline ? 'bg-orange-500 text-white' : isPending ? 'bg-blue-500 text-white' : isAdminCreated ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                    {isOffline ? 'آفلاین' : isPending ? 'کمی صبر...' : (isAdminCreated ? 'مدیر' : (invoice.creatorName || 'ناشناس'))}
                 </span>
             </div>
 
@@ -323,6 +327,8 @@ const VirtualizedInvoiceRow = ({ index, style, data }: { index: number, style: R
                 <div className="flex flex-col items-center">
                     <span className="font-mono text-[10px] font-bold text-gray-600 dark:text-gray-400 dir-ltr">{toPersianDigits(displayTime)}</span>
                     {isEdited && !isAdminCreated && <span className="text-[8px] text-orange-500 font-bold mt-0.5">(ویرایش)</span>}
+                    {isPending && <span className="text-[8px] text-blue-500 font-black animate-bounce mt-0.5">ارسال...</span>}
+                    {isOffline && <span className="text-[8px] text-orange-600 font-black mt-0.5">در صف</span>}
                 </div>
             </div>
         </div>
@@ -346,8 +352,35 @@ const InvoiceList = React.memo(() => {
 
     const filteredInvoices = useMemo(() => {
         const term = searchTerm.trim().toLowerCase();
+        const { queue } = useSyncStore.getState();
 
-        const results = invoices
+        // 1. Base results from store
+        const baseResults = invoices.filter(i => {
+            const itemDate = normalizeDate(i.date);
+            const dateMatch = itemDate === normalizedToday;
+            const farmMatch = selectedFarmId === 'all' || i.farmId === selectedFarmId;
+            const searchMatch = !term || (
+                i.invoiceNumber.includes(term) ||
+                i.driverName?.toLowerCase().includes(term) ||
+                i.plateNumber?.includes(term) ||
+                formatPlateNumber(i.plateNumber).includes(term)
+            );
+            return dateMatch && farmMatch && searchMatch;
+        });
+
+        // 2. Add queued invoices
+        const currentUser = useAuthStore.getState().user;
+        const queuedInvoices: Invoice[] = queue
+            .filter(item => item.type === 'INVOICE')
+            .map(item => ({
+                ...item.payload,
+                id: item.id,
+                createdAt: item.timestamp,
+                isPending: false,
+                isOffline: true,
+                creatorName: currentUser?.fullName || 'شما',
+                creatorRole: currentUser?.role
+            }))
             .filter(i => {
                 const itemDate = normalizeDate(i.date);
                 const dateMatch = itemDate === normalizedToday;
@@ -355,17 +388,21 @@ const InvoiceList = React.memo(() => {
                 const searchMatch = !term || (
                     i.invoiceNumber.includes(term) ||
                     i.driverName?.toLowerCase().includes(term) ||
-                    i.plateNumber?.includes(term) ||
-                    formatPlateNumber(i.plateNumber).includes(term)
+                    i.plateNumber?.includes(term)
                 );
-
                 return dateMatch && farmMatch && searchMatch;
-            })
-            .sort((a, b) => {
-                if (a.createdAt !== b.createdAt) return b.createdAt - a.createdAt;
-                return 0;
             });
-        return results;
+
+        const merged = [...baseResults];
+        queuedInvoices.forEach(queued => {
+            const isDuplicate = baseResults.some(base =>
+                base.invoiceNumber === queued.invoiceNumber &&
+                base.productId === queued.productId
+            );
+            if (!isDuplicate) merged.push(queued);
+        });
+
+        return merged.sort((a, b) => b.createdAt - a.createdAt);
     }, [invoices, normalizedToday, selectedFarmId, searchTerm, farms, products]);
 
     const totals = useMemo(() => {

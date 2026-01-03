@@ -23,6 +23,8 @@ export interface DailyStatistic {
     creatorName?: string;
     creatorRole?: string;
     createdBy?: string;
+    isPending?: boolean; // Optimistic UI Flag
+    isOffline?: boolean; // Offline Queue Flag
 }
 
 import { getErrorMessage } from '../utils/errorUtils';
@@ -198,15 +200,36 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
     },
 
     bulkUpsertStatistics: async (stats, isSyncing = false) => {
-        // 1. Offline Check First
+        // 1. Get User from Local Store
+        const currentUser = useAuthStore.getState().user;
+        if (!currentUser) return { success: false, error: "Auth Error: User not logged in" };
+
+        // 2. OPTIMISTIC UI UPDATE (Immediate)
+        const tempIds: string[] = [];
+        const optimisticStats: DailyStatistic[] = stats.map(s => {
+            const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            tempIds.push(tempId);
+            return {
+                ...s,
+                id: tempId,
+                createdAt: Date.now(),
+                createdBy: currentUser.id,
+                creatorName: currentUser.fullName,
+                creatorRole: currentUser.role,
+                isPending: !isSyncing,
+                isOffline: !navigator.onLine && !isSyncing
+            } as DailyStatistic;
+        });
+
+        if (!isSyncing) {
+            set(state => ({ statistics: [...optimisticStats, ...state.statistics] }));
+        }
+
+        // 3. Offline Check
         if (!isSyncing && !navigator.onLine) {
             stats.forEach(s => useSyncStore.getState().addToQueue('STAT', s));
             return { success: true, error: 'ذخیره در صف آفلاین' };
         }
-
-        // 2. Get User from Local Store
-        const currentUser = useAuthStore.getState().user;
-        if (!currentUser) return { success: false, error: "Auth Error: User not logged in" };
 
         try {
             // MAP camelCase (Frontend) TO snake_case (Database)
@@ -222,21 +245,15 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                 sales_kg: s.salesKg,
                 current_inventory: s.currentInventory,
                 current_inventory_kg: s.currentInventoryKg,
-                created_by: currentUser.id // Use cached ID
+                created_by: currentUser.id
             }));
 
-            // DEBUG LOG: Ensure payload is correct before sending
-            console.log('[StatisticsStore] Upsert Payload:', dbStats);
-
-            // FIX: Add onConflict to handle unique constraint violation on 'farm_id, date, product_id'
-            // We ignore duplicate key error and UPDATE instead.
             const { error } = await supabase.from('daily_statistics').upsert(dbStats, {
                 onConflict: 'farm_id,date,product_id',
-                ignoreDuplicates: false // We want to UPDATE if it exists
+                ignoreDuplicates: false
             });
 
             if (error) {
-                // DETECT SCHEMA ERROR: If column missing, warn user
                 if (error.message?.includes('Could not find') || error.code === 'PGRST204' || error.code === '42703') {
                     console.error("CRITICAL: Database schema mismatch. Please run supabase_setup.sql");
                     return { success: false, error: "ساختار دیتابیس قدیمی است. لطفا فایل supabase_setup.sql را در Supabase اجرا کنید." };
@@ -247,15 +264,27 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
             await get().fetchStatistics();
             return { success: true };
         } catch (e: any) {
-            // Check for Network Error specifically
-            const errMsg = getErrorMessage(e);
-            if (!isSyncing && (errMsg.toLowerCase().includes('fetch') || !navigator.onLine)) {
+            // If network error during request, add to queue
+            if (!isSyncing && (getErrorMessage(e).toLowerCase().includes('fetch') || !navigator.onLine)) {
+                // Update local status to offline instead of rolling back
+                set(state => ({
+                    statistics: state.statistics.map(s =>
+                        tempIds.includes(s.id) ? { ...s, isPending: false, isOffline: true } : s
+                    )
+                }));
                 stats.forEach(s => useSyncStore.getState().addToQueue('STAT', s));
                 return { success: true, error: 'ذخیره در صف آفلاین (خطای شبکه)' };
             }
 
-            console.error("Upsert Stats Error:", errMsg);
-            return { success: false, error: errMsg };
+            // Real error (duplicate, etc.) -> Rollback
+            if (!isSyncing) {
+                set(state => ({
+                    statistics: state.statistics.filter(s => !tempIds.includes(s.id))
+                }));
+            }
+
+            console.error("Upsert Stats Error:", getErrorMessage(e));
+            return { success: false, error: getErrorMessage(e) };
         }
     },
 

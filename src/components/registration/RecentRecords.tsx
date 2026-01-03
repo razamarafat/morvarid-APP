@@ -24,39 +24,55 @@ const StatRecordCard = ({ stat, getProductName, canEdit, onEdit, onDelete }: { s
     const isAdminCreated = stat.creatorRole === UserRole.ADMIN;
     const isEdited = stat.updatedAt && stat.updatedAt > stat.createdAt + 2000;
     const prodName = getProductName(stat.productId);
+    const isPending = stat.isPending;
+    const isOffline = stat.isOffline;
 
     return (
-        <div className={`bg-white dark:bg-gray-800 p-4 rounded-xl border-2 ${isAdminCreated ? 'border-purple-200 dark:border-purple-900/30 bg-purple-50/30' : 'border-gray-100 dark:border-gray-700'} relative shadow-sm`}>
+        <div className={`bg-white dark:bg-gray-800 p-4 rounded-xl border-2 transition-all ${isOffline ? 'border-orange-300 bg-orange-50/20' : isPending ? 'border-blue-300 bg-blue-50/20 animate-pulse' : isAdminCreated ? 'border-purple-200 dark:border-purple-900/30 bg-purple-50/30' : 'border-gray-100 dark:border-gray-700'} relative shadow-sm`}>
             <div className="flex justify-between items-center mb-3">
                 <div className="flex gap-2 lg:gap-4 items-center">
-                    <span className="text-[10px] lg:text-xs font-black bg-blue-50 dark:bg-blue-900/20 text-blue-600 px-2 py-1 lg:px-3 lg:py-1.5 rounded-md lg:rounded-lg">
+                    <span className={`text-[10px] lg:text-xs font-black px-2 py-1 lg:px-3 lg:py-1.5 rounded-md lg:rounded-lg ${isOffline ? 'bg-orange-100 text-orange-700' : isPending ? 'bg-blue-100 text-blue-700' : 'bg-blue-50 dark:bg-blue-900/20 text-blue-600'}`}>
                         {toPersianDigits(stat.date)}
                     </span>
-                    <span className="text-xs lg:text-lg font-bold text-gray-700 dark:text-gray-300">{prodName}</span>
+                    <div className="flex flex-col">
+                        <span className="text-xs lg:text-lg font-bold text-gray-700 dark:text-gray-300">{prodName}</span>
+                        {isPending && (
+                            <span className="flex items-center gap-1 text-[9px] font-black text-blue-500 animate-bounce">
+                                <Icons.Refresh className="w-2.5 h-2.5 animate-spin" />
+                                در حال ارسال...
+                            </span>
+                        )}
+                        {isOffline && (
+                            <span className="flex items-center gap-1 text-[9px] font-black text-orange-600">
+                                <Icons.Clock className="w-2.5 h-2.5" />
+                                در صف ارسال (آفلاین)
+                            </span>
+                        )}
+                    </div>
                     {isAdminCreated && <span className="text-[9px] lg:text-xs font-bold bg-purple-100 text-purple-700 px-2 py-0.5 lg:px-3 lg:py-1 rounded-full">ثبت مدیر</span>}
                 </div>
                 <div className="flex gap-2">
-                    {canEdit(stat.createdAt, stat.creatorRole) ? (
+                    {!isPending && !isOffline && (canEdit(stat.createdAt, stat.creatorRole) ? (
                         <>
                             <button onClick={() => onEdit(stat)} className="p-1.5 bg-blue-50 text-blue-600 rounded-lg"><Icons.Edit className="w-4 h-4" /></button>
                             <button onClick={() => onDelete(stat)} className="p-1.5 bg-red-50 text-red-600 rounded-lg"><Icons.Trash className="w-4 h-4" /></button>
                         </>
                     ) : (
                         <Icons.Lock className="w-4 h-4 text-gray-300" />
-                    )}
+                    ))}
                 </div>
             </div>
 
             <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="bg-gray-50 dark:bg-gray-900/50 p-2 lg:p-4 rounded-lg lg:rounded-2xl">
+                <div className={`p-2 lg:p-4 rounded-lg lg:rounded-2xl ${isOffline ? 'bg-white/50 border border-orange-100' : isPending ? 'bg-white/50 border border-blue-100' : 'bg-gray-50 dark:bg-gray-900/50'}`}>
                     <span className="block text-[9px] lg:text-xs text-gray-400 font-bold mb-1">تولید</span>
                     <span className="font-black text-sm lg:text-2xl">{toPersianDigits(stat.production)}</span>
                 </div>
-                <div className="bg-red-50 dark:bg-red-900/10 p-2 lg:p-4 rounded-lg lg:rounded-2xl">
+                <div className={`p-2 lg:p-4 rounded-lg lg:rounded-2xl ${isOffline ? 'bg-orange-100/20' : isPending ? 'bg-blue-100/20' : 'bg-red-50 dark:bg-red-900/10'}`}>
                     <span className="block text-[9px] lg:text-xs text-red-300 font-bold mb-1">فروش</span>
-                    <span className="font-black text-sm lg:text-2xl text-red-600">{toPersianDigits(stat.sales)}</span>
+                    <span className={`font-black text-sm lg:text-2xl ${isOffline ? 'text-orange-600' : isPending ? 'text-blue-600' : 'text-red-600'}`}>{toPersianDigits(stat.sales)}</span>
                 </div>
-                <div className="bg-blue-50 dark:bg-blue-900/10 p-2 lg:p-4 rounded-lg lg:rounded-2xl">
+                <div className={`p-2 lg:p-4 rounded-lg lg:rounded-2xl ${isOffline ? 'bg-orange-100/10' : isPending ? 'bg-blue-100/10' : 'bg-blue-50 dark:bg-blue-900/10'}`}>
                     <span className="block text-[9px] lg:text-xs text-blue-300 font-bold mb-1">موجودی</span>
                     <span className="font-black text-sm lg:text-2xl text-black dark:text-white">{toPersianDigits(stat.currentInventory)}</span>
                 </div>
@@ -64,7 +80,7 @@ const StatRecordCard = ({ stat, getProductName, canEdit, onEdit, onDelete }: { s
 
             <div className="mt-3 pt-2 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center text-[9px] lg:text-xs text-gray-400 font-bold">
                 <span>مسئول ثبت: {stat.creatorName || 'ناشناس'}</span>
-                {isEdited && <span className="text-orange-500 font-black">● ویرایش شده</span>}
+                {isEdited && !isPending && !isOffline && <span className="text-orange-500 font-black">● ویرایش شده</span>}
             </div>
         </div>
     );
@@ -75,40 +91,56 @@ const InvoiceRecordCard = ({ inv, getProductName, canEdit, onEdit, onDelete }: {
     const prodName = getProductName(inv.productId || '');
     const isAdminCreated = inv.creatorRole === UserRole.ADMIN;
     const isEdited = inv.updatedAt && inv.updatedAt > inv.createdAt + 2000;
+    const isPending = inv.isPending;
+    const isOffline = inv.isOffline;
 
     return (
-        <div className={`bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border-2 ${isAdminCreated ? 'border-purple-200 bg-purple-50/30' : 'border-gray-100 dark:border-gray-700'} relative`}>
+        <div className={`bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border-2 transition-all ${isOffline ? 'border-orange-300 bg-orange-50/20' : isPending ? 'border-blue-300 bg-blue-50/20 animate-pulse' : isAdminCreated ? 'border-purple-200 bg-purple-50/30' : 'border-gray-100 dark:border-gray-700'} relative`}>
             <div className="flex justify-between items-start mb-3">
                 <div>
-                    <span className="text-[10px] lg:text-xs font-black text-metro-orange block mb-1">حواله {toPersianDigits(inv.invoiceNumber)}</span>
+                    <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] lg:text-xs font-black text-metro-orange block">حواله {toPersianDigits(inv.invoiceNumber)}</span>
+                        {isPending && (
+                            <span className="flex items-center gap-1 text-[9px] font-black text-blue-500 animate-bounce">
+                                <Icons.Refresh className="w-2.5 h-2.5 animate-spin" />
+                                در حال ارسال...
+                            </span>
+                        )}
+                        {isOffline && (
+                            <span className="flex items-center gap-1 text-[9px] font-black text-orange-600">
+                                <Icons.Clock className="w-2.5 h-2.5" />
+                                در صف ارسال (آفلاین)
+                            </span>
+                        )}
+                    </div>
                     <h4 className="font-bold text-gray-800 dark:text-gray-200 text-sm lg:text-lg">{prodName}</h4>
                     {isAdminCreated && <span className="text-[9px] lg:text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 lg:px-3 lg:py-1 rounded font-bold mt-1 inline-block">ثبت توسط مدیر</span>}
                     {isEdited && <span className="text-[9px] lg:text-xs text-orange-500 font-bold mr-1"> (ویرایش شده)</span>}
                 </div>
                 <div className="flex gap-2">
-                    {canEdit(inv.createdAt, inv.creatorRole) ? (
+                    {!isPending && !isOffline && (canEdit(inv.createdAt, inv.creatorRole) ? (
                         <>
                             <button onClick={() => onEdit(inv)} className="p-1.5 bg-blue-50 text-blue-600 rounded-lg"><Icons.Edit className="w-4 h-4" /></button>
                             <button onClick={() => onDelete(inv)} className="p-1.5 bg-red-50 text-red-600 rounded-lg"><Icons.Trash className="w-4 h-4" /></button>
                         </>
                     ) : (
                         <Icons.Lock className="w-4 h-4 text-gray-300" />
-                    )}
+                    ))}
                 </div>
             </div>
 
-            <div className="flex items-center gap-2 text-[10px] lg:text-xs text-gray-500 mb-3 bg-gray-50 dark:bg-gray-900/50 p-2 lg:p-3 rounded-lg lg:rounded-xl">
+            <div className={`flex items-center gap-2 text-[10px] lg:text-xs text-gray-500 mb-3 p-2 lg:p-3 rounded-lg lg:rounded-xl ${isOffline ? 'bg-orange-100/30' : isPending ? 'bg-blue-100/30' : 'bg-gray-50 dark:bg-gray-900/50'}`}>
                 <span className="font-black bg-white dark:bg-gray-800 px-2 py-1 rounded shadow-sm">{toPersianDigits(inv.date)}</span>
                 {inv.plateNumber && <span className="font-mono border-r pr-2 border-gray-300 lg:text-sm" dir="ltr">{formatPlateNumber(inv.plateNumber)}</span>}
                 <span className="flex-1 text-left font-bold">{inv.creatorName}</span>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-                <div className="bg-gray-50 dark:bg-gray-950/20 p-2 lg:p-4 rounded-xl lg:rounded-3xl text-center border border-gray-100 dark:border-gray-800">
+                <div className={`p-2 lg:p-4 rounded-xl lg:rounded-3xl text-center border ${isOffline ? 'bg-white/50 border-orange-100' : isPending ? 'bg-white/50 border-blue-100' : 'bg-gray-50 dark:bg-gray-950/20 border-gray-100 dark:border-gray-800'}`}>
                     <span className="block text-[10px] lg:text-xs text-gray-400 font-black">کارتن</span>
                     <span className="font-black text-lg lg:text-2xl">{toPersianDigits(inv.totalCartons)}</span>
                 </div>
-                <div className="bg-blue-50 dark:bg-blue-950/20 p-2 lg:p-4 rounded-xl lg:rounded-3xl text-center border border-blue-100 dark:border-blue-900/20">
+                <div className={`p-2 lg:p-4 rounded-xl lg:rounded-3xl text-center border ${isOffline ? 'bg-orange-100/20 border-orange-200' : isPending ? 'bg-blue-100/20 border-blue-200' : 'bg-blue-50 dark:bg-blue-950/20 border-blue-100 dark:border-blue-900/20'}`}>
                     <span className="block text-[10px] lg:text-xs text-blue-400 font-black">وزن</span>
                     <span className="font-black text-lg lg:text-2xl text-blue-600">{toPersianDigits(inv.totalWeight)}</span>
                 </div>
@@ -178,34 +210,60 @@ const RecentRecords: React.FC = () => {
 
     const filteredStats = useMemo(() => {
         const normalized = normalizeDate(selectedDate);
+        const { queue } = useSyncStore.getState();
 
-        return statistics.filter(s => {
-            // 1. Single Date Filter
+        // 1. Base results from store
+        const baseStats = statistics.filter(s => {
             if (normalizeDate(s.date) !== normalized) return false;
-
-            // 2. Farm Filter
             if (selectedFarmId !== 'all') {
                 if (s.farmId !== selectedFarmId) return false;
             } else {
-                // If 'all' is selected, Admin sees all, Sales/Reg see assigned
                 if (!isAdmin && !assignedFarmIds.includes(s.farmId)) return false;
             }
-
-            // 3. Creator Filter: Only Registration workers are restricted to their own entries
-            // NOTE: We check s.createdBy (UUID) against user.id (UUID)
-            if (isRegistration && s.createdBy !== user?.id) {
-                return false;
-            }
-
+            if (isRegistration && s.createdBy !== user?.id) return false;
             return true;
-        }).sort((a, b) => {
-            // Sort by date desc, then by product priority
+        });
+
+        // 2. Add queued statistics
+        const queuedStats: DailyStatistic[] = queue
+            .filter(item => item.type === 'STAT')
+            .map(item => ({
+                ...item.payload,
+                id: item.id,
+                createdAt: item.timestamp,
+                isPending: false,
+                isOffline: true,
+                creatorName: user?.fullName || 'شما',
+                creatorRole: user?.role
+            }))
+            .filter(s => {
+                if (normalizeDate(s.date) !== normalized) return false;
+                if (selectedFarmId !== 'all') {
+                    if (s.farmId !== selectedFarmId) return false;
+                } else {
+                    if (!isAdmin && !assignedFarmIds.includes(s.farmId)) return false;
+                }
+                return true;
+            });
+
+        // 3. Merge and deduplicate
+        const merged = [...baseStats];
+        queuedStats.forEach(queued => {
+            const isDuplicate = baseStats.some(base =>
+                base.farmId === queued.farmId &&
+                normalizeDate(base.date) === normalizeDate(queued.date) &&
+                base.productId === queued.productId
+            );
+            if (!isDuplicate) merged.push(queued);
+        });
+
+        return merged.sort((a, b) => {
             if (a.date !== b.date) return b.date.localeCompare(a.date);
             const pA = products.find(p => p.id === a.productId) || { name: '' };
             const pB = products.find(p => p.id === b.productId) || { name: '' };
-            return compareProducts(pA, pB);
+            return compareProducts(pA.name, pB.name);
         });
-    }, [statistics, selectedFarmId, assignedFarmIds, selectedDate, isAdmin, isRegistration, user?.id, products]);
+    }, [statistics, selectedFarmId, assignedFarmIds, selectedDate, isAdmin, isRegistration, user?.id, user?.fullName, user?.role, products]);
 
     const getProductName = (id: string) => products.find(p => p.id === id)?.name || 'محصول نامشخص';
     const isLiquid = (pid: string) => getProductName(pid).includes('مایع');
@@ -220,27 +278,54 @@ const RecentRecords: React.FC = () => {
 
     const filteredInvoices = useMemo(() => {
         const normalized = normalizeDate(selectedDate);
+        const { queue } = useSyncStore.getState();
 
-        return invoices.filter(i => {
-            // 1. Single Date Filter
+        // 1. Get real invoices from store
+        const baseInvoices = invoices.filter(i => {
             if (normalizeDate(i.date) !== normalized) return false;
-
-            // 2. Farm Filter
             if (selectedFarmId !== 'all') {
                 if (i.farmId !== selectedFarmId) return false;
             } else {
                 if (!isAdmin && !assignedFarmIds.includes(i.farmId)) return false;
             }
-
-            // 3. Creator Filter
             if (isRegistration && i.createdBy !== user?.id) return false;
-
             return true;
-        }).sort((a, b) => {
-            // Sort by created_at desc (newest first)
-            return b.createdAt - a.createdAt;
         });
-    }, [invoices, selectedFarmId, assignedFarmIds, selectedDate, isAdmin, isRegistration, user?.id]);
+
+        // 2. Get queued invoices from SyncStore
+        const queuedInvoices: Invoice[] = queue
+            .filter(item => item.type === 'INVOICE')
+            .map(item => ({
+                ...item.payload,
+                id: item.id,
+                createdAt: item.timestamp,
+                isPending: false,
+                isOffline: true,
+                creatorName: user?.fullName || 'شما',
+                creatorRole: user?.role
+            }))
+            .filter(i => {
+                if (normalizeDate(i.date) !== normalized) return false;
+                if (selectedFarmId !== 'all') {
+                    if (i.farmId !== selectedFarmId) return false;
+                } else {
+                    if (!isAdmin && !assignedFarmIds.includes(i.farmId)) return false;
+                }
+                return true;
+            });
+
+        // 3. Merge and deduplicate (by invoiceNumber for same product)
+        const merged = [...baseInvoices];
+        queuedInvoices.forEach(queued => {
+            const isDuplicate = baseInvoices.some(base =>
+                base.invoiceNumber === queued.invoiceNumber &&
+                base.productId === queued.productId
+            );
+            if (!isDuplicate) merged.push(queued);
+        });
+
+        return merged.sort((a, b) => b.createdAt - a.createdAt);
+    }, [invoices, selectedFarmId, assignedFarmIds, selectedDate, isAdmin, isRegistration, user?.id, user?.fullName, user?.role]);
 
     const handleDeleteStat = async (stat: DailyStatistic) => {
         const confirmed = await confirm({
@@ -377,8 +462,8 @@ const RecentRecords: React.FC = () => {
     return (
         <div className="pb-24 h-full flex flex-col">
             <div className={`p-4 rounded-2xl shadow-sm border mb-4 sticky top-0 z-20 transition-all duration-500 ${activeTab === 'stats'
-                    ? 'bg-orange-50/80 dark:bg-orange-950/20 border-orange-100 dark:border-orange-900/30 shadow-orange-500/5'
-                    : 'bg-blue-50/80 dark:bg-blue-950/20 border-blue-100 dark:border-blue-900/30 shadow-blue-500/5'
+                ? 'bg-orange-50/80 dark:bg-orange-950/20 border-orange-100 dark:border-orange-900/30 shadow-orange-500/5'
+                : 'bg-blue-50/80 dark:bg-blue-950/20 border-blue-100 dark:border-blue-900/30 shadow-blue-500/5'
                 } backdrop-blur-md`}>
                 <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-xl mb-4">
                     <button onClick={() => setActiveTab('stats')} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 ${activeTab === 'stats' ? 'bg-white dark:bg-gray-600 text-metro-blue shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}>

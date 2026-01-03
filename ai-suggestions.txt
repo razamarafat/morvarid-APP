@@ -394,4 +394,25 @@ AI SUGGESTIONS BACKLOG - V54
   - توضیح: خروجی دسته‌ای سوابق فیلتر‌شده به صورت PDF یا CSV برای گزارش‌دهی و بایگانی.
   - اولویت: High
 
-```
+--------------------------------
+16. پیشنهادات توسط Optimistic UI Update (V3.3.0)
+--------------------------------
+- [ ] عنوان: Progress Linear for Optimistic Records
+  - دسته‌بندی: UI/UX
+  - توضیح: نمایش یک نوار پیشرفت باریک و متحرک در لبه بالایی کارت‌های در حال ارسال برای جذابیت بیشتر بصری.
+  - اولویت: Low
+
+- [ ] عنوان: Zustand Persistence for Lists
+  - دسته‌بندی: Performance/Offline
+  - توضیح: ذخیره‌سازی لیست‌های فچ شده در localStorage/IndexedDB با استفاده از persist middleware برای نمایش آنی داده‌ها هنگام لود مجدد صفحه.
+  - اولویت: High
+
+- [ ] عنوان: Generic useOptimistic Hook
+  - دسته‌بندی: Refactoring/Code Quality
+  - توضیح: انتزاع منطق Optimistic Update از استورها به یک هوک یا ابزار متمرکز برای استفاده مجدد در آمار تولید و سایر موجودیت‌ها.
+  - اولویت: Medium
+
+- [ ] عنوان: Visual Success Confirmation Animation
+  - دسته‌بندی: Creative/UX
+  - توضیح: اجرای یک انیمیشن کوتاه و جذاب (مثل ذرات رنگی یا تیک متحرک) روی کارت به محض تبدیل وضعیت از "در حال ارسال" به "ثبت شده".
+  - اولویت: Medium
