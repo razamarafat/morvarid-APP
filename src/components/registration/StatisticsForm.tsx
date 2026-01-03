@@ -32,7 +32,7 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
     const { invoices } = useInvoiceStore();
     const { addToast } = useToastStore();
     const { confirm } = useConfirm();
-    
+
     const [formsState, setFormsState] = useState<Record<string, ProductFormState>>({});
     const [expandedProductId, setExpandedProductId] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,7 +61,7 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
     const { clear: clearDraft } = useAutoSave(
         draftKey,
         formsState,
-        () => {}, // Load logic handled manually in useEffect below to merge with DB
+        () => { }, // Load logic handled manually in useEffect below to merge with DB
         1000
     );
     // -----------------------------
@@ -74,7 +74,7 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
     useEffect(() => {
         if (!selectedFarm) return;
         const newState: Record<string, ProductFormState> = {};
-        
+
         // 1. Populate from DB (Statistics Store)
         selectedFarm.productIds.forEach(pid => {
             const record = statistics.find(s => s.farmId === selectedFarmId && s.date === normalizedDate && s.productId === pid);
@@ -134,21 +134,21 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
 
             const inputVal = vals.production === '' ? 0 : Number(vals.production);
             const inputValKg = vals.productionKg === '' ? 0 : Number(vals.productionKg);
-            
+
             const prev = vals.previousBalance === '' ? 0 : Number(vals.previousBalance);
             const prevKg = vals.previousBalanceKg === '' ? 0 : Number(vals.previousBalanceKg);
 
             if (vals.production === '' && vals.productionKg === '' && vals.previousBalance === '' && vals.previousBalanceKg === '') continue;
 
             const prodName = getProductById(pid)?.name || 'محصول';
-            
+
             if (inputVal > 10000) {
                 addToast(`خطا: عدد وارد شده برای ${isMotefereghe ? 'موجودی' : 'تولید'} محصول "${prodName}" (${toPersianDigits(inputVal)}) غیرمتعارف است.`, 'error');
                 return;
             }
-            if (inputValKg > 150000) { 
-                 addToast(`خطا: وزن وارد شده برای محصول "${prodName}" (${toPersianDigits(inputValKg)}) غیرمتعارف است.`, 'error');
-                 return;
+            if (inputValKg > 150000) {
+                addToast(`خطا: وزن وارد شده برای محصول "${prodName}" (${toPersianDigits(inputValKg)}) غیرمتعارف است.`, 'error');
+                return;
             }
 
             const relevantInvoices = invoices.filter(inv => inv.farmId === selectedFarmId && inv.date === normalizedDate && inv.productId === pid);
@@ -219,31 +219,31 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
     if (!selectedFarm) return <div className="p-20 text-center font-bold text-gray-400">فارمی یافت نشد.</div>;
 
     const isMotefereghe = selectedFarm.type === FarmType.MOTEFEREGHE;
-    
+
     const inputClasses = "w-full p-3 bg-white dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 text-center font-black text-3xl text-gray-900 dark:text-white rounded-xl focus:border-metro-orange focus:ring-4 focus:ring-orange-100 dark:focus:ring-orange-900/20 outline-none h-16 transition-all shadow-sm";
 
     return (
-        <div className="max-w-4xl mx-auto pb-24"> 
+        <div className="max-w-4xl mx-auto pb-24">
             {/* UPDATED HEADER - CLEAN STYLE */}
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 mb-6 flex flex-col items-center justify-center gap-2 text-center relative overflow-hidden">
-                 <Icons.BarChart className="absolute right-4 top-1/2 -translate-y-1/2 w-32 h-32 text-metro-orange opacity-5 pointer-events-none -rotate-12" />
-                 
-                 <div className="flex items-center gap-3 mb-1 relative z-10">
+            <div className="bg-orange-50/80 dark:bg-orange-950/20 p-6 rounded-[24px] shadow-sm border border-orange-100 dark:border-orange-900/30 mb-6 flex flex-col items-center justify-center gap-2 text-center relative overflow-hidden transition-colors">
+                <Icons.BarChart className="absolute right-4 top-1/2 -translate-y-1/2 w-32 h-32 text-metro-orange opacity-5 pointer-events-none -rotate-12" />
+
+                <div className="flex items-center gap-3 mb-1 relative z-10">
                     <span className="text-gray-500 dark:text-gray-400 font-bold text-xs tracking-widest uppercase bg-gray-100 dark:bg-gray-700/50 px-3 py-1 rounded-full">
-                         {todayDayName}
+                        {todayDayName}
                     </span>
                     <div className="text-xl font-bold text-gray-400 font-sans tabular-nums tracking-wide">{currentTime}</div>
-                 </div>
-                 
-                 <div className="flex items-center gap-4 relative z-10">
-                     <h1 className="text-5xl lg:text-6xl font-black font-sans tabular-nums tracking-tighter leading-none text-gray-900 dark:text-white">
-                         {toPersianDigits(normalizedDate)}
-                     </h1>
-                 </div>
-                 
-                 <div className="mt-2 text-metro-orange font-black tracking-wide text-lg relative z-10">
+                </div>
+
+                <div className="flex items-center gap-4 relative z-10">
+                    <h1 className="text-5xl lg:text-6xl font-black font-sans tabular-nums tracking-tighter leading-none text-gray-900 dark:text-white">
+                        {toPersianDigits(normalizedDate)}
+                    </h1>
+                </div>
+
+                <div className="mt-2 text-metro-orange font-black tracking-wide text-lg relative z-10">
                     ثبت آمار تولید
-                 </div>
+                </div>
             </div>
 
             <div className="px-1 space-y-4">
@@ -263,8 +263,8 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
 
                     return (
                         <div key={pid} className={`relative bg-white dark:bg-gray-800 rounded-[20px] shadow-sm overflow-hidden border-r-[8px] transition-transform duration-200 gpu-accelerated ${isRegistered ? 'border-green-500' : 'border-red-500'}`}>
-                            <div 
-                                onClick={() => setExpandedProductId(isExpanded ? null : pid)} 
+                            <div
+                                onClick={() => setExpandedProductId(isExpanded ? null : pid)}
                                 className="p-5 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 active:bg-gray-100"
                             >
                                 <div className="flex items-center gap-4">
@@ -281,18 +281,18 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                                 </div>
                                 <Icons.ChevronDown className={`w-6 h-6 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
                             </div>
-                            
+
                             <AnimatePresence>
                                 {isExpanded && (
-                                    <motion.div 
-                                        initial={{ height: 0, opacity: 0 }} 
-                                        animate={{ height: 'auto', opacity: 1 }} 
-                                        exit={{ height: 0, opacity: 0 }} 
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
                                         transition={{ duration: 0.2, ease: "easeOut" }}
                                         className="bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700"
                                     >
                                         <div className="p-5 space-y-5">
-                                            
+
                                             {!isMotefereghe && (
                                                 <div className="flex gap-3">
                                                     <div className="flex-1 bg-red-50 dark:bg-red-900/10 p-3 rounded-xl border border-red-100 dark:border-red-900/20 text-center">
@@ -315,14 +315,14 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                                                         اطلاعات تعداد (کارتن)
                                                     </h4>
                                                     <div className={`grid gap-3 ${isMotefereghe ? 'grid-cols-1' : 'grid-cols-2'}`}>
-                                                        
+
                                                         {!isMotefereghe && (
                                                             <div>
                                                                 <label className="block text-sm font-bold mb-1.5 text-gray-400 pr-1">موجودی قبل</label>
                                                                 <input type="tel" inputMode="numeric" value={vals.previousBalance} onChange={e => handleInputChange(pid, 'previousBalance', e.target.value)} className={inputClasses} placeholder="" />
                                                             </div>
                                                         )}
-                                                        
+
                                                         <div>
                                                             <label className="block text-sm font-bold mb-1.5 text-gray-400 pr-1">
                                                                 {isMotefereghe ? 'موجودی اعلامی (روز)' : 'تولید روز'}
@@ -331,7 +331,7 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                                                         </div>
                                                     </div>
                                                 </div>
-                                                
+
                                                 {isLiq && (
                                                     <div className="space-y-3 pt-3 border-t border-dashed border-gray-200 dark:border-gray-700">
                                                         <h4 className="text-sm font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">
@@ -355,7 +355,7 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                                                     </div>
                                                 )}
                                             </div>
-                                            
+
                                             {isRegistered && (
                                                 <div className="flex items-center justify-center gap-2 text-green-700 text-base font-black bg-green-50 dark:bg-green-900/20 p-3 rounded-xl border border-green-200 dark:border-green-900/30">
                                                     <Icons.Check className="w-6 h-6" /> اطلاعات ثبت شده است

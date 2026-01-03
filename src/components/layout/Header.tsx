@@ -138,6 +138,22 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
 
             <OnlineStatusBadge />
 
+            <button
+              onClick={handleBellClick}
+              className={`hidden lg:flex p-2 rounded-full transition-colors ${permissionStatus === 'granted' ? 'text-metro-blue hover:bg-blue-50 dark:hover:bg-blue-900/20' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
+              title={permissionStatus === 'granted' ? 'مشاهده اعلان‌ها' : 'فعال‌سازی اعلان‌ها'}
+            >
+              <div className="relative">
+                {permissionStatus === 'granted' ? <Icons.Bell className="w-6 h-6 fill-current" /> : <Icons.Bell className="w-6 h-6" />}
+                {unreadCount > 0 && permissionStatus === 'granted' && (
+                  <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-gray-800"></span>
+                )}
+                {permissionStatus !== 'granted' && (
+                  <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-gray-400 rounded-full border-2 border-white dark:border-gray-800"></span>
+                )}
+              </div>
+            </button>
+
 
             {deferredPrompt && !isInstalled && (
               <button

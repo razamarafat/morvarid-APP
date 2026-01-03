@@ -377,7 +377,7 @@ export const InvoiceForm: React.FC = () => {
 
     return (
         <div className="max-w-4xl mx-auto space-y-6 lg:space-y-10 pb-20">
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden flex flex-col items-center justify-center gap-2 text-center">
+            <div className="bg-blue-50/80 dark:bg-blue-950/20 p-6 rounded-[24px] shadow-sm border border-blue-100 dark:border-blue-900/30 relative overflow-hidden flex flex-col items-center justify-center gap-2 text-center transition-colors">
                 <Icons.FileText className="absolute right-4 top-1/2 -translate-y-1/2 w-32 h-32 text-metro-blue opacity-5 pointer-events-none -rotate-12" />
 
                 <div className="flex items-center gap-3 mb-1 relative z-10">
