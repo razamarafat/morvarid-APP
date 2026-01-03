@@ -11,7 +11,7 @@ import Input from '../common/Input';
 import { Icons } from '../common/Icons';
 import { useConfirm } from '../../hooks/useConfirm';
 import { useToastStore } from '../../store/toastStore';
-import { sanitizeInput } from '../../utils/sanitizers';
+import { sanitizeString } from '../../utils/sanitizers';
 
 const farmNameRegex = /^[\u0600-\u06FF\s0-9]+$/;
 
@@ -94,7 +94,7 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
   }, [selectedType, farm, setValue]);
 
   const handleSaveProduct = () => {
-    const cleanName = sanitizeInput(newProductName);
+    const cleanName = sanitizeString(newProductName);
     if (cleanName.trim()) {
       const newProduct = addProduct({
         name: cleanName,
@@ -126,7 +126,7 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
 
     if (confirmed) {
       let result;
-      const cleanName = sanitizeInput(data.name);
+      const cleanName = sanitizeString(data.name);
 
       const payload = {
         name: cleanName,

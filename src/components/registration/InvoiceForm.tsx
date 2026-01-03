@@ -24,7 +24,7 @@ import { v4 as uuidv4 } from 'uuid';
 import Modal from '../common/Modal';
 import { useValidation } from '../../hooks/useValidation';
 import { useAutoSave } from '../../hooks/useAutoSave';
-import { sanitizeInput } from '../../utils/sanitizers';
+import { sanitizeString } from '../../utils/sanitizers';
 
 const persianLettersRegex = /^[\u0600-\u06FF\s]+$/;
 const mobileRegex = /^09\d{9}$/;
@@ -305,9 +305,9 @@ export const InvoiceForm: React.FC = () => {
         setIsSubmitting(true);
 
         // SANITIZATION
-        const cleanDriverName = sanitizeInput(globalData.driverName);
-        const cleanDescription = sanitizeInput(globalData.description);
-        const cleanPlate = sanitizeInput(globalData.plateNumber);
+        const cleanDriverName = sanitizeString(globalData.driverName || '');
+        const cleanDescription = sanitizeString(globalData.description || '');
+        const cleanPlate = sanitizeString(globalData.plateNumber || '');
 
         // Prepare bulk insert list
         const invoicesToRegister = selectedProductIds.map(pid => {
