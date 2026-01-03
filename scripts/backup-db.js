@@ -2,34 +2,76 @@ import { exec } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
-
-dotenv.config();
 
 /**
- * Database Backup Script (ESM Compatible)
- * Uses pg_dump to create a backup of the Supabase/PostgreSQL database.
+ * Database Backup Script (ESM Compatible) - V3.7.0
+ * Lightweight: Parses .env manually and validates connection string.
  */
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const backupDir = path.join(__dirname, '../backups');
+const rootDir = path.join(__dirname, '..');
+const envFiles = ['.env.local', '.env.development', '.env'];
+const backupDir = path.join(rootDir, 'backups');
+
+const envPath = envFiles.map(f => path.join(rootDir, f)).find(p => fs.existsSync(p));
+
+let dbUrl = process.env.SUPABASE_DB_URL || process.env.DATABASE_URL || process.env.DIRECT_URL;
+
+if (envPath) {
+    console.log(`🔍 Reading environment from: ${path.basename(envPath)}`);
+    try {
+        let envContent = fs.readFileSync(envPath, 'utf8');
+
+        // Handle BOM
+        if (envContent.charCodeAt(0) === 0xFEFF) {
+            envContent = envContent.slice(1);
+        }
+
+        const lines = envContent.split(/\r?\n/);
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine || trimmedLine.startsWith('#')) continue;
+
+            const [key, ...valueParts] = trimmedLine.split('=');
+            if (key && valueParts.length > 0) {
+                const k = key.trim();
+                const v = valueParts.join('=').trim().replace(/^["']|["']$/g, '');
+
+                if (['SUPABASE_DB_URL', 'DATABASE_URL', 'DIRECT_URL', 'VITE_DATABASE_URL'].includes(k)) {
+                    dbUrl = v;
+                    console.log(`✅ Found database key: ${k}`);
+                }
+            }
+        }
+    } catch (err) {
+        console.error(`⚠️ Warning: Failed to read ${envPath}: ${err.message}`);
+    }
+}
 
 // Ensure backup directory exists
 if (!fs.existsSync(backupDir)) {
     fs.mkdirSync(backupDir, { recursive: true });
 }
 
-// Database connection details from .env
-const dbUrl = process.env.SUPABASE_DB_URL || process.env.DATABASE_URL;
-
 if (!dbUrl) {
-    console.error('❌ Error: DATABASE_URL or SUPABASE_DB_URL not found in .env file.');
+    console.error('❌ Error: Database URL not found.');
     process.exit(1);
 }
 
-const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-const fileName = `backup-${timestamp}.sql`;
+// Validation: Connection string must start with postgres:// or postgresql://
+if (!dbUrl.startsWith('postgres://') && !dbUrl.startsWith('postgresql://')) {
+    console.error('❌ Error: Invalid Connection String format.');
+    console.error('   معادل "https://..." برای pg_dump مناسب نیست.');
+    console.error('   لطفاً از بخش Supabase -> Settings -> Database -> Connection string -> URI استفاده کنید.');
+    console.error(`   رشته فعلی: ${dbUrl.substring(0, 10)}...`);
+    process.exit(1);
+}
+
+const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T');
+const dateStr = timestamp[0];
+const timeStr = timestamp[1].split('Z')[0];
+const fileName = `backup-${dateStr}_${timeStr}.sql`;
 const filePath = path.join(backupDir, fileName);
 
 console.log(`🚀 Starting database backup...`);
@@ -40,18 +82,26 @@ const command = `pg_dump "${dbUrl}" > "${filePath}"`;
 
 exec(command, (error, stdout, stderr) => {
     if (error) {
-        console.error(`❌ Backup failed: ${error.message}`);
+        if (error.message.includes('not recognized')) {
+            console.error('❌ Error: pg_dump command not found.');
+            console.error('   ابزار PostgreSQL در سیستم شما نصب نیست یا در PATH قرار ندارد.');
+            console.error('   راهنما: ادمین باید PostgreSQL Client را نصب کند.');
+        } else {
+            console.error(`❌ Backup failed: ${error.message}`);
+        }
         return;
     }
-    if (stderr) {
-        console.warn(`⚠️ Warning: ${stderr}`);
+
+    if (fs.existsSync(filePath)) {
+        const stats = fs.statSync(filePath);
+        if (stats.size === 0) {
+            console.error('❌ Error: Backup file is empty. Check your credentials.');
+            fs.unlinkSync(filePath); // Delete empty file
+        } else {
+            const fileSizeInKB = (stats.size / 1024).toFixed(2);
+            console.log(`✅ Backup completed successfully!`);
+            console.log(`📄 File: ${fileName}`);
+            console.log(`⚖️ Size: ${fileSizeInKB} KB`);
+        }
     }
-
-    const stats = fs.statSync(filePath);
-    const fileSizeInBytes = stats.size;
-    const fileSizeInKB = (fileSizeInBytes / 1024).toFixed(2);
-
-    console.log(`✅ Backup completed successfully!`);
-    console.log(`📄 File: ${fileName}`);
-    console.log(`⚖️ Size: ${fileSizeInKB} KB`);
 });
