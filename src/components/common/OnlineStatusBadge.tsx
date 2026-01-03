@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Icons } from './Icons';
 import { useSyncStore, SyncItem } from '../../store/syncStore';
 import Button from './Button';
@@ -111,9 +112,9 @@ const OnlineStatusBadge: React.FC = () => {
             </button>
 
             {/* REWRITTEN MODAL OVERLAY & CONTAINER - FIXED POSITIONING */}
-            <AnimatePresence>
-                {isModalOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {isModalOpen && createPortal(
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <AnimatePresence>
                         {/* Dark Backdrop */}
                         <motion.div
                             initial={{ opacity: 0 }}
@@ -123,7 +124,7 @@ const OnlineStatusBadge: React.FC = () => {
                             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
                         />
 
-                        {/* Modal Card - Pure Flex Centering, No Absolute Positioning on the card itself */}
+                        {/* Modal Card */}
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95, y: 10 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -196,7 +197,7 @@ const OnlineStatusBadge: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Footer - Fixed at bottom of card */}
+                            {/* Footer */}
                             <div className="p-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-black/10 shrink-0 flex flex-col gap-2">
                                 {activeTab === 'queue' && queue.length > 0 && (
                                     <div className="flex gap-2">
@@ -215,9 +216,10 @@ const OnlineStatusBadge: React.FC = () => {
                                 )}
                             </div>
                         </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+                    </AnimatePresence>
+                </div>,
+                document.body
+            )}
         </>
     );
 };
