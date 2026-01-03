@@ -1,20 +1,37 @@
--- Relax invoice number uniqueness to allow multiple products per invoice
--- 1. Identify the existing unique constraint (usually named automatically by Supabase or previously set)
--- 2. Replace it with a composite constraint on (invoice_number, product_id)
+-- ROBUST SQL: Allow Multiple Products per Invoice
+-- This script dynamically finds and drops any existing unique constraint 
+-- that is ONLY on the 'invoice_number' column.
 
-DO $$ 
+DO $$
+DECLARE
+    constraint_name_var TEXT;
 BEGIN
-    -- Drop the old constraint if it exists. 
-    -- It might be named simple 'invoices_invoice_number_key' if created via dashboard or raw SQL.
+    -- 1. Search for any UNIQUE constraint that includes ONLY 'invoice_number'
+    -- This handles cases where the name is auto-generated (e.g., invoices_invoice_number_key)
+    SELECT conname INTO constraint_name_var
+    FROM pg_constraint con
+    JOIN pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = ANY(con.conkey)
+    WHERE con.contype = 'u' 
+      AND con.conrelid = 'invoices'::regclass
+      AND (SELECT count(*) FROM unnest(con.conkey)) = 1
+      AND a.attname = 'invoice_number';
+
+    IF constraint_name_var IS NOT NULL THEN
+        EXECUTE 'ALTER TABLE invoices DROP CONSTRAINT ' || constraint_name_var;
+        RAISE NOTICE 'Dropped discovered constraint: %', constraint_name_var;
+    ELSE
+        RAISE NOTICE 'No single-column unique constraint found on invoice_number.';
+    END IF;
+
+    -- 2. Explicitly drop common names just in case search logic fails in some PG environments
     ALTER TABLE invoices DROP CONSTRAINT IF EXISTS invoices_invoice_number_key;
-    
-    -- Also check for common auto-generated names just in case
     ALTER TABLE invoices DROP CONSTRAINT IF EXISTS invoices_invoice_number_unique;
 
-    -- Add the new relaxed constraint: One invoice number can have multiple products,
-    -- but the SAME product cannot be repeated for the SAME invoice number (prevents double entry).
+    -- 3. Add the new composite constraint: 
+    -- Allows same invoice number for DIFFERENT products, 
+    -- but prevents SAME PRODUCT in SAME INVOICE twice.
     IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'invoices_invoice_number_product_id_key') THEN
-        ALTER TABLE invoices 
-        ADD CONSTRAINT invoices_invoice_number_product_id_key UNIQUE (invoice_number, product_id);
+        ALTER TABLE invoices ADD CONSTRAINT invoices_invoice_number_product_id_key UNIQUE (invoice_number, product_id);
+        RAISE NOTICE 'New composite constraint added: (invoice_number, product_id)';
     END IF;
 END $$;
