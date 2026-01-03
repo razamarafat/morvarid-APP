@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Icons } from './Icons';
-import { getTodayJalali, toEnglishDigits, toPersianDigits, normalizeDate } from '../../utils/dateUtils';
+import { getTodayJalali, toEnglishDigits, toPersianDigits } from '../../utils/dateUtils';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -83,13 +83,17 @@ const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({ value, onChange, la
     testDate.setDate(testDate.getDate() - 20);
 
     for (let i = 0; i < 40; i++) {
-      const parts = formatter.formatToParts(testDate);
-      const pYear = parseInt(parts.find(p => p.type === 'year')?.value || '0');
-      const pMonth = parseInt(parts.find(p => p.type === 'month')?.value || '0');
-      const pDay = parseInt(parts.find(p => p.type === 'day')?.value || '0');
+      try {
+        const parts = formatter.formatToParts(testDate);
+        const pYear = parseInt(parts.find(p => p.type === 'year')?.value || '0');
+        const pMonth = parseInt(parts.find(p => p.type === 'month')?.value || '0');
+        const pDay = parseInt(parts.find(p => p.type === 'day')?.value || '0');
 
-      if (pYear === jy && pMonth === jm && pDay === 1) {
-        return (testDate.getDay() + 1) % 7;
+        if (pYear === jy && pMonth === jm && pDay === 1) {
+          return (testDate.getDay() + 1) % 7;
+        }
+      } catch (e) {
+        // Ignore format errors
       }
       testDate.setDate(testDate.getDate() + 1);
     }
@@ -107,15 +111,15 @@ const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({ value, onChange, la
     slots.push(i);
   }
 
-  // Modal behavior on mobile, Relative on desktop
+  // Positioning logic for Desktop (Fixed relative to viewport)
   const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
 
   const updateCoords = () => {
     if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
       setCoords({
-        top: rect.bottom + window.scrollY,
-        left: rect.left + window.scrollX,
+        top: rect.bottom, // Viewport-relative
+        left: rect.left,   // Viewport-relative
         width: rect.width
       });
     }
@@ -134,21 +138,23 @@ const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({ value, onChange, la
   }, [isOpen]);
 
   const renderPicker = () => (
-    <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 lg:p-0 lg:block lg:absolute lg:inset-auto">
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center lg:block lg:pointer-events-none">
+      {/* Mobile Backdrop */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm lg:hidden"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm lg:hidden pointer-events-auto"
         onClick={() => setIsOpen(false)}
       />
 
+      {/* Picker Card */}
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 10 }}
-        className="relative w-full max-w-[320px] lg:max-w-none bg-[#FDFBFF] dark:bg-[#1E1E1E] rounded-[24px] shadow-2xl p-4 border border-gray-100 dark:border-white/5 lg:absolute lg:mt-2 lg:w-72"
-        style={window.innerWidth >= 1024 ? { top: coords.top, left: coords.left } : {}}
+        className="relative lg:fixed w-[320px] bg-[#FDFBFF] dark:bg-[#1E1E1E] rounded-[24px] shadow-2xl p-4 border border-gray-100 dark:border-white/5 pointer-events-auto"
+        style={window.innerWidth >= 1024 ? { top: coords.top + 8, left: coords.left } : {}}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-4 px-1">
@@ -206,7 +212,10 @@ const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({ value, onChange, la
     <div className="relative" ref={containerRef}>
       {label && <label className="block text-sm lg:text-base font-bold mb-1.5 text-gray-700 dark:text-gray-300 px-1">{label}</label>}
       <div
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
         className={`flex items-center justify-between w-full p-3.5 border-2 rounded-xl bg-white dark:bg-gray-800 dark:text-white cursor-pointer transition-all shadow-sm ${isOpen ? 'border-violet-500 ring-2 ring-violet-500/10' : 'border-gray-200 dark:border-gray-700 hover:border-violet-400'
           }`}
       >
