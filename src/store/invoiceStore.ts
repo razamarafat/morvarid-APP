@@ -145,7 +145,33 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
             return { success: true, error: 'ذخیره در صف آفلاین' };
         }
 
-        // 2. Get User from Store (Memory) instead of async Supabase call
+        // 2. Pre-insertion Duplicate Check (Business Logic)
+        // We allow multiple products for the same invoice number IN THE SAME SUBMISSION (this batch).
+        // But we reject if the invoice number already exists in DB from a PREVIOUS submission.
+        try {
+            const invoiceNumbers = Array.from(new Set(invoicesList.map(inv => inv.invoiceNumber)));
+            const { data: existing, error: checkError } = await supabase
+                .from('invoices')
+                .select('invoice_number, farm_id')
+                .in('invoice_number', invoiceNumbers)
+                .limit(1);
+
+            if (checkError) throw checkError;
+
+            if (existing && existing.length > 0) {
+                return {
+                    success: false,
+                    error: `رمز حواله ${existing[0].invoice_number} قبلاً ثبت شده است و امکان افزودن قلم جدید به سندی که ثبت نهایی شده وجود ندارد.`
+                };
+            }
+        } catch (e) {
+            console.error("[InvoiceStore] Duplicate Check Failed:", e);
+            // We continue if it's a minor error, but uniqueness constraint in DB will still catch it if it's a true duplicate product.
+            // However, network errors here should probably be handled.
+            if (isNetworkError(e)) return { success: false, error: 'خطا در بررسی سوابق (عدم دسترسی به شبکه)' };
+        }
+
+        // 3. Get User from Store (Memory) instead of async Supabase call
         const currentUser = useAuthStore.getState().user;
         if (!currentUser) return { success: false, error: "کاربر لاگین نیست." };
 
