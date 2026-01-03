@@ -376,7 +376,10 @@ const RecentRecords: React.FC = () => {
 
     return (
         <div className="pb-24 h-full flex flex-col">
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 mb-4 sticky top-0 z-20">
+            <div className={`p-4 rounded-2xl shadow-sm border mb-4 sticky top-0 z-20 transition-all duration-500 ${activeTab === 'stats'
+                    ? 'bg-orange-50/80 dark:bg-orange-950/20 border-orange-100 dark:border-orange-900/30 shadow-orange-500/5'
+                    : 'bg-blue-50/80 dark:bg-blue-950/20 border-blue-100 dark:border-blue-900/30 shadow-blue-500/5'
+                } backdrop-blur-md`}>
                 <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-xl mb-4">
                     <button onClick={() => setActiveTab('stats')} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 ${activeTab === 'stats' ? 'bg-white dark:bg-gray-600 text-metro-blue shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}>
                         <Icons.BarChart className="w-4 h-4" /> آمار تولید
