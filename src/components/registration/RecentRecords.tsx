@@ -140,8 +140,7 @@ const RecentRecords: React.FC = () => {
     // Default to Today only
     const defaultStartDate = useMemo(() => getTodayJalali(), []);
 
-    const [startDate, setStartDate] = useState(defaultStartDate);
-    const [endDate, setEndDate] = useState(getTodayJalali());
+    const [selectedDate, setSelectedDate] = useState(getTodayJalali());
     const [activeTab, setActiveTab] = useState<'stats' | 'invoices'>('stats');
 
     // Role-based logic
@@ -178,12 +177,11 @@ const RecentRecords: React.FC = () => {
     });
 
     const filteredStats = useMemo(() => {
-        const start = normalizeDate(startDate);
-        const end = normalizeDate(endDate);
+        const normalized = normalizeDate(selectedDate);
 
         return statistics.filter(s => {
-            // 1. Date Range Filter
-            if (!isDateInRange(s.date, start, end)) return false;
+            // 1. Single Date Filter
+            if (normalizeDate(s.date) !== normalized) return false;
 
             // 2. Farm Filter
             if (selectedFarmId !== 'all') {
@@ -207,7 +205,7 @@ const RecentRecords: React.FC = () => {
             const pB = products.find(p => p.id === b.productId) || { name: '' };
             return compareProducts(pA, pB);
         });
-    }, [statistics, selectedFarmId, assignedFarmIds, startDate, endDate, isAdmin, isRegistration, user?.id, products]);
+    }, [statistics, selectedFarmId, assignedFarmIds, selectedDate, isAdmin, isRegistration, user?.id, products]);
 
     const getProductName = (id: string) => products.find(p => p.id === id)?.name || 'محصول نامشخص';
     const isLiquid = (pid: string) => getProductName(pid).includes('مایع');
@@ -221,12 +219,11 @@ const RecentRecords: React.FC = () => {
     };
 
     const filteredInvoices = useMemo(() => {
-        const start = normalizeDate(startDate);
-        const end = normalizeDate(endDate);
+        const normalized = normalizeDate(selectedDate);
 
         return invoices.filter(i => {
-            // 1. Date Range Filter
-            if (!isDateInRange(i.date, start, end)) return false;
+            // 1. Single Date Filter
+            if (normalizeDate(i.date) !== normalized) return false;
 
             // 2. Farm Filter
             if (selectedFarmId !== 'all') {
@@ -243,7 +240,7 @@ const RecentRecords: React.FC = () => {
             // Sort by created_at desc (newest first)
             return b.createdAt - a.createdAt;
         });
-    }, [invoices, selectedFarmId, assignedFarmIds, startDate, endDate, isAdmin, isRegistration, user?.id]);
+    }, [invoices, selectedFarmId, assignedFarmIds, selectedDate, isAdmin, isRegistration, user?.id]);
 
     const handleDeleteStat = async (stat: DailyStatistic) => {
         const confirmed = await confirm({
@@ -388,9 +385,8 @@ const RecentRecords: React.FC = () => {
                         <Icons.FileText className="w-4 h-4" /> حواله‌ها
                     </button>
                 </div>
-                <div className="flex gap-2 mb-4">
-                    <div className="flex-1"><JalaliDatePicker value={startDate} onChange={setStartDate} label="از تاریخ" /></div>
-                    <div className="flex-1"><JalaliDatePicker value={endDate} onChange={setEndDate} label="تا تاریخ" /></div>
+                <div className="flex justify-center mb-4">
+                    <div className="w-full max-w-xs"><JalaliDatePicker value={selectedDate} onChange={setSelectedDate} label="انتخاب تاریخ" /></div>
                 </div>
 
                 {availableFarms.length > 1 && (
@@ -523,7 +519,7 @@ const RecentRecords: React.FC = () => {
                     <p>User ID: {user?.id}</p>
                     <p>Assigned Farms: {assignedFarmIds.length} ({assignedFarmIds.join(', ')})</p>
                     <p>Selected Farm: {selectedFarmId}</p>
-                    <p>Date Range: {startDate} to {endDate}</p>
+                    <p>Selected Date: {selectedDate}</p>
                     <p>Stats in Store: {statistics.length}</p>
                     <p>Invoices in Store: {invoices.length}</p>
                     <p>Products Loaded: {products.length}</p>
