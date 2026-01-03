@@ -8,7 +8,7 @@ export const toEnglishDigits = (str: string): string => {
   return result;
 };
 
-export const toPersianDigits = (str: string | number): string => {
+export const toPersianDigits = (str: string | number | null | undefined): string => {
   if (str === undefined || str === null) return '';
   const s = String(str);
   return s.replace(/[0-9]/g, (d) => String.fromCharCode(d.charCodeAt(0) + 1728));
