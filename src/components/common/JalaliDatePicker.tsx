@@ -99,7 +99,7 @@ const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({ value, onChange, la
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
   const startDay = getStartDayOfMonth(currentYear, currentMonth);
 
-  const slots = [];
+  const slots: (number | null)[] = [];
   for (let i = 0; i < startDay; i++) {
     slots.push(null);
   }
