@@ -15,6 +15,7 @@ import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import { APP_VERSION } from '../constants';
 import { SKETCH_BASE64 } from '../components/common/SketchAsset';
+import { fetchDailyQuote, getQuoteDateKey, Quote } from '../services/quoteService';
 
 const loginSchema = z.object({
   username: z.string().min(1, "نام کاربری الزامی است"),
@@ -81,8 +82,9 @@ const LoginPage: React.FC = () => {
   const [currentDayName, setCurrentDayName] = useState(getTodayDayName());
   const [showPassword, setShowPassword] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [quoteLoading, setQuoteLoading] = useState(true);
 
-  const quote = useMemo(() => {
+  const dailyQuote = useMemo(() => {
       const dayOfYear = getDayOfYear();
       const index = dayOfYear % DAILY_QUOTES.length;
       return DAILY_QUOTES[index];
@@ -221,10 +223,10 @@ const LoginPage: React.FC = () => {
               <div className="hidden md:flex flex-col items-center mt-16 max-w-md text-center z-20 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-500">
                   <div className="w-24 h-1 bg-gradient-to-r from-transparent via-orange-400 to-transparent rounded-full mb-6 opacity-70"></div>
                   <p className="text-lg font-bold text-gray-700 dark:text-gray-200 italic leading-relaxed px-4">
-                      "{quote.text}"
+                      "{dailyQuote.text}"
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 font-medium">
-                      - {quote.author}
+                      - {dailyQuote.author}
                   </p>
               </div>
 
@@ -296,7 +298,7 @@ const LoginPage: React.FC = () => {
                             disabled={isBlocked}
                             className="w-full h-12 md:h-16 text-lg md:text-xl font-black bg-gradient-to-r from-orange-500 to-amber-500 hover:to-amber-600 shadow-xl shadow-orange-200/50 dark:shadow-none rounded-2xl transition-all active:scale-95 text-white mt-2"
                           >
-                              {isBlocked ? `مسدود (${Math.ceil((blockUntil! - Date.now()) / 1000)}s)` : 'ورود به حساب'}
+                              {isSubmitting || isRedirecting ? 'در حال پردازش' : (isBlocked ? `مسدود (${Math.ceil((blockUntil! - Date.now()) / 1000)}s)` : 'ورود به حساب')}
                           </Button>
                       </form>
                   </div>
@@ -309,10 +311,10 @@ const LoginPage: React.FC = () => {
                   {/* Daily Quote - MOBILE ONLY */}
                   <div className="mt-4 md:hidden text-center px-4 relative z-20 pb-4">
                       <p className="text-sm font-bold text-gray-700 dark:text-gray-300 italic leading-relaxed drop-shadow-sm">
-                          "{quote.text}"
+                          "{dailyQuote.text}"
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-500 mt-2 font-medium">
-                          - {quote.author}
+                          - {dailyQuote.author}
                       </p>
                   </div>
               </div>

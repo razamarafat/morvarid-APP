@@ -67,7 +67,6 @@ const MobileNav: React.FC<MobileNavProps> = ({ onNavigate, currentView }) => {
             <NavItem icon={Icons.BarChart} label="آمار" view="farm-stats" isActive={currentView === 'farm-stats'} />
             {notifButton}
             <NavItem icon={Icons.FileText} label="حواله‌ها" view="invoices" isActive={currentView === 'invoices'} />
-            <NavItem icon={Icons.Refresh} label="سوابق" view="recent" isActive={currentView === 'recent'} />
             <NavItem icon={Icons.FileText} label="گزارشات" view="reports" isActive={currentView === 'reports'} />
           </>
         );

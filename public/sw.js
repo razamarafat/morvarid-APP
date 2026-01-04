@@ -1,95 +1,98 @@
-importScripts('https://storage.googleapis.com/workbox-cdn/releases/6.4.1/workbox-sw.js');
+// Service Worker with Local Workbox (No CDN Dependencies)
+import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
+import { registerRoute } from 'workbox-routing';
+import { StaleWhileRevalidate, CacheFirst, NetworkFirst } from 'workbox-strategies';
+import { ExpirationPlugin } from 'workbox-expiration';
+import { BackgroundSyncPlugin } from 'workbox-background-sync';
 
 const CACHE_PREFIX = 'morvarid';
-const CURRENT_CACHE_ID = 'v3.2.1'; // Change this manually or via build script to invalidate caches
+const CURRENT_CACHE_ID = 'v3.9.4'; // Synced with package.json
 const STATIC_CACHE = `${CACHE_PREFIX}-static-${CURRENT_CACHE_ID}`;
 const IMAGE_CACHE = `${CACHE_PREFIX}-images-${CURRENT_CACHE_ID}`;
 const API_CACHE = `${CACHE_PREFIX}-api-${CURRENT_CACHE_ID}`;
 
-if (workbox) {
-  console.log(`[SW] Workbox loaded`);
+console.log(`[SW] Workbox loaded locally (${CURRENT_CACHE_ID})`);
 
-  // 1. Force SW to activate immediately
-  workbox.core.skipWaiting();
-  workbox.core.clientsClaim();
+// 1. Precache and cleanup
+cleanupOutdatedCaches();
 
-  // 2. Cleanup Old Caches on Activate
-  self.addEventListener('activate', (event) => {
-    event.waitUntil(
-      caches.keys().then((cacheNames) => {
-        return Promise.all(
-          cacheNames.map((cacheName) => {
-            // Delete caches that start with our prefix but don't match current ID
-            if (cacheName.startsWith(CACHE_PREFIX) && !cacheName.includes(CURRENT_CACHE_ID)) {
-              console.log('[SW] Deleting old cache:', cacheName);
-              return caches.delete(cacheName);
-            }
-          })
-        );
-      })
-    );
-  });
+// 2. Force SW to activate immediately
+self.skipWaiting();
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
 
-  // 3. Cache Strategy: StaleWhileRevalidate for Hashed Assets (Vite)
-  // These files have hashes in filenames, so we could theoretically use CacheFirst,
-  // but StaleWhileRevalidate ensures we never get stuck with a broken version if hash collision happens (rare).
-  workbox.routing.registerRoute(
-    ({ request, url }) => url.pathname.includes('/assets/'),
-    new workbox.strategies.StaleWhileRevalidate({
-      cacheName: STATIC_CACHE,
-    })
-  );
-
-  // 4. Cache Strategy: StaleWhileRevalidate for Core Files (HTML, Root JS)
-  workbox.routing.registerRoute(
-    ({ request }) => request.destination === 'script' ||
-      request.destination === 'style' ||
-      request.destination === 'document',
-    new workbox.strategies.StaleWhileRevalidate({
-      cacheName: STATIC_CACHE,
-    })
-  );
-
-  // 5. Cache Strategy: CacheFirst for Images/Fonts
-  workbox.routing.registerRoute(
-    ({ request }) => request.destination === 'image' ||
-      request.destination === 'font',
-    new workbox.strategies.CacheFirst({
-      cacheName: IMAGE_CACHE,
-      plugins: [
-        new workbox.expiration.ExpirationPlugin({
-          maxEntries: 60,
-          maxAgeSeconds: 30 * 24 * 60 * 60, // 30 Days
-        }),
-      ],
-    })
-  );
-
-  // 6. Cache Strategy: NetworkFirst for API (Supabase)
-  workbox.routing.registerRoute(
-    ({ url }) => url.pathname.includes('/rest/v1/'),
-    new workbox.strategies.NetworkFirst({
-      cacheName: API_CACHE,
-      bgSync: {
-        name: 'sync-queue',
-        options: {
-          maxRetentionTime: 24 * 60 // Retry for 24 Hours
-        }
-      },
-      plugins: [
-        {
-          // Custom plugin to handle 4xx/5xx errors
-          fetchDidFail: async ({ request }) => {
-            console.error('[SW] API Request Failed', request.url);
+// 3. Manual cache cleanup for versioned caches
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          // Delete caches that start with our prefix but don't match current ID
+          if (cacheName.startsWith(CACHE_PREFIX) && !cacheName.includes(CURRENT_CACHE_ID)) {
+            console.log('[SW] Deleting old cache:', cacheName);
+            return caches.delete(cacheName);
           }
-        }
-      ]
+        })
+      );
     })
   );
+});
 
-} else {
-  console.log(`[SW] Workbox failed to load`);
-}
+// 4. Cache Strategy: StaleWhileRevalidate for Hashed Assets (Vite)
+registerRoute(
+  ({ request, url }) => url.pathname.includes('/assets/'),
+  new StaleWhileRevalidate({
+    cacheName: STATIC_CACHE,
+  })
+);
+
+// 5. Cache Strategy: StaleWhileRevalidate for Core Files (HTML, Root JS)
+registerRoute(
+  ({ request }) => request.destination === 'script' ||
+    request.destination === 'style' ||
+    request.destination === 'document',
+  new StaleWhileRevalidate({
+    cacheName: STATIC_CACHE,
+  })
+);
+
+// 6. Cache Strategy: CacheFirst for Images/Fonts
+registerRoute(
+  ({ request }) => request.destination === 'image' ||
+    request.destination === 'font',
+  new CacheFirst({
+    cacheName: IMAGE_CACHE,
+    plugins: [
+      new ExpirationPlugin({
+        maxEntries: 60,
+        maxAgeSeconds: 30 * 24 * 60 * 60, // 30 Days
+      }),
+    ],
+  })
+);
+
+// 7. Background Sync Plugin for offline requests
+const bgSyncPlugin = new BackgroundSyncPlugin('sync-queue', {
+  maxRetentionTime: 24 * 60 // Retry for 24 Hours
+});
+
+// 8. Cache Strategy: NetworkFirst for API (Supabase)
+registerRoute(
+  ({ url }) => url.pathname.includes('/rest/v1/'),
+  new NetworkFirst({
+    cacheName: API_CACHE,
+    plugins: [
+      bgSyncPlugin,
+      {
+        // Custom plugin to handle 4xx/5xx errors
+        fetchDidFail: async ({ request }) => {
+          console.error('[SW] API Request Failed', request.url);
+        }
+      }
+    ]
+  })
+);
 
 // --- PUSH NOTIFICATION HANDLER (Keep existing logic) ---
 self.addEventListener('push', (event) => {

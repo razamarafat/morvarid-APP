@@ -92,7 +92,6 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
             <button onClick={() => handleNavClick('dashboard')} className={btnClass}><Icons.Desk className="w-4 h-4" /> میز کار</button>
             <button onClick={() => handleNavClick('farm-stats')} className={btnClass}><Icons.BarChart className="w-4 h-4" /> آمار فارم</button>
             <button onClick={() => handleNavClick('invoices')} className={btnClass}><Icons.FileText className="w-4 h-4" /> لیست حواله</button>
-            <button onClick={() => handleNavClick('recent')} className={btnClass}><Icons.Refresh className="w-4 h-4" /> سوابق</button>
             <button onClick={() => handleNavClick('reports')} className={btnClass}><Icons.FileText className="w-4 h-4" /> گزارشات</button>
           </>
         );

@@ -2,7 +2,10 @@ export const signRequest = async (
     method: string,
     url: string,
     body: any = null,
-    secret: string = 'MORVARID_SECURE_FIX_2026' // Should be in .env in production
+    secret: string = import.meta.env.VITE_API_SECRET || (() => {
+        console.error('🔥 CRITICAL: VITE_API_SECRET not found in environment variables!');
+        throw new Error('API Secret not configured. Check your .env file.');
+    })()
 ): Promise<{ signature: string; timestamp: string; nonce: string }> => {
     const timestamp = Date.now().toString();
     const nonce = Math.random().toString(36).substring(2, 15);
