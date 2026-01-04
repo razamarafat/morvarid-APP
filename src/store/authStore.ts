@@ -22,7 +22,10 @@ const STORAGE_KEYS = {
 };
 
 // --- Secure Crypto Utilities ---
-const CRYPTO_KEY_MATERIAL = 'MorvaridSecureKey2024!'; // Salt for key derivation
+const CRYPTO_KEY_MATERIAL = import.meta.env.VITE_CRYPTO_SALT || (() => {
+    console.error('🔥 CRITICAL: VITE_CRYPTO_SALT not configured!');
+    throw new Error('Crypto salt missing - check .env configuration');
+})(); // Secure salt from environment
 
 const getCryptoKey = async (): Promise<CryptoKey> => {
     const encoder = new TextEncoder();

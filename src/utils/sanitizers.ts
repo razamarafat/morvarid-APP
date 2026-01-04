@@ -6,12 +6,23 @@ export const sanitizeString = (str: string): string => {
   if (typeof str !== 'string') return str;
   if (!str) return '';
 
-  // Remove HTML tags to prevent XSS
-  // This approach is lightweight and avoids common tag-based injection
-  let sanitized = str.replace(/<[^>]*>?/gm, '');
-
-  // Optional: Convert common dangerous characters to their entities if needed
-  // For this lightweight implementation, removing tags is the primary goal
+  // Enhanced XSS Protection
+  let sanitized = str
+    // Remove HTML tags
+    .replace(/<[^>]*>?/gm, '')
+    // Remove script tags and content
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    // Remove javascript: and data: URLs
+    .replace(/javascript:/gi, '')
+    .replace(/data:(?!image\/(png|jpe?g|gif|webp|svg))/gi, '')
+    // Remove on* event handlers
+    .replace(/\s*on\w+\s*=\s*["'][^"']*["']/gi, '')
+    // Convert dangerous characters
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/\//g, '&#x2F;');
 
   return sanitized.trim();
 };

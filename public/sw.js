@@ -129,9 +129,14 @@ registerRoute(
 // --- VAPID KEYS CONFIGURATION ---
 // Note: These will be loaded from environment variables in production
 const VAPID_CONFIG = {
-  publicKey: self.registration?.scope?.includes('localhost') 
-    ? 'BEl62iUYYITuFrzdREhiGl2_VQVdnWLmCF7nOEYBxrG_eI7QnKOPEZRGl4VhPtYrHLfhcK9Qn8KgWJlrP8k4oYQ' // Development key
-    : undefined, // Will use VITE_VAPID_PUBLIC_KEY in production
+  publicKey: (() => {
+    // Remove hardcoded development key for security
+    try {
+      return new URL(self.location.href).searchParams.get('vapid') || null;
+    } catch {
+      return null; // Production will use environment variable
+    }
+  })(),
   
   // Get from environment or use fallback
   getPublicKey: () => {
