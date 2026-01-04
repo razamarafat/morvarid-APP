@@ -88,7 +88,7 @@ export class QuantumSafeEncryption {
       const encrypted = await crypto.subtle.encrypt(
         {
           name: 'AES-GCM',
-          iv: nonce,
+          iv: nonce as BufferSource,
           additionalData: associatedData,
           tagLength: 128 // 16 bytes authentication tag
         },
@@ -107,7 +107,7 @@ export class QuantumSafeEncryption {
       });
 
       return {
-        encrypted: ciphertext,
+        encrypted: ciphertext.buffer as ArrayBuffer,
         nonce,
         salt,
         authTag,
@@ -156,7 +156,7 @@ export class QuantumSafeEncryption {
       const decrypted = await crypto.subtle.decrypt(
         {
           name: 'AES-GCM',
-          iv: nonce,
+          iv: nonce as BufferSource,
           additionalData: associatedData,
           tagLength: 128
         },
@@ -215,7 +215,7 @@ export class QuantumSafeEncryption {
     return crypto.subtle.deriveKey(
       {
         name: 'PBKDF2',
-        salt: salt,
+        salt: salt as BufferSource,
         iterations: iterations,
         hash: 'SHA-384' // Stronger hash
       },
@@ -369,7 +369,7 @@ export class EnterpriseAuth {
 
     } catch (error) {
       log.error('Secure login error', error);
-      await this.logSecurityEvent('LOGIN_ERROR', { username, error: error.message });
+      await this.logSecurityEvent('LOGIN_ERROR', { username, error: (error as Error).message });
       return { success: false, reason: 'System error' };
     }
   }

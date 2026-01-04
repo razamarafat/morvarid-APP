@@ -109,7 +109,7 @@ export class RequestSanitizer {
       violations.push(...arrayResult.violations);
       riskScore += arrayResult.riskScore;
     } else if (value && typeof value === 'object') {
-      const objectResult = this.sanitizeRequest(value, context);
+      const objectResult = this.sanitizeRequest(value, context as 'form' | 'api' | 'upload');
       sanitized = objectResult.sanitized;
       violations.push(...objectResult.violations.map(v => `${key}.${v}`));
       riskScore += objectResult.riskScore;

@@ -2,7 +2,7 @@
 import {
   Sun, Moon, Fingerprint, Eye, EyeOff, LogOut, Menu, User, Users, Home, BarChart2, FileText, Bell,
   ChevronDown, ChevronLeft, ChevronRight, HardDrive, TestTube2, AlertCircle, RefreshCw, X, Check, Search, Plus, Trash2, Edit,
-  Calendar, Lock, Download, Globe, List, Clock, Hexagon, ArrowLeft, LayoutDashboard
+  Calendar, Lock, Download, Globe, List, Clock, Hexagon, ArrowLeft, LayoutDashboard, AlertTriangle, Shield
 } from 'lucide-react';
 
 export const Icons = {
@@ -32,6 +32,7 @@ export const Icons = {
   Search,
   Plus,
   Trash: Trash2,
+  Trash2,
   Edit,
   Calendar,
   Lock,
@@ -40,5 +41,7 @@ export const Icons = {
   List,
   Clock,
   Hexagon,
-  ArrowLeft
+  ArrowLeft,
+  AlertTriangle,
+  Shield
 };

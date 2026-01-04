@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Modal } from '../common/Modal';
-import { Button } from '../common/Button';
-import { Input } from '../common/Input';
+import Modal from '../common/Modal';
+import Button from '../common/Button';
+import Input from '../common/Input';
 import { Icons } from '../common/Icons';
 import { useToastStore } from '../../store/toastStore';
 import { supabase } from '../../lib/supabase';
@@ -10,6 +10,14 @@ interface SystemResetModalProps {
     isOpen: boolean;
     onClose: () => void;
     onResetComplete: () => void;
+}
+
+interface ModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    title: string;
+    size?: 'sm' | 'md' | 'lg' | 'xl';
+    children: React.ReactNode;
 }
 
 type ResetStep = 'warning' | 'credentials' | 'confirmation' | 'processing' | 'complete';
@@ -168,7 +176,7 @@ const SystemResetModal: React.FC<SystemResetModalProps> = ({ isOpen, onClose, on
                                 label="نام کاربری مدیر اصلی"
                                 type="text"
                                 value={credentials.username}
-                                onChange={(e) => setCredentials(prev => ({ ...prev, username: e.target.value }))}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCredentials(prev => ({ ...prev, username: e.target.value }))}
                                 placeholder="نام کاربری..."
                                 className="text-center"
                                 autoComplete="off"
@@ -178,11 +186,11 @@ const SystemResetModal: React.FC<SystemResetModalProps> = ({ isOpen, onClose, on
                                 label="رمز عبور مدیر اصلی"
                                 type="password"
                                 value={credentials.password}
-                                onChange={(e) => setCredentials(prev => ({ ...prev, password: e.target.value }))}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCredentials(prev => ({ ...prev, password: e.target.value }))}
                                 placeholder="رمز عبور..."
                                 className="text-center"
                                 autoComplete="off"
-                                onKeyDown={(e) => e.key === 'Enter' && handleCredentialSubmit()}
+                                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleCredentialSubmit()}
                             />
                         </div>
 
@@ -228,11 +236,11 @@ const SystemResetModal: React.FC<SystemResetModalProps> = ({ isOpen, onClose, on
                             label="متن تایید"
                             type="text"
                             value={confirmationText}
-                            onChange={(e) => setConfirmationText(e.target.value)}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfirmationText(e.target.value)}
                             placeholder="RESET_COMPLETE_SYSTEM"
                             className="text-center font-mono"
                             autoComplete="off"
-                            onKeyDown={(e) => e.key === 'Enter' && handleFinalReset()}
+                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleFinalReset()}
                         />
 
                         <div className="flex space-x-3 space-x-reverse">
@@ -298,7 +306,6 @@ const SystemResetModal: React.FC<SystemResetModalProps> = ({ isOpen, onClose, on
             isOpen={isOpen} 
             onClose={step === 'processing' ? () => {} : onClose} 
             title="خام کردن کل برنامه"
-            size="md"
         >
             {renderStepContent()}
         </Modal>
