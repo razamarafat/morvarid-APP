@@ -104,8 +104,14 @@ const BackupManagement: React.FC = () => {
     }
   };
 
-  const handleRestoreWarning = () => {
-      alert('بازگردانی نسخه پشتیبان در نسخه وب غیرفعال است. جهت بازگردانی اطلاعات لطفا فایل JSON را به تیم فنی تحویل دهید تا از طریق پنل دیتابیس اعمال شود.');
+  const handleRestoreWarning = async () => {
+      await confirm({
+        title: 'بازگردانی نسخه پشتیبان',
+        message: 'بازگردانی نسخه پشتیبان در نسخه وب غیرفعال است. جهت بازگردانی اطلاعات لطفا فایل JSON را به تیم فنی تحویل دهید تا از طریق پنل دیتابیس اعمال شود.',
+        confirmText: 'متوجه شدم',
+        cancelText: '',
+        type: 'info'
+      });
   };
 
   return (

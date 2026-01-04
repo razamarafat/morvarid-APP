@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useUserStore } from '../../store/userStore';
 import { useAuthStore } from '../../store/authStore';
+import { useToastStore } from '../../store/toastStore';
 import { User, UserRole } from '../../types';
 import { Icons } from '../common/Icons';
 import Button from '../common/Button';
@@ -11,6 +12,7 @@ import { useConfirm } from '../../hooks/useConfirm';
 const UserManagement: React.FC = () => {
   const { users, deleteUser } = useUserStore();
   const { user: currentUser } = useAuthStore();
+  const { addToast } = useToastStore();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -29,7 +31,7 @@ const UserManagement: React.FC = () => {
   const handleDelete = async (userToDelete: User) => {
     // Prevent self-deletion
     if (currentUser?.id === userToDelete.id) {
-        alert('شما نمی‌توانید حساب کاربری خودتان را حذف کنید.');
+        addToast('شما نمی‌توانید حساب کاربری خودتان را حذف کنید.', 'warning');
         return;
     }
 

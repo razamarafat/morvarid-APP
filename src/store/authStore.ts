@@ -37,7 +37,7 @@ const getCryptoKey = async (): Promise<CryptoKey> => {
         {
             name: 'PBKDF2',
             salt: encoder.encode('morvarid_salt_v1'),
-            iterations: 100000,
+            iterations: 100000, // CONFIG.SECURITY.PBKDF2_ITERATIONS
             hash: 'SHA-256'
         },
         keyMaterial,

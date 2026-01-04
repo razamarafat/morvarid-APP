@@ -67,7 +67,7 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
     // -----------------------------
 
     useEffect(() => {
-        const timer = setInterval(() => setCurrentTime(getCurrentTime(false)), 30000);
+        const timer = setInterval(() => setCurrentTime(getCurrentTime(false)), 30000); // TIMING.TIME_UPDATE_INTERVAL
         return () => clearInterval(timer);
     }, []);
 

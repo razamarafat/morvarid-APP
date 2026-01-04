@@ -11,7 +11,7 @@ const SplashPage: React.FC = () => {
   const [minTimeElapsed, setMinTimeElapsed] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const timer = setTimeout(() => { // TIMING.SPLASH_SCREEN_DURATION
       setMinTimeElapsed(true);
     }, 2500);
     return () => clearTimeout(timer);

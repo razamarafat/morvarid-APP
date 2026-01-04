@@ -65,8 +65,8 @@ registerRoute(
     cacheName: IMAGE_CACHE,
     plugins: [
       new ExpirationPlugin({
-        maxEntries: 60,
-        maxAgeSeconds: 30 * 24 * 60 * 60, // 30 Days
+        maxEntries: 60, // CONFIG.STORAGE.MAX_CACHE_ENTRIES
+        maxAgeSeconds: 30 * 24 * 60 * 60, // CONFIG.STORAGE.CACHE_MAX_AGE
       }),
     ],
   })
@@ -77,26 +77,85 @@ const bgSyncPlugin = new BackgroundSyncPlugin('sync-queue', {
   maxRetentionTime: 24 * 60 // Retry for 24 Hours
 });
 
-// 8. Cache Strategy: NetworkFirst for API (Supabase)
+// 8. Enhanced Cache Strategy for Supabase API
 registerRoute(
-  ({ url }) => url.pathname.includes('/rest/v1/'),
-  new NetworkFirst({
+  ({ url }) => url.hostname.includes('supabase.co') && url.pathname.includes('/rest/v1/'),
+  new StaleWhileRevalidate({
     cacheName: API_CACHE,
     plugins: [
       bgSyncPlugin,
+      new ExpirationPlugin({
+        maxEntries: 100,
+        maxAgeSeconds: 5 * 60, // 5 minutes for API responses
+        purgeOnQuotaError: true
+      }),
       {
-        // Custom plugin to handle 4xx/5xx errors
+        // Enhanced error handling
         fetchDidFail: async ({ request }) => {
-          console.error('[SW] API Request Failed', request.url);
+          console.error('[SW] API Request Failed:', request.url);
+        },
+        requestWillFetch: async ({ request }) => {
+          console.log('[SW] API Request:', request.url);
+          return request;
+        },
+        fetchDidSucceed: async ({ response }) => {
+          // Only cache successful responses
+          if (response.status >= 200 && response.status < 400) {
+            console.log('[SW] API Response cached:', response.url);
+          }
+          return response;
         }
       }
     ]
   })
 );
 
-// --- PUSH NOTIFICATION HANDLER (Keep existing logic) ---
+// 9. Separate strategy for auth endpoints (always network first)
+registerRoute(
+  ({ url }) => url.hostname.includes('supabase.co') && url.pathname.includes('/auth/'),
+  new NetworkFirst({
+    cacheName: `${CACHE_PREFIX}-auth-${CURRENT_CACHE_ID}`,
+    networkTimeoutSeconds: 3,
+    plugins: [
+      {
+        fetchDidFail: async ({ request }) => {
+          console.error('[SW] Auth Request Failed:', request.url);
+        }
+      }
+    ]
+  })
+);
+
+// --- VAPID KEYS CONFIGURATION ---
+// Note: These will be loaded from environment variables in production
+const VAPID_CONFIG = {
+  publicKey: self.registration?.scope?.includes('localhost') 
+    ? 'BEl62iUYYITuFrzdREhiGl2_VQVdnWLmCF7nOEYBxrG_eI7QnKOPEZRGl4VhPtYrHLfhcK9Qn8KgWJlrP8k4oYQ' // Development key
+    : undefined, // Will use VITE_VAPID_PUBLIC_KEY in production
+  
+  // Get from environment or use fallback
+  getPublicKey: () => {
+    if (typeof importScripts !== 'undefined') {
+      // In Service Worker context, we need to get from registration
+      return self.registration?.pushManager?.getSubscription()
+        .then(sub => sub?.options?.applicationServerKey)
+        .catch(() => null);
+    }
+    return null;
+  }
+};
+
+// --- ENHANCED PUSH NOTIFICATION HANDLER ---
 self.addEventListener('push', (event) => {
-  let data = { title: 'سامانه مروارید', body: 'پیام جدید', url: '/' };
+  let data = { 
+    title: 'سامانه مروارید', 
+    body: 'پیام جدید', 
+    url: '/',
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-192x192.png',
+    tag: 'morvarid-notification'
+  };
+  
   try {
     if (event.data) {
       const json = event.data.json();
@@ -108,13 +167,32 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.body,
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/icon-192x192.png',
+    icon: data.icon || '/icons/icon-192x192.png',
+    badge: data.badge || '/icons/icon-192x192.png',
     dir: 'rtl',
     lang: 'fa-IR',
     renotify: true,
-    tag: 'system-alert',
-    data: { url: data.url }
+    tag: data.tag || 'morvarid-notification',
+    requireInteraction: false,
+    silent: false,
+    timestamp: Date.now(),
+    data: { 
+      url: data.url,
+      action: data.action,
+      timestamp: Date.now()
+    },
+    actions: [
+      {
+        action: 'open',
+        title: 'مشاهده',
+        icon: '/icons/icon-192x192.png'
+      },
+      {
+        action: 'dismiss',
+        title: 'بستن',
+        icon: '/icons/icon-192x192.png'
+      }
+    ]
   };
 
   event.waitUntil(self.registration.showNotification(data.title, options));

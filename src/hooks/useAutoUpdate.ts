@@ -8,7 +8,7 @@ export const useAutoUpdate = () => {
   const { sendLocalNotification } = useAlertStore();
   const initialBuildDate = useRef<number | null>(null);
   
-  // Check frequently (every 30 seconds)
+  // Check frequently (every 30 seconds) - TIMING.VERSION_CHECK_INTERVAL
   const CHECK_INTERVAL = 30 * 1000; 
 
   useEffect(() => {

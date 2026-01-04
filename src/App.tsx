@@ -16,11 +16,13 @@ import { useLogStore } from './store/logStore';
 import ConfirmDialog from './components/common/ConfirmDialog';
 import ToastContainer from './components/common/Toast';
 import PermissionModal from './components/common/PermissionModal';
+import RouteErrorBoundary from './components/common/RouteErrorBoundary';
 import { useAutoUpdate } from './hooks/useAutoUpdate';
 import { useOfflineSync } from './hooks/useOfflineSync';
 import { useAutoTheme } from './hooks/useAutoTheme';
 import { useDoubleBackExit } from './hooks/useDoubleBackExit';
 import { APP_VERSION } from './constants';
+import { log } from './utils/logger';
 
 // --- Lazy Load Pages ---
 // These components will be split into separate chunks
@@ -53,8 +55,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error("Uncaught error:", error);
-    console.error("Component Stack:", errorInfo.componentStack);
+    log.error("Uncaught application error", { error, componentStack: errorInfo.componentStack });
 
     // Global Error Logging to Supabase
     useLogStore.getState().logError(error, errorInfo.componentStack || undefined);
@@ -142,7 +143,7 @@ function App() {
 
   useEffect(() => {
     // Restore Point Marker: v2.9.56 - Lazy Loading Implemented
-    console.log(`[App] Initializing Morvarid System v${APP_VERSION}`);
+    log.info(`Initializing Morvarid System v${APP_VERSION}`);
     document.documentElement.classList.remove('light', 'dark');
     document.documentElement.classList.add(theme);
   }, [theme]);
@@ -230,9 +231,27 @@ function App() {
           <Routes>
             <Route path="/" element={<SplashPage />} />
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/admin" element={<ProtectedRoute allowedRoles={[UserRole.ADMIN]}><AdminDashboard /></ProtectedRoute>} />
-            <Route path="/registration" element={<ProtectedRoute allowedRoles={[UserRole.REGISTRATION]}><RegistrationDashboard /></ProtectedRoute>} />
-            <Route path="/sales" element={<ProtectedRoute allowedRoles={[UserRole.SALES]}><SalesDashboard /></ProtectedRoute>} />
+            <Route path="/admin" element={
+              <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+                <RouteErrorBoundary routeName="پنل مدیریت">
+                  <AdminDashboard />
+                </RouteErrorBoundary>
+              </ProtectedRoute>
+            } />
+            <Route path="/registration" element={
+              <ProtectedRoute allowedRoles={[UserRole.REGISTRATION]}>
+                <RouteErrorBoundary routeName="مدیریت ثبت آمار">
+                  <RegistrationDashboard />
+                </RouteErrorBoundary>
+              </ProtectedRoute>
+            } />
+            <Route path="/sales" element={
+              <ProtectedRoute allowedRoles={[UserRole.SALES]}>
+                <RouteErrorBoundary routeName="مدیریت فروش">
+                  <SalesDashboard />
+                </RouteErrorBoundary>
+              </ProtectedRoute>
+            } />
             <Route path="/home" element={<HomeRedirect />} />
             <Route path="*" element={<Navigate to="/home" />} />
           </Routes>

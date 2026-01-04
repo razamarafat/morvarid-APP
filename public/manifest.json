@@ -49,26 +49,58 @@
   ],
   "shortcuts": [
     {
-      "name": "ثبت آمار",
+      "name": "ثبت آمار تولید",
       "short_name": "آمار",
-      "description": "ورود به بخش ثبت آمار تولید",
-      "url": "/#/registration?view=stats",
+      "description": "دسترسی سریع به ثبت آمار روزانه تولید",
+      "url": "/#/registration",
       "icons": [
         {
           "src": "/icons/icon-192x192.png",
-          "sizes": "192x192"
+          "sizes": "192x192",
+          "type": "image/png",
+          "purpose": "any"
         }
       ]
     },
     {
-      "name": "فروش",
+      "name": "صدور حواله",
+      "short_name": "حواله",
+      "description": "ایجاد و مدیریت حواله‌های فروش",
+      "url": "/#/registration?tab=invoice",
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192",
+          "type": "image/png",
+          "purpose": "any"
+        }
+      ]
+    },
+    {
+      "name": "میز کار فروش",
       "short_name": "فروش",
-      "description": "مشاهده میز کار فروش",
+      "description": "مدیریت و بررسی فروش‌های انجام شده",
       "url": "/#/sales",
       "icons": [
         {
           "src": "/icons/icon-192x192.png",
-          "sizes": "192x192"
+          "sizes": "192x192",
+          "type": "image/png",
+          "purpose": "any"
+        }
+      ]
+    },
+    {
+      "name": "پنل مدیریت",
+      "short_name": "مدیریت",
+      "description": "دسترسی به پنل مدیریت سیستم",
+      "url": "/#/admin",
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192",
+          "type": "image/png",
+          "purpose": "any"
         }
       ]
     }

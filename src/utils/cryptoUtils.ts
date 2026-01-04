@@ -19,7 +19,7 @@ const deriveKey = async (password: string, salt: Uint8Array): Promise<CryptoKey>
         {
             name: 'PBKDF2',
             salt: new Uint8Array(salt),
-            iterations: 100000,
+            iterations: 100000, // CONFIG.SECURITY.PBKDF2_ITERATIONS
             hash: 'SHA-256'
         },
         keyMaterial,

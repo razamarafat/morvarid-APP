@@ -1,5 +1,6 @@
 
-import './index.css'; // Vital: Tailwind CSS Import (Moved to top for priority)
+import './index.css';
+import { log } from './utils/logger'; // Vital: Tailwind CSS Import (Moved to top for priority)
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
@@ -14,12 +15,12 @@ const manifestLink = document.querySelector('link[rel="manifest"]');
 if (!manifestLink) {
     console.error('[PWA Error] Manifest file (manifest.json) NOT found in HTML head.');
 } else {
-    console.log('[PWA Info] Manifest linked:', manifestLink.getAttribute('href'));
+    log.debug('PWA Info - Manifest linked:', manifestLink.getAttribute('href'));
 }
 
 window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
-    console.log('[PWA] beforeinstallprompt captured!');
+    log.info('PWA - beforeinstallprompt captured!');
     usePwaStore.getState().setDeferredPrompt(e);
 });
 
@@ -44,10 +45,10 @@ if ('serviceWorker' in navigator) {
             const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
 
             if (registration.installing) {
-                console.log('[PWA] Service Worker installing...');
+                log.info('PWA - Service Worker installing...');
                 usePwaStore.getState().logEvent('Service Worker installing...');
             } else if (registration.active) {
-                console.log('[PWA] Service Worker active!');
+                log.success('PWA - Service Worker active!');
                 usePwaStore.getState().logEvent('Service Worker active');
 
                 // --- PERIODIC SYNC REGISTRATION ---
@@ -64,7 +65,7 @@ if ('serviceWorker' in navigator) {
                             await registration.periodicSync.register('sync-data', {
                                 minInterval: 12 * 60 * 60 * 1000,
                             });
-                            console.log('[PWA] Periodic Sync registered successfully');
+                            log.success('PWA - Periodic Sync registered successfully');
                         } else {
                             console.warn('[PWA] Periodic Sync permission denied');
                         }

@@ -1,5 +1,6 @@
 
 import { useEffect, useRef, useCallback } from 'react';
+import { TIMING } from '../constants/config';
 
 /**
  * A generic hook to auto-save state to localStorage with debouncing.
@@ -7,14 +8,14 @@ import { useEffect, useRef, useCallback } from 'react';
  * @param key The localStorage key to save data under.
  * @param data The data object to save.
  * @param onLoad Callback function that runs once on mount if data exists in storage.
- * @param delay Debounce delay in milliseconds (default 1000ms).
+ * @param delay Debounce delay in milliseconds (default from CONFIG.TIMING.AUTO_SAVE_DEBOUNCE).
  * @param condition Optional boolean to control if saving should occur (default true).
  */
 export function useAutoSave<T>(
     key: string,
     data: T,
     onLoad: (savedData: T) => void,
-    delay: number = 1000,
+    delay: number = TIMING.AUTO_SAVE_DEBOUNCE,
     condition: boolean = true
 ) {
     const isLoaded = useRef(false);
