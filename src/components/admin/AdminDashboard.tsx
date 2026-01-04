@@ -7,6 +7,7 @@ import UserManagement from '../admin/UserManagement';
 import FeatureTesting from '../admin/FeatureTesting';
 import Reports from '../admin/Reports';
 import DeviceManagement from '../admin/DeviceManagement'; // Imported
+import SystemResetModal from '../admin/SystemResetModal';
 import MetroTile from '../common/MetroTile';
 import { usePwaStore } from '../../store/pwaStore';
 import { useToastStore } from '../../store/toastStore';
@@ -100,6 +101,8 @@ const AdminDashboard: React.FC = () => {
 const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNavigate }) => {
     const { deferredPrompt, setDeferredPrompt, isInstalled } = usePwaStore();
     const { addToast } = useToastStore();
+    const [showResetModal, setShowResetModal] = useState(false);
+    const { user } = useAuthStore();
 
     const handleInstallClick = async () => {
         if (isInstalled) {
@@ -127,20 +130,57 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
 
     const pwaConfig = getPwaTileConfig();
 
+    // System Reset Handler
+    const handleResetClick = () => {
+        if (user?.role !== 'ADMIN') {
+            addToast('دسترسی محدود: فقط مدیران اصلی', 'error');
+            return;
+        }
+        setShowResetModal(true);
+    };
+
+    const handleResetComplete = () => {
+        setShowResetModal(false);
+        addToast('سیستم بازنشانی شد - بازآوری صفحه...', 'success');
+    };
+
     return (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 animate-in slide-in-from-bottom-5 duration-500">
-            <MetroTile title="مدیریت فارم‌ها" icon={Icons.Home} color="bg-metro-green" size="wide" onClick={() => onNavigate('farms')} />
-            <MetroTile title="مدیریت کاربران" icon={Icons.Users} color="bg-metro-purple" size="wide" onClick={() => onNavigate('users')} />
-            <MetroTile title="گزارشات" icon={Icons.FileText} color="bg-metro-blue" size="medium" onClick={() => onNavigate('reports')} />
-            {/* Added Device Manager Tile */}
-            <MetroTile title="دستگاه‌ها" icon={Icons.Globe} color="bg-indigo-600" size="medium" onClick={() => onNavigate('devices')} />
-            <MetroTile title="سنجش فنی" icon={Icons.TestTube} color="bg-metro-teal" size="medium" onClick={() => onNavigate('testing')} />
-            <MetroTile title={pwaConfig.title} icon={pwaConfig.icon} color={pwaConfig.color} size="medium" count={pwaConfig.count} onClick={pwaConfig.click} className={!isInstalled && !deferredPrompt ? "opacity-80 grayscale-[0.3]" : ""} />
-            <div className="col-span-1 h-32 sm:h-40 bg-gray-700 p-4 flex items-end justify-center relative overflow-hidden">
-                <div className="absolute inset-0 bg-black/20 pattern-grid-lg opacity-20" />
-                <span className="text-white text-xs opacity-50 relative z-10 font-mono">v{APP_VERSION}</span>
+        <>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 animate-in slide-in-from-bottom-5 duration-500">
+                <MetroTile title="مدیریت فارم‌ها" icon={Icons.Home} color="bg-metro-green" size="wide" onClick={() => onNavigate('farms')} />
+                <MetroTile title="مدیریت کاربران" icon={Icons.Users} color="bg-metro-purple" size="wide" onClick={() => onNavigate('users')} />
+                <MetroTile title="گزارشات" icon={Icons.FileText} color="bg-metro-blue" size="medium" onClick={() => onNavigate('reports')} />
+                {/* Added Device Manager Tile */}
+                <MetroTile title="دستگاه‌ها" icon={Icons.Globe} color="bg-indigo-600" size="medium" onClick={() => onNavigate('devices')} />
+                <MetroTile title="سنجش فنی" icon={Icons.TestTube} color="bg-metro-teal" size="medium" onClick={() => onNavigate('testing')} />
+                <MetroTile title={pwaConfig.title} icon={pwaConfig.icon} color={pwaConfig.color} size="medium" count={pwaConfig.count} onClick={pwaConfig.click} className={!isInstalled && !deferredPrompt ? "opacity-80 grayscale-[0.3]" : ""} />
+                
+                {/* System Reset Tile - Only for ADMIN users */}
+                {user?.role === 'ADMIN' && (
+                    <MetroTile 
+                        title="خام کردن کل برنامه" 
+                        icon={Icons.Trash2} 
+                        color="bg-red-700 hover:bg-red-600" 
+                        size="medium" 
+                        count="RESET" 
+                        onClick={handleResetClick}
+                        className="border border-red-500/50 animate-pulse hover:animate-none"
+                    />
+                )}
+                
+                <div className="col-span-1 h-32 sm:h-40 bg-gray-700 p-4 flex items-end justify-center relative overflow-hidden">
+                    <div className="absolute inset-0 bg-black/20 pattern-grid-lg opacity-20" />
+                    <span className="text-white text-xs opacity-50 relative z-10 font-mono">v{APP_VERSION}</span>
+                </div>
             </div>
-        </div>
+
+            {/* System Reset Modal */}
+            <SystemResetModal 
+                isOpen={showResetModal}
+                onClose={() => setShowResetModal(false)}
+                onResetComplete={handleResetComplete}
+            />
+        </>
     );
 };
 
