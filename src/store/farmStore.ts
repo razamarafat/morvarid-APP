@@ -98,25 +98,69 @@ export const useFarmStore = create<FarmState>((set, get) => ({
   },
 
   addFarm: async (farm) => {
-    const { error } = await supabase.from('farms').insert({ name: farm.name, type: farm.type, is_active: farm.isActive, product_ids: farm.productIds });
-    if (error) return { success: false, error: error.message };
-    get().fetchFarms();
-    return { success: true };
+    try {
+      // Ensure productIds is properly formatted as an array
+      const productIds = Array.isArray(farm.productIds) ? farm.productIds : [];
+      
+      const { error } = await supabase.from('farms').insert({
+        name: farm.name,
+        type: farm.type,
+        is_active: farm.isActive,
+        product_ids: productIds
+      });
+      
+      if (error) {
+        console.error('Add Farm Error:', error);
+        return { success: false, error: error.message };
+      }
+      
+      get().fetchFarms();
+      return { success: true };
+    } catch (error: any) {
+      console.error('Unexpected error in addFarm:', error);
+      return { success: false, error: error.message || 'خطای ناشناخته' };
+    }
   },
 
   updateFarm: async (farm) => {
-    const { error } = await supabase.from('farms').update({ name: farm.name, type: farm.type, is_active: farm.isActive, product_ids: farm.productIds }).eq('id', farm.id);
-    if (error) return { success: false, error: error.message };
-    get().fetchFarms();
-    return { success: true };
+    try {
+      // Ensure productIds is properly formatted as an array
+      const productIds = Array.isArray(farm.productIds) ? farm.productIds : [];
+      
+      const { error } = await supabase.from('farms').update({
+        name: farm.name,
+        type: farm.type,
+        is_active: farm.isActive,
+        product_ids: productIds
+      }).eq('id', farm.id);
+      
+      if (error) {
+        console.error('Update Farm Error:', error);
+        return { success: false, error: error.message };
+      }
+      
+      get().fetchFarms();
+      return { success: true };
+    } catch (error: any) {
+      console.error('Unexpected error in updateFarm:', error);
+      return { success: false, error: error.message || 'خطای ناشناخته' };
+    }
   },
 
   deleteFarm: async (farmId) => {
     // Soft Delete: Just mark as inactive to preserve data relations
-    const { error } = await supabase.from('farms').update({ is_active: false }).eq('id', farmId);
-    if (error) return { success: false, error: error.message };
-    get().fetchFarms();
-    return { success: true };
+    try {
+      const { error } = await supabase.from('farms').update({ is_active: false }).eq('id', farmId);
+      if (error) {
+        console.error('Delete Farm Error:', error);
+        return { success: false, error: error.message };
+      }
+      get().fetchFarms();
+      return { success: true };
+    } catch (error: any) {
+      console.error('Unexpected error in deleteFarm:', error);
+      return { success: false, error: error.message || 'خطای ناشناخته' };
+    }
   },
 
   addProduct: async (productData) => {
