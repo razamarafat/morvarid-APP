@@ -283,9 +283,9 @@ const LoginPage: React.FC = () => {
 
                           <div className="flex items-center justify-between py-1">
                               <label className="flex items-center gap-2 cursor-pointer">
-                                  <input 
-                                      type="checkbox" 
-                                      {...register('rememberMe')} 
+                                  <input
+                                      type="checkbox"
+                                      {...register('rememberMe')}
                                       className="w-4 h-4 text-orange-500 rounded focus:ring-orange-500 border-gray-300"
                                   />
                                   <span className="text-sm font-bold text-gray-600 dark:text-gray-300 select-none">مرا به خاطر بسپار</span>
