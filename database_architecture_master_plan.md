@@ -261,6 +261,16 @@ BEGIN
             created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
             updated_at TIMESTAMPTZ DEFAULT now() NOT NULL
         );
+    ELSE
+        -- Add updated_at column if it doesn't exist
+        IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = 'public'
+            AND table_name = 'farms'
+            AND column_name = 'updated_at'
+        ) THEN
+            ALTER TABLE public.farms ADD COLUMN updated_at TIMESTAMPTZ DEFAULT now() NOT NULL;
+        END IF;
     END IF;
 END $$;
 
@@ -404,12 +414,52 @@ DO $$
 BEGIN
     -- Check if products table has updated_at (it might be missing)
     IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'products' 
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public'
+        AND table_name = 'products'
         AND column_name = 'updated_at'
     ) THEN
         ALTER TABLE public.products ADD COLUMN updated_at TIMESTAMPTZ DEFAULT now() NOT NULL;
+    END IF;
+    
+    -- Check if farms table has updated_at (it might be missing)
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public'
+        AND table_name = 'farms'
+        AND column_name = 'updated_at'
+    ) THEN
+        ALTER TABLE public.farms ADD COLUMN updated_at TIMESTAMPTZ DEFAULT now() NOT NULL;
+    END IF;
+    
+    -- Check if daily_statistics table has updated_at (it might be missing)
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public'
+        AND table_name = 'daily_statistics'
+        AND column_name = 'updated_at'
+    ) THEN
+        ALTER TABLE public.daily_statistics ADD COLUMN updated_at TIMESTAMPTZ DEFAULT now() NOT NULL;
+    END IF;
+    
+    -- Check if invoices table has updated_at (it might be missing)
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public'
+        AND table_name = 'invoices'
+        AND column_name = 'updated_at'
+    ) THEN
+        ALTER TABLE public.invoices ADD COLUMN updated_at TIMESTAMPTZ DEFAULT now() NOT NULL;
+    END IF;
+    
+    -- Check if push_subscriptions table has updated_at (it might be missing)
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public'
+        AND table_name = 'push_subscriptions'
+        AND column_name = 'updated_at'
+    ) THEN
+        ALTER TABLE public.push_subscriptions ADD COLUMN updated_at TIMESTAMPTZ DEFAULT now() NOT NULL;
     END IF;
 END $$;
 
@@ -671,19 +721,22 @@ LEFT JOIN public.profiles pr ON ds.created_by = pr.id
 WHERE f.is_active = true;
 
 -- PHASE 11: Create function to handle new user
-CREATE OR REPLACE FUNCTION public.handle_new_user() 
+CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO public.profiles (id, username, full_name, role)
+    INSERT INTO public.profiles (id, username, full_name, role, created_at, updated_at)
     VALUES (
-        new.id, 
-        COALESCE(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1)), 
-        new.raw_user_meta_data->>'full_name', 
-        COALESCE((new.raw_user_meta_data->>'role')::user_role, 'REGISTRATION'::user_role)
+        new.id,
+        COALESCE(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1)),
+        new.raw_user_meta_data->>'full_name',
+        COALESCE((new.raw_user_meta_data->>'role')::user_role, 'REGISTRATION'::user_role),
+        now(),
+        now()
     )
     ON CONFLICT (id) DO UPDATE SET
         username = EXCLUDED.username,
-        full_name = EXCLUDED.full_name;
+        full_name = EXCLUDED.full_name,
+        updated_at = now();
     RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

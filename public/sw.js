@@ -1,9 +1,11 @@
-// Service Worker with Local Workbox (No CDN Dependencies)
-import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
-import { registerRoute } from 'workbox-routing';
-import { StaleWhileRevalidate, CacheFirst, NetworkFirst } from 'workbox-strategies';
-import { ExpirationPlugin } from 'workbox-expiration';
-import { BackgroundSyncPlugin } from 'workbox-background-sync';
+// Service Worker with Workbox CDN
+importScripts('https://storage.googleapis.com/workbox-cdn/releases/7.0.0/workbox-sw.js');
+
+const { precacheAndRoute, cleanupOutdatedCaches } = workbox.precaching;
+const { registerRoute } = workbox.routing;
+const { StaleWhileRevalidate, CacheFirst, NetworkFirst } = workbox.strategies;
+const { ExpirationPlugin } = workbox.expiration;
+const { BackgroundSyncPlugin } = workbox.backgroundSync;
 
 const CACHE_PREFIX = 'morvarid';
 const CURRENT_CACHE_ID = 'v3.9.4'; // Synced with package.json
@@ -130,29 +132,48 @@ registerRoute(
 
 // --- VAPID KEYS CONFIGURATION ---
 // Note: These will be loaded from environment variables in production
-const VAPID_CONFIG = {
-  publicKey: (() => {
-    // Remove hardcoded development key for security
-    try {
-      return new URL(self.location.href).searchParams.get('vapid') || null;
-    } catch {
-      return null; // Production will use environment variable
+const VAPID_PUBLIC_KEY = self.__WB_MANIFEST ? null : null; // Will be replaced during build if configured
+
+// Function to get VAPID key from environment or URL parameter
+const getVapidPublicKey = () => {
+  try {
+    // Check for VAPID key in environment (would be injected during build)
+    if (typeof VAPID_PUBLIC_KEY !== 'undefined' && VAPID_PUBLIC_KEY) {
+      return VAPID_PUBLIC_KEY;
     }
-  })(),
-  
-  // Get from environment or use fallback
-  getPublicKey: () => {
-    if (typeof importScripts !== 'undefined') {
-      // In Service Worker context, we need to get from registration
-      return self.registration?.pushManager?.getSubscription()
-        .then(sub => sub?.options?.applicationServerKey)
-        .catch(() => null);
-    }
-    return null;
+    // Fallback to URL parameter for development
+    return new URL(self.location.href).searchParams.get('vapid') || null;
+  } catch {
+    return null; // Production will use environment variable
   }
 };
 
+// Check if VAPID key is available and log appropriately
+const vapidKey = getVapidPublicKey();
+if (!vapidKey) {
+  console.warn('[Alert] VAPID Public Key not configured. Push notifications will not work properly. Set VAPID_PUBLIC_KEY in your environment variables.');
+} else {
+  console.log('[SW] VAPID Public Key configured successfully');
+}
+
 // --- ENHANCED PUSH NOTIFICATION HANDLER ---
+
+// Function to validate and convert VAPID key
+function urlB64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 self.addEventListener('push', (event) => {
   let data = { 
     title: 'سامانه مروارید', 
