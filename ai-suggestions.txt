@@ -241,7 +241,7 @@ AI SUGGESTIONS BACKLOG - V55
   - اولویت: High
 
 - [ ] عنوان: Integration Tests for Offline Sync
-  - دسته‌بendi: Testing/PWA
+  - دسته‌بندی: Testing/PWA
   - توضیح: شبیه‌سازی وضعیت آفلاین و تست انتقال رکوردها بین حالت‌های `isPending` و `isOffline` برای اطمینان از صحت همگام‌سازی.
   - اولویت: High
 
@@ -249,3 +249,26 @@ AI SUGGESTIONS BACKLOG - V55
   - دسته‌بندی: Testing/Performance
   - توضیح: Add performance tests for the FarmFormModal product list to measure rendering time with a large dataset after implementing virtualization.
   - اولویت: Medium
+
+--------------------------------
+9. پیشنهادات جدید (New Suggestions)
+--------------------------------
+- [ ] عنوان: Vite Build Analyzer
+  - دسته‌بندی: DevOps/Performance
+  - توضیح: Add `rollup-plugin-visualizer` to the Vite config to generate a visual report of the bundle composition. This helps identify large dependencies and optimize bundle sizes.
+  - اولویت: Medium
+
+- [ ] عنوان: Automated Dependency Updates
+  - دسته‌بندی: DevOps/Maintenance
+  - توضیح: Set up a GitHub Action with `dependabot` or a similar tool to automatically create pull requests for dependency updates, keeping the project secure and up-to-date.
+  - اولویت: Medium
+
+- [ ] عنوان: Error Boundary Component
+  - دسته‌بندی: Code Quality/UX
+  - توضیح: Create a generic `ErrorBoundary` component that can wrap different parts of the application (like routes or complex components) to catch JavaScript errors, log them, and display a user-friendly fallback UI instead of a white screen of death. The current `RouteErrorBoundary` can be generalized.
+  - اولویت: High
+
+- [ ] عنوان: Gamification: User Streaks
+  - دسته‌بندی: Creative/UX
+  - توضیح: Introduce a "streak" feature to encourage daily usage. A user maintains a streak for consecutive days they log in or register an invoice. Display the streak count prominently on the dashboard with a small fire icon.
+  - اولویت: Low

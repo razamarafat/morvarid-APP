@@ -80,46 +80,13 @@ export default defineConfig(({ mode }) => {
       sourcemap: false,
       chunkSizeWarningLimit: 1000,
       rollupOptions: {
-        output: {
-          manualChunks(id) {
-            // Role-based chunking for better code splitting
-            if (id.includes('pages/AdminDashboard') || id.includes('components/admin/')) {
-              return 'admin-chunk';
-            }
-            if (id.includes('pages/RegistrationDashboard') || id.includes('components/registration/')) {
-              return 'registration-chunk';
-            }
-            if (id.includes('pages/SalesDashboard') || id.includes('components/sales/')) {
-              return 'sales-chunk';
-            }
-
-            // Library-based chunking
-            if (id.includes('node_modules')) {
-              // Skip React and React DOM from custom chunking to let Vite handle them properly
-              // This prevents the "Cannot set properties of undefined (setting 'Children')" error
-              if (id.includes('react') || id.includes('react-dom')) {
-                return; // Don't chunk React separately, let it go to default
-              }
-              if (id.includes('react-router') || id.includes('react-hook-form')) {
-                return 'vendor-router';
-              }
-              if (id.includes('zustand') || id.includes('date-fns') || id.includes('uuid') || id.includes('zod')) {
-                return 'vendor-utils';
-              }
-              if (id.includes('framer-motion') || id.includes('lucide-react') || id.includes('react-window')) {
-                return 'vendor-ui';
-              }
-              if (id.includes('@supabase')) {
-                return 'vendor-supabase';
-              }
-              if (id.includes('exceljs')) {
-                return 'vendor-exceljs';
-              }
-              // Other node_modules go to vendor chunk
-              return 'vendor';
-            }
-          }
-        }
+        // NOTE: manualChunks is intentionally disabled.
+        // The previous complex chunking strategy was causing a runtime error:
+        // "Uncaught TypeError: Cannot set properties of undefined (setting 'Children')"
+        // This error typically happens when React and ReactDOM are split into
+        // separate chunks incorrectly, breaking React's context.
+        // By removing this, we rely on Vite's default chunking strategy,
+        // which is robust enough to handle this correctly.
       }
     },
   };
