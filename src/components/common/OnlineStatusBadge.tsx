@@ -8,7 +8,7 @@ import { useConfirm } from '../../hooks/useConfirm';
 import { useToastStore } from '../../store/toastStore';
 import { toPersianDigits } from '../../utils/dateUtils';
 import { useOfflineSync } from '../../hooks/useOfflineSync';
-import { AnimatePresenceWrapper as AnimatePresence, MotionDivWrapper as MotionDiv } from './MotionWrapper';
+import { AnimatePresence, motion } from 'framer-motion';
 
 const OnlineStatusBadge: React.FC = () => {
     const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -116,7 +116,7 @@ const OnlineStatusBadge: React.FC = () => {
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <AnimatePresence>
                         {/* Dark Backdrop */}
-                        <MotionDiv
+                        <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
@@ -125,7 +125,7 @@ const OnlineStatusBadge: React.FC = () => {
                         />
 
                         {/* Modal Card */}
-                        <MotionDiv
+                        <motion.div
                             initial={{ opacity: 0, scale: 0.95, y: 10 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -215,7 +215,7 @@ const OnlineStatusBadge: React.FC = () => {
                                     </Button>
                                 )}
                             </div>
-                        </MotionDiv>
+                        </motion.div>
                     </AnimatePresence>
                 </div>,
                 document.body

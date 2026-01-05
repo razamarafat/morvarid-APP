@@ -10,7 +10,7 @@ import { Icons } from '../components/common/Icons';
 import { UserRole } from '../types';
 import { getTodayJalaliPersian, getCurrentTime, getTodayDayName, toPersianDigits } from '../utils/dateUtils';
 import ThemeToggle from '../components/common/ThemeToggle';
-import { MotionDivWrapper as motion } from '../components/common/MotionWrapper';
+import { motion } from 'framer-motion';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import { APP_VERSION } from '../constants';
