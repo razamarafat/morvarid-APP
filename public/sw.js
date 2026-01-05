@@ -276,8 +276,8 @@ try {
 
 // Check if VAPID key is available and log appropriately
 if (!VAPID_PUBLIC_KEY) {
-  console.warn('[Alert] VAPID Public Key not configured. Push notifications will not work properly.');
-  console.info('[Info] To enable push notifications, set VITE_VAPID_PUBLIC_KEY in your environment variables.');
+  // Only log as debug to reduce console noise - push notifications are optional
+  console.debug('[SW] VAPID Public Key not configured - push notifications disabled (optional feature)');
 } else {
   console.log('[SW] VAPID Public Key configured successfully');
 }
