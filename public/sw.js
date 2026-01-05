@@ -167,17 +167,24 @@ async function handleCoreFiles(request) {
   const cache = await caches.open(STATIC_CACHE);
   const cached = await cache.match(request);
 
-  const fetchPromise = fetch(request).then(response => {
+  const fetchPromise = fetch(request).then(async response => {
     if (response.ok) {
-      // Create new Response with custom header instead of modifying existing one
-      const headers = new Headers(response.headers);
+      // Clone the response to avoid body locking issues
+      const responseClone = response.clone();
+      const headers = new Headers(responseClone.headers);
       headers.set('sw-cached-date', Date.now().toString());
-      const responseToCache = new Response(response.body, {
-        status: response.status,
-        statusText: response.statusText,
+      
+      // Create a new response for caching
+      const responseToCache = new Response(responseClone.body, {
+        status: responseClone.status,
+        statusText: responseClone.statusText,
         headers: headers
       });
-      cache.put(request, responseToCache);
+      
+      // Cache the cloned response asynchronously
+      cache.put(request, responseToCache).catch(err => {
+        console.debug('[SW] Cache storage failed:', err);
+      });
     }
     return response;
   }).catch(error => {
