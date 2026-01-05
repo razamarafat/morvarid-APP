@@ -81,12 +81,38 @@ export default defineConfig(({ mode }) => {
       chunkSizeWarningLimit: 1000,
       rollupOptions: {
         output: {
-          manualChunks: {
-            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-            'vendor-utils': ['zustand', 'date-fns', 'date-fns-jalali', 'uuid', 'zod', 'react-hook-form'],
-            'vendor-ui': ['framer-motion', 'lucide-react', 'react-window', 'react-virtualized-auto-sizer'],
-            'vendor-supabase': ['@supabase/supabase-js'],
-            'vendor-exceljs': ['exceljs'],
+          manualChunks(id) {
+            // Role-based chunking for better code splitting
+            if (id.includes('pages/AdminDashboard') || id.includes('components/admin/')) {
+              return 'admin-chunk';
+            }
+            if (id.includes('pages/RegistrationDashboard') || id.includes('components/registration/')) {
+              return 'registration-chunk';
+            }
+            if (id.includes('pages/SalesDashboard') || id.includes('components/sales/')) {
+              return 'sales-chunk';
+            }
+
+            // Library-based chunking
+            if (id.includes('node_modules')) {
+              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+                return 'vendor-react';
+              }
+              if (id.includes('zustand') || id.includes('date-fns') || id.includes('uuid') || id.includes('zod') || id.includes('react-hook-form')) {
+                return 'vendor-utils';
+              }
+              if (id.includes('framer-motion') || id.includes('lucide-react') || id.includes('react-window')) {
+                return 'vendor-ui';
+              }
+              if (id.includes('@supabase')) {
+                return 'vendor-supabase';
+              }
+              if (id.includes('exceljs')) {
+                return 'vendor-exceljs';
+              }
+              // Other node_modules go to vendor chunk
+              return 'vendor';
+            }
           }
         }
       }

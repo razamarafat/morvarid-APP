@@ -8,7 +8,7 @@ import { useConfirm } from '../../hooks/useConfirm';
 import { useToastStore } from '../../store/toastStore';
 import { toPersianDigits } from '../../utils/dateUtils';
 import { useOfflineSync } from '../../hooks/useOfflineSync';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresenceWrapper as AnimatePresence, MotionDivWrapper as motion } from './MotionWrapper';
 
 const OnlineStatusBadge: React.FC = () => {
     const [isOnline, setIsOnline] = useState(navigator.onLine);

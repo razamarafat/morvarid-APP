@@ -1,9 +1,11 @@
-import ExcelJS from 'exceljs';
 import { getTodayJalali } from './dateUtils';
 
 export const exportTableToExcel = async (data: any[], fileNamePrefix: string): Promise<boolean> => {
     try {
         if (!data || data.length === 0) return false;
+
+        // Dynamically import ExcelJS only when needed
+        const ExcelJS = (await import('exceljs')).default;
 
         // Create a new workbook
         const workbook = new ExcelJS.Workbook();

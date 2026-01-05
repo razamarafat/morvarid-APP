@@ -5,6 +5,7 @@ import { User, UserRole } from '../types';
 import { useToastStore } from './toastStore';
 
 import { mapLegacyProductId } from '../utils/productUtils';
+import { notifyEvent } from '../services/pushNotificationService';
 
 const DEFAULT_PROD_1 = '11111111-1111-1111-1111-111111111111';
 const DEFAULT_PROD_2 = '22222222-2222-2222-2222-222222222222';
@@ -339,6 +340,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             await get().checkSession();
             const currentUser = get().user;
             if (currentUser) {
+                // Notify successful login
+                notifyEvent('login', { user: currentUser.fullName });
                 return { success: true };
             } else {
                 return { success: false, error: 'خطا در دریافت پروفایل' };
@@ -373,6 +376,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         });
 
         set({ user: null, isLoading: false });
+
+        // Notify logout event
+        notifyEvent('logout', { isTimeout });
 
         if (isTimeout) {
             useToastStore.getState().addToast('مدت زمان نشست شما به پایان رسیده است. لطفا مجددا وارد شوید.', 'warning');

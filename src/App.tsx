@@ -16,20 +16,34 @@ import { useLogStore } from './store/logStore';
 import ConfirmDialog from './components/common/ConfirmDialog';
 import ToastContainer from './components/common/Toast';
 import PermissionModal from './components/common/PermissionModal';
+import OfflineIndicator from './components/common/OfflineIndicator';
 import RouteErrorBoundary from './components/common/RouteErrorBoundary';
 import { useAutoUpdate } from './hooks/useAutoUpdate';
 import { useOfflineSync } from './hooks/useOfflineSync';
 import { useAutoTheme } from './hooks/useAutoTheme';
 import { useDoubleBackExit } from './hooks/useDoubleBackExit';
+import { initializePushNotifications } from './services/pushNotificationService';
 import { APP_VERSION } from './constants';
 import { log } from './utils/logger';
 
-// --- Lazy Load Pages ---
-// These components will be split into separate chunks
+// --- Role-Based Lazy Loading ---
+// Split code by user roles to reduce initial bundle size
 const LoginPage = lazy(() => import('./pages/LoginPage'));
-const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
-const RegistrationDashboard = lazy(() => import('./pages/RegistrationDashboard'));
-const SalesDashboard = lazy(() => import('./components/sales/SalesDashboard'));
+
+// Admin role chunk - includes admin-specific components and logic
+const AdminDashboard = lazy(() =>
+  import(/* webpackChunkName: "admin-chunk" */ './pages/AdminDashboard')
+);
+
+// Registration role chunk - includes registration-specific components
+const RegistrationDashboard = lazy(() =>
+  import(/* webpackChunkName: "registration-chunk" */ './pages/RegistrationDashboard')
+);
+
+// Sales role chunk - includes sales-specific components
+const SalesDashboard = lazy(() =>
+  import(/* webpackChunkName: "sales-chunk" */ './components/sales/SalesDashboard')
+);
 
 interface ErrorBoundaryProps {
   children?: ReactNode;
@@ -152,6 +166,8 @@ function App() {
     const init = async () => {
       await checkSession();
       initListener();
+      // Initialize push notifications
+      await initializePushNotifications();
     };
     init();
 
@@ -260,6 +276,7 @@ function App() {
       <ConfirmDialog />
       <PermissionModal />
       <ToastContainer />
+      <OfflineIndicator />
     </ErrorBoundary>
   );
 }
