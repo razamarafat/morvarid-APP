@@ -13,7 +13,7 @@ const __dirname = path.dirname(__filename);
 const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf-8'));
 const appVersion = packageJson.version;
 
-// Custom plugin to generate version.json
+// Custom plugin to generate version.json and inject VAPID key
 const generateVersionFile = () => {
   return {
     name: 'generate-version-file',
@@ -26,6 +26,20 @@ const generateVersionFile = () => {
       if (fs.existsSync(path.resolve(__dirname, 'dist'))) {
         fs.writeFileSync(filePath, JSON.stringify(versionInfo));
         console.log(`[Version] version.json generated: ${JSON.stringify(versionInfo)}`);
+      }
+
+      // Inject VAPID key into service worker
+      const swPath = path.resolve(__dirname, 'dist', 'sw.js');
+      if (fs.existsSync(swPath)) {
+        let swContent = fs.readFileSync(swPath, 'utf-8');
+        const vapidKey = process.env.VITE_VAPID_PUBLIC_KEY;
+        if (vapidKey) {
+          swContent = swContent.replace('__VITE_VAPID_PUBLIC_KEY__', vapidKey);
+          console.log('[Build] VAPID key injected into service worker');
+        } else {
+          console.warn('[Build] VAPID key not found in environment variables');
+        }
+        fs.writeFileSync(swPath, swContent);
       }
     },
     configureServer(server) {

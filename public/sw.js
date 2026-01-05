@@ -1,11 +1,73 @@
-// Service Worker with Workbox CDN
-importScripts('https://storage.googleapis.com/workbox-cdn/releases/7.0.0/workbox-sw.js');
+// Service Worker without external dependencies
+// Manual implementation of essential caching strategies
 
-const { precacheAndRoute, cleanupOutdatedCaches } = workbox.precaching;
-const { registerRoute } = workbox.routing;
-const { StaleWhileRevalidate, CacheFirst, NetworkFirst } = workbox.strategies;
-const { ExpirationPlugin } = workbox.expiration;
-const { BackgroundSyncPlugin } = workbox.backgroundSync;
+// Cache management utilities
+class CacheManager {
+  constructor(cacheName, options = {}) {
+    this.cacheName = cacheName;
+    this.maxEntries = options.maxEntries || 50;
+    this.maxAgeSeconds = options.maxAgeSeconds || 30 * 24 * 60 * 60;
+  }
+
+  async cleanupExpired() {
+    const cache = await caches.open(this.cacheName);
+    const requests = await cache.keys();
+    
+    for (const request of requests) {
+      const response = await cache.match(request);
+      if (response) {
+        const cachedDate = response.headers.get('sw-cached-date');
+        if (cachedDate) {
+          const age = (Date.now() - parseInt(cachedDate)) / 1000;
+          if (age > this.maxAgeSeconds) {
+            await cache.delete(request);
+          }
+        }
+      }
+    }
+  }
+
+  async limitEntries() {
+    const cache = await caches.open(this.cacheName);
+    const requests = await cache.keys();
+    
+    if (requests.length > this.maxEntries) {
+      const excess = requests.length - this.maxEntries;
+      for (let i = 0; i < excess; i++) {
+        await cache.delete(requests[i]);
+      }
+    }
+  }
+}
+
+// Simple background sync queue
+class SimpleBackgroundSync {
+  constructor(queueName) {
+    this.queueName = queueName;
+    this.queue = [];
+  }
+
+  async addRequest(request) {
+    this.queue.push(request.clone());
+    // Try to replay immediately if online
+    if (navigator.onLine) {
+      this.replayRequests();
+    }
+  }
+
+  async replayRequests() {
+    while (this.queue.length > 0) {
+      const request = this.queue.shift();
+      try {
+        await fetch(request);
+      } catch (error) {
+        // Put it back if failed
+        this.queue.unshift(request);
+        break;
+      }
+    }
+  }
+}
 
 const CACHE_PREFIX = 'morvarid';
 const CURRENT_CACHE_ID = 'v3.9.4'; // Synced with package.json
@@ -13,145 +75,191 @@ const STATIC_CACHE = `${CACHE_PREFIX}-static-${CURRENT_CACHE_ID}`;
 const IMAGE_CACHE = `${CACHE_PREFIX}-images-${CURRENT_CACHE_ID}`;
 const API_CACHE = `${CACHE_PREFIX}-api-${CURRENT_CACHE_ID}`;
 
-console.log(`[SW] Workbox loaded locally (${CURRENT_CACHE_ID})`);
+console.log(`[SW] Local caching loaded (${CURRENT_CACHE_ID})`);
 
-// 1. Precache and cleanup
-cleanupOutdatedCaches();
+// Initialize cache managers
+const staticCacheManager = new CacheManager(STATIC_CACHE, { maxEntries: 60 });
+const imageCacheManager = new CacheManager(IMAGE_CACHE, { maxEntries: 60, maxAgeSeconds: 30 * 24 * 60 * 60 });
+const apiCacheManager = new CacheManager(API_CACHE, { maxEntries: 50, maxAgeSeconds: 60 });
+const bgSync = new SimpleBackgroundSync('sync-queue');
 
-// 2. Force SW to activate immediately
+// 1. Force SW to activate immediately
 self.skipWaiting();
-self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
-});
 
-// 3. Manual cache cleanup for versioned caches
+// 2. Activation and cleanup
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          // Delete caches that start with our prefix but don't match current ID
-          if (cacheName.startsWith(CACHE_PREFIX) && !cacheName.includes(CURRENT_CACHE_ID)) {
-            console.log('[SW] Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
+    Promise.all([
+      self.clients.claim(),
+      // Manual cache cleanup for versioned caches
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            // Delete caches that start with our prefix but don't match current ID
+            if (cacheName.startsWith(CACHE_PREFIX) && !cacheName.includes(CURRENT_CACHE_ID)) {
+              console.log('[SW] Deleting old cache:', cacheName);
+              return caches.delete(cacheName);
+            }
+          })
+        );
+      }),
+      // Clean up expired entries
+      staticCacheManager.cleanupExpired(),
+      imageCacheManager.cleanupExpired(),
+      apiCacheManager.cleanupExpired()
+    ])
   );
 });
 
-// 4. Cache Strategy: StaleWhileRevalidate for Hashed Assets (Vite)
-registerRoute(
-  ({ request, url }) => url.pathname.includes('/assets/'),
-  new StaleWhileRevalidate({
-    cacheName: STATIC_CACHE,
-  })
-);
+// 3. Fetch event handler with manual caching strategies
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
 
-// 5. Cache Strategy: StaleWhileRevalidate for Core Files (HTML, Root JS)
-registerRoute(
-  ({ request }) => request.destination === 'script' ||
-    request.destination === 'style' ||
-    request.destination === 'document',
-  new StaleWhileRevalidate({
-    cacheName: STATIC_CACHE,
-  })
-);
+  // Skip non-GET requests
+  if (request.method !== 'GET') return;
 
-// 6. Cache Strategy: CacheFirst for Images/Fonts
-registerRoute(
-  ({ request }) => request.destination === 'image' ||
-    request.destination === 'font',
-  new CacheFirst({
-    cacheName: IMAGE_CACHE,
-    plugins: [
-      new ExpirationPlugin({
-        maxEntries: 60, // CONFIG.STORAGE.MAX_CACHE_ENTRIES
-        maxAgeSeconds: 30 * 24 * 60 * 60, // CONFIG.STORAGE.CACHE_MAX_AGE
-      }),
-    ],
-  })
-);
-
-// 7. Background Sync Plugin for offline requests
-const bgSyncPlugin = new BackgroundSyncPlugin('sync-queue', {
-  maxRetentionTime: 24 * 60 // Retry for 24 Hours
+  // Handle different types of requests
+  if (url.pathname.includes('/assets/')) {
+    // Hashed assets - cache first
+    event.respondWith(handleAssets(request));
+  } else if (request.destination === 'script' || request.destination === 'style' || request.destination === 'document') {
+    // Core files - stale while revalidate
+    event.respondWith(handleCoreFiles(request));
+  } else if (request.destination === 'image' || request.destination === 'font') {
+    // Images and fonts - cache first with expiration
+    event.respondWith(handleImages(request));
+  } else if (url.hostname.includes('supabase.co') && url.pathname.includes('/auth/')) {
+    // Auth endpoints - network first
+    event.respondWith(handleAuth(request));
+  } else if (url.hostname.includes('supabase.co') && url.pathname.includes('/rest/v1/')) {
+    // API endpoints - stale while revalidate with background sync
+    event.respondWith(handleAPI(request));
+  }
 });
 
-// 8. Enhanced Cache Strategy for Supabase API - Reduced caching for sensitive data
-registerRoute(
-  ({ url }) => url.hostname.includes('supabase.co') && url.pathname.includes('/rest/v1/'),
-  new StaleWhileRevalidate({
-    cacheName: API_CACHE,
-    plugins: [
-      bgSyncPlugin,
-      new ExpirationPlugin({
-        maxEntries: 50, // Reduced cache size
-        maxAgeSeconds: 60, // Reduced cache time to 1 minute for security
-        purgeOnQuotaError: true
-      }),
-      {
-        // Enhanced error handling
-        fetchDidFail: async ({ request }) => {
-          console.error('[SW] API Request Failed:', request.url);
-        },
-        requestWillFetch: async ({ request }) => {
-          // Don't log sensitive request URLs
-          console.log('[SW] API Request made');
-          return request;
-        },
-        fetchDidSucceed: async ({ response }) => {
-          // Only cache successful responses
-          if (response.status >= 200 && response.status < 400) {
-            // Don't log sensitive response URLs
-            console.log('[SW] API Response cached');
-          }
-          return response;
-        }
-      }
-    ]
-  })
-);
+// Cache strategies implementation
+async function handleAssets(request) {
+  const cache = await caches.open(STATIC_CACHE);
+  const cached = await cache.match(request);
+  
+  if (cached) {
+    // Update in background
+    fetch(request).then(response => {
+      if (response.ok) cache.put(request, response.clone());
+    }).catch(() => {});
+    return cached;
+  }
+  
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch (error) {
+    console.error('[SW] Asset fetch failed:', error);
+    throw error;
+  }
+}
 
-// 9. Separate strategy for auth endpoints (always network first)
-registerRoute(
-  ({ url }) => url.hostname.includes('supabase.co') && url.pathname.includes('/auth/'),
-  new NetworkFirst({
-    cacheName: `${CACHE_PREFIX}-auth-${CURRENT_CACHE_ID}`,
-    networkTimeoutSeconds: 3,
-    plugins: [
-      {
-        fetchDidFail: async ({ request }) => {
-          console.error('[SW] Auth Request Failed:', request.url);
-        }
-      }
-    ]
-  })
-);
+async function handleCoreFiles(request) {
+  const cache = await caches.open(STATIC_CACHE);
+  const cached = await cache.match(request);
+  
+  const fetchPromise = fetch(request).then(response => {
+    if (response.ok) {
+      const responseToCache = response.clone();
+      responseToCache.headers.set('sw-cached-date', Date.now().toString());
+      cache.put(request, responseToCache);
+    }
+    return response;
+  }).catch(error => {
+    console.error('[SW] Core file fetch failed:', error);
+    if (cached) return cached;
+    throw error;
+  });
+  
+  return cached || fetchPromise;
+}
+
+async function handleImages(request) {
+  const cache = await caches.open(IMAGE_CACHE);
+  const cached = await cache.match(request);
+  
+  if (cached) {
+    imageCacheManager.limitEntries();
+    return cached;
+  }
+  
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      const responseToCache = response.clone();
+      responseToCache.headers.set('sw-cached-date', Date.now().toString());
+      cache.put(request, responseToCache);
+      imageCacheManager.limitEntries();
+    }
+    return response;
+  } catch (error) {
+    console.error('[SW] Image fetch failed:', error);
+    throw error;
+  }
+}
+
+async function handleAuth(request) {
+  try {
+    const response = await Promise.race([
+      fetch(request),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Network timeout')), 3000))
+    ]);
+    return response;
+  } catch (error) {
+    console.error('[SW] Auth Request Failed:', request.url);
+    throw error;
+  }
+}
+
+async function handleAPI(request) {
+  const cache = await caches.open(API_CACHE);
+  const cached = await cache.match(request);
+  
+  const fetchPromise = fetch(request).then(response => {
+    if (response.ok && response.status >= 200 && response.status < 400) {
+      const responseToCache = response.clone();
+      responseToCache.headers.set('sw-cached-date', Date.now().toString());
+      cache.put(request, responseToCache);
+      apiCacheManager.limitEntries();
+    }
+    return response;
+  }).catch(error => {
+    console.error('[SW] API Request Failed:', request.url);
+    // Add to background sync queue for retry
+    bgSync.addRequest(request);
+    if (cached) return cached;
+    throw error;
+  });
+  
+  return cached || fetchPromise;
+}
 
 // --- VAPID KEYS CONFIGURATION ---
-// Note: These will be loaded from environment variables in production
-const VAPID_PUBLIC_KEY = self.__WB_MANIFEST ? null : null; // Will be replaced during build if configured
-
-// Function to get VAPID key from environment or URL parameter
-const getVapidPublicKey = () => {
-  try {
-    // Check for VAPID key in environment (would be injected during build)
-    if (typeof VAPID_PUBLIC_KEY !== 'undefined' && VAPID_PUBLIC_KEY) {
-      return VAPID_PUBLIC_KEY;
-    }
-    // Fallback to URL parameter for development
-    return new URL(self.location.href).searchParams.get('vapid') || null;
-  } catch {
-    return null; // Production will use environment variable
+// Get VAPID key from environment (injected during build)
+let VAPID_PUBLIC_KEY = null;
+try {
+  // This will be replaced during build by Vite if VITE_VAPID_PUBLIC_KEY is set
+  VAPID_PUBLIC_KEY = '__VITE_VAPID_PUBLIC_KEY__';
+  if (VAPID_PUBLIC_KEY === '__VITE_VAPID_PUBLIC_KEY__') {
+    VAPID_PUBLIC_KEY = null; // Not replaced, so not configured
   }
-};
+} catch (e) {
+  VAPID_PUBLIC_KEY = null;
+}
 
 // Check if VAPID key is available and log appropriately
-const vapidKey = getVapidPublicKey();
-if (!vapidKey) {
-  console.warn('[Alert] VAPID Public Key not configured. Push notifications will not work properly. Set VAPID_PUBLIC_KEY in your environment variables.');
+if (!VAPID_PUBLIC_KEY) {
+  console.warn('[Alert] VAPID Public Key not configured. Push notifications will not work properly.');
+  console.info('[Info] To enable push notifications, set VITE_VAPID_PUBLIC_KEY in your environment variables.');
 } else {
   console.log('[SW] VAPID Public Key configured successfully');
 }
@@ -256,3 +364,15 @@ async function syncDataInBackground() {
     client.postMessage({ type: 'TRIGGER_SYNC' });
   }
 }
+
+// Handle online/offline status changes for background sync
+self.addEventListener('online', () => {
+  console.log('[SW] App is back online, replaying queued requests...');
+  bgSync.replayRequests();
+});
+
+// Initialize and announce service worker status
+console.log('[SW] Service Worker initialized successfully');
+console.log('[SW] Cache strategy: Local caching without external dependencies');
+console.log('[SW] Background sync: Enabled');
+console.log('[SW] Push notifications:', VAPID_PUBLIC_KEY ? 'Enabled' : 'Disabled (no VAPID key)');
