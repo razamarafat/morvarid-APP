@@ -182,9 +182,17 @@ async function handleCoreFiles(request) {
     return response;
   }).catch(error => {
     // Handle CSP errors gracefully - don't throw, just return cached version or fail silently
-    if (error.message && error.message.includes('violates the document')) {
-      console.debug('[SW] Resource blocked by CSP, skipping cache:', request.url);
-      return cached || fetch(request); // Try original request without caching
+    if (error.message && (error.message.includes('violates the document') || error.message.includes('Content Security Policy'))) {
+      console.debug('[SW] Resource blocked by CSP, skipping:', request.url);
+      if (cached) return cached;
+      // For Google Fonts, return a minimal fallback response
+      if (request.url.includes('fonts.googleapis.com')) {
+        return new Response('/* Font loading blocked by CSP */', {
+          status: 200,
+          headers: { 'Content-Type': 'text/css' }
+        });
+      }
+      return new Response('', { status: 204 }); // No content for other blocked resources
     }
     console.error('[SW] Core file fetch failed:', error);
     if (cached) return cached;
