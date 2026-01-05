@@ -95,13 +95,13 @@ export default defineConfig(({ mode }) => {
 
             // Library-based chunking
             if (id.includes('node_modules')) {
-              if (id.includes('react') || id.includes('react-dom')) {
+              if (id.includes('react') || id.includes('react-dom') || id.includes('react-hook-form')) {
                 return 'vendor-react-core';
               }
               if (id.includes('react-router')) {
                 return 'vendor-router';
               }
-              if (id.includes('zustand') || id.includes('date-fns') || id.includes('uuid') || id.includes('zod') || id.includes('react-hook-form')) {
+              if (id.includes('zustand') || id.includes('date-fns') || id.includes('uuid') || id.includes('zod')) {
                 return 'vendor-utils';
               }
               if (id.includes('framer-motion') || id.includes('lucide-react') || id.includes('react-window')) {
