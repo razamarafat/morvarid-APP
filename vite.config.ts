@@ -95,10 +95,12 @@ export default defineConfig(({ mode }) => {
 
             // Library-based chunking
             if (id.includes('node_modules')) {
-              if (id.includes('react') || id.includes('react-dom') || id.includes('react-hook-form')) {
-                return 'vendor-react-core';
+              // Skip React and React DOM from custom chunking to let Vite handle them properly
+              // This prevents the "Cannot set properties of undefined (setting 'Children')" error
+              if (id.includes('react') || id.includes('react-dom')) {
+                return; // Don't chunk React separately, let it go to default
               }
-              if (id.includes('react-router')) {
+              if (id.includes('react-router') || id.includes('react-hook-form')) {
                 return 'vendor-router';
               }
               if (id.includes('zustand') || id.includes('date-fns') || id.includes('uuid') || id.includes('zod')) {
