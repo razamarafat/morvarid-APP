@@ -8,7 +8,7 @@ import { useConfirm } from '../../hooks/useConfirm';
 import { useToastStore } from '../../store/toastStore';
 import { toPersianDigits } from '../../utils/dateUtils';
 import { useOfflineSync } from '../../hooks/useOfflineSync';
-import { AnimatePresenceWrapper as AnimatePresence, MotionDivWrapper as motion } from './MotionWrapper';
+import { AnimatePresenceWrapper as AnimatePresence, MotionDivWrapper as MotionDiv } from './MotionWrapper';
 
 const OnlineStatusBadge: React.FC = () => {
     const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -116,7 +116,7 @@ const OnlineStatusBadge: React.FC = () => {
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <AnimatePresence>
                         {/* Dark Backdrop */}
-                        <motion.div
+                        <MotionDiv
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
@@ -125,12 +125,12 @@ const OnlineStatusBadge: React.FC = () => {
                         />
 
                         {/* Modal Card */}
-                        <motion.div
+                        <MotionDiv
                             initial={{ opacity: 0, scale: 0.95, y: 10 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 10 }}
                             className="relative w-full max-w-sm bg-white dark:bg-[#1E1E1E] rounded-lg p-4 shadow-xl flex flex-col overflow-hidden max-h-[85vh]"
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e: React.MouseEvent) => e.stopPropagation()}
                         >
                             {/* Header */}
                             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700 bg-white/50 dark:bg-black/20 shrink-0">
@@ -215,7 +215,7 @@ const OnlineStatusBadge: React.FC = () => {
                                     </Button>
                                 )}
                             </div>
-                        </motion.div>
+                        </MotionDiv>
                     </AnimatePresence>
                 </div>,
                 document.body

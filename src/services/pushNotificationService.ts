@@ -85,9 +85,10 @@ class PushNotificationService {
       }
 
       // Subscribe to push
+      const applicationServerKey = this.urlB64ToUint8Array(this.vapidPublicKey!);
       this.subscription = await this.registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: this.urlB64ToUint8Array(this.vapidPublicKey!)
+        applicationServerKey: applicationServerKey as BufferSource
       });
 
       log.info('[PushService] Successfully subscribed to push notifications');

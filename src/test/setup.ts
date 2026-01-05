@@ -1,5 +1,5 @@
-// Minimal setup file
 import { vi } from 'vitest';
+import '@testing-library/jest-dom';
 
 // Mock localStorage
 const localStorageMock = {
@@ -7,8 +7,13 @@ const localStorageMock = {
   setItem: vi.fn(),
   removeItem: vi.fn(),
   clear: vi.fn(),
+  length: 0,
+  key: vi.fn(),
 };
-global.localStorage = localStorageMock;
+Object.defineProperty(window, 'localStorage', {
+  value: localStorageMock,
+  writable: true,
+});
 
 // Mock sessionStorage
 const sessionStorageMock = {
@@ -16,8 +21,13 @@ const sessionStorageMock = {
   setItem: vi.fn(),
   removeItem: vi.fn(),
   clear: vi.fn(),
+  length: 0,
+  key: vi.fn(),
 };
-global.sessionStorage = sessionStorageMock;
+Object.defineProperty(window, 'sessionStorage', {
+  value: sessionStorageMock,
+  writable: true,
+});
 
 // Mock matchMedia
 Object.defineProperty(window, 'matchMedia', {

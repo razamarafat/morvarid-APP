@@ -1,6 +1,13 @@
 // Trusted Types API implementation for enhanced security
 // This prevents XSS attacks by ensuring only trusted content is inserted into DOM
 
+// Type definitions for Trusted Types API
+declare global {
+  interface TrustedHTML {}
+  interface TrustedScript {}
+  interface TrustedScriptURL {}
+}
+
 interface TrustedTypesPolicy {
   createHTML: (input: string) => TrustedHTML;
   createScript: (input: string) => TrustedScript;
@@ -111,40 +118,40 @@ class TrustedTypesManager {
     return 'trustedTypes' in window;
   }
 
-  public createHTML(input: string): string | TrustedHTML {
+  public createHTML(input: string): string {
     if (!this.policy) {
       // Fallback to basic sanitization
       return this.sanitizeHTML(input);
     }
 
     try {
-      return this.policy.createHTML(input);
+      return this.policy.createHTML(input) as unknown as string;
     } catch (error) {
       console.error('[TrustedTypes] Failed to create trusted HTML:', error);
       return '';
     }
   }
 
-  public createScript(input: string): string | TrustedScript {
+  public createScript(input: string): string {
     if (!this.policy) {
       throw new Error('Trusted Types not supported');
     }
 
     try {
-      return this.policy.createScript(input);
+      return this.policy.createScript(input) as unknown as string;
     } catch (error) {
       console.error('[TrustedTypes] Failed to create trusted script:', error);
       throw error;
     }
   }
 
-  public createScriptURL(input: string): string | TrustedScriptURL {
+  public createScriptURL(input: string): string {
     if (!this.policy) {
       throw new Error('Trusted Types not supported');
     }
 
     try {
-      return this.policy.createScriptURL(input);
+      return this.policy.createScriptURL(input) as unknown as string;
     } catch (error) {
       console.error('[TrustedTypes] Failed to create trusted script URL:', error);
       throw error;

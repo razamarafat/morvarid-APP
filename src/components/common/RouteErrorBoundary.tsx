@@ -38,7 +38,7 @@ class RouteErrorBoundary extends Component<Props, State> {
     };
   }
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): Partial<State> {
     // به‌روزرسانی state تا UI خطا نمایش داده شود
     return {
       hasError: true,
