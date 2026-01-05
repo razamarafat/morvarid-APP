@@ -181,6 +181,11 @@ async function handleCoreFiles(request) {
     }
     return response;
   }).catch(error => {
+    // Handle CSP errors gracefully - don't throw, just return cached version or fail silently
+    if (error.message && error.message.includes('violates the document')) {
+      console.debug('[SW] Resource blocked by CSP, skipping cache:', request.url);
+      return cached || fetch(request); // Try original request without caching
+    }
     console.error('[SW] Core file fetch failed:', error);
     if (cached) return cached;
     throw error;

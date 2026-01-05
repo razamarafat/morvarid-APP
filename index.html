@@ -23,8 +23,8 @@
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
       font-src 'self' https://fonts.gstatic.com;
       img-src 'self' data: https: blob:;
-      connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vercel.live;
-      frame-src 'none';
+      connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vercel.live https://fonts.googleapis.com https://fonts.gstatic.com;
+      frame-src https://vercel.live;
       object-src 'none';
       base-uri 'self';
       form-action 'self';
