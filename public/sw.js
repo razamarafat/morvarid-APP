@@ -166,11 +166,17 @@ async function handleAssets(request) {
 async function handleCoreFiles(request) {
   const cache = await caches.open(STATIC_CACHE);
   const cached = await cache.match(request);
-  
+
   const fetchPromise = fetch(request).then(response => {
     if (response.ok) {
-      const responseToCache = response.clone();
-      responseToCache.headers.set('sw-cached-date', Date.now().toString());
+      // Create new Response with custom header instead of modifying existing one
+      const headers = new Headers(response.headers);
+      headers.set('sw-cached-date', Date.now().toString());
+      const responseToCache = new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: headers
+      });
       cache.put(request, responseToCache);
     }
     return response;
@@ -179,7 +185,7 @@ async function handleCoreFiles(request) {
     if (cached) return cached;
     throw error;
   });
-  
+
   return cached || fetchPromise;
 }
 
@@ -195,8 +201,14 @@ async function handleImages(request) {
   try {
     const response = await fetch(request);
     if (response.ok) {
-      const responseToCache = response.clone();
-      responseToCache.headers.set('sw-cached-date', Date.now().toString());
+      // Create new Response with custom header instead of modifying existing one
+      const headers = new Headers(response.headers);
+      headers.set('sw-cached-date', Date.now().toString());
+      const responseToCache = new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: headers
+      });
       cache.put(request, responseToCache);
       imageCacheManager.limitEntries();
     }
@@ -226,8 +238,14 @@ async function handleAPI(request) {
   
   const fetchPromise = fetch(request).then(response => {
     if (response.ok && response.status >= 200 && response.status < 400) {
-      const responseToCache = response.clone();
-      responseToCache.headers.set('sw-cached-date', Date.now().toString());
+      // Create new Response with custom header instead of modifying existing one
+      const headers = new Headers(response.headers);
+      headers.set('sw-cached-date', Date.now().toString());
+      const responseToCache = new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: headers
+      });
       cache.put(request, responseToCache);
       apiCacheManager.limitEntries();
     }
