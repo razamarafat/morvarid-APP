@@ -56,11 +56,13 @@ export async function fetchUserRecords(
     const { data, error } = await query;
 
     if (error) {
+      // Sanitize error details before logging to prevent information disclosure
       console.error(
         `[fetchUserRecords] ❌ Database error for ${entityType}:`,
-        { message: error.message, details: error.details, hint: error.hint }
+        { message: 'Database operation failed', details: 'Error details sanitized for security' }
       );
-      throw error;
+      // Don't expose internal error details to client
+      throw new Error('Database operation failed');
     }
 
     console.log(`[fetchUserRecords] ✅ Success: Fetched ${data?.length || 0} ${entityType} records`);
@@ -70,7 +72,7 @@ export async function fetchUserRecords(
     }
     return data || [];
   } catch (error: any) {
-    console.error(`[fetchUserRecords] ❌ Exception:`, error);
+    console.error(`[fetchUserRecords] ❌ Exception:`, 'Operation failed');
     return [];
   }
 }

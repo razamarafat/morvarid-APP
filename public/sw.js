@@ -77,7 +77,7 @@ const bgSyncPlugin = new BackgroundSyncPlugin('sync-queue', {
   maxRetentionTime: 24 * 60 // Retry for 24 Hours
 });
 
-// 8. Enhanced Cache Strategy for Supabase API
+// 8. Enhanced Cache Strategy for Supabase API - Reduced caching for sensitive data
 registerRoute(
   ({ url }) => url.hostname.includes('supabase.co') && url.pathname.includes('/rest/v1/'),
   new StaleWhileRevalidate({
@@ -85,8 +85,8 @@ registerRoute(
     plugins: [
       bgSyncPlugin,
       new ExpirationPlugin({
-        maxEntries: 100,
-        maxAgeSeconds: 5 * 60, // 5 minutes for API responses
+        maxEntries: 50, // Reduced cache size
+        maxAgeSeconds: 60, // Reduced cache time to 1 minute for security
         purgeOnQuotaError: true
       }),
       {
@@ -95,13 +95,15 @@ registerRoute(
           console.error('[SW] API Request Failed:', request.url);
         },
         requestWillFetch: async ({ request }) => {
-          console.log('[SW] API Request:', request.url);
+          // Don't log sensitive request URLs
+          console.log('[SW] API Request made');
           return request;
         },
         fetchDidSucceed: async ({ response }) => {
           // Only cache successful responses
           if (response.status >= 200 && response.status < 400) {
-            console.log('[SW] API Response cached:', response.url);
+            // Don't log sensitive response URLs
+            console.log('[SW] API Response cached');
           }
           return response;
         }

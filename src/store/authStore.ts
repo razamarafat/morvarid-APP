@@ -9,8 +9,10 @@ import { mapLegacyProductId } from '../utils/productUtils';
 const DEFAULT_PROD_1 = '11111111-1111-1111-1111-111111111111';
 const DEFAULT_PROD_2 = '22222222-2222-2222-2222-222222222222';
 
-// 1 Hour in milliseconds
-const SESSION_TIMEOUT = 60 * 60 * 1000;
+import { CONFIG } from '../constants/config';
+
+// Use configurable session timeout from config
+const SESSION_TIMEOUT = CONFIG.SECURITY.SESSION_TIMEOUT;
 
 const STORAGE_KEYS = {
     ACTIVITY: 'morvarid_last_activity',

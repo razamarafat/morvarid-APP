@@ -9,14 +9,19 @@ import { usePermissionStore } from './permissionStore';
 import { UserRole, NotificationItem } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
-// Access VAPID Key from Environment Variables with Fallback
+// Access VAPID Key from Environment Variables
 // In production, define VITE_VAPID_PUBLIC_KEY in .env
-const FALLBACK_VAPID = 'BGtIIDiEo0Um1xnVelucS4hq4gBnMIexj1OPsOwOiFrnW4W1QvdPrIWiRaqRALAIIxoDYqg_Kiv9A8OhNHhwX7U';
+// No fallback provided to ensure secure configuration
 
 // Safely access env vars
 const meta = (import.meta as any) || {};
 const env = meta.env || {};
-const VAPID_PUBLIC_KEY = env.VITE_VAPID_PUBLIC_KEY || FALLBACK_VAPID;
+const VAPID_PUBLIC_KEY = env.VITE_VAPID_PUBLIC_KEY;
+
+// Ensure VAPID key is properly configured
+if (!VAPID_PUBLIC_KEY) {
+  console.warn('[Alert] VAPID Public Key not configured. Push notifications will not work properly.');
+}
 
 interface AlertPayload {
     targetFarmId: string;

@@ -261,8 +261,8 @@ export class QuantumSafeEncryption {
 
   private generateFallbackPassword(): string {
     // This should never be used in production
-    log.warn('Using fallback password - check environment configuration');
-    return 'MORVARID_EMERGENCY_FALLBACK_2026_' + Date.now();
+    log.error('CRITICAL: Crypto salt not configured - application should not run without proper environment configuration');
+    throw new Error('Crypto salt missing - check environment configuration');
   }
 }
 

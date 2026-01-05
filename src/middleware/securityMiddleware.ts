@@ -34,7 +34,8 @@ export class CSRFProtection {
       return false;
     }
     
-    return stored.token === token;
+    // Use constant-time comparison to prevent timing attacks
+    return this.constantTimeCompare(stored.token, token);
   }
   
   private static cleanupExpired(): void {
@@ -44,6 +45,23 @@ export class CSRFProtection {
         this.tokens.delete(sessionId);
       }
     }
+  }
+  
+  private static constantTimeCompare(a: string, b: string): boolean {
+    if (a.length !== b.length) {
+      // Perform comparison anyway to maintain constant time
+      let result = 0;
+      for (let i = 0; i < b.length; i++) {
+        result |= b.charCodeAt(i);
+      }
+      return false;
+    }
+
+    let result = 0;
+    for (let i = 0; i < a.length; i++) {
+      result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    }
+    return result === 0;
   }
 }
 

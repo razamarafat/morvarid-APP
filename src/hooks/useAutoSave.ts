@@ -1,10 +1,11 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { TIMING } from '../constants/config';
+import { sanitizeObject } from '../utils/sanitizers';
 
 /**
  * A generic hook to auto-save state to localStorage with debouncing.
- * 
+ *
  * @param key The localStorage key to save data under.
  * @param data The data object to save.
  * @param onLoad Callback function that runs once on mount if data exists in storage.
@@ -24,14 +25,16 @@ export function useAutoSave<T>(
     // Load from storage on mount
     useEffect(() => {
         if (initialLoadDone.current) return;
-        
+
         const saved = localStorage.getItem(key);
         if (saved) {
             try {
                 const parsed = JSON.parse(saved);
                 if (parsed) {
                     console.log(`[AutoSave] Restored draft for ${key}`);
-                    onLoad(parsed);
+                    // Sanitize the loaded data before passing to onLoad
+                    const sanitizedData = sanitizeObject(parsed);
+                    onLoad(sanitizedData);
                 }
             } catch (error) {
                 console.error(`[AutoSave] Failed to parse draft for ${key}`, error);
@@ -49,7 +52,9 @@ export function useAutoSave<T>(
         const handler = setTimeout(() => {
             // Only save if data is not empty/null (basic check)
             if (data && Object.keys(data as any).length > 0) {
-                localStorage.setItem(key, JSON.stringify(data));
+                // Sanitize the data before saving
+                const sanitizedData = sanitizeObject(data);
+                localStorage.setItem(key, JSON.stringify(sanitizedData));
             }
         }, delay);
 
