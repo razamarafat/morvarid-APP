@@ -102,12 +102,22 @@ export const useFarmStore = create<FarmState>((set, get) => ({
       // Ensure productIds is properly formatted as an array
       const productIds = Array.isArray(farm.productIds) ? farm.productIds : [];
       
-      const { error } = await supabase.from('farms').insert({
+      // Only include the fields that exist in the farms table
+      const insertData: any = {
         name: farm.name,
         type: farm.type,
         is_active: farm.isActive,
         product_ids: productIds
+      };
+      
+      // Remove any undefined or null values to prevent issues
+      Object.keys(insertData).forEach(key => {
+        if (insertData[key] === undefined || insertData[key] === null) {
+          delete insertData[key];
+        }
       });
+      
+      const { error } = await supabase.from('farms').insert(insertData);
       
       if (error) {
         console.error('Add Farm Error:', error);
@@ -127,12 +137,22 @@ export const useFarmStore = create<FarmState>((set, get) => ({
       // Ensure productIds is properly formatted as an array
       const productIds = Array.isArray(farm.productIds) ? farm.productIds : [];
       
-      const { error } = await supabase.from('farms').update({
+      // Only include the fields that exist in the farms table
+      const updateData: any = {
         name: farm.name,
         type: farm.type,
         is_active: farm.isActive,
         product_ids: productIds
-      }).eq('id', farm.id);
+      };
+      
+      // Remove any undefined or null values to prevent issues
+      Object.keys(updateData).forEach(key => {
+        if (updateData[key] === undefined || updateData[key] === null) {
+          delete updateData[key];
+        }
+      });
+      
+      const { error } = await supabase.from('farms').update(updateData).eq('id', farm.id);
       
       if (error) {
         console.error('Update Farm Error:', error);
