@@ -20,6 +20,7 @@ import OfflineIndicator from './components/common/OfflineIndicator';
 import RouteErrorBoundary from './components/common/RouteErrorBoundary';
 import UpdatePrompt from './components/common/UpdatePrompt';
 import { useOfflineSync } from './hooks/useOfflineSync';
+import { useAutoUpdate } from './hooks/useAutoUpdate';
 import { useAutoTheme } from './hooks/useAutoTheme';
 import { useDoubleBackExit } from './hooks/useDoubleBackExit';
 import { initializePushNotifications } from './services/pushNotificationService';

@@ -57,6 +57,7 @@ export default defineConfig(({ mode }) => {
       generateVersionFile(),
       VitePWA({
         registerType: 'autoUpdate',
+        updateViaCache: 'none',
         // Use the injectManifest strategy
         strategies: 'injectManifest',
         srcDir: 'public',
