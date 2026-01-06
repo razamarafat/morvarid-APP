@@ -8,13 +8,22 @@ const __dirname = path.dirname(__filename);
 
 // 1. Check for Environment Variables (CI/CD/Vercel Mode)
 // In Vercel, variables are injected into process.env, so physical file is not needed.
-const hasEnvVars = 
-    process.env.VITE_SUPABASE_URL && 
-    process.env.VITE_SUPABASE_URL.length > 0;
+// Check multiple possible keys - any one is sufficient.
+const envKeysToCheck = [
+    'VITE_SUPABASE_URL',
+    'VITE_SUPABASE_ANON_KEY',
+    'SUPABASE_URL',
+    'VERCEL',
+    'CI',
+];
+const hasEnvVars = envKeysToCheck.some(key =>
+    process.env[key] && process.env[key].length > 0
+);
 
 // 2. Check for Physical .env File (Local Development Mode)
 const envPath = path.resolve(__dirname, '../.env');
-const hasEnvFile = fs.existsSync(envPath);
+const envLocalPath = path.resolve(__dirname, '../.env.local');
+const hasEnvFile = fs.existsSync(envPath) || fs.existsSync(envLocalPath);
 
 // Decision Logic
 if (hasEnvVars) {
