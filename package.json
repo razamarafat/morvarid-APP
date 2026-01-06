@@ -1,7 +1,8 @@
 {
   "name": "morvarid-statistics-management",
   "private": true,
-  "version": "4.0.7",
+  "version": "4.0.8",
+  "homepage": "https://razamarafat.github.io/Morvarid-APP",
   "type": "module",
   "scripts": {
     "predev": "node scripts/check-env.js",
@@ -12,7 +13,9 @@
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
