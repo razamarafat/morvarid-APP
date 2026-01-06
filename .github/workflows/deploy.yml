@@ -22,7 +22,9 @@ jobs:
         cache: '' 
 
     - name: Install dependencies
-      run: npm install
+      run: npm ci --include=optional
+      env:
+        npm_config_optional: true
 
     - name: Build project
       run: npm run build
