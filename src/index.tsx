@@ -32,57 +32,6 @@ window.addEventListener('appinstalled', () => {
 const rootElement = document.getElementById('root');
 if (!rootElement) throw new Error("Could not find root element to mount to");
 
-// --- SERVICE WORKER REGISTRATION ---
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', async () => {
-        try {
-            const isBlob = window.location.protocol === 'blob:' || window.location.href.startsWith('blob:');
-            if (isBlob) {
-                console.warn('[PWA Warning] Service Worker registration skipped (Blob URL).');
-                return;
-            }
-
-            const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-
-            if (registration.installing) {
-                log.info('PWA - Service Worker installing...');
-                usePwaStore.getState().logEvent('Service Worker installing...');
-            } else if (registration.active) {
-                log.success('PWA - Service Worker active!');
-                usePwaStore.getState().logEvent('Service Worker active');
-
-                // --- PERIODIC SYNC REGISTRATION ---
-                if ('periodicSync' in registration) {
-                    try {
-                        const status = await navigator.permissions.query({
-                            // @ts-ignore - periodic-background-sync is a modern permission
-                            name: 'periodic-background-sync',
-                        });
-
-                        if (status.state === 'granted') {
-                            // Register every 12 hours (min interval)
-                            // @ts-ignore
-                            await registration.periodicSync.register('sync-data', {
-                                minInterval: 12 * 60 * 60 * 1000,
-                            });
-                            log.success('PWA - Periodic Sync registered successfully');
-                        } else {
-                            console.warn('[PWA] Periodic Sync permission denied');
-                        }
-                    } catch (error) {
-                        console.error('[PWA Error] Periodic Sync Registration failed:', error);
-                    }
-                }
-            }
-        } catch (error: any) {
-            console.error('[PWA Error] Service Worker Registration Failed:', error);
-            usePwaStore.getState().logEvent('Service Worker Registration Failed', error);
-        }
-    });
-} else {
-    console.warn('[PWA Warning] Service Worker is NOT supported in this browser.');
-}
-
 const root = ReactDOM.createRoot(rootElement);
 root.render(
     <React.StrictMode>

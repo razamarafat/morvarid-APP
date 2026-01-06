@@ -1,7 +1,7 @@
 // Service Worker powered by Workbox
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
-import { CacheFirst, StaleWhileRevalidate, NetworkFirst } from 'workbox-strategies';
+import { CacheFirst, NetworkFirst, NetworkOnly } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 
 console.log(`[SW] Workbox-powered Service Worker starting.`);
@@ -120,42 +120,21 @@ registerRoute(
   })
 );
 
-// 5. Caching strategy for Supabase Auth (Network First with no caching for sensitive requests)
+// 5. Caching strategy for Supabase Auth (Network Only)
 registerRoute(
   ({ url }) => url.hostname.includes('supabase.co') && url.pathname.includes('/auth/'),
-  new NetworkFirst({
-    cacheName: AUTH_CACHE,
-    networkTimeoutSeconds: 3,
-    plugins: [
-      {
-        cacheKeyWillBeUsed: async ({ request }) => {
-          // Don't cache auth requests that modify state
-          if (request.method !== 'GET') {
-            return null;
-          }
-          return request.url;
-        }
-      }
-    ]
-  })
+  new NetworkOnly()
 );
 
 // 6. Caching strategy for Supabase API (Network First to prevent response locking)
 registerRoute(
-  ({ url }) => url.hostname.includes('supabase.co') && url.pathname.includes('/rest/v1/'),
+  ({ url, request }) => request.method === 'GET' && url.hostname.includes('supabase.co') && url.pathname.includes('/rest/v1/'),
   new NetworkFirst({
     cacheName: API_CACHE,
     networkTimeoutSeconds: 5,
     plugins: [
       new ExpirationPlugin({ maxEntries: 30, maxAgeSeconds: 60 * 2 }), // 2 minutes
       {
-        cacheKeyWillBeUsed: async ({ request }) => {
-          // Don't cache write operations
-          if (request.method !== 'GET') {
-            return null;
-          }
-          return request.url;
-        },
         fetchDidFail: async ({ request }) => {
           // Add to background sync queue for retry
           bgSync.addRequest(request);
