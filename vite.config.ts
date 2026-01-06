@@ -67,6 +67,12 @@ export default defineConfig(({ mode }) => {
           // This will ensure that all assets are precached correctly.
           globPatterns: ['**/*.{js,css,html,ico,png,svg,json,webp}'],
         },
+        workbox: {
+          // Ensure service worker is treated as a module
+          mode: 'production',
+          // Disable inline workbox to avoid conflicts
+          inlineWorkboxRuntime: false,
+        },
         manifest: {
           name: 'Morvarid App',
           short_name: 'Morvarid',
