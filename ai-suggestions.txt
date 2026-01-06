@@ -289,3 +289,23 @@ AI SUGGESTIONS BACKLOG - V56
   - دسته‌بندی: Creative/UX
   - توضیح: Introduce a "streak" feature to encourage daily usage. A user maintains a streak for consecutive days they log in or register an invoice. Display the streak count prominently on the dashboard with a small fire icon.
   - اولویت: Low
+
+- [ ] عنوان: Progressive Update with Progress Bar
+  - دسته‌بندی: UI/UX/PWA
+  - توضیح: به جای Toast ساده، یک Progress Bar زیبا در هدر یا Bottom Sheet نمایش داده شود که نشان می‌دهد Service Worker در حال دانلود است.
+  - اولویت: Medium
+
+- [ ] عنوان: Pre-warm Cache in Background
+  - دسته‌بندی: Performance/PWA
+  - توضیح: بعد از نصب Service Worker جدید، یک صفحه خاص (مثل داشبورد) به صورت Background Fetch شود تا بار اول سریع‌تر باز شود.
+  - اولویت: Low
+
+- [ ] عنوان: Unified PWA Update Hook
+  - دسته‌بندی: Refactoring/Code Quality
+  - توضیح: الان دو منطق جداگانه برای آپدیت وجود دارد (version.json و vite-pwa). می‌توانیم آن‌ها را در یک هوک واحد usePWAUpdate() ترکیب کنیم.
+  - اولویت: Medium
+
+- [ ] عنوان: Changelog Modal on Update
+  - دسته‌بندی: Creative/UX
+  - توضیح: وقتی آپدیت شناسایی می‌شود، یک مودال زیبا با لیست تغییرات نسخه جدید (از constants.ts یا changelog.md) نمایش داده شود.
+  - اولویت: Low

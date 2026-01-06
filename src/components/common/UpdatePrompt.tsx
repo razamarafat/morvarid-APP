@@ -45,6 +45,24 @@ function UpdatePrompt() {
     }
   }, [needRefresh, updateServiceWorker, addToast]);
 
+  // Listen for SW_UPDATED message from Service Worker
+  useEffect(() => {
+    const handleSWMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'SW_UPDATED') {
+        console.log('[UpdatePrompt] Service Worker updated, reloading page...');
+        addToast('سرویس‌ورکر بروز شد، صفحه در حال بارگذاری مجدد...', 'info', TOAST_IDS.UPDATE_AVAILABLE);
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      }
+    };
+
+    navigator.serviceWorker?.addEventListener('message', handleSWMessage);
+    return () => {
+      navigator.serviceWorker?.removeEventListener('message', handleSWMessage);
+    };
+  }, [addToast]);
+
   // This component does not render anything to the DOM
   return null;
 }

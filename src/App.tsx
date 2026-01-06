@@ -154,6 +154,7 @@ function App() {
 
 
   useOfflineSync();
+  useAutoUpdate(); // Activated: Checks version.json every 30s for auto-updates
   useAutoTheme();
 
   useEffect(() => {

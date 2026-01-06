@@ -29,11 +29,20 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   console.log('[SW] Service Worker activating...');
   // Take control of all open pages.
-  event.waitUntil(clients.claim());
-  
+  event.waitUntil(
+    clients.claim().then(() => {
+      // Notify all clients that SW has been updated
+      return clients.matchAll({ type: 'window' }).then(clientList => {
+        clientList.forEach(client => {
+          client.postMessage({ type: 'SW_UPDATED', timestamp: Date.now() });
+        });
+      });
+    })
+  );
+
   // Clean up outdated Workbox caches.
   cleanupOutdatedCaches();
-  
+
   // Clean up other old, non-workbox caches.
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -66,7 +75,7 @@ class CacheManager {
   async limitEntries() {
     const cache = await caches.open(this.cacheName);
     const requests = await cache.keys();
-    
+
     if (requests.length > this.maxEntries) {
       const excess = requests.length - this.maxEntries;
       for (let i = 0; i < excess; i++) {
@@ -167,15 +176,15 @@ function urlB64ToUint8Array(base64String) {
 }
 
 self.addEventListener('push', (event) => {
-  let data = { 
-    title: 'سامانه مروارید', 
-    body: 'پیام جدید', 
+  let data = {
+    title: 'سامانه مروارید',
+    body: 'پیام جدید',
     url: '/',
     icon: '/icons/icon-192x192.png',
     badge: '/icons/icon-192x192.png',
     tag: 'morvarid-notification'
   };
-  
+
   try {
     if (event.data) data = { ...data, ...event.data.json() };
   } catch (e) {
@@ -221,10 +230,10 @@ self.addEventListener('periodicsync', (event) => {
 });
 
 async function syncDataInBackground() {
-    const allClients = await clients.matchAll({ type: 'window' });
-    for (const client of allClients) {
-        client.postMessage({ type: 'TRIGGER_SYNC' });
-    }
+  const allClients = await clients.matchAll({ type: 'window' });
+  for (const client of allClients) {
+    client.postMessage({ type: 'TRIGGER_SYNC' });
+  }
 }
 
 // --- ONLINE/OFFLINE HANDLER (retained) ---
