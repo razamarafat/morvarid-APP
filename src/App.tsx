@@ -18,7 +18,7 @@ import ToastContainer from './components/common/Toast';
 import PermissionModal from './components/common/PermissionModal';
 import OfflineIndicator from './components/common/OfflineIndicator';
 import RouteErrorBoundary from './components/common/RouteErrorBoundary';
-import { useAutoUpdate } from './hooks/useAutoUpdate';
+import UpdatePrompt from './components/common/UpdatePrompt';
 import { useOfflineSync } from './hooks/useOfflineSync';
 import { useAutoTheme } from './hooks/useAutoTheme';
 import { useDoubleBackExit } from './hooks/useDoubleBackExit';
@@ -151,7 +151,7 @@ function App() {
   const { initListener } = useAlertStore();
   const { setIsInstalled } = usePwaStore();
 
-  useAutoUpdate();
+
   useOfflineSync();
   useAutoTheme();
 
@@ -277,6 +277,7 @@ function App() {
       <PermissionModal />
       <ToastContainer />
       <OfflineIndicator />
+      <UpdatePrompt />
     </ErrorBoundary>
   );
 }

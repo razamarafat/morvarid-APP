@@ -1,4 +1,4 @@
-AI SUGGESTIONS BACKLOG - V55
+AI SUGGESTIONS BACKLOG - V56
 
 --------------------------------
 1. پیشنهادات امنیت و مدیریت کاربران (Security & Auth)
@@ -61,6 +61,12 @@ AI SUGGESTIONS BACKLOG - V55
   - دسته‌بندی: Performance/DevOps
   - توضیح: تجمیع لاگ‌ها در localStorage و ارسال دسته‌ای آن‌ها به سرور (Batch Send) برای کاهش تعداد درخواست‌های شبکه و بهینه‌سازی مصرف باتری.
   - اولویت: Medium
+
+- [ ] عنوان: Pre-cache Dynamic API Routes
+  - دسته‌بندی: Performance/PWA
+  - توضیح: Identify common API calls (like user profiles or product lists) and pre-cache their data in the service worker to make the app feel faster and work better offline.
+  - اولویت: Medium
+
 
 --------------------------------
 3. پیشنهادات رابط کاربری و تجربه کاربری (UI/UX)
@@ -144,9 +150,15 @@ AI SUGGESTIONS BACKLOG - V55
   - اولویت: Medium
 
 - [ ] عنوان: Centralized Zod Schema File
-  - دسته‌بندی: Code Quality
+  - دسته‌بادی: Code Quality
   - توضیح: Create a centralized `zod` schema file for common validation patterns like Persian-only strings, mobile numbers, etc., to avoid duplication and ensure consistency.
   - اولویت: Medium
+
+- [ ] عنوان: Refactor PWA update logic into a hook
+  - دسته‌بندی: Refactoring/Code Quality
+  - توضیح: Create a `usePWAUpdate()` hook that encapsulates the logic from `UpdatePrompt.tsx` to make it more reusable and easier to manage across the application.
+  - اولویت: Low
+
 
 --------------------------------
 5. پیشنهادات PWA & Mobile (PWA Growth)
@@ -192,6 +204,11 @@ AI SUGGESTIONS BACKLOG - V55
 - [ ] عنوان: Expanded Drafts Feature
   - دسته‌بندی: Feature/Creative
   - توضیح: Expand the existing auto-save functionality in the InvoiceForm to show a list of saved drafts, allowing users to restore or delete them.
+  - اولویت: Medium
+
+- [ ] عنوان: Offline Content
+  - دسته‌بندی: Creative/Offline
+  - توضیح: Allow users to explicitly save certain reports or data (like monthly stats) for offline viewing, making the PWA more useful when the network is unreliable.
   - اولویت: Medium
 
 --------------------------------
@@ -263,7 +280,7 @@ AI SUGGESTIONS BACKLOG - V55
   - توضیح: Set up a GitHub Action with `dependabot` or a similar tool to automatically create pull requests for dependency updates, keeping the project secure and up-to-date.
   - اولویت: Medium
 
-- [ ] عنوان: Error Boundary Component
+- [ ] عنوان: Generic Error Boundary Component
   - دسته‌بندی: Code Quality/UX
   - توضیح: Create a generic `ErrorBoundary` component that can wrap different parts of the application (like routes or complex components) to catch JavaScript errors, log them, and display a user-friendly fallback UI instead of a white screen of death. The current `RouteErrorBoundary` can be generalized.
   - اولویت: High

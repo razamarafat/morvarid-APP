@@ -1,6 +1,7 @@
 
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -13,7 +14,7 @@ const __dirname = path.dirname(__filename);
 const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf-8'));
 const appVersion = packageJson.version;
 
-// Custom plugin to generate version.json and inject VAPID key
+// Custom plugin to generate version.json
 const generateVersionFile = () => {
   return {
     name: 'generate-version-file',
@@ -26,20 +27,6 @@ const generateVersionFile = () => {
       if (fs.existsSync(path.resolve(__dirname, 'dist'))) {
         fs.writeFileSync(filePath, JSON.stringify(versionInfo));
         console.log(`[Version] version.json generated: ${JSON.stringify(versionInfo)}`);
-      }
-
-      // Inject VAPID key into service worker
-      const swPath = path.resolve(__dirname, 'dist', 'sw.js');
-      if (fs.existsSync(swPath)) {
-        let swContent = fs.readFileSync(swPath, 'utf-8');
-        const vapidKey = process.env.VITE_VAPID_PUBLIC_KEY;
-        if (vapidKey) {
-          swContent = swContent.replace('__VITE_VAPID_PUBLIC_KEY__', vapidKey);
-          console.log('[Build] VAPID key injected into service worker');
-        } else {
-          console.warn('[Build] VAPID key not found in environment variables');
-        }
-        fs.writeFileSync(swPath, swContent);
       }
     },
     configureServer(server) {
@@ -56,18 +43,49 @@ const generateVersionFile = () => {
 };
 
 export default defineConfig(({ mode }) => {
-  // Load env file based on `mode` in the current working directory.
-  const env = loadEnv(mode, (process as any).cwd(), '');
+  const env = loadEnv(mode, process.cwd(), '');
 
   return {
-    // Expose the version as a global constant using __APP_VERSION__
     define: {
       '__APP_VERSION__': JSON.stringify(appVersion),
+      // Make VAPID key available in SW
+      'process.env.VITE_VAPID_PUBLIC_KEY': JSON.stringify(env.VITE_VAPID_PUBLIC_KEY),
     },
     plugins: [
       react(),
+      viteCompression(),
       generateVersionFile(),
-      viteCompression() // Enable Gzip compression
+      VitePWA({
+        registerType: 'autoUpdate',
+        // Use the injectManifest strategy
+        strategies: 'injectManifest',
+        srcDir: 'public',
+        srcFile: 'sw.js',
+        outDir: 'dist',
+        filename: 'sw.js',
+        injectManifest: {
+          // This will ensure that all assets are precached correctly.
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,json,webp}'],
+        },
+        manifest: {
+          name: 'Morvarid App',
+          short_name: 'Morvarid',
+          description: 'Morvarid Application for farm management.',
+          theme_color: '#ffffff',
+          icons: [
+            {
+              src: 'icons/icon-192x192.png',
+              sizes: '192x192',
+              type: 'image/png'
+            },
+            {
+              src: 'icons/icon-512x512.png',
+              sizes: '512x512',
+              type: 'image/png'
+            }
+          ]
+        }
+      })
     ],
     resolve: {
       alias: {
@@ -79,15 +97,7 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       sourcemap: false,
       chunkSizeWarningLimit: 1000,
-      rollupOptions: {
-        // NOTE: manualChunks is intentionally disabled.
-        // The previous complex chunking strategy was causing a runtime error:
-        // "Uncaught TypeError: Cannot set properties of undefined (setting 'Children')"
-        // This error typically happens when React and ReactDOM are split into
-        // separate chunks incorrectly, breaking React's context.
-        // By removing this, we rely on Vite's default chunking strategy,
-        // which is robust enough to handle this correctly.
-      }
+      rollupOptions: {},
     },
   };
 });
