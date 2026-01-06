@@ -104,7 +104,7 @@ export default defineConfig(({ mode }) => {
         '@': path.resolve(__dirname, './src'),
       },
     },
-    base: '/Morvarid-APP/',
+    base: '/morvarid-APP/',
     build: {
       outDir: 'dist',
       sourcemap: false,

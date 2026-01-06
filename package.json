@@ -2,7 +2,7 @@
   "name": "morvarid-statistics-management",
   "private": true,
   "version": "4.0.8",
-  "homepage": "https://razamarafat.github.io/Morvarid-APP",
+  "homepage": "https://razamarafat.github.io/morvarid-APP",
   "type": "module",
   "scripts": {
     "predev": "node scripts/check-env.js",
