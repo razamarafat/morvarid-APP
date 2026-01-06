@@ -221,7 +221,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 return;
             }
 
-            const { data: profile, error: profileError } = await supabase
+            let { data: profile, error: profileError } = await supabase
                 .from('profiles')
                 .select('*, farms:user_farms(farm_id)')
                 .eq('id', session.user.id)
@@ -229,8 +229,34 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
             if (profileError) {
                 console.error('Profile Fetch Error:', profileError);
-                set({ user: null, isLoading: false });
-                return;
+                
+                // Handle specific network errors
+                if (profileError.message?.includes('locked') || 
+                    profileError.message?.includes('net::ERR_FAILED') ||
+                    profileError.code === '401') {
+                    console.warn('[Auth] Network or auth error, attempting to refresh session');
+                    // Try to refresh the session and retry once
+                    const { error: refreshError } = await supabase.auth.refreshSession();
+                    if (!refreshError) {
+                        // Retry profile fetch after refresh
+                        const retryResult = await supabase
+                            .from('profiles')
+                            .select('*, farms:user_farms(farm_id)')
+                            .eq('id', session.user.id)
+                            .single();
+                        
+                        if (!retryResult.error && retryResult.data) {
+                            // Update variables with retry data
+                            profile = retryResult.data;
+                            profileError = retryResult.error;
+                        }
+                    }
+                }
+                
+                if (profileError) {
+                    set({ user: null, isLoading: false });
+                    return;
+                }
             }
 
             if (profile) {

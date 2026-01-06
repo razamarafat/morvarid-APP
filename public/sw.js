@@ -120,23 +120,42 @@ registerRoute(
   })
 );
 
-// 5. Caching strategy for Supabase Auth (Network First)
+// 5. Caching strategy for Supabase Auth (Network First with no caching for sensitive requests)
 registerRoute(
   ({ url }) => url.hostname.includes('supabase.co') && url.pathname.includes('/auth/'),
   new NetworkFirst({
     cacheName: AUTH_CACHE,
     networkTimeoutSeconds: 3,
+    plugins: [
+      {
+        cacheKeyWillBeUsed: async ({ request }) => {
+          // Don't cache auth requests that modify state
+          if (request.method !== 'GET') {
+            return null;
+          }
+          return request.url;
+        }
+      }
+    ]
   })
 );
 
-// 6. Caching strategy for Supabase API (Stale-While-Revalidate with background sync)
+// 6. Caching strategy for Supabase API (Network First to prevent response locking)
 registerRoute(
   ({ url }) => url.hostname.includes('supabase.co') && url.pathname.includes('/rest/v1/'),
-  new StaleWhileRevalidate({
+  new NetworkFirst({
     cacheName: API_CACHE,
+    networkTimeoutSeconds: 5,
     plugins: [
-      new ExpirationPlugin({ maxEntries: 50, maxAgeSeconds: 60 * 5 }), // 5 minutes
+      new ExpirationPlugin({ maxEntries: 30, maxAgeSeconds: 60 * 2 }), // 2 minutes
       {
+        cacheKeyWillBeUsed: async ({ request }) => {
+          // Don't cache write operations
+          if (request.method !== 'GET') {
+            return null;
+          }
+          return request.url;
+        },
         fetchDidFail: async ({ request }) => {
           // Add to background sync queue for retry
           bgSync.addRequest(request);
