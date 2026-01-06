@@ -78,15 +78,23 @@ export const THEMES = {
  * APPLICATION VERSION CONTROL
  * ---------------------------
  * Current Version: 4.1.0
- * 
+ *
  * UPDATE LOGIC (Strict SemVer):
  * 1. PATCH (z): Increments on bug fixes/minor tweaks (e.g., 3.0.0 -> 3.0.1).
  *    - RULE: If 'z' reaches 9, reset 'z' to 0 and increment 'y'.
  *    - Example: 3.0.9 -> 3.1.0 (NOT 3.0.10).
  * 2. MINOR (y): Increments on new features or when Patch wraps.
  * 3. MAJOR (x): Increments only on major breaking changes/rewrites.
- * 
+ *
  * NOTE: Provide 'package.json' update in every XML output to keep sync.
  */
 declare const __APP_VERSION__: string;
 export const APP_VERSION = '4.0.1';
+
+/**
+ * NOTIFICATION CONFIGURATION
+ * --------------------------
+ * Service Worker update notifications will NOT play alert sounds.
+ * Only toast messages and system notifications (silent) are shown.
+ */
+export const NOTIFICATION_SOUND_ENABLED = false;

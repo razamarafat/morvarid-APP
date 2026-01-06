@@ -218,29 +218,6 @@ export const useAlertStore = create<AlertState>()(
 
                 if (Notification.permission !== 'granted') return false;
 
-                // 1. Play Sound
-                try {
-                    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-                    if (AudioContextClass) {
-                        const ctx = new AudioContextClass();
-                        const osc = ctx.createOscillator();
-                        const gain = ctx.createGain();
-                        osc.connect(gain);
-                        gain.connect(ctx.destination);
-
-                        osc.type = 'triangle';
-                        osc.frequency.setValueAtTime(500, ctx.currentTime);
-                        osc.frequency.linearRampToValueAtTime(1000, ctx.currentTime + 0.1);
-                        osc.frequency.linearRampToValueAtTime(500, ctx.currentTime + 0.2);
-
-                        gain.gain.setValueAtTime(0.5, ctx.currentTime);
-                        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-
-                        osc.start();
-                        osc.stop(ctx.currentTime + 0.5);
-                    }
-                } catch (e) { console.error('Audio play error', e); }
-
                 // 2. Try Service Worker Notification
                 if ('serviceWorker' in navigator) {
                     try {
