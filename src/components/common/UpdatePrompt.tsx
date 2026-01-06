@@ -23,6 +23,12 @@ function UpdatePrompt() {
     onRegisterError(error: Error) {
       console.error('[PWA] Service Worker registration error:', error);
     },
+    onNeedRefresh() {
+      console.log('[PWA] New Service Worker available, update needed');
+    },
+    onOfflineReady() {
+      console.log('[PWA] Service Worker ready for offline use');
+    },
   });
 
   useEffect(() => {

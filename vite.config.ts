@@ -63,6 +63,8 @@ export default defineConfig(({ mode }) => {
         srcFile: 'sw.js',
         outDir: 'dist',
         filename: 'sw.js',
+        // Check for updates every 60 seconds
+        checkInterval: 60 * 1000,
         injectManifest: {
           // This will ensure that all assets are precached correctly.
           globPatterns: ['**/*.{js,css,html,ico,png,svg,json,webp}'],
