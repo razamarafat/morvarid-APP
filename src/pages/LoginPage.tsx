@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
 import { Icons } from '../components/common/Icons';
+import { TOAST_IDS } from '../constants';
 import { UserRole } from '../types';
 import { getTodayJalaliPersian, getCurrentTime, getTodayDayName, toPersianDigits } from '../utils/dateUtils';
 import ThemeToggle from '../components/common/ThemeToggle';
@@ -115,14 +116,14 @@ const LoginPage: React.FC = () => {
 
   const onSubmit = async (data: LoginFormValues) => {
     if (isBlocked) {
-        addToast('حساب شما موقتاً مسدود است. لطفا دقایقی صبر کنید.', 'error');
+        addToast('حساب شما موقتاً مسدود است. لطفا دقایقی صبر کنید.', 'error', TOAST_IDS.ACCOUNT_BLOCKED);
         return;
     }
     const result = await login(data.username, data.password, !!data.rememberMe);
     if (result.success) {
         setIsRedirecting(true);
         const currentUser = useAuthStore.getState().user;
-        addToast(`خوش آمدید ${currentUser?.fullName || ''}`, 'success');
+        addToast(`خوش آمدید ${currentUser?.fullName || ''}`, 'success', TOAST_IDS.LOGIN_SUCCESS);
         setTimeout(() => {
             switch (currentUser?.role) {
                 case UserRole.ADMIN: navigate('/admin', { replace: true }); break;
@@ -132,7 +133,7 @@ const LoginPage: React.FC = () => {
             }
         }, 500);
     } else {
-        addToast(result.error || 'خطا در ورود به سیستم', 'error');
+        addToast(result.error || 'خطا در ورود به سیستم', 'error', TOAST_IDS.LOGIN_ERROR);
         setIsRedirecting(false);
     }
   };

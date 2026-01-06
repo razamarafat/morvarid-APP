@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { User, UserRole } from '../types';
 import { useToastStore } from './toastStore';
+import { TOAST_IDS } from '../constants';
 
 import { mapLegacyProductId } from '../utils/productUtils';
 import { notifyEvent } from '../services/pushNotificationService';
@@ -407,7 +408,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         notifyEvent('logout', { isTimeout });
 
         if (isTimeout) {
-            useToastStore.getState().addToast('مدت زمان نشست شما به پایان رسیده است. لطفا مجددا وارد شوید.', 'warning');
+            useToastStore.getState().addToast('مدت زمان نشست شما به پایان رسیده است. لطفا مجددا وارد شوید.', 'warning', TOAST_IDS.SESSION_EXPIRED);
         }
     },
 

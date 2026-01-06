@@ -89,7 +89,7 @@ export const THEMES = {
  * NOTE: Provide 'package.json' update in every XML output to keep sync.
  */
 declare const __APP_VERSION__: string;
-export const APP_VERSION = '4.0.1';
+export const APP_VERSION = '4.0.2';
 
 /**
  * NOTIFICATION CONFIGURATION
@@ -98,3 +98,20 @@ export const APP_VERSION = '4.0.1';
  * Only toast messages and system notifications (silent) are shown.
  */
 export const NOTIFICATION_SOUND_ENABLED = false;
+
+/**
+ * TOAST DEDUPLICATION IDS
+ * -----------------------
+ * Fixed IDs for system toast messages to prevent duplicates.
+ * Each system event should have a unique, constant ID.
+ */
+export const TOAST_IDS = {
+  UPDATE_AVAILABLE: 'update-available',
+  SYSTEM_UPDATE: 'system-update',
+  SESSION_EXPIRED: 'session-expired',
+  OFFLINE_STATUS: 'offline-status',
+  NETWORK_ERROR: 'network-error',
+  LOGIN_SUCCESS: 'login-success',
+  LOGIN_ERROR: 'login-error',
+  ACCOUNT_BLOCKED: 'account-blocked',
+} as const;

@@ -2,6 +2,7 @@
 import { useEffect, useRef } from 'react';
 import { useToastStore } from '../store/toastStore';
 import { useAlertStore } from '../store/alertStore';
+import { TOAST_IDS } from '../constants';
 
 export const useAutoUpdate = () => {
   const { addToast } = useToastStore();
@@ -45,12 +46,12 @@ export const useAutoUpdate = () => {
           console.log('[AutoUpdate] New version detected! Forcing update...');
           
           sendLocalNotification(
-              'بروزرسانی سیستم', 
-              'نسخه جدیدی از سامانه مروارید موجود است. برنامه در حال بارگذاری مجدد است...', 
+              'بروزرسانی سیستم',
+              'نسخه جدیدی از سامانه مروارید موجود است. برنامه در حال بارگذاری مجدد است...',
               'system-update'
           );
 
-          addToast('نسخه جدید شناسایی شد. در حال بروزرسانی...', 'info');
+          addToast('نسخه جدید شناسایی شد. در حال بروزرسانی...', 'info', TOAST_IDS.SYSTEM_UPDATE);
           
           if ('serviceWorker' in navigator && !isGooglePreview) {
             try {

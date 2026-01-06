@@ -2,6 +2,7 @@
 import { useEffect } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useToastStore } from '@/store/toastStore';
+import { TOAST_IDS } from '@/constants';
 
 /**
  * This component handles the PWA update lifecycle.
@@ -26,8 +27,8 @@ function UpdatePrompt() {
 
   useEffect(() => {
     if (needRefresh) {
-      // Show a toast message to inform the user
-      addToast('در حال بروزرسانی به نسخه جدید...', 'info');
+      // Show a toast message to inform the user (with fixed ID to prevent duplicates)
+      addToast('در حال بروزرسانی به نسخه جدید...', 'info', TOAST_IDS.UPDATE_AVAILABLE);
 
       // Automatically update and refresh the page after a delay
       const updateTimeout = setTimeout(() => {
