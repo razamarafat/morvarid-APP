@@ -249,7 +249,39 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
 
     updateInvoice: async (id, updates, isSyncing = false) => {
         try {
-            // Construct DB payload with snake_case keys manually to prevent missing column errors
+            // 1. Fetch current invoice data to compare
+            const currentInvoices = get().invoices;
+            const currentInvoice = currentInvoices.find(i => i.id === id);
+            if (!currentInvoice) {
+                return { success: false, error: 'Invoice not found' };
+            }
+
+            // 2. Check if there are actual changes (exclude updatedAt from comparison)
+            const oldData = {
+                invoiceNumber: currentInvoice.invoiceNumber,
+                totalCartons: currentInvoice.totalCartons,
+                totalWeight: currentInvoice.totalWeight,
+                driverName: currentInvoice.driverName,
+                plateNumber: currentInvoice.plateNumber,
+                driverPhone: currentInvoice.driverPhone,
+                description: currentInvoice.description
+            };
+            const newData = {
+                invoiceNumber: updates.invoiceNumber,
+                totalCartons: updates.totalCartons,
+                totalWeight: updates.totalWeight,
+                driverName: updates.driverName,
+                plateNumber: updates.plateNumber,
+                driverPhone: updates.driverPhone,
+                description: updates.description
+            };
+
+            // Only update if data actually changed
+            if (JSON.stringify(oldData) === JSON.stringify(newData)) {
+                return { success: true }; // No changes, no need to update
+            }
+
+            // 3. Construct DB payload with snake_case keys
             const dbUpdates: any = {
                 updated_at: new Date().toISOString()
             };
@@ -282,9 +314,21 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
 
     deleteInvoice: async (id, isSyncing = false) => {
         try {
+            // Get invoice data before deletion for statistics sync
+            const currentInvoice = get().invoices.find(i => i.id === id);
             const { error } = await supabase.from('invoices').delete().eq('id', id);
             if (error) throw error;
             await get().fetchInvoices();
+
+            // Sync sales count after deletion
+            if (currentInvoice) {
+                useStatisticsStore.getState().syncSalesFromInvoices(
+                    currentInvoice.farmId,
+                    currentInvoice.date,
+                    currentInvoice.productId || ''
+                );
+            }
+
             return { success: true };
         } catch (e: any) {
             if (!isSyncing && (isNetworkError(e) || !navigator.onLine)) {
