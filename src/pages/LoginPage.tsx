@@ -185,7 +185,12 @@ const LoginPage: React.FC = () => {
                     <div className="text-center z-20 transform-gpu">
                         {/* Logo Text */}
                         <div className="relative inline-block mb-1 w-auto">
-                            <img src="/images/logo.png" alt="Morvarid Logo" className="h-16 w-auto mx-auto mb-2" />
+                            <img
+                                src="/images/logo.png"
+                                alt="Morvarid Logo"
+                                className="h-24 md:h-32 w-auto mx-auto mb-4 rounded-2xl shadow-lg hover:scale-105 transition-transform duration-500 ease-out"
+                                style={{ imageRendering: '-webkit-optimize-contrast' } as React.CSSProperties}
+                            />
                         </div>
 
                         <div className="h-1 w-12 md:w-24 bg-gradient-to-r from-orange-400 to-yellow-400 mx-auto rounded-full mb-2 md:mb-5 shadow-sm"></div>
