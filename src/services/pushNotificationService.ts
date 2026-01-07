@@ -1,4 +1,6 @@
 import { log } from '../utils/logger';
+import { supabase } from '../lib/supabase';
+import { useAuthStore } from '../store/authStore';
 
 // Push notification service for managing subscriptions and sending notifications
 class PushNotificationService {
@@ -92,15 +94,45 @@ class PushNotificationService {
       });
 
       log.info('[PushService] Successfully subscribed to push notifications');
-      log.info('[PushService] Subscription endpoint:', this.subscription.endpoint);
 
-      // Store subscription for later use
-      this.storeSubscription(this.subscription);
+      // Sync with Supabase
+      await this.syncSubscriptionToDb(this.subscription);
 
       return this.subscription;
     } catch (error) {
       log.error('[PushService] Failed to subscribe:', error);
       throw error;
+    }
+  }
+
+  // Sync subscription to Supabase
+  private async syncSubscriptionToDb(subscription: PushSubscription): Promise<void> {
+    try {
+      const user = useAuthStore.getState().user;
+      if (!user) {
+        log.warn('[PushService] Cannot sync subscription: No user logged in');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('push_subscriptions')
+        .upsert({
+          user_id: user.id,
+          subscription: subscription.toJSON(),
+          user_agent: navigator.userAgent,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id, subscription->>endpoint'
+        });
+
+      if (error) {
+        log.error('[PushService] Failed to sync subscription to DB:', error);
+      } else {
+        log.info('[PushService] Subscription synced to DB');
+        this.storeSubscription(subscription);
+      }
+    } catch (error) {
+      log.error('[PushService] Error in syncSubscriptionToDb:', error);
     }
   }
 
@@ -110,6 +142,9 @@ class PushNotificationService {
       if (!this.subscription) {
         return true; // Already unsubscribed
       }
+
+      // Remove from DB first
+      await this.removeSubscriptionFromDb(this.subscription);
 
       const result = await this.subscription.unsubscribe();
       this.subscription = null;
@@ -122,6 +157,27 @@ class PushNotificationService {
       return false;
     }
   }
+
+  // Remove subscription from DB
+  private async removeSubscriptionFromDb(subscription: PushSubscription): Promise<void> {
+    try {
+      const user = useAuthStore.getState().user;
+      if (!user) return;
+
+      const { error } = await supabase
+        .from('push_subscriptions')
+        .delete()
+        .match({ user_id: user.id })
+        .filter('subscription->>endpoint', 'eq', subscription.endpoint);
+
+      if (error) {
+        log.error('[PushService] Failed to remove subscription from DB:', error);
+      }
+    } catch (error) {
+      log.error('[PushService] Error in removeSubscriptionFromDb:', error);
+    }
+  }
+
 
   // Get current subscription
   public async getSubscription(): Promise<PushSubscription | null> {
@@ -168,12 +224,9 @@ class PushNotificationService {
 
   // Send notification for specific events
   public async notifyEvent(eventType: string, data: any): Promise<void> {
+    // This is now mainly for local testing or immediate feedback, 
+    // real push notifications should come from the server
     try {
-      if (!this.subscription) {
-        log.warn('[PushService] Cannot send notification - not subscribed');
-        return;
-      }
-
       const notifications = {
         'login': { title: 'ورود به سیستم', body: 'با موفقیت وارد شدید' },
         'logout': { title: 'خروج از سیستم', body: 'از سیستم خارج شدید' },
@@ -248,8 +301,12 @@ class PushNotificationService {
       if (subscription) {
         this.subscription = subscription;
         log.info('[PushService] Existing subscription found');
+        // Ensure DB is in sync on startup
+        await this.syncSubscriptionToDb(this.subscription);
       } else {
         log.info('[PushService] No existing subscription');
+        // Optional: Auto-subscribe if user is logged in? 
+        // Better to let user initiate or do it once after login.
       }
     } catch (error) {
       log.error('[PushService] Failed to initialize subscription:', error);
