@@ -3,7 +3,7 @@ import { useStatisticsStore, DailyStatistic } from '../../store/statisticsStore'
 import { useInvoiceStore } from '../../store/invoiceStore';
 import { useFarmStore } from '../../store/farmStore';
 import { useAuthStore } from '../../store/authStore';
-import { UserRole, Invoice } from '../../types';
+import { UserRole, Invoice, FarmType } from '../../types';
 import { useSyncStore, SyncItem } from '../../store/syncStore';
 import { Icons } from '../common/Icons';
 import { useConfirm } from '../../hooks/useConfirm';
@@ -355,10 +355,19 @@ const RecentRecords: React.FC = () => {
     const onEditStatClick = (stat: DailyStatistic) => {
         setTargetStat(stat);
         const fmt = (v: any) => (v === undefined || v === null) ? '' : String(v);
+
+        const farm = farms.find(f => f.id === stat.farmId);
+        const isMotefereghe = farm?.type === FarmType.MOTEFEREGHE;
+
+        // If Motefereghe, "prod" input represents "Declared Stock" (Current Inventory)
+        // If Morvaridi, "prod" input represents actual Production
+        const prodVal = isMotefereghe ? stat.currentInventory : stat.production;
+        const prodKgVal = isMotefereghe ? stat.currentInventoryKg : stat.productionKg;
+
         setStatValues({
-            prod: fmt(stat.production),
+            prod: fmt(prodVal),
             prev: fmt(stat.previousBalance),
-            prodKg: fmt(stat.productionKg),
+            prodKg: fmt(prodKgVal),
             prevKg: fmt(stat.previousBalanceKg)
         });
         setShowEditStatModal(true);
@@ -366,18 +375,52 @@ const RecentRecords: React.FC = () => {
 
     const saveStatChanges = async () => {
         if (!targetStat) return;
-        const prod = Number(statValues.prod);
+
+        const farm = farms.find(f => f.id === targetStat.farmId);
+        const isMotefereghe = farm?.type === FarmType.MOTEFEREGHE;
+
+        const inputVal = Number(statValues.prod);
+        const inputValKg = Number(statValues.prodKg);
         const prev = Number(statValues.prev);
-        const prodKg = Number(statValues.prodKg);
         const prevKg = Number(statValues.prevKg);
 
+        let finalProduction = inputVal;
+        let finalProductionKg = inputValKg;
+        let finalPrevious = prev;
+        let finalPreviousKg = prevKg;
+        let finalCurrent = 0;
+        let finalCurrentKg = 0;
+
+        if (isMotefereghe) {
+            // Logic for Motefereghe: Input is "Declared Stock" (Current Inventory)
+            // Production = Declared + Sales
+            // Previous = 0
+            finalPrevious = 0;
+            finalPreviousKg = 0;
+
+            finalCurrent = inputVal;
+            finalCurrentKg = inputValKg;
+
+            finalProduction = inputVal + (targetStat.sales || 0);
+            finalProductionKg = inputValKg + (targetStat.salesKg || 0);
+        } else {
+            // Logic for Morvaridi: Standard
+            finalProduction = inputVal;
+            finalProductionKg = inputValKg;
+            finalPrevious = prev;
+            finalPreviousKg = prevKg;
+
+            finalCurrent = prev + inputVal - (targetStat.sales || 0);
+            finalCurrentKg = prevKg + inputValKg - (targetStat.salesKg || 0);
+        }
+
         const result = await updateStatistic(targetStat.id, {
-            production: prod,
-            previousBalance: prev,
-            currentInventory: prev + prod - (targetStat.sales || 0),
-            productionKg: prodKg,
-            previousBalanceKg: prevKg,
-            currentInventoryKg: prevKg + prodKg - (targetStat.salesKg || 0)
+            production: finalProduction,
+            previousBalance: finalPrevious,
+            currentInventory: finalCurrent,
+            productionKg: finalProductionKg,
+            previousBalanceKg: finalPreviousKg,
+            currentInventoryKg: finalCurrentKg
         });
 
         if (result.success) {
@@ -565,16 +608,35 @@ const RecentRecords: React.FC = () => {
             {showEditStatModal && targetStat && (
                 <Modal isOpen={true} onClose={() => setShowEditStatModal(false)} title="ویرایش آمار">
                     <div className="space-y-4 pt-2">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div><label className="block text-xs font-bold mb-1">تولید</label><PersianNumberInput className={inputClasses} value={statValues.prod} onChange={v => setStatValues({ ...statValues, prod: v })} /></div>
-                            <div><label className="block text-xs font-bold mb-1">موجودی قبل</label><PersianNumberInput className={inputClasses} value={statValues.prev} onChange={v => setStatValues({ ...statValues, prev: v })} /></div>
-                        </div>
-                        {isLiquid(targetStat.productId) && (
-                            <div className="grid grid-cols-2 gap-4">
-                                <div><label className="block text-xs font-bold mb-1 text-blue-600">وزن تولید</label><PersianNumberInput inputMode="decimal" className={inputClasses} value={statValues.prodKg} onChange={v => setStatValues({ ...statValues, prodKg: v })} /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-blue-600">وزن قبل</label><PersianNumberInput inputMode="decimal" className={inputClasses} value={statValues.prevKg} onChange={v => setStatValues({ ...statValues, prevKg: v })} /></div>
-                            </div>
-                        )}
+                        {(() => {
+                            const farm = farms.find(f => f.id === targetStat.farmId);
+                            const isMotefereghe = farm?.type === FarmType.MOTEFEREGHE;
+
+                            return (
+                                <>
+                                    <div className={`grid gap-4 ${isMotefereghe ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                                        {!isMotefereghe && (
+                                            <div><label className="block text-xs font-bold mb-1">موجودی قبل</label><PersianNumberInput className={inputClasses} value={statValues.prev} onChange={v => setStatValues({ ...statValues, prev: v })} /></div>
+                                        )}
+                                        <div>
+                                            <label className="block text-xs font-bold mb-1">{isMotefereghe ? 'موجودی اعلامی' : 'تولید'}</label>
+                                            <PersianNumberInput className={inputClasses} value={statValues.prod} onChange={v => setStatValues({ ...statValues, prod: v })} />
+                                        </div>
+                                    </div>
+                                    {isLiquid(targetStat.productId) && (
+                                        <div className={`grid gap-4 ${isMotefereghe ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                                            {!isMotefereghe && (
+                                                <div><label className="block text-xs font-bold mb-1 text-blue-600">وزن قبل</label><PersianNumberInput inputMode="decimal" className={inputClasses} value={statValues.prevKg} onChange={v => setStatValues({ ...statValues, prevKg: v })} /></div>
+                                            )}
+                                            <div>
+                                                <label className="block text-xs font-bold mb-1 text-blue-600">{isMotefereghe ? 'وزن اعلامی' : 'وزن تولید'}</label>
+                                                <PersianNumberInput inputMode="decimal" className={inputClasses} value={statValues.prodKg} onChange={v => setStatValues({ ...statValues, prodKg: v })} />
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
+                            );
+                        })()}
                         <div className="flex justify-end gap-3 pt-4">
                             <Button variant="secondary" onClick={() => setShowEditStatModal(false)}>انصراف</Button>
                             <Button onClick={saveStatChanges}>ذخیره تغییرات</Button>
@@ -593,6 +655,7 @@ const RecentRecords: React.FC = () => {
                         </div>
                         <div><label className="block text-xs font-bold mb-1">راننده</label><input type="text" className="w-full p-3 border-2 rounded-xl dark:bg-gray-700 dark:text-white" value={invoiceValues.driverName} onChange={e => setInvoiceValues({ ...invoiceValues, driverName: e.target.value })} /></div>
                         <div><label className="block text-xs font-bold mb-1">پلاک</label><PlateInput value={invoiceValues.plateNumber} onChange={v => setInvoiceValues({ ...invoiceValues, plateNumber: v })} /></div>
+                        <div><label className="block text-xs font-bold mb-1">توضیحات</label><textarea className="w-full p-3 border-2 rounded-xl dark:bg-gray-700 dark:text-white h-24 resize-none" value={invoiceValues.description} onChange={e => setInvoiceValues({ ...invoiceValues, description: e.target.value })} placeholder="توضیحات تکمیلی..." /></div>
                         <div className="flex justify-end gap-3 pt-4">
                             <Button variant="secondary" onClick={() => setShowEditInvoiceModal(false)}>انصراف</Button>
                             <Button onClick={saveInvoiceChanges}>ذخیره</Button>
