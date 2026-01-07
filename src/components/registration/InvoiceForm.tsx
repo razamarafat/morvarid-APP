@@ -217,7 +217,8 @@ export const InvoiceForm: React.FC = () => {
     };
 
     const handleProductToggle = (pid: string) => {
-        const statRecord = statistics.find(s => s.farmId === selectedFarmId && s.date === referenceDate && s.productId === pid);
+        const normalizedRefDate = normalizeDate(referenceDate);
+        const statRecord = statistics.find(s => s.farmId === selectedFarmId && normalizeDate(s.date) === normalizedRefDate && s.productId === pid);
         if (!statRecord) {
             // Decode HTML entities in date for display
             const decodedDate = referenceDate.replace(/&#x2F;/g, '/').replace(/&#[xX]0+;/g, '').replace(/&\w+;/g, '');
@@ -283,7 +284,7 @@ export const InvoiceForm: React.FC = () => {
                 return;
             }
 
-            const statRecord = statistics.find(s => s.farmId === selectedFarmId && s.date === referenceDate && s.productId === pid);
+            const statRecord = statistics.find(s => s.farmId === selectedFarmId && normalizeDate(s.date) === normalizeDate(referenceDate) && s.productId === pid);
             if (!statRecord) {
                 addToast(`خطا: آمار تولید برای "${name}" یافت نشد.`, 'error');
                 return;

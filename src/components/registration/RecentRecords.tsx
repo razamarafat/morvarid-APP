@@ -88,7 +88,7 @@ const StatRecordCard = ({ stat, getProductName, canEdit, onEdit, onDelete }: { s
 };
 
 // Unified Record Card for Invoices
-const InvoiceRecordCard = ({ inv, getProductName, canEdit, onEdit, onDelete }: { inv: Invoice, getProductName: (id: string) => string, canEdit: (c: number, r?: string) => boolean, onEdit: (i: Invoice) => void, onDelete: (i: Invoice) => void }) => {
+const InvoiceRecordCard = ({ inv, getProductName, canEdit, onEdit, onDelete, onAddItem }: { inv: Invoice, getProductName: (id: string) => string, canEdit: (c: number, r?: string) => boolean, onEdit: (i: Invoice) => void, onDelete: (i: Invoice) => void, onAddItem?: (i: Invoice) => void }) => {
     const prodName = getProductName(inv.productId || '');
     const isAdminCreated = inv.creatorRole === UserRole.ADMIN;
     const isEdited = inv.updatedAt && inv.updatedAt > inv.createdAt + 2000;
@@ -121,6 +121,11 @@ const InvoiceRecordCard = ({ inv, getProductName, canEdit, onEdit, onDelete }: {
                 <div className="flex gap-2">
                     {!isPending && !isOffline && (canEdit(inv.createdAt, inv.creatorRole) ? (
                         <>
+                            {onAddItem && (
+                                <button onClick={() => onAddItem(inv)} className="p-1.5 bg-green-50 text-green-600 rounded-lg" title="افزودن محصول دیگر به این حواله">
+                                    <Icons.Plus className="w-4 h-4" />
+                                </button>
+                            )}
                             <button onClick={() => onEdit(inv)} className="p-1.5 bg-blue-50 text-blue-600 rounded-lg"><Icons.Edit className="w-4 h-4" /></button>
                             <button onClick={() => onDelete(inv)} className="p-1.5 bg-red-50 text-red-600 rounded-lg"><Icons.Trash className="w-4 h-4" /></button>
                         </>
@@ -151,8 +156,8 @@ const InvoiceRecordCard = ({ inv, getProductName, canEdit, onEdit, onDelete }: {
 };
 
 const RecentRecords: React.FC = () => {
-    const { statistics, fetchStatistics, deleteStatistic, updateStatistic, isLoading: statsLoading } = useStatisticsStore();
-    const { invoices, fetchInvoices, deleteInvoice, updateInvoice, isLoading: invLoading } = useInvoiceStore();
+    const { statistics, fetchStatistics, deleteStatistic, updateStatistic, isLoading: statsLoading, statistics: allStats } = useStatisticsStore();
+    const { invoices, fetchInvoices, deleteInvoice, updateInvoice, bulkAddInvoices, validateUnique, isLoading: invLoading } = useInvoiceStore();
     const { user } = useAuthStore();
     const { fetchFarms, products, getProductById, farms } = useFarmStore();
     const { addToast } = useToastStore();
@@ -169,6 +174,14 @@ const RecentRecords: React.FC = () => {
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
     const [showEditStatModal, setShowEditStatModal] = useState(false);
     const [showEditInvoiceModal, setShowEditInvoiceModal] = useState(false);
+    
+    // Add Item Modal State
+    const [showAddItemModal, setShowAddItemModal] = useState(false);
+    const [addItemInvoice, setAddItemInvoice] = useState<Invoice | null>(null);
+    const [addItemProductId, setAddItemProductId] = useState<string>('');
+    const [addItemCartons, setAddItemCartons] = useState<string>('');
+    const [addItemWeight, setAddItemWeight] = useState<string>('');
+    const [addItemLoading, setAddItemLoading] = useState(false);
 
     // Default to Today only
     const defaultStartDate = useMemo(() => getTodayJalali(), []);
@@ -483,6 +496,106 @@ const RecentRecords: React.FC = () => {
         }
     };
 
+    // Add Item to existing invoice
+    const handleAddItemClick = (inv: Invoice) => {
+        setAddItemInvoice(inv);
+        setAddItemProductId('');
+        setAddItemCartons('');
+        setAddItemWeight('');
+        setShowAddItemModal(true);
+    };
+
+    const handleAddItemProductToggle = (pid: string) => {
+        if (addItemProductId === pid) {
+            setAddItemProductId('');
+            setAddItemCartons('');
+            setAddItemWeight('');
+        } else {
+            setAddItemProductId(pid);
+            setAddItemCartons('');
+            setAddItemWeight('');
+        }
+    };
+
+    const saveAddItem = async () => {
+        if (!addItemInvoice || !addItemProductId) {
+            addToast('لطفا یک محصول انتخاب کنید', 'warning');
+            return;
+        }
+
+        const cartons = Number(addItemCartons);
+        const weight = Number(addItemWeight);
+
+        if (!cartons || cartons <= 0) {
+            addToast('تعداد کارتن را وارد کنید', 'error');
+            return;
+        }
+        if (!weight || weight <= 0) {
+            addToast('وزن را وارد کنید', 'error');
+            return;
+        }
+
+        // Check if product already exists for this invoice number
+        const existingProduct = invoices.find(i => 
+            i.invoiceNumber === addItemInvoice.invoiceNumber && 
+            i.productId === addItemProductId &&
+            i.id !== addItemInvoice.id
+        );
+        if (existingProduct) {
+            addToast('این محصول قبلاً برای این حواله ثبت شده است', 'error');
+            return;
+        }
+
+        // Check inventory
+        const normalizedDate = normalizeDate(addItemInvoice.date);
+        const statRecord = allStats.find(s => 
+            s.farmId === addItemInvoice.farmId && 
+            normalizeDate(s.date) === normalizedDate && 
+            s.productId === addItemProductId
+        );
+        
+        if (statRecord && statRecord.currentInventory < cartons) {
+            addToast(`موجودی کافی نیست. موجود: ${statRecord.currentInventory}`, 'error');
+            return;
+        }
+
+        setAddItemLoading(true);
+
+        // Validate uniqueness (exclude current invoice family)
+        const validation = await validateUnique(addItemInvoice.invoiceNumber, addItemInvoice.id);
+        if (!validation.isValid) {
+            setAddItemLoading(false);
+            addToast(validation.error || 'خطا در اعتبارسنجی', 'error');
+            return;
+        }
+
+        // Create new invoice with same number but new product
+        const result = await bulkAddInvoices([{
+            farmId: addItemInvoice.farmId,
+            date: addItemInvoice.date,
+            invoiceNumber: addItemInvoice.invoiceNumber,
+            totalCartons: cartons,
+            totalWeight: weight,
+            productId: addItemProductId,
+            driverName: addItemInvoice.driverName || '',
+            driverPhone: addItemInvoice.driverPhone || '',
+            plateNumber: addItemInvoice.plateNumber || '',
+            description: addItemInvoice.description || '',
+            isYesterday: addItemInvoice.isYesterday || false
+        }]);
+
+        setAddItemLoading(false);
+
+        if (result.success) {
+            setShowAddItemModal(false);
+            setAddItemInvoice(null);
+            addToast('محصول جدید به حواله اضافه شد', 'success');
+            fetchInvoices();
+        } else {
+            addToast(result.error || 'خطا در ثبت', 'error');
+        }
+    };
+
     const inputClasses = "w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl text-center font-black text-xl bg-white dark:bg-gray-700 dark:text-white focus:border-metro-blue outline-none transition-all";
 
     const invoiceItemData = useMemo(() => ({
@@ -491,8 +604,9 @@ const RecentRecords: React.FC = () => {
         isAdmin,
         canEdit,
         handleEditInvoice,
-        handleDeleteInvoice
-    }), [filteredInvoices, getProductById, isAdmin]);
+        handleDeleteInvoice,
+        handleAddItemClick
+    }), [filteredInvoices, getProductById, isAdmin, handleAddItemClick]);
 
     const sortedProductIds = useMemo(() => {
         const ids = Array.from(new Set(filteredStats.map(s => s.productId)));
@@ -597,6 +711,7 @@ const RecentRecords: React.FC = () => {
                                     canEdit={canEdit}
                                     onEdit={handleEditInvoice}
                                     onDelete={handleDeleteInvoice}
+                                    onAddItem={handleAddItemClick}
                                 />
                             ))
                         )}
@@ -659,6 +774,87 @@ const RecentRecords: React.FC = () => {
                         <div className="flex justify-end gap-3 pt-4">
                             <Button variant="secondary" onClick={() => setShowEditInvoiceModal(false)}>انصراف</Button>
                             <Button onClick={saveInvoiceChanges}>ذخیره</Button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
+
+            {/* Add Item Modal */}
+            {showAddItemModal && addItemInvoice && (
+                <Modal isOpen={true} onClose={() => setShowAddItemModal(false)} title={`افزودن محصول به حواله ${toPersianDigits(addItemInvoice.invoiceNumber)}`}>
+                    <div className="space-y-4 pt-2">
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl">
+                            <p className="text-sm text-blue-700 dark:text-blue-300">
+                                <span className="font-bold">محصولات موجود برای این فارم:</span>
+                            </p>
+                        </div>
+                        
+                        {/* Product Selection */}
+                        <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                            {addItemInvoice.farmId && (() => {
+                                const farm = farms.find(f => f.id === addItemInvoice.farmId);
+                                const farmProductIds = farm?.productIds || [];
+                                return farmProductIds.map(pid => {
+                                    const p = products.find(prod => prod.id === pid);
+                                    if (!p) return null;
+                                    const isSelected = addItemProductId === pid;
+                                    // Check if already added for this invoice
+                                    const alreadyAdded = invoices.some(i => 
+                                        i.invoiceNumber === addItemInvoice.invoiceNumber && 
+                                        i.productId === pid &&
+                                        i.id !== addItemInvoice.id
+                                    );
+                                    
+                                    return (
+                                        <button
+                                            key={pid}
+                                            type="button"
+                                            disabled={alreadyAdded}
+                                            onClick={() => handleAddItemProductToggle(pid)}
+                                            className={`p-3 rounded-xl text-sm font-bold transition-all ${
+                                                isSelected 
+                                                    ? 'bg-metro-green text-white shadow-lg' 
+                                                    : alreadyAdded
+                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                        : 'bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+                                            }`}
+                                        >
+                                            {p.name} {alreadyAdded && '(ثبت شده)'}
+                                        </button>
+                                    );
+                                });
+                            })()}
+                        </div>
+
+                        {addItemProductId && (
+                            <div className="grid grid-cols-2 gap-4 animate-fade-in">
+                                <div>
+                                    <label className="block text-xs font-bold mb-1">تعداد (کارتن)</label>
+                                    <PersianNumberInput
+                                        className={inputClasses}
+                                        value={addItemCartons}
+                                        onChange={setAddItemCartons}
+                                        placeholder=""
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold mb-1">وزن (کیلوگرم)</label>
+                                    <PersianNumberInput
+                                        inputMode="decimal"
+                                        className={inputClasses}
+                                        value={addItemWeight}
+                                        onChange={setAddItemWeight}
+                                        placeholder=""
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="flex justify-end gap-3 pt-4">
+                            <Button variant="secondary" onClick={() => setShowAddItemModal(false)}>انصراف</Button>
+                            <Button onClick={saveAddItem} isLoading={addItemLoading} disabled={!addItemProductId || !addItemCartons || !addItemWeight}>
+                                افزودن به حواله
+                            </Button>
                         </div>
                     </div>
                 </Modal>

@@ -36,6 +36,13 @@ interface InvoiceState {
     bulkAddInvoices: (invoices: Omit<Invoice, 'id' | 'createdAt'>[], isSyncing?: boolean) => Promise<{ success: boolean; error?: string }>;
     updateInvoice: (id: string, updates: Partial<Invoice>, isSyncing?: boolean) => Promise<{ success: boolean; error?: string }>;
     deleteInvoice: (id: string, isSyncing?: boolean) => Promise<{ success: boolean; error?: string }>;
+    /**
+     * Validate if invoice number is unique for new invoices.
+     * @param invoiceNumber - The invoice number to check
+     * @param excludeInvoiceId - Optional: when adding items to existing invoice, exclude this invoice's family
+     * @returns Promise<{ isValid: boolean; error?: string }>
+     */
+    validateUnique: (invoiceNumber: string, excludeInvoiceId?: string) => Promise<{ isValid: boolean; error?: string }>;
 }
 
 export const useInvoiceStore = create<InvoiceState>((set, get) => ({
@@ -146,17 +153,26 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
         // 2. Pre-insertion Duplicate Check (Skip if syncing from queue as it was checked then)
         if (!isSyncing) {
             try {
-                const invoiceNumbers = Array.from(new Set(invoicesList.map(inv => inv.invoiceNumber)));
-                const { data: existing, error: checkError } = await supabase
-                    .from('invoices')
-                    .select('invoice_number')
-                    .in('invoice_number', invoiceNumbers)
-                    .limit(1);
+                // Check for duplicates based on (invoice_number, product_id) combination
+                // This aligns with the DB constraint invoices_invoice_number_product_id_key
+                const duplicates: string[] = [];
+                for (const inv of invoicesList) {
+                    const { data: existing, error: checkError } = await supabase
+                        .from('invoices')
+                        .select('id, invoice_number, product_id')
+                        .eq('invoice_number', inv.invoiceNumber)
+                        .eq('product_id', inv.productId || null)
+                        .limit(1);
 
-                if (!checkError && existing && existing.length > 0) {
+                    if (!checkError && existing && existing.length > 0) {
+                        duplicates.push(`${inv.invoiceNumber} (${inv.productId || 'بدون محصول'})`);
+                    }
+                }
+
+                if (duplicates.length > 0) {
                     return {
                         success: false,
-                        error: `رمز حواله ${existing[0].invoice_number} قبلاً ثبت شده است.`
+                        error: `حواله‌های زیر قبلاً ثبت شده‌اند: ${duplicates.join(', ')}`
                     };
                 }
             } catch (e) {
@@ -257,28 +273,28 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
             }
 
             // 2. Check if there are actual changes (exclude updatedAt from comparison)
-            const oldData = {
-                invoiceNumber: currentInvoice.invoiceNumber,
-                totalCartons: currentInvoice.totalCartons,
-                totalWeight: currentInvoice.totalWeight,
-                driverName: currentInvoice.driverName,
-                plateNumber: currentInvoice.plateNumber,
-                driverPhone: currentInvoice.driverPhone,
-                description: currentInvoice.description
-            };
-            const newData = {
-                invoiceNumber: updates.invoiceNumber,
-                totalCartons: updates.totalCartons,
-                totalWeight: updates.totalWeight,
-                driverName: updates.driverName,
-                plateNumber: updates.plateNumber,
-                driverPhone: updates.driverPhone,
-                description: updates.description
-            };
+            // Compare all fields as strings to avoid type coercion issues
+            const oldDataStr = JSON.stringify({
+                invoiceNumber: String(currentInvoice.invoiceNumber || ''),
+                totalCartons: String(currentInvoice.totalCartons || ''),
+                totalWeight: String(currentInvoice.totalWeight || ''),
+                driverName: String(currentInvoice.driverName || ''),
+                plateNumber: String(currentInvoice.plateNumber || ''),
+                driverPhone: String(currentInvoice.driverPhone || ''),
+                description: String(currentInvoice.description || '')
+            });
+            const newDataStr = JSON.stringify({
+                invoiceNumber: String(updates.invoiceNumber || ''),
+                totalCartons: String(updates.totalCartons || ''),
+                totalWeight: String(updates.totalWeight || ''),
+                driverName: String(updates.driverName || ''),
+                plateNumber: String(updates.plateNumber || ''),
+                driverPhone: String(updates.driverPhone || ''),
+                description: String(updates.description || '')
+            });
 
-            // Only update if data actually changed
-            if (JSON.stringify(oldData) === JSON.stringify(newData)) {
-                return { success: true }; // No changes, no need to update
+            if (oldDataStr === newDataStr) {
+                return { success: true }; // No changes detected, skip update
             }
 
             // 3. Construct DB payload with snake_case keys
@@ -336,6 +352,52 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
                 return { success: true, error: 'حذف در صف آفلاین ذخیره شد' };
             }
             return { success: false, error: getErrorMessage(e) };
+        }
+    },
+
+    validateUnique: async (invoiceNumber: string, excludeInvoiceId?: string) => {
+        try {
+            // Query for any invoices with this invoice number
+            let query = supabase
+                .from('invoices')
+                .select('id, invoice_number, created_by')
+                .eq('invoice_number', invoiceNumber)
+                .limit(1);
+
+            // If excluding an invoice ID, also check if any OTHER invoices exist with same number
+            if (excludeInvoiceId) {
+                // Get all invoices with this number (excluding the one being edited)
+                const { data: existing } = await supabase
+                    .from('invoices')
+                    .select('id, invoice_number')
+                    .eq('invoice_number', invoiceNumber)
+                    .neq('id', excludeInvoiceId);
+
+                if (existing && existing.length > 0) {
+                    return {
+                        isValid: false,
+                        error: `رمز حواله ${invoiceNumber} قبلاً برای محصول دیگری ثبت شده است.`
+                    };
+                }
+                return { isValid: true };
+            }
+
+            // For new invoices, check if number exists anywhere
+            const { data: existing, error } = await query;
+            if (error) throw error;
+
+            if (existing && existing.length > 0) {
+                return {
+                    isValid: false,
+                    error: `رمز حواله ${invoiceNumber} قبلاً ثبت شده است.`
+                };
+            }
+
+            return { isValid: true };
+        } catch (e: any) {
+            console.warn('[InvoiceStore] validateUnique error:', e);
+            // On error, allow (validation error shouldn't block, DB constraint will catch it)
+            return { isValid: true };
         }
     }
 }));

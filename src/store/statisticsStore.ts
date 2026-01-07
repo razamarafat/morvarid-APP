@@ -170,6 +170,35 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
 
     updateStatistic: async (id, updates, isSyncing = false) => {
         try {
+            // 1. Fetch current stat data to compare
+            const currentStats = get().statistics;
+            const currentStat = currentStats.find(s => s.id === id);
+            if (!currentStat) {
+                return { success: false, error: 'Statistic not found' };
+            }
+
+            // 2. Check if there are actual changes
+            const oldDataStr = JSON.stringify({
+                production: String(currentStat.production || ''),
+                previousBalance: String(currentStat.previousBalance || ''),
+                currentInventory: String(currentStat.currentInventory || ''),
+                productionKg: String(currentStat.productionKg || ''),
+                previousBalanceKg: String(currentStat.previousBalanceKg || ''),
+                currentInventoryKg: String(currentStat.currentInventoryKg || '')
+            });
+            const newDataStr = JSON.stringify({
+                production: String(updates.production ?? ''),
+                previousBalance: String(updates.previousBalance ?? ''),
+                currentInventory: String(updates.currentInventory ?? ''),
+                productionKg: String(updates.productionKg ?? ''),
+                previousBalanceKg: String(updates.previousBalanceKg ?? ''),
+                currentInventoryKg: String(updates.currentInventoryKg ?? '')
+            });
+
+            if (oldDataStr === newDataStr) {
+                return { success: true }; // No changes detected, skip update
+            }
+
             const dbUpdates: any = {};
             // Map camelCase to snake_case
             if (updates.farmId !== undefined) dbUpdates.farm_id = updates.farmId;
