@@ -219,7 +219,9 @@ export const InvoiceForm: React.FC = () => {
     const handleProductToggle = (pid: string) => {
         const statRecord = statistics.find(s => s.farmId === selectedFarmId && s.date === referenceDate && s.productId === pid);
         if (!statRecord) {
-            addToast(`ابتدا باید آمار تولید ${getProductById(pid)?.name} برای تاریخ ${referenceDate} ثبت شود.`, 'error');
+            // Decode HTML entities in date for display
+            const decodedDate = referenceDate.replace(/&#x2F;/g, '/').replace(/&#[xX]0+;/g, '').replace(/&\w+;/g, '');
+            addToast(`ابتدا باید آمار تولید ${getProductById(pid)?.name} برای تاریخ ${decodedDate} ثبت شود.`, 'error');
             return;
         }
 
