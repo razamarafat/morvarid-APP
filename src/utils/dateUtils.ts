@@ -10,7 +10,7 @@ export const toEnglishDigits = (str: string): string => {
 
 export const toPersianDigits = (str: string | number | null | undefined): string => {
   if (str === undefined || str === null) return '';
-  const s = String(str);
+  const s = String(str).replace(/&#x2F;/g, '/');
   return s.replace(/[0-9]/g, (d) => String.fromCharCode(d.charCodeAt(0) + 1728));
 };
 
