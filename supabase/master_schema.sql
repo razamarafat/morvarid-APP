@@ -306,23 +306,34 @@ RETURNS TRIGGER AS $$
 DECLARE
   pid TEXT;
   pid_uuid UUID;
+  p_ids JSONB;
 BEGIN
   IF NEW.product_ids IS NULL THEN
-    NEW.product_ids := '{}';
+    -- Default to empty array if null
+    IF pg_typeof(NEW.product_ids) = 'jsonb'::regtype THEN
+       NEW.product_ids := '[]'::jsonb;
+    ELSE
+       NEW.product_ids := '{}';
+    END IF;
     RETURN NEW;
   END IF;
 
-  FOREACH pid IN ARRAY NEW.product_ids LOOP
-    BEGIN
-      pid_uuid := pid::uuid;
-    EXCEPTION WHEN OTHERS THEN
-      RAISE EXCEPTION 'Invalid product id in farms.product_ids: %', pid;
-    END;
+  -- Unified iteration handling (works for TEXT[] and JSONB)
+  p_ids := to_jsonb(NEW.product_ids);
 
-    IF NOT EXISTS (SELECT 1 FROM public.products WHERE id = pid_uuid) THEN
-      RAISE EXCEPTION 'Unknown product id in farms.product_ids: %', pid;
-    END IF;
-  END LOOP;
+  IF jsonb_typeof(p_ids) = 'array' THEN
+    FOR pid IN SELECT * FROM jsonb_array_elements_text(p_ids) LOOP
+      BEGIN
+        pid_uuid := pid::uuid;
+      EXCEPTION WHEN OTHERS THEN
+        RAISE EXCEPTION 'Invalid product id in farms.product_ids: %', pid;
+      END;
+
+      IF NOT EXISTS (SELECT 1 FROM public.products WHERE id = pid_uuid) THEN
+        RAISE EXCEPTION 'Unknown product id in farms.product_ids: %', pid;
+      END IF;
+    END LOOP;
+  END IF;
 
   RETURN NEW;
 END;
