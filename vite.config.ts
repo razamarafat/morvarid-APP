@@ -44,19 +44,20 @@ const generateVersionFile = () => {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  
+
   // Detect deployment target
   const isCloudflare = process.env.CF_PAGES === '1' || process.env.DEPLOY_TARGET === 'cloudflare';
   const isGitHub = process.env.GITHUB_ACTIONS === 'true' || process.env.DEPLOY_TARGET === 'github';
-  
+  const isVercel = process.env.VERCEL === '1';
+
   // Set base path based on deployment target
   let basePath = '/';
   if (isGitHub) {
     basePath = '/morvarid-APP/';
-  } else if (isCloudflare) {
+  } else if (isCloudflare || isVercel) {
     basePath = '/';
-  } else if (mode === 'production' && !isCloudflare) {
-    // Default to GitHub Pages path for production if not explicitly Cloudflare
+  } else if (mode === 'production' && !isCloudflare && !isVercel) {
+    // Default to GitHub Pages path for production if not explicitly Cloudflare or Vercel
     basePath = '/morvarid-APP/';
   }
 

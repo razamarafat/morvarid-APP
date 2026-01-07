@@ -1,5 +1,7 @@
 // Service Worker powered by Workbox
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
+
+cleanupOutdatedCaches();
 import { registerRoute } from 'workbox-routing';
 import { CacheFirst, NetworkFirst, NetworkOnly } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
@@ -40,8 +42,8 @@ self.addEventListener('activate', (event) => {
     })
   );
 
-  // Clean up outdated Workbox caches.
-  cleanupOutdatedCaches();
+  // Clean up outdated Workbox caches is handled by the function called at top level.
+
 
   // Clean up other old, non-workbox caches.
   event.waitUntil(
