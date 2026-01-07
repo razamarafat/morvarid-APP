@@ -1,7 +1,7 @@
 {
   "name": "morvarid-statistics-management",
   "private": true,
-  "version": "4.0.5",
+  "version": "4.0.10",
   "homepage": "https://razamarafat.github.io/morvarid-APP",
   "type": "module",
   "scripts": {

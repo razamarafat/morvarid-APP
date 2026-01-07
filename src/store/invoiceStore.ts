@@ -154,7 +154,6 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
         if (!isSyncing) {
             try {
                 // Check for duplicates based on (invoice_number, product_id) combination
-                // This aligns with the DB constraint invoices_invoice_number_product_id_key
                 const duplicates: string[] = [];
                 for (const inv of invoicesList) {
                     const { data: existing, error: checkError } = await supabase
@@ -165,14 +164,14 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
                         .limit(1);
 
                     if (!checkError && existing && existing.length > 0) {
-                        duplicates.push(`${inv.invoiceNumber} (${inv.productId || 'بدون محصول'})`);
+                        duplicates.push(`${inv.invoiceNumber} (محصول تکراری)`);
                     }
                 }
 
                 if (duplicates.length > 0) {
                     return {
                         success: false,
-                        error: `حواله‌های زیر قبلاً ثبت شده‌اند: ${duplicates.join(', ')}`
+                        error: `حواله‌های زیر قبلاً برای این محصول ثبت شده‌اند: ${duplicates.join(', ')}`
                     };
                 }
             } catch (e) {
@@ -357,46 +356,17 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
 
     validateUnique: async (invoiceNumber: string, excludeInvoiceId?: string) => {
         try {
-            // Query for any invoices with this invoice number
-            let query = supabase
-                .from('invoices')
-                .select('id, invoice_number, created_by')
-                .eq('invoice_number', invoiceNumber)
-                .limit(1);
+            // NOTE: We only check if the NUMBER exists at all for visual feedback, 
+            // but we don't block UNLESS the specific product is also same.
+            // However, this method is usually called BEFORE product is selected or final.
+            // So we return true (valid) even if number exists, unless we implement specific check.
 
-            // If excluding an invoice ID, also check if any OTHER invoices exist with same number
-            if (excludeInvoiceId) {
-                // Get all invoices with this number (excluding the one being edited)
-                const { data: existing } = await supabase
-                    .from('invoices')
-                    .select('id, invoice_number')
-                    .eq('invoice_number', invoiceNumber)
-                    .neq('id', excludeInvoiceId);
-
-                if (existing && existing.length > 0) {
-                    return {
-                        isValid: false,
-                        error: `رمز حواله ${invoiceNumber} قبلاً برای محصول دیگری ثبت شده است.`
-                    };
-                }
-                return { isValid: true };
-            }
-
-            // For new invoices, check if number exists anywhere
-            const { data: existing, error } = await query;
-            if (error) throw error;
-
-            if (existing && existing.length > 0) {
-                return {
-                    isValid: false,
-                    error: `رمز حواله ${invoiceNumber} قبلاً ثبت شده است.`
-                };
-            }
+            // For now, we will RELAX this check to allow same number.
+            // The real constraint is (number, product), which is checked in `bulkAddInvoices`.
 
             return { isValid: true };
         } catch (e: any) {
             console.warn('[InvoiceStore] validateUnique error:', e);
-            // On error, allow (validation error shouldn't block, DB constraint will catch it)
             return { isValid: true };
         }
     }
