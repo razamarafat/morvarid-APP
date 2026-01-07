@@ -1,0 +1,17 @@
+# Cloudflare Pages Configuration for Morvarid App
+name = "morvarid-app"
+compatibility_date = "2023-12-01"
+
+[build]
+command = "npm run build:cloudflare"
+cwd = "."
+watch_dir = "src"
+
+[build.upload]
+format = "directory"
+dir = "dist"
+
+[[build.upload.rules]]
+type = "ESModule"
+globs = ["**/*.js"]
+fallthrough = true

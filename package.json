@@ -9,13 +9,17 @@
     "dev": "vite",
     "prebuild": "node scripts/check-env.js",
     "build": "tsc && vite build",
+    "build:github": "cross-env DEPLOY_TARGET=github npm run build",
+    "build:cloudflare": "cross-env DEPLOY_TARGET=cloudflare npm run build",
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist",
+    "deploy:github": "npm run build:github && gh-pages -d dist",
+    "deploy:cloudflare": "npm run build:cloudflare"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
@@ -55,6 +59,7 @@
     "@vitejs/plugin-react": "^4.2.1",
     "@vitest/ui": "^1.6.0",
     "autoprefixer": "^10.4.19",
+    "cross-env": "^7.0.3",
     "eslint": "^8.57.0",
     "eslint-plugin-react": "^7.34.1",
     "eslint-plugin-react-hooks": "^4.6.0",
