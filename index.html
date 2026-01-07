@@ -1,23 +1,29 @@
-
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
-<head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192x192.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>سامانه مدیریت یکپارچه آمار مروارید</title>
-   
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="مروارید">
-    <meta name="mobile-web-app-capable" content="yes">
-    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
-    <meta name="theme-color" content="#1D1D1D">
-    <meta name="description" content="سیستم یکپارچه مدیریت آمار تولید، فروش و انبارداری فارم‌های مروارید">
-    <link rel="manifest" href="manifest.json">
 
-    <!-- Content Security Policy -->
-    <meta http-equiv="Content-Security-Policy" content="
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192x192.png" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>سامانه مدیریت یکپارچه آمار مروارید</title>
+
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="مروارید">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+  <meta name="theme-color" content="#1D1D1D">
+  <meta name="description" content="سیستم یکپارچه مدیریت آمار تولید، فروش و انبارداری فارم‌های مروارید">
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Aggressive Cache Busting for index.html -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+
+  <!-- Content Security Policy -->
+  <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
       script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://vercel.live;
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
@@ -31,120 +37,148 @@
       block-all-mixed-content;
       upgrade-insecure-requests;
     ">
-    
-    <!-- Optimized Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <!-- Load only required font weights for better performance -->
-    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&display=swap&subset=arabic" rel="stylesheet">
-    
-    <style>
-      /* Base Global Styles that are not handled by Tailwind */
-      * {
-        -webkit-tap-highlight-color: transparent;
-        box-sizing: border-box;
-      }
-     
-      body, input, textarea, select, button, table, .font-sans, [class*="text-"] {
-        font-family: 'Vazirmatn', sans-serif !important;
-      }
 
-      body {
-        font-feature-settings: "ss01";
-      }
+  <!-- Optimized Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Load only required font weights for better performance -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&display=swap&subset=arabic"
+    rel="stylesheet">
 
-      [dir="ltr"], .font-mono, .ltr {
-        font-feature-settings: normal !important;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
-      }
+  <style>
+    /* Base Global Styles that are not handled by Tailwind */
+    * {
+      -webkit-tap-highlight-color: transparent;
+      box-sizing: border-box;
+    }
 
-      /* Autofill Overrides */
-      input:-webkit-autofill,
-      input:-webkit-autofill:hover, 
-      input:-webkit-autofill:focus, 
-      input:-webkit-autofill:active {
-          -webkit-box-shadow: 0 0 0 30px white inset !important;
-          -webkit-text-fill-color: #111827 !important;
-          background-color: white !important;
-          color: #111827 !important;
-      }
+    body,
+    input,
+    textarea,
+    select,
+    button,
+    table,
+    .font-sans,
+    [class*="text-"] {
+      font-family: 'Vazirmatn', sans-serif !important;
+    }
 
-      html.dark input:-webkit-autofill,
-      html.dark input:-webkit-autofill:hover, 
-      html.dark input:-webkit-autofill:focus, 
-      html.dark input:-webkit-autofill:active {
-          -webkit-box-shadow: 0 0 0 30px #374151 inset !important;
-          -webkit-text-fill-color: white !important;
-          background-color: #374151 !important;
-          color: white !important;
-      }
+    body {
+      font-feature-settings: "ss01";
+    }
 
-      /* Layout & Scroll */
-      :root {
-        --sat: env(safe-area-inset-top);
-        --sar: env(safe-area-inset-right);
-        --sab: env(safe-area-inset-bottom);
-        --sal: env(safe-area-inset-left);
-      }
-     
-      html {
-        height: 100%;
-        height: 100dvh;
-        overscroll-behavior: none;
-        -webkit-overflow-scrolling: touch;
-      }
-     
-      body {
-        height: 100%;
-        height: 100dvh;
-        overscroll-behavior: none;
-        position: fixed;
-        width: 100%;
-        top: 0;
-        left: 0;
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-      }
+    [dir="ltr"],
+    .font-mono,
+    .ltr {
+      font-feature-settings: normal !important;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+    }
 
-      html, body {
-        background-color: #1D1D1D;
-      }
+    /* Autofill Overrides */
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus,
+    input:-webkit-autofill:active {
+      -webkit-box-shadow: 0 0 0 30px white inset !important;
+      -webkit-text-fill-color: #111827 !important;
+      background-color: white !important;
+      color: #111827 !important;
+    }
 
-      #root {
-        height: 100%;
-        height: 100dvh;
-        width: 100%;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-      }
+    html.dark input:-webkit-autofill,
+    html.dark input:-webkit-autofill:hover,
+    html.dark input:-webkit-autofill:focus,
+    html.dark input:-webkit-autofill:active {
+      -webkit-box-shadow: 0 0 0 30px #374151 inset !important;
+      -webkit-text-fill-color: white !important;
+      background-color: #374151 !important;
+      color: white !important;
+    }
 
-      /* Custom Scrollbars */
-      .custom-scrollbar::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
-      }
-      .custom-scrollbar::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: rgba(156, 163, 175, 0.5);
-        border-radius: 3px;
-      }
-      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: rgba(156, 163, 175, 0.8);
-      }
-      
-      /* Safe Areas */
-      .pt-safe { padding-top: env(safe-area-inset-top); }
-      .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-      .mt-safe { margin-top: env(safe-area-inset-top); }
-      .mb-safe { margin-bottom: env(safe-area-inset-bottom); }
-    </style>
-</head>  
+    /* Layout & Scroll */
+    :root {
+      --sat: env(safe-area-inset-top);
+      --sar: env(safe-area-inset-right);
+      --sab: env(safe-area-inset-bottom);
+      --sal: env(safe-area-inset-left);
+    }
+
+    html {
+      height: 100%;
+      height: 100dvh;
+      overscroll-behavior: none;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    body {
+      height: 100%;
+      height: 100dvh;
+      overscroll-behavior: none;
+      position: fixed;
+      width: 100%;
+      top: 0;
+      left: 0;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    html,
+    body {
+      background-color: #1D1D1D;
+    }
+
+    #root {
+      height: 100%;
+      height: 100dvh;
+      width: 100%;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Custom Scrollbars */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(156, 163, 175, 0.5);
+      border-radius: 3px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(156, 163, 175, 0.8);
+    }
+
+    /* Safe Areas */
+    .pt-safe {
+      padding-top: env(safe-area-inset-top);
+    }
+
+    .pb-safe {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .mt-safe {
+      margin-top: env(safe-area-inset-top);
+    }
+
+    .mb-safe {
+      margin-bottom: env(safe-area-inset-bottom);
+    }
+  </style>
+</head>
+
 <body class="text-gray-900 dark:text-white selection:bg-metro-blue selection:text-white">
-    <div id="root"></div>
-    <script type="module" src="/src/index.tsx"></script>
+  <div id="root"></div>
+  <script type="module" src="/src/index.tsx"></script>
 </body>
+
 </html>

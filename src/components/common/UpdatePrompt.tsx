@@ -36,10 +36,10 @@ function UpdatePrompt() {
       // Show a toast message to inform the user (with fixed ID to prevent duplicates)
       addToast('در حال بروزرسانی به نسخه جدید...', 'info', TOAST_IDS.UPDATE_AVAILABLE);
 
-      // Automatically update and refresh the page after a delay
+      // Automatically update and refresh the page immediately
       const updateTimeout = setTimeout(() => {
         updateServiceWorker(true);
-      }, 3000); // 3-second delay
+      }, 100); // 100ms delay for stability
 
       return () => clearTimeout(updateTimeout);
     }
