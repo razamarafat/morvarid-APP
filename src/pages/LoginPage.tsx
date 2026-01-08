@@ -180,7 +180,7 @@ const LoginPage: React.FC = () => {
             <div className="relative z-10 flex flex-col md:flex-row h-full w-full justify-between pb-safe">
 
                 {/* --- TOP SECTION (Logo, Clock) --- */}
-                <div className="flex-none flex flex-col items-center justify-start pt-safe mt-10 md:mt-16 relative z-20 shrink-0 md:flex-1 md:w-[55%]">
+                <div className="flex-none flex flex-col items-center justify-start pt-safe mt-10 md:mt-12 relative z-20 shrink-0 md:flex-1 md:w-[55%]">
 
                     <div className="text-center z-20 transform-gpu">
                         {/* Logo Text */}
@@ -193,9 +193,9 @@ const LoginPage: React.FC = () => {
                             />
                         </div>
 
-                        <div className="h-1 w-12 md:w-24 bg-gradient-to-r from-orange-400 to-yellow-400 mx-auto rounded-full mb-2 md:mb-5 shadow-sm"></div>
+                        <div className="h-1 w-12 md:w-24 bg-gradient-to-r from-orange-400 to-yellow-400 mx-auto rounded-full mb-2 md:mb-4 shadow-sm"></div>
 
-                        <h1 className="text-5xl md:text-6xl font-black text-gray-800 dark:text-white mb-1 md:mb-5 tracking-tight drop-shadow-sm scale-y-110">
+                        <h1 className="text-5xl md:text-6xl font-black text-gray-800 dark:text-white mb-1 md:mb-3 tracking-tight drop-shadow-sm scale-y-110">
                             مـرواریــد
                         </h1>
 
@@ -206,9 +206,9 @@ const LoginPage: React.FC = () => {
                     </div>
 
                     {/* Clock & Date */}
-                    <div className="hidden md:flex mt-4 md:mt-12 z-20 flex-col items-center gap-0 w-full max-w-[320px] md:max-w-md">
-                        <div className="w-full text-center flex flex-col gap-1 md:gap-6">
-                            <div className="flex md:flex-col items-center justify-center gap-3 md:gap-4">
+                    <div className="hidden md:flex mt-4 md:mt-8 z-20 flex-col items-center gap-0 w-full max-w-[320px] md:max-w-md">
+                        <div className="w-full text-center flex flex-col gap-1 md:gap-4">
+                            <div className="flex md:flex-col items-center justify-center gap-3 md:gap-2">
                                 <div className="text-sm md:text-2xl font-black text-gray-700 dark:text-gray-300 tracking-[0.2em] md:tracking-[0.6em] uppercase opacity-90 scale-x-110">
                                     {currentDayName}
                                 </div>
@@ -226,8 +226,8 @@ const LoginPage: React.FC = () => {
                     </div>
 
                     {/* --- DESKTOP QUOTE SECTION --- */}
-                    <div className="hidden md:flex flex-col items-center mt-16 max-w-md text-center z-20 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-500">
-                        <div className="w-24 h-1 bg-gradient-to-r from-transparent via-orange-400 to-transparent rounded-full mb-6 opacity-70"></div>
+                    <div className="hidden md:flex flex-col items-center mt-6 max-w-md text-center z-20 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-500">
+                        <div className="w-24 h-1 bg-gradient-to-r from-transparent via-orange-400 to-transparent rounded-full mb-4 opacity-70"></div>
                         <p className="text-lg font-bold text-gray-700 dark:text-gray-200 italic leading-relaxed px-4">
                             "{dailyQuote.text}"
                         </p>
