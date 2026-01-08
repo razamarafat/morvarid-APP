@@ -24,7 +24,7 @@ export interface SyncLog {
 
 interface SyncState {
     queue: SyncItem[];
-    syncLogs: SyncLog[]; 
+    syncLogs: SyncLog[];
     isProcessing: boolean; // New: Global processing flag
     addToQueue: (type: SyncItemType, payload: any) => boolean; // Changed return type
     removeFromQueue: (id: string) => void;
@@ -32,6 +32,7 @@ interface SyncState {
     incrementRetry: (id: string) => void;
     updateItemAttempt: (id: string, timestamp: number) => void;
     addSyncLog: (log: Omit<SyncLog, 'id'>) => void;
+    removeSyncLogByItemId: (itemId: string) => void; // New action to clear logs on success
     clearSyncLogs: () => void;
     setIsProcessing: (status: boolean) => void; // New action
 }
@@ -44,11 +45,11 @@ export const useSyncStore = create<SyncState>()(
             isProcessing: false,
             addToQueue: (type, payload) => {
                 const currentQueue = get().queue;
-                
+
                 // Duplicate Prevention Logic
                 if (type === 'INVOICE') {
-                    const exists = currentQueue.some(item => 
-                        item.type === 'INVOICE' && 
+                    const exists = currentQueue.some(item =>
+                        item.type === 'INVOICE' &&
                         item.payload.invoiceNumber === payload.invoiceNumber &&
                         item.payload.productId === payload.productId
                     );
@@ -59,8 +60,8 @@ export const useSyncStore = create<SyncState>()(
                 }
 
                 if (type === 'STAT') {
-                    const exists = currentQueue.some(item => 
-                        item.type === 'STAT' && 
+                    const exists = currentQueue.some(item =>
+                        item.type === 'STAT' &&
                         item.payload.farmId === payload.farmId &&
                         item.payload.date === payload.date &&
                         item.payload.productId === payload.productId
@@ -88,14 +89,14 @@ export const useSyncStore = create<SyncState>()(
             clearQueue: () => set({ queue: [] }),
             incrementRetry: (id) => {
                 set({
-                    queue: get().queue.map(item => 
+                    queue: get().queue.map(item =>
                         item.id === id ? { ...item, retryCount: item.retryCount + 1 } : item
                     )
                 });
             },
             updateItemAttempt: (id, timestamp) => {
                 set({
-                    queue: get().queue.map(item => 
+                    queue: get().queue.map(item =>
                         item.id === id ? { ...item, lastAttempt: timestamp } : item
                     )
                 });
@@ -104,6 +105,11 @@ export const useSyncStore = create<SyncState>()(
                 const newLog = { ...log, id: uuidv4() };
                 // Keep only last 50 logs to prevent storage bloat
                 set(state => ({ syncLogs: [newLog, ...state.syncLogs].slice(0, 50) }));
+            },
+            removeSyncLogByItemId: (itemId) => {
+                set(state => ({
+                    syncLogs: state.syncLogs.filter(log => log.itemId !== itemId)
+                }));
             },
             clearSyncLogs: () => set({ syncLogs: [] }),
             setIsProcessing: (status) => set({ isProcessing: status })

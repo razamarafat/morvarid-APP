@@ -15,6 +15,7 @@ export const useOfflineSync = () => {
         incrementRetry,
         updateItemAttempt,
         addSyncLog,
+        removeSyncLogByItemId,
         isProcessing,
         setIsProcessing
     } = useSyncStore();
@@ -136,15 +137,21 @@ export const useOfflineSync = () => {
                     } else if (result.success) {
                         removeFromQueue(item.id);
                         successCount++;
+                        // Clear any previous error logs for this item upon success
+                        removeSyncLogByItemId(item.id);
                     } else {
                         incrementRetry(item.id);
                         updateItemAttempt(item.id, Date.now());
-                        addSyncLog({
-                            itemId: item.id,
-                            itemType: item.type,
-                            message: result.error || 'خطای ناشناخته',
-                            timestamp: Date.now()
-                        });
+
+                        // Only log if there is an actual error message
+                        if (result.error) {
+                            addSyncLog({
+                                itemId: item.id,
+                                itemType: item.type,
+                                message: result.error,
+                                timestamp: Date.now()
+                            });
+                        }
                         failCount++;
                     }
                 } catch (itemErr: any) {

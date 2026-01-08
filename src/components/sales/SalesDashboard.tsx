@@ -303,14 +303,14 @@ const VirtualizedInvoiceRow = ({ index, style, data }: { index: number, style: R
 
             {/* 5. Count */}
             <div className="text-center">
-                <span className={`font-black text-base px-2 py-0.5 rounded shadow-sm inline-block min-w-[40px] ${isOffline ? 'bg-orange-100 text-orange-700' : isPending ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 dark:bg-gray-700'}`}>
+                <span className={`text-base px-2 py-0.5 rounded shadow-sm inline-block min-w-[40px] ${isOffline ? 'bg-orange-100 text-orange-700 font-black' : isPending ? 'bg-blue-100 text-blue-700 font-black' : 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 font-bold'}`}>
                     {toPersianDigits(invoice.totalCartons)}
                 </span>
             </div>
 
             {/* 6. Weight */}
             <div className="text-center">
-                <span className={`font-black text-base px-2 py-0.5 rounded shadow-sm inline-block min-w-[50px] ${isOffline ? 'bg-orange-50 text-orange-600' : isPending ? 'bg-blue-50 text-blue-500' : 'bg-blue-50 dark:bg-blue-900/20 text-metro-blue'}`}>
+                <span className={`text-base px-2 py-0.5 rounded shadow-sm inline-block min-w-[50px] ${isOffline ? 'bg-orange-50 text-orange-600 font-black' : isPending ? 'bg-blue-50 text-blue-500 font-black' : 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 font-bold'}`}>
                     {toPersianDigits(invoice.totalWeight)}
                 </span>
             </div>
