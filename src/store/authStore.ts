@@ -230,9 +230,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
             if (profileError) {
                 console.error('Profile Fetch Error:', profileError);
-                
+
                 // Handle specific network errors
-                if (profileError.message?.includes('locked') || 
+                if (profileError.message?.includes('locked') ||
                     profileError.message?.includes('net::ERR_FAILED') ||
                     profileError.code === '401') {
                     console.warn('[Auth] Network or auth error, attempting to refresh session');
@@ -245,7 +245,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                             .select('*, farms:user_farms(farm_id)')
                             .eq('id', session.user.id)
                             .single();
-                        
+
                         if (!retryResult.error && retryResult.data) {
                             // Update variables with retry data
                             profile = retryResult.data;
@@ -253,7 +253,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                         }
                     }
                 }
-                
+
                 if (profileError) {
                     set({ user: null, isLoading: false });
                     return;
@@ -278,6 +278,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                         }
                         return { ...f, productIds: pIds };
                     });
+
+                    // Block logic: If user has farms, but ALL are inactive, and user is NOT Admin
+                    if (profile.role !== UserRole.ADMIN && assignedFarms.length > 0) {
+                        const allInactive = assignedFarms.every((f: any) => !f.is_active); // Note: supabase returns is_active (snake_case)
+                        if (allInactive) {
+                            console.warn('[Auth] User blocked: All assigned farms are inactive.');
+                            await get().logout();
+                            return;
+                        }
+                    }
                 }
 
                 set({
@@ -341,6 +351,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             if (profile && !profile.is_active) {
                 await supabase.auth.signOut();
                 return { success: false, error: 'حساب کاربری شما غیرفعال شده است.' };
+            }
+
+            // Check if user's farms are active
+            if (profile && profile.role !== UserRole.ADMIN) {
+                const { data: userFarms } = await supabase
+                    .from('user_farms')
+                    .select('farm_id, farms:farms(is_active)')
+                    .eq('user_id', loginData.user.id);
+
+                if (userFarms && userFarms.length > 0) {
+                    // Check if all assigned farms are inactive
+                    const allInactive = userFarms.every((uf: any) => !uf.farms?.is_active);
+                    if (allInactive) {
+                        await supabase.auth.signOut();
+                        return { success: false, error: 'فارم شما غیرفعال شده است و امکان ورود وجود ندارد.' };
+                    }
+                }
             }
 
             get().resetAttempts();

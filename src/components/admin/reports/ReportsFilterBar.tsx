@@ -45,32 +45,6 @@ const ReportsFilterBar: React.FC<ReportsFilterBarProps> = ({
 }) => {
     return (
         <div className="bg-white dark:bg-gray-800 p-4 lg:p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col gap-6">
-            {/* Header / Tabs */}
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4 border-b border-gray-100 dark:border-gray-700 pb-4">
-                <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-2xl w-full md:w-auto">
-                    <button
-                        onClick={() => onTabChange('invoices')}
-                        className={`flex-1 md:flex-none py-2 px-6 rounded-xl font-bold transition-all text-sm flex items-center justify-center gap-2 ${reportTab === 'invoices' ? 'bg-white dark:bg-gray-800 text-metro-orange shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}
-                    >
-                        <Icons.List className="w-4 h-4" /> لیست حواله‌ها
-                    </button>
-                    <button
-                        onClick={() => onTabChange('stats')}
-                        className={`flex-1 md:flex-none py-2 px-6 rounded-xl font-bold transition-all text-sm flex items-center justify-center gap-2 ${reportTab === 'stats' ? 'bg-white dark:bg-gray-800 text-metro-blue shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}
-                    >
-                        <Icons.BarChart className="w-4 h-4" /> آمار تولید
-                    </button>
-                </div>
-
-                <Button
-                    onClick={onExport}
-                    variant="primary"
-                    className="w-full md:w-auto px-6 h-10 rounded-xl font-bold text-sm bg-green-500 hover:bg-green-600 shadow-lg shadow-green-500/20 border-none"
-                >
-                    <Icons.Download className="w-4 h-4 ml-2" /> خروجی اکسل
-                </Button>
-            </div>
-
             {/* Filters Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                 <div>
@@ -103,7 +77,7 @@ const ReportsFilterBar: React.FC<ReportsFilterBarProps> = ({
                 </div>
             </div>
 
-            {/* Search + Action Wrapper */}
+            {/* Search + Actions Wrapper */}
             <div className="flex flex-col md:flex-row gap-4">
                 <div className="flex-1 relative">
                     <Icons.Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -115,14 +89,23 @@ const ReportsFilterBar: React.FC<ReportsFilterBarProps> = ({
                         onChange={(e) => onSearchTermChange(e.target.value)}
                     />
                 </div>
-                <Button
-                    onClick={onRefresh}
-                    isLoading={isSearching}
-                    className="w-full md:w-auto px-8 h-[52px] rounded-xl font-bold bg-metro-blue hover:bg-metro-cobalt shadow-lg shadow-blue-500/30 text-base"
-                >
-                    {!isSearching && <Icons.Refresh className="w-5 h-5 ml-2" />}
-                    نمایش گزارش
-                </Button>
+                <div className="flex gap-2 w-full md:w-auto">
+                    <Button
+                        onClick={onRefresh}
+                        isLoading={isSearching}
+                        className="flex-1 md:flex-none px-8 h-[52px] rounded-xl font-bold bg-metro-blue hover:bg-metro-cobalt shadow-lg shadow-blue-500/30 text-base whitespace-nowrap"
+                    >
+                        {!isSearching && <Icons.Refresh className="w-5 h-5 ml-2" />}
+                        نمایش گزارش
+                    </Button>
+                    <Button
+                        onClick={onExport}
+                        variant="primary"
+                        className="flex-1 md:flex-none px-6 h-[52px] rounded-xl font-bold text-sm bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-500/20 border-none whitespace-nowrap"
+                    >
+                        <Icons.Download className="w-4 h-4 ml-2" /> خروجی اکسل
+                    </Button>
+                </div>
             </div>
         </div>
     );

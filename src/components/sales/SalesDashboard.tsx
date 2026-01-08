@@ -201,8 +201,9 @@ const FarmStatistics = React.memo(() => {
     };
 
     const filteredFarms = useMemo(() => {
-        if (!searchTerm) return farms;
-        return farms.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()));
+        const activeFarms = farms.filter(f => f.isActive);
+        if (!searchTerm) return activeFarms;
+        return activeFarms.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()));
     }, [farms, searchTerm]);
 
     const morvaridiFarms = filteredFarms.filter(f => f.type === FarmType.MORVARIDI);
