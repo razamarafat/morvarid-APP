@@ -159,6 +159,7 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <Input
           label="نام فارم (فقط فارسی)"
+          autoFocus
           {...register('name')}
           error={errors.name?.message}
           placeholder=""

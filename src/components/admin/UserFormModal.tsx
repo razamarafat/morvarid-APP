@@ -223,6 +223,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
 
                 <Input
                     label="نام کامل (فارسی - بدون عدد)"
+                    autoFocus
                     {...register('fullName')}
                     error={errors.fullName?.message}
                     autoComplete="off"
