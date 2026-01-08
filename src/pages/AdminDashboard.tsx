@@ -23,7 +23,7 @@ const AdminDashboard: React.FC = () => {
     useEffect(() => {
         const performAutoBackup = async () => {
             const LAST_BACKUP_KEY = 'morvarid_last_auto_backup';
-            const BACKUP_INTERVAL = 8 * 60 * 60 * 1000; 
+            const BACKUP_INTERVAL = 8 * 60 * 60 * 1000;
             const lastBackupStr = localStorage.getItem(LAST_BACKUP_KEY);
             const now = Date.now();
 
@@ -49,7 +49,7 @@ const AdminDashboard: React.FC = () => {
         };
 
         performAutoBackup();
-        const backupInterval = setInterval(performAutoBackup, 60000); 
+        const backupInterval = setInterval(performAutoBackup, 60000);
         return () => clearInterval(backupInterval);
     }, []);
 
@@ -75,9 +75,9 @@ const AdminDashboard: React.FC = () => {
             default: return <DashboardHome onNavigate={setCurrentView} />;
         }
     };
-    
+
     const getTitle = () => {
-        switch(currentView){
+        switch (currentView) {
             case 'farms': return 'مدیریت فارم‌ها';
             case 'users': return 'مدیریت کاربران';
             case 'reports': return 'گزارشات';
@@ -87,11 +87,11 @@ const AdminDashboard: React.FC = () => {
         }
     }
 
-  return (
-    <DashboardLayout title={getTitle()} onNavigate={setCurrentView} currentView={currentView}>
-        {renderContent()}
-    </DashboardLayout>
-  );
+    return (
+        <DashboardLayout title={getTitle()} onNavigate={setCurrentView} currentView={currentView}>
+            {renderContent()}
+        </DashboardLayout>
+    );
 };
 
 const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNavigate }) => {
@@ -130,13 +130,17 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
             <MetroTile title="مدیریت کاربران" icon={Icons.Users} color="bg-metro-purple" size="wide" onClick={() => onNavigate('users')} />
             <MetroTile title="گزارشات" icon={Icons.FileText} color="bg-metro-blue" size="medium" onClick={() => onNavigate('reports')} />
             {/* Added Device Manager Tile */}
-            <MetroTile title="دستگاه‌ها" icon={Icons.Globe} color="bg-indigo-600" size="medium" onClick={() => onNavigate('devices')} />
+            <MetroTile title="دستگاه‌ها" icon={Icons.Globe} color="bg-metro-darkPurple" size="medium" onClick={() => onNavigate('devices')} />
             <MetroTile title="سنجش فنی" icon={Icons.TestTube} color="bg-metro-teal" size="medium" onClick={() => onNavigate('testing')} />
             <MetroTile title={pwaConfig.title} icon={pwaConfig.icon} color={pwaConfig.color} size="medium" count={pwaConfig.count} onClick={pwaConfig.click} className={!isInstalled && !deferredPrompt ? "opacity-80 grayscale-[0.3]" : ""} />
-            <div className="col-span-1 h-32 sm:h-40 bg-gray-700 p-4 flex items-end justify-center relative overflow-hidden">
-                <div className="absolute inset-0 bg-black/20 pattern-grid-lg opacity-20" />
-                <span className="text-white text-xs opacity-50 relative z-10 font-mono">v{APP_VERSION}</span>
-            </div>
+            <MetroTile
+                title="نسخه سیستم"
+                icon={Icons.Info}
+                color="bg-gray-600"
+                size="medium"
+                count={`v${APP_VERSION}`}
+                onClick={() => addToast(`نسخه فعلی: ${APP_VERSION}`, 'info')}
+            />
         </div>
     );
 };
