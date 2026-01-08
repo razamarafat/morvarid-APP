@@ -69,7 +69,7 @@ const PlateInput: React.FC<PlateInputProps> = ({ value = '', onChange, onError, 
     return (
         <div className="w-full">
             {label && <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 px-1">{label}</label>}
-            <div className="grid grid-cols-[1.2fr_auto_1.5fr_auto] gap-2 items-center bg-gray-100 dark:bg-gray-900/50 p-3 rounded-2xl border-2 border-gray-200 dark:border-gray-600 w-full" dir="ltr">
+            <div className="grid grid-cols-[1.2fr_auto_1.5fr_auto] gap-2 items-center bg-gray-100 dark:bg-gray-900 p-3 rounded-2xl border-2 border-gray-200 dark:border-gray-700 w-full" dir="ltr">
                 {/* Part 1: 2 Digits */}
                 <input
                     type="text"
@@ -77,7 +77,7 @@ const PlateInput: React.FC<PlateInputProps> = ({ value = '', onChange, onError, 
                     maxLength={2}
                     value={toPersianDigits(parts.part1)}
                     onChange={e => updateParts({ part1: toEnglishDigits(e.target.value) })}
-                    className="h-12 lg:h-14 bg-white dark:bg-gray-700 rounded-lg text-center font-black text-xl lg:text-2xl outline-none dark:text-white w-full min-w-0 persian-nums"
+                    className="h-12 lg:h-14 bg-white dark:bg-gray-800 rounded-lg text-center font-black text-xl lg:text-2xl outline-none dark:text-white w-full min-w-0 persian-nums placeholder-gray-400 border border-transparent dark:border-gray-700"
                     placeholder="۲۲"
                 />
 
@@ -86,7 +86,7 @@ const PlateInput: React.FC<PlateInputProps> = ({ value = '', onChange, onError, 
                     <button
                         type="button"
                         onClick={() => setShowLetterPicker(!showLetterPicker)}
-                        className="h-full px-2 lg:px-3 bg-white dark:bg-gray-700 rounded-lg font-black text-lg lg:text-xl flex items-center justify-center text-red-600 border border-gray-200 dark:border-gray-600 min-w-[3rem] lg:min-w-[3.5rem] shadow-sm"
+                        className="h-full px-2 lg:px-3 bg-white dark:bg-gray-800 rounded-lg font-black text-lg lg:text-xl flex items-center justify-center text-red-600 border border-gray-200 dark:border-gray-700 min-w-[3rem] lg:min-w-[3.5rem] shadow-sm active:scale-95 transition-all"
                     >
                         {parts.letter || 'الف'}
                     </button>
@@ -120,12 +120,12 @@ const PlateInput: React.FC<PlateInputProps> = ({ value = '', onChange, onError, 
                     maxLength={3}
                     value={toPersianDigits(parts.part3)}
                     onChange={e => updateParts({ part3: toEnglishDigits(e.target.value) })}
-                    className="h-12 lg:h-14 bg-white dark:bg-gray-700 rounded-lg text-center font-black text-xl lg:text-2xl outline-none dark:text-white w-full min-w-0 persian-nums"
+                    className="h-12 lg:h-14 bg-white dark:bg-gray-800 rounded-lg text-center font-black text-xl lg:text-2xl outline-none dark:text-white w-full min-w-0 persian-nums placeholder-gray-400 border border-transparent dark:border-gray-700"
                     placeholder="۳۶۵"
                 />
 
                 {/* Part 4: Iran Code */}
-                <div className="flex flex-col items-center justify-center w-12 lg:w-14 h-12 lg:h-14 bg-white dark:bg-gray-700 border border-black/10 dark:border-gray-600 rounded-lg shadow-sm">
+                <div className="flex flex-col items-center justify-center w-12 lg:w-14 h-12 lg:h-14 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
                     <span className="text-[8px] font-black text-black dark:text-white">ایران</span>
                     <input
                         type="text"

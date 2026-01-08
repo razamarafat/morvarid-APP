@@ -171,11 +171,11 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
             control={control}
             render={({ field }) => (
               <div className="flex gap-4">
-                <label className="flex-1 flex items-center justify-center gap-2 p-3 border-2 rounded-xl cursor-pointer hover:bg-violet-50 dark:hover:bg-gray-700 transition-colors has-[:checked]:bg-violet-50 has-[:checked]:border-violet-500 has-[:checked]:text-violet-700">
+                <label className="flex-1 flex items-center justify-center gap-2 p-3 border-2 rounded-xl cursor-pointer hover:bg-violet-50 dark:hover:bg-gray-800 transition-colors has-[:checked]:bg-violet-50 has-[:checked]:border-violet-500 has-[:checked]:text-violet-700">
                   <input type="radio" {...field} value={FarmType.MORVARIDI} className="hidden" />
                   <span className="font-bold">مرواریدی</span>
                 </label>
-                <label className="flex-1 flex items-center justify-center gap-2 p-3 border-2 rounded-xl cursor-pointer hover:bg-violet-50 dark:hover:bg-gray-700 transition-colors has-[:checked]:bg-violet-50 has-[:checked]:border-violet-500 has-[:checked]:text-violet-700">
+                <label className="flex-1 flex items-center justify-center gap-2 p-3 border-2 rounded-xl cursor-pointer hover:bg-violet-50 dark:hover:bg-gray-800 transition-colors has-[:checked]:bg-violet-50 has-[:checked]:border-violet-500 has-[:checked]:text-violet-700">
                   <input type="radio" {...field} value={FarmType.MOTEFEREGHE} className="hidden" />
                   <span className="font-bold">متفرقه</span>
                 </label>
@@ -197,7 +197,7 @@ const FarmFormModal: React.FC<FarmFormModalProps> = ({ isOpen, onClose, farm }) 
           </div>
 
           {isAddingProduct && (
-            <div className="mb-3 p-2 bg-gray-50 dark:bg-gray-700 rounded-xl flex gap-2 border border-gray-200 dark:border-gray-600">
+            <div className="mb-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-xl flex gap-2 border border-gray-200 dark:border-gray-700">
               <input
                 value={newProductName}
                 onChange={(e) => setNewProductName(e.target.value)}

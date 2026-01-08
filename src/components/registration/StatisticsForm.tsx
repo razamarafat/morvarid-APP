@@ -13,6 +13,7 @@ import { Icons } from '../common/Icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FarmType } from '../../types';
 import { useAutoSave } from '../../hooks/useAutoSave';
+import JalaliDatePicker from '../common/JalaliDatePicker';
 
 interface StatisticsFormProps {
     onNavigate?: (view: string) => void;
@@ -27,7 +28,7 @@ interface ProductFormState {
 
 const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
     const { user } = useAuthStore();
-    const { getProductById } = useFarmStore();
+    const { getProductById, farms: allFarms } = useFarmStore();
     const { statistics, bulkUpsertStatistics } = useStatisticsStore();
     const { invoices } = useInvoiceStore();
     const { addToast } = useToastStore();
@@ -40,11 +41,22 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
 
     const todayJalali = getTodayJalali();
     const todayDayName = getTodayDayName();
-    const normalizedDate = normalizeDate(todayJalali);
 
-    const userFarms = user?.assignedFarms || [];
-    const [selectedFarmId] = useState<string>(userFarms[0]?.id || '');
-    const selectedFarm = userFarms.find(f => f.id === selectedFarmId);
+    const isAdmin = user?.role === 'ADMIN';
+    const availableFarms = isAdmin ? allFarms : (user?.assignedFarms || []);
+
+    const [selectedFarmId, setSelectedFarmId] = useState<string>('');
+    const [selectedDate, setSelectedDate] = useState(getTodayJalali());
+
+    // Initialize farm ID
+    useEffect(() => {
+        if (!selectedFarmId && availableFarms.length > 0) {
+            setSelectedFarmId(availableFarms[0].id);
+        }
+    }, [availableFarms, selectedFarmId]);
+
+    const selectedFarm = availableFarms.find(f => f.id === selectedFarmId);
+    const normalizedDate = normalizeDate(selectedDate);
 
     const sortedProductIds = useMemo(() => {
         if (!selectedFarm) return [];
@@ -220,10 +232,44 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
 
     const isMotefereghe = selectedFarm.type === FarmType.MOTEFEREGHE;
 
-    const inputClasses = "w-full p-3 bg-white dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 text-center font-black text-3xl text-gray-900 dark:text-white rounded-xl focus:border-metro-orange focus:ring-4 focus:ring-orange-100 dark:focus:ring-orange-900/20 outline-none h-16 transition-all shadow-sm";
+    const inputClasses = "w-full p-3 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 text-center font-black text-3xl text-gray-900 dark:text-white rounded-xl focus:border-metro-orange focus:ring-4 focus:ring-orange-100 dark:focus:ring-orange-900/20 outline-none h-16 transition-all shadow-sm placeholder-gray-400";
 
     return (
         <div className="max-w-4xl mx-auto pb-24">
+            {/* ADMIN ACCESS OVERRIDES */}
+            {isAdmin && (
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 mb-6 space-y-4 animate-in fade-in slide-in-from-top-4">
+                    <div className="flex items-center gap-2 text-metro-purple font-black mb-2">
+                        <Icons.Settings className="w-6 h-6" />
+                        <span>کنترل مدیریت (Admin Access)</span>
+                    </div>
+
+                    {availableFarms.length > 1 && (
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-400 block pr-2">انتخاب فارم:</label>
+                            <div className="flex flex-wrap gap-2">
+                                {availableFarms.map(f => (
+                                    <button
+                                        key={f.id}
+                                        onClick={() => setSelectedFarmId(f.id)}
+                                        className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${selectedFarmId === f.id ? 'bg-metro-purple text-white shadow-lg' : 'bg-gray-50 dark:bg-gray-900 text-gray-400 border border-gray-100 dark:border-gray-700'}`}
+                                    >
+                                        {f.name}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-400 block pr-2">تاریخ ثبت آمار:</label>
+                        <div className="h-16 w-full max-w-xs">
+                            <JalaliDatePicker value={selectedDate} onChange={setSelectedDate} />
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* UPDATED HEADER - CLEAN STYLE */}
             <div className="bg-orange-50/80 dark:bg-orange-950/20 p-6 rounded-[24px] shadow-sm border border-orange-100 dark:border-orange-900/30 mb-6 flex flex-col items-center justify-center gap-2 text-center relative overflow-hidden transition-colors">
                 <Icons.BarChart className="absolute right-4 top-1/2 -translate-y-1/2 w-32 h-32 text-metro-orange opacity-5 pointer-events-none -rotate-12" />
@@ -342,14 +388,14 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                                                             {!isMotefereghe && (
                                                                 <div>
                                                                     <label className="block text-sm font-bold mb-1.5 text-gray-400 pr-1">وزن قبل</label>
-                                                                    <input type="tel" inputMode="decimal" value={vals.previousBalanceKg} onChange={e => handleInputChange(pid, 'previousBalanceKg', e.target.value)} className={`${inputClasses} border-blue-100 dark:border-blue-900/30 focus:border-metro-blue focus:ring-blue-100 dark:focus:ring-blue-900/20`} placeholder="" />
+                                                                    <input type="tel" inputMode="decimal" value={vals.previousBalanceKg} onChange={e => handleInputChange(pid, 'previousBalanceKg', e.target.value)} className={`${inputClasses} border-blue-100 dark:border-gray-700 focus:border-metro-blue focus:ring-blue-100 dark:focus:ring-blue-900/20`} placeholder="" />
                                                                 </div>
                                                             )}
                                                             <div>
                                                                 <label className="block text-sm font-bold mb-1.5 text-gray-400 pr-1">
                                                                     {isMotefereghe ? 'موجودی اعلامی (وزن)' : 'تولید روز (وزن)'}
                                                                 </label>
-                                                                <input type="tel" inputMode="decimal" value={vals.productionKg} onChange={e => handleInputChange(pid, 'productionKg', e.target.value)} className={`${inputClasses} border-blue-100 dark:border-blue-900/30 focus:border-metro-blue focus:ring-blue-100 dark:focus:ring-blue-900/20`} placeholder="" />
+                                                                <input type="tel" inputMode="decimal" value={vals.productionKg} onChange={e => handleInputChange(pid, 'productionKg', e.target.value)} className={`${inputClasses} border-blue-100 dark:border-gray-700 focus:border-metro-blue focus:ring-blue-100 dark:focus:ring-blue-900/20`} placeholder="" />
                                                             </div>
                                                         </div>
                                                     </div>

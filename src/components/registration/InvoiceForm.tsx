@@ -59,7 +59,7 @@ interface InvoiceDraftState {
 
 export const InvoiceForm: React.FC = () => {
     const { user } = useAuthStore();
-    const { getProductById } = useFarmStore();
+    const { getProductById, farms: allFarms } = useFarmStore();
     const { bulkAddInvoices } = useInvoiceStore();
     const { statistics } = useStatisticsStore();
     const { addToast } = useToastStore();
@@ -72,9 +72,18 @@ export const InvoiceForm: React.FC = () => {
     const normalizedDate = normalizeDate(todayJalali);
 
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const userFarms = user?.assignedFarms || [];
-    const [selectedFarmId] = useState<string>(userFarms[0]?.id || '');
-    const selectedFarm = userFarms.find(f => f.id === selectedFarmId);
+    const isAdmin = user?.role === 'ADMIN';
+    const availableFarms = isAdmin ? allFarms : (user?.assignedFarms || []);
+    const [selectedFarmId, setSelectedFarmId] = useState<string>('');
+
+    // Initialize farm ID
+    useEffect(() => {
+        if (!selectedFarmId && availableFarms.length > 0) {
+            setSelectedFarmId(availableFarms[0].id);
+        }
+    }, [availableFarms, selectedFarmId]);
+
+    const selectedFarm = availableFarms.find(f => f.id === selectedFarmId);
 
     const [referenceDate, setReferenceDate] = useState(normalizedDate);
     const [currentTime, setCurrentTime] = useState(getCurrentTime(false));
@@ -366,7 +375,7 @@ export const InvoiceForm: React.FC = () => {
         setActiveDraftId(null);
     }
 
-    const inputClass = "w-full p-4 border-2 border-gray-200 bg-white dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white font-black text-center focus:border-metro-blue outline-none transition-all text-xl rounded-xl shadow-sm";
+    const inputClass = "w-full p-4 border-2 border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700 text-gray-900 dark:text-white font-black text-center focus:border-metro-blue outline-none transition-all text-xl rounded-xl shadow-sm placeholder-gray-400";
     const labelClass = "block text-sm font-black text-gray-500 dark:text-gray-400 mb-1.5 uppercase text-right px-1";
 
     if (!selectedFarm) return <div className="p-20 text-center font-bold text-gray-400">فارمی یافت نشد.</div>;
@@ -380,6 +389,25 @@ export const InvoiceForm: React.FC = () => {
 
     return (
         <div className="max-w-4xl mx-auto space-y-6 lg:space-y-10 pb-20">
+            {isAdmin && availableFarms.length > 1 && (
+                <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col md:flex-row items-center gap-4 animate-in fade-in slide-in-from-top-4">
+                    <div className="flex items-center gap-2 text-metro-purple font-black">
+                        <Icons.Settings className="w-5 h-5" />
+                        <span>انتخاب فارم (دسترسی مدیریت):</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 flex-1">
+                        {availableFarms.map(f => (
+                            <button
+                                key={f.id}
+                                onClick={() => setSelectedFarmId(f.id)}
+                                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${selectedFarmId === f.id ? 'bg-metro-purple text-white shadow-lg shadow-purple-200 dark:shadow-none scale-105' : 'bg-gray-50 dark:bg-gray-900 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 border border-gray-100 dark:border-gray-700'}`}
+                            >
+                                {f.name}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
             <div className="bg-blue-50/80 dark:bg-blue-950/20 p-6 rounded-[24px] shadow-sm border border-blue-100 dark:border-blue-900/30 relative overflow-hidden flex flex-col items-center justify-center gap-2 text-center transition-colors">
                 <Icons.FileText className="absolute right-4 top-1/2 -translate-y-1/2 w-32 h-32 text-metro-blue opacity-5 pointer-events-none -rotate-12" />
 
@@ -567,7 +595,7 @@ export const InvoiceForm: React.FC = () => {
                                             <div>
                                                 <label className="text-xs font-bold text-gray-400 block mb-1">تعداد (کارتن)</label>
                                                 <PersianNumberInput
-                                                    className="w-full p-3 bg-white dark:bg-gray-800 dark:text-white text-center font-black text-xl rounded-xl outline-none focus:ring-2 focus:ring-metro-blue border-2 border-transparent dark:border-gray-700"
+                                                    className="w-full p-3 bg-white dark:bg-gray-800 dark:text-white text-center font-black text-xl rounded-xl outline-none focus:ring-2 focus:ring-metro-blue border-2 border-transparent dark:border-gray-700 placeholder-gray-400"
                                                     value={itemsState[pid]?.cartons || ''}
                                                     onChange={val => handleItemChange(pid, 'cartons', val)}
                                                     placeholder=""
@@ -658,7 +686,7 @@ export const InvoiceForm: React.FC = () => {
                                 render={({ field }) => (
                                     <TextArea
                                         {...field}
-                                        className="w-full p-4 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white outline-none focus:border-metro-blue h-24 text-right"
+                                        className="w-full p-4 border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 dark:text-white outline-none focus:border-metro-blue h-24 text-right placeholder-gray-400"
                                         placeholder=""
                                         onChange={(e) => field.onChange(cleanPersianText(e.target.value))}
                                     />

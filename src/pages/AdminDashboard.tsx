@@ -6,7 +6,7 @@ import FarmManagement from '../components/admin/FarmManagement';
 import UserManagement from '../components/admin/UserManagement';
 import FeatureTesting from '../components/admin/FeatureTesting';
 import Reports from '../components/admin/Reports';
-import DeviceManagement from '../components/admin/DeviceManagement'; // Imported
+import DeviceManagement from '../components/admin/DeviceManagement';
 import MetroTile from '../components/common/MetroTile';
 import { usePwaStore } from '../store/pwaStore';
 import { useToastStore } from '../store/toastStore';
@@ -14,6 +14,95 @@ import { APP_VERSION } from '../constants';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/authStore';
 import { SkeletonTile } from '../components/common/Skeleton';
+
+// Custom tile components with colorful backgrounds
+const TechnicalCheckTile: React.FC<{ onClick: () => void }> = ({ onClick }) => (
+  <div
+    onClick={onClick}
+    className="col-span-1 h-44 relative p-5 flex flex-col justify-between cursor-pointer select-none overflow-hidden group rounded-[32px] shadow-lg hover:shadow-2xl transition-all duration-300 transform-gpu hover:-translate-y-1 active:scale-[0.98] bg-gradient-to-br from-metro-teal to-metro-darkTeal"
+  >
+    <div className="absolute inset-0 bg-white/10 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+    <Icons.TestTube className="absolute -right-6 -bottom-6 w-32 h-32 opacity-[0.15] transform-gpu rotate-12 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6 text-white" />
+    <div className="relative z-10 flex justify-between items-start w-full">
+      <div className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md shadow-inner border border-white/20">
+        <Icons.TestTube className="w-6 h-6 text-white" />
+      </div>
+    </div>
+    <div className="relative z-10">
+      <h3 className="text-white font-black text-lg leading-tight drop-shadow-sm tracking-wide">
+        سنجش فنی
+      </h3>
+    </div>
+  </div>
+);
+
+const InstallTile: React.FC<{ title: string; icon: React.ElementType; count?: string; onClick: () => void; className?: string; color?: string }> = ({ title, icon: Icon, count, onClick, className = '', color = 'bg-gradient-to-br from-metro-teal to-metro-darkTeal' }) => (
+  <div
+    onClick={onClick}
+    className={`col-span-1 h-44 relative p-5 flex flex-col justify-between cursor-pointer select-none overflow-hidden group rounded-[32px] shadow-lg hover:shadow-2xl transition-all duration-300 transform-gpu hover:-translate-y-1 active:scale-[0.98] ${color} ${className}`}
+  >
+    <div className="absolute inset-0 bg-white/10 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+    <Icon className="absolute -right-6 -bottom-6 w-32 h-32 opacity-[0.15] transform-gpu rotate-12 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6 text-white" />
+    <div className="relative z-10 flex justify-between items-start w-full">
+      <div className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md shadow-inner border border-white/20">
+        <Icon className="w-6 h-6 text-white" />
+      </div>
+      {count !== undefined && (
+        <span className="text-3xl font-black text-white drop-shadow-md tracking-tight">
+          {count}
+        </span>
+      )}
+    </div>
+    <div className="relative z-10">
+      <h3 className="text-white font-black text-lg leading-tight drop-shadow-sm tracking-wide">
+        {title}
+      </h3>
+    </div>
+  </div>
+);
+
+const DeviceTile: React.FC<{ onClick: () => void }> = ({ onClick }) => (
+  <div
+    onClick={onClick}
+    className="col-span-1 h-44 relative p-5 flex flex-col justify-between cursor-pointer select-none overflow-hidden group rounded-[32px] shadow-lg hover:shadow-2xl transition-all duration-300 transform-gpu hover:-translate-y-1 active:scale-[0.98] bg-gradient-to-br from-indigo-600 to-indigo-900"
+  >
+    <div className="absolute inset-0 bg-white/10 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+    <Icons.Globe className="absolute -right-6 -bottom-6 w-32 h-32 opacity-[0.15] transform-gpu rotate-12 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6 text-white" />
+    <div className="relative z-10 flex justify-between items-start w-full">
+      <div className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md shadow-inner border border-white/20">
+        <Icons.Globe className="w-6 h-6 text-white" />
+      </div>
+    </div>
+    <div className="relative z-10">
+      <h3 className="text-white font-black text-lg leading-tight drop-shadow-sm tracking-wide">
+        دستگاه‌ها
+      </h3>
+    </div>
+  </div>
+);
+
+const VersionTile: React.FC<{ version: string; onClick: () => void }> = ({ version, onClick }) => (
+  <div
+    onClick={onClick}
+    className="col-span-1 h-44 relative p-5 flex flex-col justify-between cursor-pointer select-none overflow-hidden group rounded-[32px] shadow-lg hover:shadow-2xl transition-all duration-300 transform-gpu hover:-translate-y-1 active:scale-[0.98] bg-gradient-to-br from-gray-600 to-gray-900"
+  >
+    <div className="absolute inset-0 bg-white/10 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+    <Icons.Info className="absolute -right-6 -bottom-6 w-32 h-32 opacity-[0.15] transform-gpu rotate-12 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6 text-white" />
+    <div className="relative z-10 flex justify-between items-start w-full">
+      <div className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md shadow-inner border border-white/20">
+        <Icons.Info className="w-6 h-6 text-white" />
+      </div>
+      <span className="text-3xl font-black text-white drop-shadow-md tracking-tight">
+        v{version}
+      </span>
+    </div>
+    <div className="relative z-10">
+      <h3 className="text-white font-black text-lg leading-tight drop-shadow-sm tracking-wide">
+        نسخه سیستم
+      </h3>
+    </div>
+  </div>
+);
 
 const AdminDashboard: React.FC = () => {
     const [currentView, setCurrentView] = useState('dashboard');
@@ -117,9 +206,9 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
     };
 
     const getPwaTileConfig = () => {
-        if (isInstalled) return { title: "اپلیکیشن فعال است", icon: Icons.Check, color: "bg-green-700", count: "نصب شده", click: () => addToast('نسخه نصبی فعال است.', 'success') };
-        if (deferredPrompt) return { title: "نصب نسخه PWA", icon: Icons.Download, color: "bg-metro-teal animate-pulse", count: "نصب", click: handleInstallClick };
-        return { title: "نسخه وب (مرورگر)", icon: Icons.Globe, color: "bg-gray-500", count: "تحت وب", click: handleInstallClick };
+        if (isInstalled) return { title: "اپلیکیشن فعال است", icon: Icons.Check, color: "bg-gradient-to-br from-green-600 to-green-800", count: "نصب شده", click: () => addToast('نسخه نصبی فعال است.', 'success') };
+        if (deferredPrompt) return { title: "نصب نسخه PWA", icon: Icons.Download, color: "bg-gradient-to-br from-metro-teal to-metro-darkTeal animate-pulse", count: "نصب", click: handleInstallClick };
+        return { title: "نسخه وب (مرورگر)", icon: Icons.Globe, color: "bg-gradient-to-br from-gray-500 to-gray-700", count: "تحت وب", click: handleInstallClick };
     };
 
     const pwaConfig = getPwaTileConfig();
@@ -129,16 +218,18 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
             <MetroTile title="مدیریت فارم‌ها" icon={Icons.Home} color="bg-metro-green" size="wide" onClick={() => onNavigate('farms')} />
             <MetroTile title="مدیریت کاربران" icon={Icons.Users} color="bg-metro-purple" size="wide" onClick={() => onNavigate('users')} />
             <MetroTile title="گزارشات" icon={Icons.FileText} color="bg-metro-blue" size="medium" onClick={() => onNavigate('reports')} />
-            {/* Added Device Manager Tile */}
-            <MetroTile title="دستگاه‌ها" icon={Icons.Globe} color="bg-metro-darkPurple" size="medium" onClick={() => onNavigate('devices')} />
-            <MetroTile title="سنجش فنی" icon={Icons.TestTube} color="bg-metro-teal" size="medium" onClick={() => onNavigate('testing')} />
-            <MetroTile title={pwaConfig.title} icon={pwaConfig.icon} color={pwaConfig.color} size="medium" count={pwaConfig.count} onClick={pwaConfig.click} className={!isInstalled && !deferredPrompt ? "opacity-80 grayscale-[0.3]" : ""} />
-            <MetroTile
-                title="نسخه سیستم"
-                icon={Icons.Info}
-                color="bg-gray-600"
-                size="medium"
-                count={`v${APP_VERSION}`}
+            <DeviceTile onClick={() => onNavigate('devices')} />
+            <TechnicalCheckTile onClick={() => onNavigate('testing')} />
+            <InstallTile 
+                title={pwaConfig.title} 
+                icon={pwaConfig.icon} 
+                count={pwaConfig.count} 
+                onClick={pwaConfig.click} 
+                color={pwaConfig.color}
+                className={!isInstalled && !deferredPrompt ? "opacity-80 grayscale-[0.3]" : ""}
+            />
+            <VersionTile 
+                version={APP_VERSION}
                 onClick={() => addToast(`نسخه فعلی: ${APP_VERSION}`, 'info')}
             />
         </div>
