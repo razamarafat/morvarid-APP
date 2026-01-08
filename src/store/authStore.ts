@@ -346,7 +346,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
 
         if (loginData.user) {
-            const { data: profile } = await supabase.from('profiles').select('is_active, username').eq('id', loginData.user.id).single();
+            const { data: profile } = await supabase.from('profiles').select('is_active, username, role').eq('id', loginData.user.id).single();
 
             if (profile && !profile.is_active) {
                 await supabase.auth.signOut();
