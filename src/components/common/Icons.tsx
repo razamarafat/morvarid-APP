@@ -2,7 +2,7 @@
 import {
   Sun, Moon, Fingerprint, Eye, EyeOff, LogOut, Menu, User, Users, Home, BarChart2, FileText, Bell, BellOff,
   ChevronDown, ChevronLeft, ChevronRight, HardDrive, TestTube2, AlertCircle, RefreshCw, X, Check, Search, Plus, Trash2, Edit,
-  Calendar, Lock, Download, Globe, List, Clock, Hexagon, ArrowLeft, LayoutDashboard, AlertTriangle, Shield, Send
+  Calendar, Lock, Download, Globe, List, Clock, Hexagon, ArrowLeft, LayoutDashboard, AlertTriangle, Shield, Send, Info
 } from 'lucide-react';
 
 export const Icons = {
@@ -45,5 +45,6 @@ export const Icons = {
   ArrowLeft,
   AlertTriangle,
   Shield,
-  Send
+  Send,
+  Info
 };
