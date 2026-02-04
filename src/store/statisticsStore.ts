@@ -30,6 +30,28 @@ export interface DailyStatistic {
 import { getErrorMessage } from '../utils/errorUtils';
 import { mapLegacyProductId } from '../utils/productUtils';
 
+export const calculateFarmStats = (input: {
+    previousStock: number;
+    production: number;
+    sales: number;
+    previousStockKg?: number;
+    productionKg?: number;
+    salesKg?: number;
+}) => {
+    const previousStock = input.previousStock || 0;
+    const production = input.production || 0;
+    const sales = input.sales || 0;
+
+    const previousStockKg = input.previousStockKg || 0;
+    const productionKg = input.productionKg || 0;
+    const salesKg = input.salesKg || 0;
+
+    return {
+        remaining: previousStock + production - sales,
+        remainingKg: previousStockKg + productionKg - salesKg
+    };
+};
+
 interface StatisticsState {
     statistics: DailyStatistic[];
     isLoading: boolean;
@@ -361,16 +383,21 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
 
             if (stats) {
                 // 4. Recalculate inventory
-                // Logic: Current = Previous + Production - Sales
-                const newCurrent = (stats.previous_balance || 0) + (stats.production || 0) - totalSales;
-                const newCurrentKg = (stats.previous_balance_kg || 0) + (stats.production_kg || 0) - totalSalesKg;
+                const recalculated = calculateFarmStats({
+                    previousStock: stats.previous_balance || 0,
+                    production: stats.production || 0,
+                    sales: totalSales,
+                    previousStockKg: stats.previous_balance_kg || 0,
+                    productionKg: stats.production_kg || 0,
+                    salesKg: totalSalesKg
+                });
 
                 // 5. Update the record
                 await supabase.from('daily_statistics').update({
                     sales: totalSales,
                     sales_kg: totalSalesKg,
-                    current_inventory: newCurrent,
-                    current_inventory_kg: newCurrentKg,
+                    current_inventory: recalculated.remaining,
+                    current_inventory_kg: recalculated.remainingKg,
                     updated_at: new Date().toISOString()
                 }).eq('id', stats.id);
 

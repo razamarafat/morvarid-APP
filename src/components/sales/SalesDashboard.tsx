@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import DashboardLayout from '../layout/DashboardLayout';
 import { Icons } from '../common/Icons';
 import Reports from '../admin/Reports';
-import { useStatisticsStore, DailyStatistic } from '../../store/statisticsStore';
+import { useStatisticsStore, DailyStatistic, calculateFarmStats } from '../../store/statisticsStore';
 import { useInvoiceStore } from '../../store/invoiceStore';
 import { useFarmStore } from '../../store/farmStore';
 import { useToastStore } from '../../store/toastStore';
@@ -22,7 +22,7 @@ import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 
 // --- COMPONENT: FarmGroup ---
-const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate, products }: any) => {
+const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate, products, invoiceTotalsMap }: any) => {
     const [isOpen, setIsOpen] = useState(false);
     const [expandedFarmId, setExpandedFarmId] = useState<string | null>(null);
     const { sendAlert } = useAlertStore();
@@ -127,6 +127,21 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
                                                 <div className="grid grid-cols-1 gap-3">
                                                     {sortedFarmStats.map(stat => {
                                                         const prod = products.find((p: any) => p.id === stat.productId);
+                                                        const invoiceKey = `${stat.farmId}|${normalizeDate(stat.date)}|${stat.productId}`;
+                                                        const invoiceTotals = invoiceTotalsMap?.get(invoiceKey);
+
+                                                        const effectiveSales = invoiceTotals?.cartons ?? (stat.sales || 0);
+                                                        const effectiveSalesKg = invoiceTotals?.weight ?? (stat.salesKg || 0);
+
+                                                        const effectiveRemaining = calculateFarmStats({
+                                                            previousStock: stat.previousBalance || 0,
+                                                            production: stat.production || 0,
+                                                            sales: effectiveSales,
+                                                            previousStockKg: stat.previousBalanceKg || 0,
+                                                            productionKg: stat.productionKg || 0,
+                                                            salesKg: effectiveSalesKg
+                                                        });
+
                                                         const renderVal = (valC: number, valK: number, colorClass: string) => (
                                                             <div className="flex flex-col items-center">
                                                                 <span className={`font-black text-lg ${colorClass}`}>{toPersianDigits(valC)}</span>
@@ -155,8 +170,8 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
                                                                 <div className={`grid gap-2 text-center ${isMotefereghe ? 'grid-cols-3' : 'grid-cols-4'}`}>
                                                                     {!isMotefereghe && <div className="p-2 bg-gray-50 dark:bg-gray-700/30 rounded-xl"><span className="text-[10px] text-gray-400 block">قبل</span>{renderVal(stat.previousBalance, stat.previousBalanceKg || 0, 'text-gray-600 dark:text-gray-300')}</div>}
                                                                     <div className="p-2 bg-green-50 dark:bg-green-900/10 rounded-xl"><span className="text-[10px] text-green-600 block">تولید</span>{renderVal(stat.production, stat.productionKg || 0, 'text-green-600')}</div>
-                                                                    <div className="p-2 bg-red-50 dark:bg-red-900/10 rounded-xl"><span className="text-[10px] text-red-500 block">فروش</span>{renderVal(stat.sales, stat.salesKg || 0, 'text-red-500')}</div>
-                                                                    <div className="p-2 bg-blue-50 dark:bg-blue-900/10 rounded-xl"><span className="text-[10px] text-blue-600 block">مانده</span>{renderVal(stat.currentInventory, stat.currentInventoryKg || 0, 'text-blue-600')}</div>
+                                                                    <div className="p-2 bg-red-50 dark:bg-red-900/10 rounded-xl"><span className="text-[10px] text-red-500 block">فروش</span>{renderVal(effectiveSales, effectiveSalesKg || 0, 'text-red-500')}</div>
+                                                                    <div className="p-2 bg-blue-50 dark:bg-blue-900/10 rounded-xl"><span className="text-[10px] text-blue-600 block">مانده</span>{renderVal(effectiveRemaining.remaining, effectiveRemaining.remainingKg || 0, 'text-blue-600')}</div>
                                                                 </div>
                                                             </div>
                                                         )
@@ -178,7 +193,7 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
 const FarmStatistics = React.memo(() => {
     const { statistics, fetchStatistics, subscribeToStatistics, isLoading } = useStatisticsStore();
     const { farms, products } = useFarmStore();
-    const { fetchInvoices } = useInvoiceStore();
+    const { invoices, fetchInvoices } = useInvoiceStore();
     const { addToast } = useToastStore();
 
     const todayJalali = getTodayJalali();
@@ -205,6 +220,19 @@ const FarmStatistics = React.memo(() => {
         if (!searchTerm) return activeFarms;
         return activeFarms.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()));
     }, [farms, searchTerm]);
+
+    const invoiceTotalsMap = useMemo(() => {
+        const map = new Map<string, { cartons: number; weight: number }>();
+        invoices.forEach(inv => {
+            const key = `${inv.farmId}|${normalizeDate(inv.date)}|${inv.productId || ''}`;
+            const prev = map.get(key) || { cartons: 0, weight: 0 };
+            map.set(key, {
+                cartons: prev.cartons + (inv.totalCartons || 0),
+                weight: prev.weight + (inv.totalWeight || 0)
+            });
+        });
+        return map;
+    }, [invoices]);
 
     const morvaridiFarms = filteredFarms.filter(f => f.type === FarmType.MORVARIDI);
     const moteferegheFarms = filteredFarms.filter(f => f.type === FarmType.MOTEFEREGHE);
@@ -246,6 +274,7 @@ const FarmStatistics = React.memo(() => {
                 statistics={statistics}
                 normalizedSelectedDate={normalizedSelectedDate}
                 products={products}
+                invoiceTotalsMap={invoiceTotalsMap}
             />
 
             <FarmGroup
@@ -254,6 +283,7 @@ const FarmStatistics = React.memo(() => {
                 statistics={statistics}
                 normalizedSelectedDate={normalizedSelectedDate}
                 products={products}
+                invoiceTotalsMap={invoiceTotalsMap}
             />
         </div>
     );

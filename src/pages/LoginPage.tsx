@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm, FieldErrors } from 'react-hook-form';
 import { z } from 'zod';
@@ -11,12 +11,10 @@ import { TOAST_IDS } from '../constants';
 import { UserRole } from '../types';
 import { getTodayJalaliPersian, getCurrentTime, getTodayDayName, toPersianDigits } from '../utils/dateUtils';
 import ThemeToggle from '../components/common/ThemeToggle';
-import { motion } from 'framer-motion';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import { APP_VERSION } from '../constants';
 import { SKETCH_BASE64 } from '../components/common/SketchAsset';
-import { fetchDailyQuote, getQuoteDateKey, Quote } from '../services/quoteService';
 
 const loginSchema = z.object({
     username: z.string().min(1, "نام کاربری الزامی است"),
@@ -25,32 +23,6 @@ const loginSchema = z.object({
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
-
-const DAILY_QUOTES = [
-    { text: "موفقیت، مجموعه‌ای از تلاش‌های کوچک است که هر روز تکرار می‌شوند.", author: "رابرت کالیر" },
-    { text: "کیفیت، هرگز اتفاقی نیست؛ نتیجه نیت عالی، تلاش صادقانه و اجرای هوشمندانه است.", author: "ویلا فاستر" },
-    { text: "بهترین زمان برای کاشتن درخت ۲۰ سال پیش بود. دومین زمان بهترین، همین الان است.", author: "مثل چینی" },
-    { text: "مسئولیت‌پذیری، بهایی است که برای بزرگی می‌پردازیم.", author: "وینستون چرچیل" },
-    { text: "نظم و انضباط، پل بین اهداف و دستاوردهاست.", author: "جیم ران" },
-    { text: "فرصت‌ها اتفاق نمی‌افتند، شما آن‌ها را می‌سازید.", author: "کریس گروسر" },
-    { text: "صداقت، اولین فصل از کتاب دانایی است.", author: "توماس جفرسون" },
-    { text: "تلاش سخت، استعداد را شکست می‌دهد وقتی استعداد سخت تلاش نکند.", author: "تیم نوتک" },
-    { text: "کاسب حبیب خداست؛ روزی حلال برکت زندگی است.", author: "پیامبر اکرم (ص)" },
-    { text: "آنچه امروز انجام می‌دهید، می‌تواند تمام فردای شما را بهبود بخشد.", author: "رالف مارستون" },
-    { text: "برنده شدن همیشگی نیست، اما تمایل به برنده شدن همیشگی است.", author: "وینس لومباردی" },
-    { text: "اخلاق حرفه‌ای، سرمایه‌ای نامشهود اما بسیار ارزشمند است.", author: "پیتر دراکر" },
-    { text: "پشتکار، تفاوت بین شکست و کامیابی است.", author: "ناشناس" },
-    { text: "بهترین راه پیش‌بینی آینده، ساختن آن است.", author: "آبراهام لینکلن" },
-    { text: "رضایت مشتری، ارزشمندترین دارایی یک کسب‌ و کار است.", author: "بیل گیتس" },
-];
-
-const getDayOfYear = () => {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), 0, 0);
-    const diff = now.getTime() - start.getTime();
-    const oneDay = 1000 * 60 * 60 * 24;
-    return Math.floor(diff / oneDay);
-};
 
 // --- STARS ---
 const StarryNight = React.memo(() => {
@@ -83,13 +55,6 @@ const LoginPage: React.FC = () => {
     const [currentDayName, setCurrentDayName] = useState(getTodayDayName());
     const [showPassword, setShowPassword] = useState(false);
     const [isRedirecting, setIsRedirecting] = useState(false);
-    const [quoteLoading, setQuoteLoading] = useState(true);
-
-    const dailyQuote = useMemo(() => {
-        const dayOfYear = getDayOfYear();
-        const index = dayOfYear % DAILY_QUOTES.length;
-        return DAILY_QUOTES[index];
-    }, []);
 
     useEffect(() => {
         const timer = setInterval(() => {
@@ -225,17 +190,6 @@ const LoginPage: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* --- DESKTOP QUOTE SECTION --- */}
-                    <div className="hidden md:flex flex-col items-center mt-6 max-w-md text-center z-20 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-500">
-                        <div className="w-24 h-1 bg-gradient-to-r from-transparent via-orange-400 to-transparent rounded-full mb-4 opacity-70"></div>
-                        <p className="text-lg font-bold text-gray-700 dark:text-gray-200 italic leading-relaxed px-4">
-                            "{dailyQuote.text}"
-                        </p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 font-medium">
-                            - {dailyQuote.author}
-                        </p>
-                    </div>
-
                 </div>
 
                 {/* --- MIDDLE/BOTTOM SECTION (Form Container) --- */}
@@ -314,15 +268,6 @@ const LoginPage: React.FC = () => {
                             v{APP_VERSION}
                         </div>
 
-                        {/* Daily Quote - MOBILE ONLY */}
-                        <div className="mt-4 md:hidden text-center px-4 relative z-20 pb-4">
-                            <p className="text-sm font-bold text-gray-700 dark:text-gray-300 italic leading-relaxed drop-shadow-sm">
-                                "{dailyQuote.text}"
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-500 mt-2 font-medium">
-                                - {dailyQuote.author}
-                            </p>
-                        </div>
                     </div>
                 </div>
             </div>
