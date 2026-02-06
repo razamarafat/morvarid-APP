@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { normalizeDate } from '../utils/dateUtils';
 import { useSyncStore } from './syncStore';
 import { useAuthStore } from './authStore';
+import { calculateProductUsage, InvoiceItem } from '../utils/inventoryUtils';
 
 export interface DailyStatistic {
     id: string;
@@ -18,6 +19,7 @@ export interface DailyStatistic {
     salesKg?: number;
     currentInventory: number;
     currentInventoryKg?: number;
+    separationAmount?: number; // Smart Sorting: Approximate sorting loss/waste
     createdAt: number;
     updatedAt?: number;
     creatorName?: string;
@@ -40,15 +42,15 @@ export const calculateFarmStats = (input: {
 }) => {
     const previousStock = input.previousStock || 0;
     const production = input.production || 0;
-    const sales = input.sales || 0;
+    const totalDeduction = input.sales || 0; // Renamed for clarity: this is Total Deducted Usage
+    const totalDeductionKg = input.salesKg || 0;
 
     const previousStockKg = input.previousStockKg || 0;
     const productionKg = input.productionKg || 0;
-    const salesKg = input.salesKg || 0;
 
     return {
-        remaining: previousStock + production - sales,
-        remainingKg: previousStockKg + productionKg - salesKg
+        remaining: (previousStock + production) - totalDeduction,
+        remainingKg: (previousStockKg + productionKg) - totalDeductionKg
     };
 };
 
@@ -123,6 +125,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                     productionKg: s.production_kg || 0,
                     salesKg: s.sales_kg || 0,
                     currentInventoryKg: s.current_inventory_kg || 0,
+                    separationAmount: s.separation_amount || 0,
                     createdAt: s.created_at ? new Date(s.created_at).getTime() : Date.now(),
                     updatedAt: s.updated_at ? new Date(s.updated_at).getTime() : undefined,
                     createdBy: s.created_by,
@@ -160,6 +163,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                     productionKg: s.production_kg || 0,
                     salesKg: s.sales_kg || 0,
                     currentInventoryKg: s.current_inventory_kg || 0,
+                    separationAmount: s.separation_amount || 0,
                     createdAt: s.created_at ? new Date(s.created_at).getTime() : Date.now(),
                     updatedAt: s.updated_at ? new Date(s.updated_at).getTime() : undefined,
                     createdBy: s.created_by,
@@ -192,12 +196,45 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
 
     updateStatistic: async (id, updates, isSyncing = false) => {
         try {
-            // 1. Fetch current stat data to compare
+            // 1. Fetch current stat data
             const currentStats = get().statistics;
             const currentStat = currentStats.find(s => s.id === id);
             if (!currentStat) {
                 return { success: false, error: 'Statistic not found' };
             }
+
+            // --- STRICT VALIDATION GUARD ---
+            // If reducing quantity, ensure we don't drop below what's already sold.
+            // effectively: (NewPrevious + NewProduction) must be >= TotalSold
+
+            // Only run this check if we are online (can query invoices) and not syncing (sync implies force update)
+            if (!isSyncing && navigator.onLine) {
+                const newProduction = updates.production !== undefined ? Number(updates.production) : currentStat.production;
+                const newPreviousBalance = updates.previousBalance !== undefined ? Number(updates.previousBalance) : currentStat.previousBalance;
+                const totalAvailable = newProduction + newPreviousBalance;
+
+                // Query DB for strict sales check
+                const { data: relatedInvoices, error: invError } = await supabase
+                    .from('invoices')
+                    .select('product_id, total_cartons, total_weight, source_product_id, converted_amount, is_converted')
+                    .match({
+                        farm_id: currentStat.farmId,
+                        date: normalizeDate(currentStat.date)
+                    });
+
+                if (!invError && relatedInvoices) {
+                    // Cast to InvoiceItem to satisfy TS if needed, or rely on duck typing
+                    const usage = calculateProductUsage(relatedInvoices as InvoiceItem[], currentStat.productId);
+
+                    if (totalAvailable < usage.usageCartons) {
+                        return {
+                            success: false,
+                            error: `خطا: مقدار موجودی (${totalAvailable}) کمتر از مقدار فروخته شده (${usage.usageCartons}) است.`
+                        };
+                    }
+                }
+            }
+            // -------------------------------
 
             // 2. Check if there are actual changes
             const oldDataStr = JSON.stringify({
@@ -206,7 +243,8 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                 currentInventory: String(currentStat.currentInventory || ''),
                 productionKg: String(currentStat.productionKg || ''),
                 previousBalanceKg: String(currentStat.previousBalanceKg || ''),
-                currentInventoryKg: String(currentStat.currentInventoryKg || '')
+                currentInventoryKg: String(currentStat.currentInventoryKg || ''),
+                separationAmount: String(currentStat.separationAmount || '')
             });
             const newDataStr = JSON.stringify({
                 production: String(updates.production ?? ''),
@@ -214,11 +252,12 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                 currentInventory: String(updates.currentInventory ?? ''),
                 productionKg: String(updates.productionKg ?? ''),
                 previousBalanceKg: String(updates.previousBalanceKg ?? ''),
-                currentInventoryKg: String(updates.currentInventoryKg ?? '')
+                currentInventoryKg: String(updates.currentInventoryKg ?? ''),
+                separationAmount: String(updates.separationAmount ?? '')
             });
 
             if (oldDataStr === newDataStr) {
-                return { success: true }; // No changes detected, skip update
+                return { success: true }; // No changes detected
             }
 
             const dbUpdates: any = {};
@@ -234,6 +273,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
             if (updates.salesKg !== undefined) dbUpdates.sales_kg = updates.salesKg;
             if (updates.currentInventory !== undefined) dbUpdates.current_inventory = updates.currentInventory;
             if (updates.currentInventoryKg !== undefined) dbUpdates.current_inventory_kg = updates.currentInventoryKg;
+            if (updates.separationAmount !== undefined) dbUpdates.separation_amount = updates.separationAmount;
 
             dbUpdates.updated_at = new Date().toISOString();
 
@@ -296,6 +336,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                 sales_kg: s.salesKg,
                 current_inventory: s.currentInventory,
                 current_inventory_kg: s.currentInventoryKg,
+                separation_amount: s.separationAmount || 0,
                 created_by: currentUser.id
             }));
 
@@ -341,6 +382,31 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
 
     deleteStatistic: async (id, isSyncing = false) => {
         try {
+            // --- STRICT VALIDATION GUARD ---
+            if (!isSyncing && navigator.onLine) {
+                const statToDelete = get().statistics.find(s => s.id === id);
+                if (statToDelete) {
+                    const { data: relatedInvoices, error: invError } = await supabase
+                        .from('invoices')
+                        .select('product_id, total_cartons, total_weight, source_product_id, converted_amount, is_converted')
+                        .match({
+                            farm_id: statToDelete.farmId,
+                            date: normalizeDate(statToDelete.date)
+                        });
+
+                    if (!invError && relatedInvoices) {
+                        const usage = calculateProductUsage(relatedInvoices as InvoiceItem[], statToDelete.productId);
+                        if (usage.usageCartons > 0) {
+                            return {
+                                success: false,
+                                error: 'خطا: برای این محصول فروش یا تبدیل ثبت شده است. ابتدا حواله‌ها را حذف کنید.'
+                            };
+                        }
+                    }
+                }
+            }
+            // -------------------------------
+
             const { error } = await supabase.from('daily_statistics').delete().eq('id', id);
             if (error) throw error;
             await get().fetchStatistics();
@@ -366,38 +432,47 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
         try {
             const normalizedDate = normalizeDate(date);
 
-            // 1. Fetch all invoices for this day/farm/product
-            const { data: invoices } = await supabase.from('invoices')
-                .select('total_cartons, total_weight')
-                .match({ farm_id: farmId, date: normalizedDate, product_id: productId });
+            // 1. Fetch ALL invoices for this farm/date (filtering loosely first)
+            const { data: allInvoices } = await supabase.from('invoices')
+                .select('*')
+                .match({ farm_id: farmId, date: normalizedDate });
 
-            // 2. Sum totals
-            const totalSales = invoices?.reduce((sum, inv) => sum + (inv.total_cartons || 0), 0) || 0;
-            const totalSalesKg = invoices?.reduce((sum, inv) => sum + (inv.total_weight || 0), 0) || 0;
+            if (!allInvoices) return;
 
-            // 3. Find the daily statistic record
+            // 3. Calculate USAGE via Centralized Utility
+            // This handles Direct Sales vs Converted Sales automatically
+            const usage = calculateProductUsage(allInvoices as InvoiceItem[], productId);
+
+            // Total deduction from inventory (Direct + Source usage)
+            const totalDeducted = usage.usageCartons;
+            const totalDeductedKg = usage.usageWeight;
+
+            // 4. Calculate SALES DISPLAY (for Reports)
+            // Still need to sum up direct invoices for reporting "how much of this product was sold"
+            // (Regardless of where stock came from)
+            const directInvoices = allInvoices.filter(i => i.product_id === productId);
+            const totalSalesDisplay = directInvoices.reduce((sum, inv) => sum + (inv.total_cartons || 0), 0);
+            const totalSalesKgDisplay = directInvoices.reduce((sum, inv) => sum + (inv.total_weight || 0), 0);
+
+
+            // 5. Find the daily statistic record
             const { data: stats } = await supabase.from('daily_statistics')
                 .select('*')
                 .match({ farm_id: farmId, date: normalizedDate, product_id: productId })
                 .single();
 
             if (stats) {
-                // 4. Recalculate inventory
-                const recalculated = calculateFarmStats({
-                    previousStock: stats.previous_balance || 0,
-                    production: stats.production || 0,
-                    sales: totalSales,
-                    previousStockKg: stats.previous_balance_kg || 0,
-                    productionKg: stats.production_kg || 0,
-                    salesKg: totalSalesKg
-                });
+                // 6. Recalculate inventory
+                // Remaining = Previous + Production - DEDUCTED
+                const remaining = (stats.previous_balance || 0) + (stats.production || 0) - totalDeducted;
+                const remainingKg = (stats.previous_balance_kg || 0) + (stats.production_kg || 0) - totalDeductedKg;
 
-                // 5. Update the record
+                // 7. Update the record
                 await supabase.from('daily_statistics').update({
-                    sales: totalSales,
-                    sales_kg: totalSalesKg,
-                    current_inventory: recalculated.remaining,
-                    current_inventory_kg: recalculated.remainingKg,
+                    sales: totalSalesDisplay,
+                    sales_kg: totalSalesKgDisplay,
+                    current_inventory: remaining,
+                    current_inventory_kg: remainingKg,
                     updated_at: new Date().toISOString()
                 }).eq('id', stats.id);
 

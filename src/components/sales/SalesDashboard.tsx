@@ -130,16 +130,22 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
                                                         const invoiceKey = `${stat.farmId}|${normalizeDate(stat.date)}|${stat.productId}`;
                                                         const invoiceTotals = invoiceTotalsMap?.get(invoiceKey);
 
-                                                        const effectiveSales = invoiceTotals?.cartons ?? (stat.sales || 0);
-                                                        const effectiveSalesKg = invoiceTotals?.weight ?? (stat.salesKg || 0);
+                                                        // DISPLAY SALES: What was actually invoiced for this product (Total Cartons on Invoice)
+                                                        const displaySales = invoiceTotals?.salesCartons ?? (stat.sales || 0);
+                                                        const displaySalesKg = invoiceTotals?.salesWeight ?? (stat.salesKg || 0);
 
+                                                        // PHYSICAL USAGE: What was actually deducted from inventory
+                                                        const physicalUsage = invoiceTotals?.usageCartons ?? (stat.sales || 0);
+                                                        const physicalUsageKg = invoiceTotals?.usageWeight ?? (stat.salesKg || 0);
+
+                                                        // Calculation uses USAGE, not Display Sales
                                                         const effectiveRemaining = calculateFarmStats({
                                                             previousStock: stat.previousBalance || 0,
                                                             production: stat.production || 0,
-                                                            sales: effectiveSales,
+                                                            sales: physicalUsage, // Pass USAGE here for correct remaining calculation
                                                             previousStockKg: stat.previousBalanceKg || 0,
                                                             productionKg: stat.productionKg || 0,
-                                                            salesKg: effectiveSalesKg
+                                                            salesKg: physicalUsageKg
                                                         });
 
                                                         const renderVal = (valC: number, valK: number, colorClass: string) => (
@@ -167,10 +173,14 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
                                                                         </div>
                                                                     )}
                                                                 </div>
-                                                                <div className={`grid gap-2 text-center ${isMotefereghe ? 'grid-cols-3' : 'grid-cols-4'}`}>
+                                                                <div className={`grid gap-2 text-center text-xs ${isMotefereghe ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'}`}>
                                                                     {!isMotefereghe && <div className="p-2 bg-gray-50 dark:bg-gray-700/30 rounded-xl"><span className="text-[10px] text-gray-400 block">قبل</span>{renderVal(stat.previousBalance, stat.previousBalanceKg || 0, 'text-gray-600 dark:text-gray-300')}</div>}
                                                                     <div className="p-2 bg-green-50 dark:bg-green-900/10 rounded-xl"><span className="text-[10px] text-green-600 block">تولید</span>{renderVal(stat.production, stat.productionKg || 0, 'text-green-600')}</div>
-                                                                    <div className="p-2 bg-red-50 dark:bg-red-900/10 rounded-xl"><span className="text-[10px] text-red-500 block">فروش</span>{renderVal(effectiveSales, effectiveSalesKg || 0, 'text-red-500')}</div>
+                                                                    {!isMotefereghe && <div className="p-2 bg-purple-50 dark:bg-purple-900/10 rounded-xl"><span className="text-[10px] text-purple-600 block">جداسازی</span>{renderVal(stat.separationAmount || 0, 0, 'text-purple-600')}</div>}
+
+                                                                    {/* SALES CARD: Shows Display Sales (What was sold), but calculated using physical usage behind the scenes */}
+                                                                    <div className="p-2 bg-red-50 dark:bg-red-900/10 rounded-xl"><span className="text-[10px] text-red-500 block">فروش</span>{renderVal(displaySales, displaySalesKg, 'text-red-500')}</div>
+
                                                                     <div className="p-2 bg-blue-50 dark:bg-blue-900/10 rounded-xl"><span className="text-[10px] text-blue-600 block">مانده</span>{renderVal(effectiveRemaining.remaining, effectiveRemaining.remainingKg || 0, 'text-blue-600')}</div>
                                                                 </div>
                                                             </div>
@@ -222,14 +232,58 @@ const FarmStatistics = React.memo(() => {
     }, [farms, searchTerm]);
 
     const invoiceTotalsMap = useMemo(() => {
-        const map = new Map<string, { cartons: number; weight: number }>();
+        const map = new Map<string, { salesCartons: number; salesWeight: number; usageCartons: number; usageWeight: number }>();
+
         invoices.forEach(inv => {
-            const key = `${inv.farmId}|${normalizeDate(inv.date)}|${inv.productId || ''}`;
-            const prev = map.get(key) || { cartons: 0, weight: 0 };
-            map.set(key, {
-                cartons: prev.cartons + (inv.totalCartons || 0),
-                weight: prev.weight + (inv.totalWeight || 0)
+            const totalCartons = inv.totalCartons || 0;
+            const totalWeight = inv.totalWeight || 0;
+            const convertedAmount = inv.convertedAmount || 0;
+            const sourceProductId = inv.sourceProductId;
+
+            // --- A. SALES RECORDING (What is displayed as "Sold") ---
+            // Attributed to the PRODUCT listed on the invoice
+            const salesKey = `${inv.farmId}|${normalizeDate(inv.date)}|${inv.productId || ''}`;
+            const prevSales = map.get(salesKey) || { salesCartons: 0, salesWeight: 0, usageCartons: 0, usageWeight: 0 };
+
+            map.set(salesKey, {
+                ...prevSales,
+                salesCartons: prevSales.salesCartons + totalCartons,
+                salesWeight: prevSales.salesWeight + totalWeight
+                // usageCartons will be updated in part B
             });
+
+            // --- B. USAGE RECORDING (What is physically deducted) ---
+
+            // 1. Primary Product Deduction (For the product ON the invoice)
+            // Deduction = Total - ConvertedAmount
+            const primaryUsage = Math.max(0, totalCartons - convertedAmount);
+            const primaryWeight = totalCartons > 0 ? (primaryUsage / totalCartons) * totalWeight : 0;
+
+            const prevPrimary = map.get(salesKey) || { salesCartons: 0, salesWeight: 0, usageCartons: 0, usageWeight: 0 };
+
+            // NOTE: We fetch again nicely because map.set in 'A' might have updated it.
+            // Using a temporary variable from A logic is safer but we are sequential here.
+
+            map.set(salesKey, {
+                ...prevPrimary, // Preserve the sales we just added
+                usageCartons: (prevPrimary.usageCartons || 0) + primaryUsage,
+                usageWeight: (prevPrimary.usageWeight || 0) + primaryWeight
+            });
+
+            // 2. Source Product Deduction (For the converted part)
+            if (convertedAmount > 0 && sourceProductId) {
+                const sourceKey = `${inv.farmId}|${normalizeDate(inv.date)}|${sourceProductId}`;
+                const prevSource = map.get(sourceKey) || { salesCartons: 0, salesWeight: 0, usageCartons: 0, usageWeight: 0 };
+
+                const sourceWeight = totalCartons > 0 ? (convertedAmount / totalCartons) * totalWeight : 0;
+
+                map.set(sourceKey, {
+                    ...prevSource,
+                    // Sales don't change for Source Product (it wasn't sold, it was converted)
+                    usageCartons: prevSource.usageCartons + convertedAmount,
+                    usageWeight: prevSource.usageWeight + sourceWeight
+                });
+            }
         });
         return map;
     }, [invoices]);

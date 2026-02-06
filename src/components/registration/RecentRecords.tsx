@@ -174,7 +174,7 @@ const RecentRecords: React.FC = () => {
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
     const [showEditStatModal, setShowEditStatModal] = useState(false);
     const [showEditInvoiceModal, setShowEditInvoiceModal] = useState(false);
-    
+
     // Add Item Modal State
     const [showAddItemModal, setShowAddItemModal] = useState(false);
     const [addItemInvoice, setAddItemInvoice] = useState<Invoice | null>(null);
@@ -211,7 +211,7 @@ const RecentRecords: React.FC = () => {
         }
     }, [assignedFarmIds, isAdmin, selectedFarmId]);
 
-    const [statValues, setStatValues] = useState({ prod: '', prev: '', prodKg: '', prevKg: '' });
+
     const [invoiceValues, setInvoiceValues] = useState({
         invoiceNumber: '',
         cartons: '',
@@ -219,8 +219,12 @@ const RecentRecords: React.FC = () => {
         driverName: '',
         driverPhone: '',
         description: '',
-        plateNumber: ''
+        plateNumber: '',
+        productId: ''
     });
+
+    // Added separation to stats state
+    const [statValues, setStatValues] = useState({ prod: '', prev: '', prodKg: '', prevKg: '', separation: '' });
 
     const filteredStats = useMemo(() => {
         const normalized = normalizeDate(selectedDate);
@@ -381,7 +385,8 @@ const RecentRecords: React.FC = () => {
             prod: fmt(prodVal),
             prev: fmt(stat.previousBalance),
             prodKg: fmt(prodKgVal),
-            prevKg: fmt(stat.previousBalanceKg)
+            prevKg: fmt(stat.previousBalanceKg),
+            separation: fmt(stat.separationAmount) // Load separation amount
         });
         setShowEditStatModal(true);
     }
@@ -396,6 +401,7 @@ const RecentRecords: React.FC = () => {
         const inputValKg = Number(statValues.prodKg);
         const prev = Number(statValues.prev);
         const prevKg = Number(statValues.prevKg);
+        const separationInput = Number(statValues.separation); // Parse Separation
 
         let finalProduction = inputVal;
         let finalProductionKg = inputValKg;
@@ -433,7 +439,8 @@ const RecentRecords: React.FC = () => {
             currentInventory: finalCurrent,
             productionKg: finalProductionKg,
             previousBalanceKg: finalPreviousKg,
-            currentInventoryKg: finalCurrentKg
+            currentInventoryKg: finalCurrentKg,
+            separationAmount: separationInput // Include in update
         });
 
         if (result.success) {
@@ -459,6 +466,8 @@ const RecentRecords: React.FC = () => {
         }
     };
 
+
+
     const handleEditInvoice = (inv: Invoice) => {
         setSelectedInvoice(inv);
         const fmt = (v: any) => (v === undefined || v === null) ? '' : String(v);
@@ -469,13 +478,63 @@ const RecentRecords: React.FC = () => {
             driverName: inv.driverName || '',
             driverPhone: inv.driverPhone || '',
             description: inv.description || '',
-            plateNumber: inv.plateNumber || ''
+            plateNumber: inv.plateNumber || '',
+            productId: inv.productId || ''
         });
         setShowEditInvoiceModal(true);
     };
 
     const saveInvoiceChanges = async () => {
         if (!selectedInvoice) return;
+
+        // 1. Uniqueness Validation
+        // Only if number changed OR product changed (complex check handled by backend usually, but we check number collision first)
+        if (invoiceValues.invoiceNumber !== selectedInvoice.invoiceNumber) {
+            const validation = await validateUnique(invoiceValues.invoiceNumber, selectedInvoice.id);
+            if (!validation.isValid) {
+                addToast(validation.error || 'شماره حواله تکراری است', 'error');
+                return;
+            }
+        }
+
+        // 2. Inventory Validation
+        // Calculate: Available = CurrentInventory + OldInvoiceQty (Credit back)
+        // Check: NewQty <= Available
+
+        // Find correct stat record for the *NEW* product (in case product changed)
+        // If product changed, we check stock of NEW product.
+        // If product same, we credit back old qty to Same product.
+
+        const targetProductId = invoiceValues.productId;
+        const normalizedDate = normalizeDate(selectedInvoice.date);
+
+        // Find stat for target product
+        const statRecord = allStats.find(s =>
+            s.farmId === selectedInvoice.farmId &&
+            normalizeDate(s.date) === normalizedDate &&
+            s.productId === targetProductId
+        );
+
+        if (statRecord) {
+            let availableStock = statRecord.currentInventory;
+
+            // If product didn't change, we effectively "have" the old quantity too (it's currently deducted, so we add it back to available)
+            if (targetProductId === selectedInvoice.productId) {
+                availableStock += (selectedInvoice.totalCartons || 0);
+            }
+
+            const newQty = Number(invoiceValues.cartons);
+            if (newQty > availableStock) {
+                addToast(`موجودی کافی نیست. حداکثر قابل ثبت: ${availableStock}`, 'error');
+                return;
+            }
+        } else {
+            // If no stat record exists for this product found, assume 0 stock? Or allow if unrestricted?
+            // Usually implies 0 stock.
+            addToast('آمار تولید برای این محصول و تاریخ یافت نشد.', 'error');
+            // optional: return; // block or warn? Blocking is safer.
+            return;
+        }
 
         const result = await updateInvoice(selectedInvoice.id, {
             invoiceNumber: invoiceValues.invoiceNumber,
@@ -484,7 +543,8 @@ const RecentRecords: React.FC = () => {
             driverName: invoiceValues.driverName,
             plateNumber: invoiceValues.plateNumber,
             driverPhone: invoiceValues.driverPhone,
-            description: invoiceValues.description
+            description: invoiceValues.description,
+            productId: invoiceValues.productId
         });
 
         if (result.success) {
@@ -536,8 +596,8 @@ const RecentRecords: React.FC = () => {
         }
 
         // Check if product already exists for this invoice number
-        const existingProduct = invoices.find(i => 
-            i.invoiceNumber === addItemInvoice.invoiceNumber && 
+        const existingProduct = invoices.find(i =>
+            i.invoiceNumber === addItemInvoice.invoiceNumber &&
             i.productId === addItemProductId &&
             i.id !== addItemInvoice.id
         );
@@ -548,12 +608,12 @@ const RecentRecords: React.FC = () => {
 
         // Check inventory
         const normalizedDate = normalizeDate(addItemInvoice.date);
-        const statRecord = allStats.find(s => 
-            s.farmId === addItemInvoice.farmId && 
-            normalizeDate(s.date) === normalizedDate && 
+        const statRecord = allStats.find(s =>
+            s.farmId === addItemInvoice.farmId &&
+            normalizeDate(s.date) === normalizedDate &&
             s.productId === addItemProductId
         );
-        
+
         if (statRecord && statRecord.currentInventory < cartons) {
             addToast(`موجودی کافی نیست. موجود: ${statRecord.currentInventory}`, 'error');
             return;
@@ -749,6 +809,13 @@ const RecentRecords: React.FC = () => {
                                             </div>
                                         </div>
                                     )}
+
+                                    {!isMotefereghe && (
+                                        <div className="pt-2 border-t border-gray-100 dark:border-gray-700 mt-2">
+                                            <label className="block text-xs font-bold mb-1 text-purple-600">جداسازی (حدودی)</label>
+                                            <PersianNumberInput className={`${inputClasses} border-purple-200 dark:border-purple-900/30`} value={statValues.separation} onChange={v => setStatValues({ ...statValues, separation: v })} />
+                                        </div>
+                                    )}
                                 </>
                             );
                         })()}
@@ -758,126 +825,167 @@ const RecentRecords: React.FC = () => {
                         </div>
                     </div>
                 </Modal>
-            )}
+            )
+            }
 
-            {showEditInvoiceModal && selectedInvoice && (
-                <Modal isOpen={true} onClose={() => setShowEditInvoiceModal(false)} title="ویرایش حواله">
-                    <div className="space-y-4 pt-2 overflow-y-auto max-h-[60vh]">
-                        <div><label className="block text-xs font-bold mb-1">شماره حواله</label><PersianNumberInput className={inputClasses} value={invoiceValues.invoiceNumber} onChange={v => setInvoiceValues({ ...invoiceValues, invoiceNumber: v })} /></div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div><label className="block text-xs font-bold mb-1">کارتن</label><PersianNumberInput className={inputClasses} value={invoiceValues.cartons} onChange={v => setInvoiceValues({ ...invoiceValues, cartons: v })} /></div>
-                            <div><label className="block text-xs font-bold mb-1">وزن (Kg)</label><PersianNumberInput inputMode="decimal" className={inputClasses} value={invoiceValues.weight} onChange={v => setInvoiceValues({ ...invoiceValues, weight: v })} /></div>
-                        </div>
-                        <div><label className="block text-xs font-bold mb-1">راننده</label><input type="text" className="w-full p-3 border-2 rounded-xl dark:bg-gray-700 dark:text-white" value={invoiceValues.driverName} onChange={e => setInvoiceValues({ ...invoiceValues, driverName: e.target.value })} /></div>
-                        <div><label className="block text-xs font-bold mb-1">پلاک</label><PlateInput value={invoiceValues.plateNumber} onChange={v => setInvoiceValues({ ...invoiceValues, plateNumber: v })} /></div>
-                        <div><label className="block text-xs font-bold mb-1">توضیحات</label><textarea className="w-full p-3 border-2 rounded-xl dark:bg-gray-700 dark:text-white h-24 resize-none" value={invoiceValues.description} onChange={e => setInvoiceValues({ ...invoiceValues, description: e.target.value })} placeholder="توضیحات تکمیلی..." /></div>
-                        <div className="flex justify-end gap-3 pt-4">
-                            <Button variant="secondary" onClick={() => setShowEditInvoiceModal(false)}>انصراف</Button>
-                            <Button onClick={saveInvoiceChanges}>ذخیره</Button>
-                        </div>
-                    </div>
-                </Modal>
-            )}
+            {
+                showEditInvoiceModal && selectedInvoice && (
+                    <Modal isOpen={true} onClose={() => setShowEditInvoiceModal(false)} title="ویرایش حواله">
+                        <div className="space-y-4 pt-2 overflow-y-auto max-h-[60vh]">
+                            <div><label className="block text-xs font-bold mb-1">شماره حواله</label><PersianNumberInput className={inputClasses} value={invoiceValues.invoiceNumber} onChange={v => setInvoiceValues({ ...invoiceValues, invoiceNumber: v })} /></div>
 
-            {/* Add Item Modal */}
-            {showAddItemModal && addItemInvoice && (
-                <Modal isOpen={true} onClose={() => setShowAddItemModal(false)} title={`افزودن محصول به حواله ${toPersianDigits(addItemInvoice.invoiceNumber)}`}>
-                    <div className="space-y-4 pt-2">
-                        <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl">
-                            <p className="text-sm text-blue-700 dark:text-blue-300">
-                                <span className="font-bold">محصولات موجود برای این فارم:</span>
-                            </p>
-                        </div>
-                        
-                        {/* Product Selection */}
-                        <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-                            {addItemInvoice.farmId && (() => {
-                                const farm = farms.find(f => f.id === addItemInvoice.farmId);
-                                const farmProductIds = farm?.productIds || [];
-                                return farmProductIds.map(pid => {
-                                    const p = products.find(prod => prod.id === pid);
-                                    if (!p) return null;
-                                    const isSelected = addItemProductId === pid;
-                                    // Check if already added for this invoice
-                                    const alreadyAdded = invoices.some(i => 
-                                        i.invoiceNumber === addItemInvoice.invoiceNumber && 
-                                        i.productId === pid &&
-                                        i.id !== addItemInvoice.id
-                                    );
-                                    
-                                    return (
-                                        <button
-                                            key={pid}
-                                            type="button"
-                                            disabled={alreadyAdded}
-                                            onClick={() => handleAddItemProductToggle(pid)}
-                                            className={`p-3 rounded-xl text-sm font-bold transition-all ${
-                                                isSelected 
-                                                    ? 'bg-metro-green text-white shadow-lg' 
-                                                    : alreadyAdded
-                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                        : 'bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
-                                            }`}
-                                        >
-                                            {p.name} {alreadyAdded && '(ثبت شده)'}
-                                        </button>
-                                    );
-                                });
-                            })()}
-                        </div>
+                            {/* Product Selector */}
+                            <div>
+                                <label className="block text-xs font-bold mb-1">محصول</label>
+                                <select
+                                    className="w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 dark:text-white font-bold outline-none focus:border-metro-blue"
+                                    value={invoiceValues.productId}
+                                    onChange={e => setInvoiceValues({ ...invoiceValues, productId: e.target.value })}
+                                >
+                                    {sortedProductIds.map(pid => {
+                                        const p = products.find(prod => prod.id === pid);
+                                        return <option key={pid} value={pid}>{p?.name || 'نامشخص'}</option>
+                                    })}
+                                    {/* Include current product if not in list (e.g. deleted/hidden) */}
+                                    {!sortedProductIds.includes(invoiceValues.productId) && (
+                                        <option value={invoiceValues.productId}>{getProductName(invoiceValues.productId)}</option>
+                                    )}
+                                </select>
+                            </div>
 
-                        {addItemProductId && (
-                            <div className="grid grid-cols-2 gap-4 animate-fade-in">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div><label className="block text-xs font-bold mb-1">کارتن</label><PersianNumberInput className={inputClasses} value={invoiceValues.cartons} onChange={v => setInvoiceValues({ ...invoiceValues, cartons: v })} /></div>
+                                <div><label className="block text-xs font-bold mb-1">وزن (Kg)</label><PersianNumberInput inputMode="decimal" className={inputClasses} value={invoiceValues.weight} onChange={v => setInvoiceValues({ ...invoiceValues, weight: v })} /></div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div><label className="block text-xs font-bold mb-1">راننده</label><input type="text" className="w-full p-3 border-2 rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white" value={invoiceValues.driverName} onChange={e => setInvoiceValues({ ...invoiceValues, driverName: e.target.value })} /></div>
                                 <div>
-                                    <label className="block text-xs font-bold mb-1">تعداد (کارتن)</label>
-                                    <PersianNumberInput
-                                        className={inputClasses}
-                                        value={addItemCartons}
-                                        onChange={setAddItemCartons}
-                                        placeholder=""
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold mb-1">وزن (کیلوگرم)</label>
-                                    <PersianNumberInput
-                                        inputMode="decimal"
-                                        className={inputClasses}
-                                        value={addItemWeight}
-                                        onChange={setAddItemWeight}
-                                        placeholder=""
+                                    <label className="block text-xs font-bold mb-1">شماره تماس</label>
+                                    <input
+                                        type="tel"
+                                        className="w-full p-3 border-2 rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-left font-mono"
+                                        value={invoiceValues.driverPhone}
+                                        onChange={e => setInvoiceValues({ ...invoiceValues, driverPhone: e.target.value })}
+                                        placeholder="09..."
                                     />
                                 </div>
                             </div>
-                        )}
 
-                        <div className="flex justify-end gap-3 pt-4">
-                            <Button variant="secondary" onClick={() => setShowAddItemModal(false)}>انصراف</Button>
-                            <Button onClick={saveAddItem} isLoading={addItemLoading} disabled={!addItemProductId || !addItemCartons || !addItemWeight}>
-                                افزودن به حواله
-                            </Button>
+                            <div><label className="block text-xs font-bold mb-1">پلاک</label><PlateInput value={invoiceValues.plateNumber} onChange={v => setInvoiceValues({ ...invoiceValues, plateNumber: v })} /></div>
+                            <div><label className="block text-xs font-bold mb-1">توضیحات</label><textarea className="w-full p-3 border-2 rounded-xl border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white h-24 resize-none" value={invoiceValues.description} onChange={e => setInvoiceValues({ ...invoiceValues, description: e.target.value })} placeholder="توضیحات تکمیلی..." /></div>
+
+                            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700 mt-4">
+                                <Button variant="secondary" onClick={() => setShowEditInvoiceModal(false)}>انصراف</Button>
+                                <Button onClick={saveInvoiceChanges}>ذخیره</Button>
+                            </div>
                         </div>
-                    </div>
-                </Modal>
-            )}
+                    </Modal>
+                )
+            }
+
+            {/* Add Item Modal */}
+            {
+                showAddItemModal && addItemInvoice && (
+                    <Modal isOpen={true} onClose={() => setShowAddItemModal(false)} title={`افزودن محصول به حواله ${toPersianDigits(addItemInvoice.invoiceNumber)}`}>
+                        <div className="space-y-4 pt-2">
+                            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl">
+                                <p className="text-sm text-blue-700 dark:text-blue-300">
+                                    <span className="font-bold">محصولات موجود برای این فارم:</span>
+                                </p>
+                            </div>
+
+                            {/* Product Selection */}
+                            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                                {addItemInvoice.farmId && (() => {
+                                    const farm = farms.find(f => f.id === addItemInvoice.farmId);
+                                    const farmProductIds = farm?.productIds || [];
+                                    return farmProductIds.map(pid => {
+                                        const p = products.find(prod => prod.id === pid);
+                                        if (!p) return null;
+                                        const isSelected = addItemProductId === pid;
+                                        // Check if already added for this invoice
+                                        const alreadyAdded = invoices.some(i =>
+                                            i.invoiceNumber === addItemInvoice.invoiceNumber &&
+                                            i.productId === pid &&
+                                            i.id !== addItemInvoice.id
+                                        );
+
+                                        return (
+                                            <button
+                                                key={pid}
+                                                type="button"
+                                                disabled={alreadyAdded}
+                                                onClick={() => handleAddItemProductToggle(pid)}
+                                                className={`p-3 rounded-xl text-sm font-bold transition-all ${isSelected
+                                                    ? 'bg-metro-green text-white shadow-lg'
+                                                    : alreadyAdded
+                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                        : 'bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+                                                    }`}
+                                            >
+                                                {p.name} {alreadyAdded && '(ثبت شده)'}
+                                            </button>
+                                        );
+                                    });
+                                })()}
+                            </div>
+
+                            {addItemProductId && (
+                                <div className="grid grid-cols-2 gap-4 animate-fade-in">
+                                    <div>
+                                        <label className="block text-xs font-bold mb-1">تعداد (کارتن)</label>
+                                        <PersianNumberInput
+                                            className={inputClasses}
+                                            value={addItemCartons}
+                                            onChange={setAddItemCartons}
+                                            placeholder=""
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold mb-1">وزن (کیلوگرم)</label>
+                                        <PersianNumberInput
+                                            inputMode="decimal"
+                                            className={inputClasses}
+                                            value={addItemWeight}
+                                            onChange={setAddItemWeight}
+                                            placeholder=""
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="flex justify-end gap-3 pt-4">
+                                <Button variant="secondary" onClick={() => setShowAddItemModal(false)}>انصراف</Button>
+                                <Button onClick={saveAddItem} isLoading={addItemLoading} disabled={!addItemProductId || !addItemCartons || !addItemWeight}>
+                                    افزودن به حواله
+                                </Button>
+                            </div>
+                        </div>
+                    </Modal>
+                )
+            }
             {/* TECHNICAL DEBUG INFO - FOR TROUBLESHOOTING */}
-            {isAdmin && (
-                <div className="mt-12 p-4 bg-gray-100 dark:bg-gray-800 rounded-xl text-[10px] font-mono opacity-50 space-y-1">
-                    <p>--- DEBUG INFO ---</p>
-                    <p>User: {user?.fullName} ({user?.role})</p>
-                    <p>User ID: {user?.id}</p>
-                    <p>Assigned Farms: {assignedFarmIds.length} ({assignedFarmIds.join(', ')})</p>
-                    <p>Selected Farm: {selectedFarmId}</p>
-                    <p>Selected Date: {selectedDate}</p>
-                    <p>Stats in Store: {statistics.length}</p>
-                    <p>Invoices in Store: {invoices.length}</p>
-                    <p>Products Loaded: {products.length}</p>
-                    <p>Loaded Filters: {filteredStats.length} Stats / {filteredInvoices.length} Invoices</p>
-                    {statistics.length > 0 && !filteredStats.length && (
-                        <p className="text-red-500 font-bold">WARN: Records exist in store but are filtered out. Check date/creator/farm matching.</p>
-                    )}
-                </div>
-            )}
-        </div>
+            {
+                isAdmin && (
+                    <div className="mt-12 p-4 bg-gray-100 dark:bg-gray-800 rounded-xl text-[10px] font-mono opacity-50 space-y-1">
+                        <p>--- DEBUG INFO ---</p>
+                        <p>User: {user?.fullName} ({user?.role})</p>
+                        <p>User ID: {user?.id}</p>
+                        <p>Assigned Farms: {assignedFarmIds.length} ({assignedFarmIds.join(', ')})</p>
+                        <p>Selected Farm: {selectedFarmId}</p>
+                        <p>Selected Date: {selectedDate}</p>
+                        <p>Stats in Store: {statistics.length}</p>
+                        <p>Invoices in Store: {invoices.length}</p>
+                        <p>Products Loaded: {products.length}</p>
+                        <p>Loaded Filters: {filteredStats.length} Stats / {filteredInvoices.length} Invoices</p>
+                        {statistics.length > 0 && !filteredStats.length && (
+                            <p className="text-red-500 font-bold">WARN: Records exist in store but are filtered out. Check date/creator/farm matching.</p>
+                        )}
+                    </div>
+                )
+            }
+        </div >
     );
 };
 

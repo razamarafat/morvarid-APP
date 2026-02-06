@@ -24,6 +24,7 @@ interface ProductFormState {
     productionKg: string;
     previousBalance: string;
     previousBalanceKg: string;
+    separation: string; // Smart Sorting: Approximate sorting loss
 }
 
 const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
@@ -95,7 +96,8 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                 production: fmt(record?.production),
                 productionKg: fmt(record?.productionKg),
                 previousBalance: fmt(record?.previousBalance),
-                previousBalanceKg: fmt(record?.previousBalanceKg)
+                previousBalanceKg: fmt(record?.previousBalanceKg),
+                separation: fmt(record?.separationAmount)
             };
         });
 
@@ -187,6 +189,8 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                 finalCurrentKg = prevKg + inputValKg - totalSalesKg;
             }
 
+            const separationVal = vals.separation === '' ? 0 : Number(vals.separation);
+
             payloads.push({
                 farmId: selectedFarmId,
                 date: normalizedDate,
@@ -198,8 +202,15 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                 sales: totalSales,
                 salesKg: totalSalesKg,
                 currentInventory: finalCurrent,
-                currentInventoryKg: finalCurrentKg
+                currentInventoryKg: finalCurrentKg,
+                separationAmount: separationVal
             });
+
+            // VALIDATION: Prevent reducing stock below sold amount
+            if (finalCurrent < 0 && !isMotefereghe) {
+                addToast(`خطا برای محصول "${prodName}":\nفروش ثبت شده (${toPersianDigits(totalSales)}) بیشتر از مجموع موجودی و تولید است.\nمانده نمی‌تواند منفی باشد (${toPersianDigits(finalCurrent)}).`, 'error');
+                return;
+            }
         }
 
         if (payloads.length === 0) {
@@ -376,6 +387,24 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                                                             <input type="tel" inputMode="numeric" value={vals.production} onChange={e => handleInputChange(pid, 'production', e.target.value)} className={inputClasses} placeholder="" />
                                                         </div>
                                                     </div>
+
+                                                    {/* Smart Sorting: Separation Field - Only for MORVARIDI */}
+                                                    {(!isMotefereghe || isLiq) && (
+                                                        <div className="pt-3">
+                                                            <label className="block text-sm font-bold mb-1.5 text-purple-600 dark:text-purple-400 pr-1 flex items-center gap-1">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                                                                جداسازی (حدودی)
+                                                            </label>
+                                                            <input
+                                                                type="tel"
+                                                                inputMode="numeric"
+                                                                value={vals.separation || ''}
+                                                                onChange={e => handleInputChange(pid, 'separation', e.target.value)}
+                                                                className={`${inputClasses} border-purple-200 dark:border-purple-900/30 focus:border-purple-500 focus:ring-purple-100 dark:focus:ring-purple-900/20`}
+                                                                placeholder=""
+                                                            />
+                                                        </div>
+                                                    )}
                                                 </div>
 
                                                 {isLiq && (

@@ -101,6 +101,10 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
                     plateNumber: i.plate_number,
                     description: i.description,
                     isYesterday: i.is_yesterday,
+                    isSorted: i.is_sorted || false,
+                    isConverted: i.is_converted || false,
+                    sourceProductId: i.source_product_id || undefined,
+                    convertedAmount: i.converted_amount || 0,
                     createdAt: i.created_at ? new Date(i.created_at).getTime() : Date.now(),
                     updatedAt: i.updated_at ? new Date(i.updated_at).getTime() : undefined,
                     createdBy: i.created_by,
@@ -125,6 +129,10 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
                     plateNumber: i.plate_number,
                     description: i.description,
                     isYesterday: i.is_yesterday,
+                    isSorted: i.is_sorted || false,
+                    isConverted: i.is_converted || false,
+                    sourceProductId: i.source_product_id || undefined,
+                    convertedAmount: i.converted_amount || 0,
                     createdAt: i.created_at ? new Date(i.created_at).getTime() : Date.now(),
                     updatedAt: i.updated_at ? new Date(i.updated_at).getTime() : undefined,
                     createdBy: i.created_by,
@@ -219,6 +227,10 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
                 plate_number: inv.plateNumber || null,
                 description: inv.description || null,
                 is_yesterday: inv.isYesterday || false,
+                is_sorted: inv.isSorted || false,
+                is_converted: inv.isConverted || false,
+                source_product_id: inv.sourceProductId || null,
+                converted_amount: inv.convertedAmount || 0,
                 created_by: currentUser.id
             }));
 
@@ -231,6 +243,10 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
             const uniqueKeys = new Set<string>();
             invoicesList.forEach(inv => {
                 if (inv.productId) uniqueKeys.add(`${inv.farmId}|${inv.date}|${inv.productId}`);
+                // Also update SOURCE product stats if conversion happened
+                if (inv.sourceProductId && inv.isConverted) {
+                    uniqueKeys.add(`${inv.farmId}|${inv.date}|${inv.sourceProductId}`);
+                }
             });
             uniqueKeys.forEach(key => {
                 const [fId, dt, pId] = key.split('|');
@@ -271,8 +287,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
                 return { success: false, error: 'Invoice not found' };
             }
 
-            // 2. Check if there are actual changes (exclude updatedAt from comparison)
-            // Compare all fields as strings to avoid type coercion issues
+            // 2. Check if there are actual changes
             const oldDataStr = JSON.stringify({
                 invoiceNumber: String(currentInvoice.invoiceNumber || ''),
                 totalCartons: String(currentInvoice.totalCartons || ''),
@@ -280,23 +295,25 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
                 driverName: String(currentInvoice.driverName || ''),
                 plateNumber: String(currentInvoice.plateNumber || ''),
                 driverPhone: String(currentInvoice.driverPhone || ''),
-                description: String(currentInvoice.description || '')
+                description: String(currentInvoice.description || ''),
+                productId: String(currentInvoice.productId || '')
             });
             const newDataStr = JSON.stringify({
-                invoiceNumber: String(updates.invoiceNumber || ''),
-                totalCartons: String(updates.totalCartons || ''),
-                totalWeight: String(updates.totalWeight || ''),
-                driverName: String(updates.driverName || ''),
-                plateNumber: String(updates.plateNumber || ''),
-                driverPhone: String(updates.driverPhone || ''),
-                description: String(updates.description || '')
+                invoiceNumber: String(updates.invoiceNumber ?? currentInvoice.invoiceNumber),
+                totalCartons: String(updates.totalCartons ?? currentInvoice.totalCartons),
+                totalWeight: String(updates.totalWeight ?? currentInvoice.totalWeight),
+                driverName: String(updates.driverName ?? currentInvoice.driverName),
+                plateNumber: String(updates.plateNumber ?? currentInvoice.plateNumber),
+                driverPhone: String(updates.driverPhone ?? currentInvoice.driverPhone),
+                description: String(updates.description ?? currentInvoice.description),
+                productId: String(updates.productId ?? currentInvoice.productId)
             });
 
             if (oldDataStr === newDataStr) {
-                return { success: true }; // No changes detected, skip update
+                return { success: true };
             }
 
-            // 3. Construct DB payload with snake_case keys
+            // 3. Construct DB payload
             const dbUpdates: any = {
                 updated_at: new Date().toISOString()
             };
@@ -316,10 +333,35 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
             if (error) throw error;
 
             await get().fetchInvoices();
+
+            // 4. SYNC STATISTICS
+            // A. Revert/Update OLD Statistic (using old values)
+            useStatisticsStore.getState().syncSalesFromInvoices(
+                currentInvoice.farmId,
+                currentInvoice.date,
+                currentInvoice.productId || ''
+            );
+
+            // B. Update NEW Statistic (if Product, Farm, or Date changed)
+            // If they didn't change, the call above covers it (since update is already in DB).
+            // But if Product Changed, we must sync the NEW product too.
+            const newProductId = updates.productId || currentInvoice.productId;
+            const newFarmId = updates.farmId || currentInvoice.farmId;
+            const newDate = updates.date || currentInvoice.date;
+
+            if (newProductId !== currentInvoice.productId ||
+                newFarmId !== currentInvoice.farmId ||
+                normalizeDate(newDate) !== normalizeDate(currentInvoice.date)) {
+                useStatisticsStore.getState().syncSalesFromInvoices(
+                    newFarmId,
+                    newDate,
+                    newProductId || ''
+                );
+            }
+
             return { success: true };
         } catch (error: any) {
             if (!isSyncing && (isNetworkError(error) || !navigator.onLine)) {
-                // For updates, we need the ID in the payload
                 useSyncStore.getState().addToQueue('UPDATE_INVOICE', { id, updates });
                 return { success: true, error: 'ویرایش در صف آفلاین ذخیره شد' };
             }
@@ -329,19 +371,24 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
 
     deleteInvoice: async (id, isSyncing = false) => {
         try {
-            // Get invoice data before deletion for statistics sync
             const currentInvoice = get().invoices.find(i => i.id === id);
             const { error } = await supabase.from('invoices').delete().eq('id', id);
             if (error) throw error;
             await get().fetchInvoices();
 
-            // Sync sales count after deletion
             if (currentInvoice) {
                 useStatisticsStore.getState().syncSalesFromInvoices(
                     currentInvoice.farmId,
                     currentInvoice.date,
                     currentInvoice.productId || ''
                 );
+                if (currentInvoice.sourceProductId && currentInvoice.isConverted) {
+                    useStatisticsStore.getState().syncSalesFromInvoices(
+                        currentInvoice.farmId,
+                        currentInvoice.date,
+                        currentInvoice.sourceProductId
+                    );
+                }
             }
 
             return { success: true };
@@ -356,17 +403,33 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
 
     validateUnique: async (invoiceNumber: string, excludeInvoiceId?: string) => {
         try {
-            // NOTE: We only check if the NUMBER exists at all for visual feedback, 
-            // but we don't block UNLESS the specific product is also same.
-            // However, this method is usually called BEFORE product is selected or final.
-            // So we return true (valid) even if number exists, unless we implement specific check.
+            // Check if this invoice number exists for ANY product on this farm/date?
+            // Actually, strict uniqueness is usually per (Farm, Date, Number) or just (Number) globally depending on business rule.
+            // Based on previous code: unique constraint is likely (invoice_number, product_id) or just (invoice_number).
+            // Let's assume Invoice Number should be unique across the system or at least not duplicated for the *same* product lightly.
+            // BUT user requirement says: "Changing invoice_number must trigger validation".
 
-            // For now, we will RELAX this check to allow same number.
-            // The real constraint is (number, product), which is checked in `bulkAddInvoices`.
+            let query = supabase
+                .from('invoices')
+                .select('id')
+                .eq('invoice_number', invoiceNumber);
+
+            if (excludeInvoiceId) {
+                query = query.neq('id', excludeInvoiceId);
+            }
+
+            const { data, error } = await query;
+
+            if (error) throw error;
+
+            if (data && data.length > 0) {
+                return { isValid: false, error: 'این شماره حواله قبلاً ثبت شده است.' };
+            }
 
             return { isValid: true };
         } catch (e: any) {
             console.warn('[InvoiceStore] validateUnique error:', e);
+            // Fail safe: allow if check fails (e.g. offline), preventing block
             return { isValid: true };
         }
     }

@@ -69,6 +69,10 @@ export interface Invoice {
   plateNumber?: string;
   description?: string;
   isYesterday: boolean;
+  isSorted?: boolean; // Smart Sorting: Is this sale from sorted inventory?
+  isConverted?: boolean; // Inventory Conversion: Was this converted from another product?
+  sourceProductId?: string; // Inventory Conversion: Original product ID before conversion
+  convertedAmount?: number; // Inventory Conversion: Amount taken from Source
   createdAt: number;
   createdBy?: string;
   creatorName?: string;

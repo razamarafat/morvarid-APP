@@ -52,7 +52,7 @@ interface SMSDraft extends ParsedSMS {
 // Composite state for auto-save
 interface InvoiceDraftState {
     globalValues: GlobalValues;
-    itemsState: Record<string, { cartons: string; weight: string }>;
+    itemsState: Record<string, { cartons: string; weight: string; isSorted: boolean }>;
     selectedProductIds: string[];
     referenceDate: string;
 }
@@ -89,7 +89,7 @@ export const InvoiceForm: React.FC = () => {
     const [currentTime, setCurrentTime] = useState(getCurrentTime(false));
 
     const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
-    const [itemsState, setItemsState] = useState<Record<string, { cartons: string; weight: string }>>({});
+    const [itemsState, setItemsState] = useState<Record<string, { cartons: string; weight: string; isSorted: boolean }>>({});
 
     const [isProductSelectorOpen, setIsProductSelectorOpen] = useState(false);
     const [plateError, setPlateError] = useState<string | null>(null);
@@ -146,16 +146,21 @@ export const InvoiceForm: React.FC = () => {
                 const newState = { ...prev };
                 selectedProductIds.forEach(pid => {
                     if (!newState[pid]?.cartons && !newState[pid]?.weight) {
+                        // Smart Sorting: preserve isSorted if exists, default to false
+                        const product = getProductById(pid);
+                        const productName = product?.name?.toLowerCase() || '';
+                        const isPrintable = productName.includes('پرینت') || productName.includes('printable');
                         newState[pid] = {
                             cartons: String(pendingDraftData.cartons),
-                            weight: String(pendingDraftData.weight)
+                            weight: String(pendingDraftData.weight),
+                            isSorted: isPrintable
                         };
                     }
                 });
                 return newState;
             });
         }
-    }, [selectedProductIds, pendingDraftData]);
+    }, [selectedProductIds, pendingDraftData, getProductById]);
 
     const handleReadSMS = async () => {
         const parsed = await readFromClipboard();
@@ -203,9 +208,14 @@ export const InvoiceForm: React.FC = () => {
             setItemsState(prev => {
                 const newState = { ...prev };
                 selectedProductIds.forEach(pid => {
+                    // Smart Sorting: preserve existing isSorted value
+                    const product = getProductById(pid);
+                    const productName = product?.name?.toLowerCase() || '';
+                    const isPrintable = productName.includes('پرینت') || productName.includes('printable');
                     newState[pid] = {
                         cartons: String(draft.cartons),
-                        weight: String(draft.weight)
+                        weight: String(draft.weight),
+                        isSorted: prev[pid]?.isSorted ?? isPrintable
                     };
                 });
                 return newState;
@@ -243,7 +253,11 @@ export const InvoiceForm: React.FC = () => {
                 setItemsState(newState);
                 return prev.filter(id => id !== pid);
             } else {
-                setItemsState(s => ({ ...s, [pid]: { cartons: '', weight: '' } }));
+                // Smart Sorting: Auto-set isSorted based on product type
+                const product = getProductById(pid);
+                const productName = product?.name?.toLowerCase() || '';
+                const isPrintable = productName.includes('پرینت') || productName.includes('printable');
+                setItemsState(s => ({ ...s, [pid]: { cartons: '', weight: '', isSorted: isPrintable } }));
                 return [...prev, pid];
             }
         });
@@ -267,7 +281,12 @@ export const InvoiceForm: React.FC = () => {
             return;
         }
 
-        for (const pid of selectedProductIds) {
+        // Initialize the array to collect invoices
+        const invoicesToRegister: any[] = [];
+
+        // Iterate through selected products
+        for (let i = 0; i < selectedProductIds.length; i++) {
+            const pid = selectedProductIds[i];
             const item = itemsState[pid];
             const product = getProductById(pid);
             const name = product?.name || 'محصول';
@@ -299,47 +318,122 @@ export const InvoiceForm: React.FC = () => {
                 return;
             }
 
-            if (statRecord.currentInventory < cartonsVal) {
-                addToast(`خطا: موجودی "${name}" کافی نیست. (موجود: ${statRecord.currentInventory})`, 'error');
+            // --- Inventory Conversion Logic (Split Item Strategy) ---
+            const isSimpleProduct = name.includes('ساده') || name.toLowerCase().includes('simple');
+            const currentStock = statRecord.currentInventory || 0;
+
+            // CONVERSION CONDITION: Simple Product AND Not Enough Stock
+            if (isSimpleProduct && currentStock < cartonsVal) {
+                const printableProduct = selectedFarm?.productIds
+                    .map(id => getProductById(id))
+                    .find(p => p && (p.name.includes('پرینت') || p.name.toLowerCase().includes('printable')));
+
+                if (printableProduct) {
+                    const printableStat = statistics.find(s =>
+                        s.farmId === selectedFarmId &&
+                        normalizeDate(s.date) === normalizeDate(referenceDate) &&
+                        s.productId === printableProduct.id
+                    );
+
+                    // Check if Printable has enough stock to cover the DEFICIT
+                    const deficit = cartonsVal - currentStock;
+                    const printableStock = printableStat?.currentInventory || 0;
+
+                    if (printableStat && printableStock >= deficit) {
+                        const convertConfirmed = await confirm({
+                            title: 'تبدیل موجودی (کسری بار)',
+                            message: `موجودی "${name}" کافی نیست (${toPersianDigits(currentStock)} کارتن موجود). \nآیا کسری بار (${toPersianDigits(deficit)} کارتن) از موجودی "${printableProduct.name}" تبدیل شود؟`,
+                            confirmText: 'بله، تبدیل کن',
+                            cancelText: 'انصراف',
+                            type: 'warning'
+                        });
+
+                        if (convertConfirmed) {
+                            // SINGLE ITEM LOGIC
+                            // We register ONE invoice for the full amount.
+                            // We mark it as converted and store the Deficit amount in convertedAmount.
+
+                            invoicesToRegister.push({
+                                farmId: selectedFarmId,
+                                date: normalizeDate(referenceDate),
+                                productId: pid, // Simple
+                                invoiceNumber: globalData.invoiceNumber,
+                                totalCartons: cartonsVal, // Full Amount
+                                totalWeight: weightVal,
+                                driverName: globalData.driverName,
+                                driverPhone: globalData.contactPhone,
+                                plateNumber: globalData.plateNumber,
+                                // Append note about conversion
+                                description: `${globalData.description || ''} (تبدیل ${toPersianDigits(deficit)} کارتن از ${printableProduct.name})`,
+                                isSorted: item.isSorted || false,
+                                isConverted: true,
+                                sourceProductId: printableProduct.id,
+                                convertedAmount: deficit, // The amount taken from Source
+                                isYesterday: referenceDate !== normalizedDate
+                            });
+
+                            // Move to next product
+                            continue;
+                        } else {
+                            return; // User cancelled
+                        }
+                    } else {
+                        // Printable doesn't have enough either
+                        addToast(`خطا: موجودی "${name}" کافی نیست. (کسری: ${toPersianDigits(deficit)}). موجودی "${printableProduct.name}" هم برای پوشش این کسری کافی نیست (${toPersianDigits(printableStock)}).`, 'error');
+                        return;
+                    }
+                }
+                // No printable product found -> fall through to standard error
+            }
+
+            // Standard Check (No Conversion or Not Needed)
+            if (currentStock < cartonsVal) {
+                addToast(`خطا: موجودی "${name}" کافی نیست. (موجود: ${toPersianDigits(currentStock)})`, 'error');
                 return;
             }
+
+            // Standard Add (Sufficient Stock)
+            invoicesToRegister.push({
+                farmId: selectedFarmId,
+                date: normalizeDate(referenceDate),
+                productId: pid,
+                invoiceNumber: globalData.invoiceNumber,
+                totalCartons: cartonsVal,
+                totalWeight: weightVal,
+                driverName: globalData.driverName,
+                driverPhone: globalData.contactPhone,
+                plateNumber: globalData.plateNumber,
+                description: globalData.description,
+                isSorted: item.isSorted || false,
+                isConverted: false,
+                isYesterday: referenceDate !== normalizedDate
+            });
         }
 
+        // Confirmation before saving
+        const totalCartons = invoicesToRegister.reduce((sum, inv) => sum + inv.totalCartons, 0);
+        const uniqueProducts = new Set(invoicesToRegister.map(inv => inv.productId)).size;
+
         const confirmed = await confirm({
-            title: 'ثبت نهایی حواله',
-            message: `آیا از ثبت این حواله با ${toPersianDigits(selectedProductIds.length)} قلم کالا اطمینان دارید؟`,
-            confirmText: 'بله، ثبت نهایی',
-            type: 'info'
+            title: 'ثبت نهایی',
+            message: `آیا از ثبت ${toPersianDigits(uniqueProducts)} محصول و مجموع ${toPersianDigits(totalCartons)} کارتن اطمینان دارید؟`,
+            confirmText: 'ثبت',
+            cancelText: 'بررسی مجدد'
         });
 
         if (!confirmed) return;
 
         setIsSubmitting(true);
 
-        // SANITIZATION
-        const cleanDriverName = sanitizeString(globalData.driverName || '');
-        const cleanDescription = sanitizeString(globalData.description || '');
-        const cleanPlate = sanitizeString(globalData.plateNumber || '');
+        // Sanitize data before sending to Store
+        const sanitizedInvoices = invoicesToRegister.map(inv => ({
+            ...inv,
+            driverName: sanitizeString(inv.driverName || ''),
+            description: sanitizeString(inv.description || ''),
+            plateNumber: sanitizeString(inv.plateNumber || '')
+        }));
 
-        // Prepare bulk insert list
-        const invoicesToRegister = selectedProductIds.map(pid => {
-            const item = itemsState[pid];
-            return {
-                farmId: selectedFarmId,
-                date: referenceDate,
-                invoiceNumber: globalData.invoiceNumber,
-                totalCartons: Math.floor(Number(item.cartons || 0)),
-                totalWeight: Number(item.weight),
-                productId: pid,
-                driverName: cleanDriverName,
-                driverPhone: globalData.contactPhone,
-                plateNumber: cleanPlate,
-                description: cleanDescription,
-                isYesterday: referenceDate !== normalizedDate
-            };
-        });
-
-        const result = await bulkAddInvoices(invoicesToRegister);
+        const result = await bulkAddInvoices(sanitizedInvoices);
         setIsSubmitting(false);
 
         if (!result.success) {
@@ -585,6 +679,10 @@ export const InvoiceForm: React.FC = () => {
                         ) : (
                             selectedProductIds.map(pid => {
                                 const p = getProductById(pid);
+                                const productName = p?.name?.toLowerCase() || '';
+                                const isPrintable = productName.includes('پرینت') || productName.includes('printable');
+                                const isSortedValue = itemsState[pid]?.isSorted || false;
+
                                 return (
                                     <div key={pid} className="p-4 bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700">
                                         <div className="flex justify-between items-center mb-3">
@@ -612,6 +710,41 @@ export const InvoiceForm: React.FC = () => {
                                                 />
                                             </div>
                                         </div>
+                                        {/* Smart Sorting: isSorted Toggle - Only for MORVARIDI */}
+                                        {selectedFarm?.type !== 'MOTEFEREGHE' && (
+                                            <>
+                                                <div className="mt-4 flex items-center justify-between p-3 bg-purple-50 dark:bg-purple-900/20 rounded-xl border border-purple-100 dark:border-purple-900/30">
+                                                    <span className="text-sm font-bold text-purple-700 dark:text-purple-300 flex items-center gap-2">
+                                                        <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                                                        سورت شده
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        disabled={isPrintable}
+                                                        onClick={() => {
+                                                            if (!isPrintable) {
+                                                                setItemsState(s => ({
+                                                                    ...s,
+                                                                    [pid]: { ...s[pid], isSorted: !s[pid]?.isSorted }
+                                                                }));
+                                                            }
+                                                        }}
+                                                        className={`relative w-14 h-7 rounded-full transition-all ${isSortedValue
+                                                            ? 'bg-purple-600'
+                                                            : 'bg-gray-300 dark:bg-gray-600'
+                                                            } ${isPrintable ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                                                    >
+                                                        <span className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${isSortedValue ? 'right-1' : 'left-1'
+                                                            }`}></span>
+                                                    </button>
+                                                </div>
+                                                {isPrintable && (
+                                                    <p className="text-[10px] text-purple-500 mt-1 text-center font-bold">
+                                                        محصول پرینتی همیشه سورت شده است
+                                                    </p>
+                                                )}
+                                            </>
+                                        )}
                                     </div>
                                 );
                             })
