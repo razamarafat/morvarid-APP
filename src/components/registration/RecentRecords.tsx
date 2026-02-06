@@ -21,7 +21,7 @@ import PlateInput from '../common/PlateInput';
 // import AutoSizer from 'react-virtualized-auto-sizer';
 
 // Unified Record Card for Statistics
-const StatRecordCard = ({ stat, getProductName, canEdit, onEdit, onDelete }: { stat: DailyStatistic, getProductName: (id: string) => string, canEdit: (c: number, r?: string) => boolean, onEdit: (s: DailyStatistic) => void, onDelete: (s: DailyStatistic) => void }) => {
+const StatRecordCard = ({ stat, getProductName, canEdit, onEdit, onDelete, farmType }: { stat: DailyStatistic, getProductName: (id: string) => string, canEdit: (c: number, r?: string) => boolean, onEdit: (s: DailyStatistic) => void, onDelete: (s: DailyStatistic) => void, farmType?: FarmType }) => {
     const isAdminCreated = stat.creatorRole === UserRole.ADMIN;
     const isEdited = stat.updatedAt && stat.updatedAt > stat.createdAt + 2000;
     const prodName = getProductName(stat.productId);
@@ -64,20 +64,45 @@ const StatRecordCard = ({ stat, getProductName, canEdit, onEdit, onDelete }: { s
                 </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 text-center">
-                <div className={`p-2 lg:p-4 rounded-lg lg:rounded-2xl ${isOffline ? 'bg-white/50 border border-orange-100' : isPending ? 'bg-white/50 border border-blue-100' : 'bg-gray-50 dark:bg-gray-900/50'}`}>
-                    <span className="block text-[9px] lg:text-xs text-gray-400 font-bold mb-1">تولید</span>
-                    <span className="font-black text-sm lg:text-2xl">{toPersianDigits(stat.production)}</span>
+            {farmType === FarmType.MORVARIDI ? (
+                <div className="grid grid-cols-5 gap-1.5 text-center">
+                    <div className="p-2 rounded-lg bg-gray-50 dark:bg-gray-900/50">
+                        <span className="block text-[8px] lg:text-[10px] text-gray-400 font-bold mb-1">قبلی</span>
+                        <span className="font-black text-xs lg:text-xl">{toPersianDigits(stat.previousBalance)}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/10">
+                        <span className="block text-[8px] lg:text-[10px] text-emerald-400 font-bold mb-1">تولید</span>
+                        <span className="font-black text-xs lg:text-xl text-emerald-600">{toPersianDigits(stat.production)}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-900/10">
+                        <span className="block text-[8px] lg:text-[10px] text-purple-400 font-bold mb-1">جدا</span>
+                        <span className="font-black text-xs lg:text-xl text-purple-600">{toPersianDigits(stat.separationAmount || 0)}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-red-50 dark:bg-red-900/10">
+                        <span className="block text-[8px] lg:text-[10px] text-red-300 font-bold mb-1 font-bold">فروش</span>
+                        <span className="font-black text-xs lg:text-xl text-red-600">{toPersianDigits(stat.sales)}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800">
+                        <span className="block text-[8px] lg:text-[10px] text-blue-400 font-bold mb-1">مانده</span>
+                        <span className="font-black text-xs lg:text-xl text-blue-700 dark:text-blue-300">{toPersianDigits(stat.currentInventory)}</span>
+                    </div>
                 </div>
-                <div className={`p-2 lg:p-4 rounded-lg lg:rounded-2xl ${isOffline ? 'bg-orange-100/20' : isPending ? 'bg-blue-100/20' : 'bg-red-50 dark:bg-red-900/10'}`}>
-                    <span className="block text-[9px] lg:text-xs text-red-300 font-bold mb-1">فروش</span>
-                    <span className={`font-black text-sm lg:text-2xl ${isOffline ? 'text-orange-600' : isPending ? 'text-blue-600' : 'text-red-600'}`}>{toPersianDigits(stat.sales)}</span>
+            ) : (
+                <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className={`p-2 lg:p-4 rounded-lg lg:rounded-2xl ${isOffline ? 'bg-white/50 border border-orange-100' : isPending ? 'bg-white/50 border border-blue-100' : 'bg-gray-50 dark:bg-gray-900/50'}`}>
+                        <span className="block text-[9px] lg:text-xs text-gray-400 font-bold mb-1">تولید</span>
+                        <span className="font-black text-sm lg:text-2xl">{toPersianDigits(stat.production)}</span>
+                    </div>
+                    <div className={`p-2 lg:p-4 rounded-lg lg:rounded-2xl ${isOffline ? 'bg-orange-100/20' : isPending ? 'bg-blue-100/20' : 'bg-red-50 dark:bg-red-900/10'}`}>
+                        <span className="block text-[9px] lg:text-xs text-red-300 font-bold mb-1">فروش</span>
+                        <span className={`font-black text-sm lg:text-2xl ${isOffline ? 'text-orange-600' : isPending ? 'text-blue-600' : 'text-red-600'}`}>{toPersianDigits(stat.sales)}</span>
+                    </div>
+                    <div className={`p-2 lg:p-4 rounded-lg lg:rounded-2xl ${isOffline ? 'bg-orange-100/10' : isPending ? 'bg-blue-100/10' : 'bg-blue-50 dark:bg-blue-900/10'}`}>
+                        <span className="block text-[9px] lg:text-xs text-blue-300 font-bold mb-1">موجودی</span>
+                        <span className="font-black text-sm lg:text-2xl text-black dark:text-white">{toPersianDigits(stat.currentInventory)}</span>
+                    </div>
                 </div>
-                <div className={`p-2 lg:p-4 rounded-lg lg:rounded-2xl ${isOffline ? 'bg-orange-100/10' : isPending ? 'bg-blue-100/10' : 'bg-blue-50 dark:bg-blue-900/10'}`}>
-                    <span className="block text-[9px] lg:text-xs text-blue-300 font-bold mb-1">موجودی</span>
-                    <span className="font-black text-sm lg:text-2xl text-black dark:text-white">{toPersianDigits(stat.currentInventory)}</span>
-                </div>
-            </div>
+            )}
 
             <div className="mt-3 pt-2 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center text-[9px] lg:text-xs text-gray-400 font-bold">
                 <span>مسئول ثبت: {stat.creatorName || 'ناشناس'}</span>
@@ -746,6 +771,7 @@ const RecentRecords: React.FC = () => {
                                     canEdit={canEdit}
                                     onEdit={onEditStatClick}
                                     onDelete={handleDeleteStat}
+                                    farmType={farms.find(f => f.id === stat.farmId)?.type}
                                 />
                             ))
                         )}
