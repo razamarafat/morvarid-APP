@@ -9,7 +9,7 @@ export const exportTableToExcel = async (data: any[], fileNamePrefix: string): P
 
         // Create a new workbook
         const workbook = new ExcelJS.Workbook();
-        
+
         // Add worksheet with RTL direction
         const worksheet = workbook.addWorksheet('Data', {
             views: [{ rightToLeft: true }]
@@ -17,7 +17,7 @@ export const exportTableToExcel = async (data: any[], fileNamePrefix: string): P
 
         // Get headers from first data object
         const headers = Object.keys(data[0]);
-        
+
         // Add header row
         worksheet.columns = headers.map(header => ({
             header: header,
@@ -25,18 +25,33 @@ export const exportTableToExcel = async (data: any[], fileNamePrefix: string): P
             width: 20
         }));
 
-        // Add data rows
+        // Add data rows with global styling
         data.forEach(row => {
-            worksheet.addRow(row);
+            const addedRow = worksheet.addRow(row);
+            addedRow.eachCell((cell, colNumber) => {
+                const header = headers[colNumber - 1];
+                const isPlate = header && header.includes('پلاک');
+
+                cell.alignment = {
+                    horizontal: 'center',
+                    vertical: 'middle',
+                    readingOrder: isPlate ? 'ltr' : undefined
+                };
+            });
         });
 
-        // Style header row
-        worksheet.getRow(1).font = { bold: true };
-        worksheet.getRow(1).fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FFE0E0E0' }
-        };
+        // Style header row (Blue background, White bold text)
+        const headerRow = worksheet.getRow(1);
+        headerRow.height = 25;
+        headerRow.eachCell((cell) => {
+            cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FF2563EB' }
+            };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        });
 
         // Generate file name with date
         const dateStr = getTodayJalali().replace(/\//g, '-');
@@ -44,10 +59,10 @@ export const exportTableToExcel = async (data: any[], fileNamePrefix: string): P
 
         // Generate buffer and download
         const buffer = await workbook.xlsx.writeBuffer();
-        const blob = new Blob([buffer], { 
-            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+        const blob = new Blob([buffer], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         });
-        
+
         // Create download link
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');

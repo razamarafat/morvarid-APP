@@ -14,6 +14,7 @@ export const formatPlateNumber = (plate: string | null | undefined): string => {
 
     const [part1, letter, part3, part4] = parts;
 
-    // Format: 22 Letter 333 - 11 Iran (Persian digits)
-    return `${toPersianDigits(part1)} ${letter} ${toPersianDigits(part3)} - ${toPersianDigits(part4)} ایران`;
+    // Perfect physical plate order (LTR): [2-digits] [Letter] [3-digits] - [2-digits]
+    // Example: ۲۲ الف ۳۶۵ - ۱۱
+    return `${toPersianDigits(part1)} ${letter} ${toPersianDigits(part3)} - ${toPersianDigits(part4)}`;
 };

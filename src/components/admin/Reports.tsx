@@ -6,6 +6,7 @@ import { useToastStore } from '../../store/toastStore';
 import { useAuthStore } from '../../store/authStore';
 import { UserRole } from '../../types';
 import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange } from '../../utils/dateUtils';
+import { formatPlateNumber } from '../../utils/formatUtils';
 import { compareProducts, compareFarms } from '../../utils/sortUtils';
 import { useConfirm } from '../../hooks/useConfirm';
 import Modal from '../common/Modal';
@@ -158,7 +159,7 @@ const Reports: React.FC = () => {
                     'وزن': i.totalWeight,
                     'راننده': i.driverName,
                     'شماره تماس': i.driverPhone,
-                    'پلاک': i.plateNumber,
+                    'پلاک': formatPlateNumber(i.plateNumber),
                     'ثبت کننده': i.creatorName
                 };
             });
