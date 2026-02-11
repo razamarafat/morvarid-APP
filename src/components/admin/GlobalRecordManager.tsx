@@ -9,7 +9,7 @@ import { Icons } from '../common/Icons';
 import Button from '../common/Button';
 import JalaliDatePicker from '../common/JalaliDatePicker';
 import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange } from '../../utils/dateUtils';
-import { formatPlateNumber } from '../../utils/formatUtils';
+import { formatPlateNumberForUI } from '../../utils/formatUtils';
 import { Invoice } from '../../types';
 import Modal from '../common/Modal';
 import { useConfirm } from '../../hooks/useConfirm';
@@ -281,7 +281,7 @@ const GlobalRecordManager: React.FC = () => {
                                             <td className="px-6 py-5 text-center font-bold text-blue-600 lg:text-2xl">{toPersianDigits(inv.totalWeight)}</td>
                                             <td className="px-6 py-5 text-sm lg:text-base">
                                                 <div className="font-bold">{inv.driverName || '-'}</div>
-                                                <div className="font-mono text-gray-500 lg:text-lg" dir="ltr">{formatPlateNumber(inv.plateNumber)}</div>
+                                                <div className="font-mono text-gray-500 lg:text-lg" dir="rtl">{formatPlateNumberForUI(inv.plateNumber)}</div>
                                             </td>
                                             <td className="px-6 py-5 text-sm lg:text-lg">
                                                 <span className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full font-bold text-gray-700 dark:text-gray-300">{getUserName(inv.createdBy)}</span>

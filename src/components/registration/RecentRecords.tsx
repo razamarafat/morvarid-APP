@@ -162,7 +162,7 @@ const InvoiceRecordCard = ({ inv, getProductName, canEdit, onEdit, onDelete, onA
 
             <div className={`flex items-center gap-2 text-[10px] lg:text-xs text-gray-500 mb-3 p-2 lg:p-3 rounded-lg lg:rounded-xl ${isOffline ? 'bg-orange-100/30' : isPending ? 'bg-blue-100/30' : 'bg-gray-50 dark:bg-gray-900/50'}`}>
                 <span className="font-black bg-white dark:bg-gray-800 px-2 py-1 rounded shadow-sm">{toPersianDigits(inv.date)}</span>
-                {inv.plateNumber && <span className="font-mono border-r pr-2 border-gray-300 lg:text-sm text-center flex-1" dir="ltr" style={{ unicodeBidi: 'plaintext' }}>{formatPlateNumber(inv.plateNumber)}</span>}
+                {inv.plateNumber && <span className="font-mono border-r pr-2 border-gray-300 lg:text-sm text-center flex-1" dir="rtl">{formatPlateNumberForUI(inv.plateNumber)}</span>}
                 <span className="flex-1 text-left font-bold">{inv.creatorName}</span>
             </div>
 

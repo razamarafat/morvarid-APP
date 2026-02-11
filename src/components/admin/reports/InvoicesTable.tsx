@@ -2,7 +2,7 @@ import React from 'react';
 import { Farm, Product, UserRole } from '../../../types';
 import { Icons } from '../../common/Icons';
 import { toPersianDigits } from '../../../utils/dateUtils';
-import { formatPlateNumber } from '../../../utils/formatUtils';
+import { formatPlateNumberForUI } from '../../../utils/formatUtils';
 
 interface InvoicesTableProps {
     data: any[];
@@ -23,7 +23,7 @@ const InvoicesTable: React.FC<InvoicesTableProps> = ({
     onEdit,
     onDelete
 }) => {
-    const formatPlateVisual = (plate: string) => formatPlateNumber(plate) || '-';
+    const formatPlateVisual = (plate: string) => formatPlateNumberForUI(plate) || '-';
 
     return (
         <div className="bg-white dark:bg-gray-800 rounded-[28px] shadow-md overflow-hidden border border-gray-100 dark:border-gray-700 relative">
@@ -75,7 +75,7 @@ const InvoicesTable: React.FC<InvoicesTableProps> = ({
                                         <td className={`p-3 text-center text-blue-600 font-black text-xl lg:text-2xl ${isEdited ? 'bg-yellow-50 dark:bg-yellow-900/10 rounded' : ''}`}>{toPersianDigits(row.totalWeight || 0)}</td>
                                         <td className="p-3 font-mono font-bold text-sm text-gray-600 dark:text-gray-400">{toPersianDigits(row.driverPhone || '-')}</td>
                                         <td className="p-3 font-bold text-gray-700 dark:text-gray-300">{row.driverName || '-'}</td>
-                                        <td className="p-3 font-mono text-sm text-gray-600 dark:text-gray-400 text-center" dir="ltr" style={{ unicodeBidi: 'plaintext' }}>{formatPlateVisual(row.plateNumber || '') || '-'}</td>
+                                        <td className="p-3 font-mono text-sm text-gray-600 dark:text-gray-400 text-center" dir="rtl">{formatPlateVisual(row.plateNumber || '') || '-'}</td>
                                         <td className="p-3">
                                             <div className="flex flex-col gap-1">
                                                 <div className="flex items-center gap-2">
