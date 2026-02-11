@@ -11,7 +11,7 @@ import Modal from '../common/Modal';
 import Button from '../common/Button';
 import { useToastStore } from '../../store/toastStore';
 import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange, formatJalali } from '../../utils/dateUtils';
-import { formatPlateNumber } from '../../utils/formatUtils';
+import { formatPlateNumber, formatPlateNumberForUI } from '../../utils/formatUtils';
 import { compareProducts } from '../../utils/sortUtils';
 import JalaliDatePicker from '../common/JalaliDatePicker';
 import PersianNumberInput from '../common/PersianNumberInput';
