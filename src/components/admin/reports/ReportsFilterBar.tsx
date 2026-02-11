@@ -100,8 +100,8 @@ const ReportsFilterBar: React.FC<ReportsFilterBarProps> = ({
                     </Button>
                     <Button
                         onClick={onExport}
-                        variant="primary"
-                        className="flex-1 md:flex-none px-6 h-[52px] rounded-xl font-bold text-sm bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-500/20 border-none whitespace-nowrap"
+                        variant="ghost"
+                        className="flex-1 md:flex-none px-6 h-[52px] rounded-xl font-bold text-sm bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-500/20 border-none whitespace-nowrap"
                     >
                         <Icons.Download className="w-4 h-4 ml-2" /> خروجی اکسل
                     </Button>

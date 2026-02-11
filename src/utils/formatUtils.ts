@@ -18,3 +18,21 @@ export const formatPlateNumber = (plate: string | null | undefined): string => {
     // Example: ۲۲ الف ۳۶۵ - ۱۱
     return `${toPersianDigits(part1)} ${letter} ${toPersianDigits(part3)} - ${toPersianDigits(part4)}`;
 };
+
+/**
+ * Formats plate number for Excel RTL display
+ * Must be written in reverse order: [part1] - [part3] [letter] [part4]
+ * Example: ۲۲ - ۳۶۵ الف ۱۱
+ */
+export const formatPlateNumberForExcel = (plate: string | null | undefined): string => {
+    if (!plate) return '';
+
+    const parts = plate.split('-');
+    if (parts.length !== 4) return toPersianDigits(plate);
+
+    const [part1, letter, part3, part4] = parts;
+
+    // Reverse order for Excel RTL: [part1] - [part3] [letter] [part4]
+    // Example: ۲۲ - ۳۶۵ الف ۱۱
+    return `${toPersianDigits(part1)} - ${toPersianDigits(part3)} ${letter} ${toPersianDigits(part4)}`;
+};

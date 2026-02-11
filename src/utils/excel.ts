@@ -1,4 +1,5 @@
 import { getTodayJalali } from './dateUtils';
+import { formatPlateNumberForExcel } from './formatUtils';
 
 export const exportTableToExcel = async (data: any[], fileNamePrefix: string): Promise<boolean> => {
     try {
@@ -18,6 +19,17 @@ export const exportTableToExcel = async (data: any[], fileNamePrefix: string): P
         // Get headers from first data object
         const headers = Object.keys(data[0]);
 
+        // Format plate numbers for Excel RTL display
+        const formattedData = data.map(row => {
+            const formattedRow = { ...row };
+            headers.forEach(header => {
+                if (header.includes('پلاک') && formattedRow[header]) {
+                    formattedRow[header] = formatPlateNumberForExcel(formattedRow[header]);
+                }
+            });
+            return formattedRow;
+        });
+
         // Add header row
         worksheet.columns = headers.map(header => ({
             header: header,
@@ -26,7 +38,7 @@ export const exportTableToExcel = async (data: any[], fileNamePrefix: string): P
         }));
 
         // Add data rows with global styling
-        data.forEach(row => {
+        formattedData.forEach(row => {
             const addedRow = worksheet.addRow(row);
             addedRow.eachCell((cell, colNumber) => {
                 const header = headers[colNumber - 1];
@@ -35,8 +47,12 @@ export const exportTableToExcel = async (data: any[], fileNamePrefix: string): P
                 cell.alignment = {
                     horizontal: 'center',
                     vertical: 'middle',
-                    readingOrder: isPlate ? 'ltr' : undefined
+                    readingOrder: isPlate ? 'rtl' : undefined
                 };
+
+                if (isPlate) {
+                    cell.numFmt = '@';
+                }
             });
         });
 
