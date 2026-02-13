@@ -323,13 +323,21 @@ export const useAlertStore = create<AlertState>()(
                 const socketResult = await channel?.send({ type: 'broadcast', event: 'farm_alert', payload });
 
                 try {
-                    const { error } = await supabase.functions.invoke('send-push', {
-                        body: payload
+                    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+                    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+                    const res = await fetch(`${supabaseUrl}/functions/v1/send-push`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${supabaseKey}`,
+                        },
+                        body: JSON.stringify(payload),
                     });
 
-                    if (error) {
-                        console.warn('[Alert] Push Function Error:', error);
-                        get().addLog('خطا در ارسال Push: ' + error.message);
+                    if (!res.ok) {
+                        const errData = await res.json().catch(() => ({}));
+                        console.warn('[Alert] Push Function Error:', errData);
+                        get().addLog('خطا در ارسال Push: ' + (errData.error || res.statusText));
                     }
                 } catch (e) {
                     console.error('[Alert] Push Invocation Failed:', e);
