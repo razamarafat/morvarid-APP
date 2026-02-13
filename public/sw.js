@@ -157,7 +157,12 @@ registerRoute(
 
 
 // --- VAPID KEYS CONFIGURATION ---
-const VAPID_PUBLIC_KEY = process.env.VITE_VAPID_PUBLIC_KEY;
+let VAPID_PUBLIC_KEY;
+try {
+  VAPID_PUBLIC_KEY = self.__VAPID_PUBLIC_KEY__ || null;
+} catch (e) {
+  VAPID_PUBLIC_KEY = null;
+}
 
 if (!VAPID_PUBLIC_KEY) {
   console.debug('[SW] VAPID Public Key not configured - push notifications disabled.');

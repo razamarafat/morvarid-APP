@@ -12,9 +12,9 @@ interface ProtectedRouteProps {
   fallbackPath?: string;     // Custom redirect path
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
-  children, 
-  allowedRoles = [], 
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+  children,
+  allowedRoles = [],
   requireActive = true,
   fallbackPath = "/login"
 }) => {
@@ -44,30 +44,23 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // Check role-based access if roles are specified
   if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
-    log.error('Insufficient permissions', { 
-      userId: user.id, 
-      userRole: user.role, 
+    log.error('Insufficient permissions', {
+      userId: user.id,
+      userRole: user.role,
       requiredRoles: allowedRoles,
-      path: location.pathname 
+      path: location.pathname
     });
-    
+
     // Better UX: Redirect to appropriate dashboard instead of login
     const redirectMap: Record<UserRole, string> = {
       [UserRole.ADMIN]: '/admin',
-      [UserRole.REGISTRATION]: '/registration', 
+      [UserRole.REGISTRATION]: '/registration',
       [UserRole.SALES]: '/sales'
     };
-    
+
     const userDashboard = redirectMap[user.role] || '/login';
     return <Navigate to={userDashboard} replace />;
   }
-
-  // Log successful access for audit
-  log.debug('Authorized access', { 
-    userId: user.id, 
-    role: user.role, 
-    path: location.pathname 
-  });
 
   return children;
 };

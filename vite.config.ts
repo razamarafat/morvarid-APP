@@ -29,8 +29,8 @@ const generateVersionFile = () => {
         console.log(`[Version] version.json generated: ${JSON.stringify(versionInfo)}`);
       }
     },
-    configureServer(server) {
-      server.middlewares.use((req, res, next) => {
+    configureServer(server: any) {
+      server.middlewares.use((req: any, res: any, next: any) => {
         if (req.url === '/version.json') {
           res.setHeader('Content-Type', 'application/json');
           res.end(JSON.stringify({ buildDate: Date.now(), version: appVersion + '-dev' }));
@@ -67,16 +67,15 @@ export default defineConfig(({ mode }) => {
   return {
     define: {
       '__APP_VERSION__': JSON.stringify(appVersion),
-      // Make VAPID key available in SW
-      'process.env.VITE_VAPID_PUBLIC_KEY': JSON.stringify(env.VITE_VAPID_PUBLIC_KEY),
+      // Make VAPID key available in SW (via self.__VAPID_PUBLIC_KEY__)
+      'self.__VAPID_PUBLIC_KEY__': JSON.stringify(env.VITE_VAPID_PUBLIC_KEY || ''),
     },
     plugins: [
       react(),
       viteCompression(),
       generateVersionFile(),
-      VitePWA({
+      (VitePWA as any)({
         registerType: 'autoUpdate',
-        updateViaCache: 'none',
         injectRegister: false,
         selfDestroying: false,
         strategies: 'injectManifest',
