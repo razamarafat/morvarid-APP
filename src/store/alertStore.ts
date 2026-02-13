@@ -312,6 +312,7 @@ export const useAlertStore = create<AlertState>()(
                 }
 
                 const payload = {
+                    id: crypto.randomUUID(), // Unique ID for this alert event
                     targetFarmId: farmId,
                     farmName,
                     message,

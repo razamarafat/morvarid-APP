@@ -212,7 +212,7 @@ self.addEventListener('push', (event) => {
     dir: 'rtl',
     lang: 'fa-IR',
     renotify: true,
-    tag: (data.tag || 'morvarid-alert') + '-' + Date.now(),
+    tag: data.tag || 'morvarid-alert', // Use deterministic tag for deduplication
     requireInteraction: true,
     vibrate: [200, 100, 200],
     data: { url: data.url, action: data.action, timestamp: Date.now() },

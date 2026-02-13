@@ -1,7 +1,5 @@
-// @ts-ignore
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-// @ts-ignore
-import webpush from "https://esm.sh/web-push@3.6.7";
+import { createClient } from "supabase";
+import webpush from "web-push";
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -15,14 +13,15 @@ Deno.serve(async (req) => {
     }
 
     try {
-        const { message, targetFarmId, farmName, action, senderId } = await req.json();
+        const { id, message, targetFarmId, farmName, action, senderId } = await req.json();
 
         const subject = 'mailto:admin@morvarid.app';
-        const publicKey = Deno.env.get('VITE_VAPID_PUBLIC_KEY');
-        const privateKey = Deno.env.get('VITE_VAPID_PRIVATE_KEY');
+        // Try both VITE_ prefix (legacy) and standard naming for robustness
+        const publicKey = Deno.env.get('VAPID_PUBLIC_KEY') || Deno.env.get('VITE_VAPID_PUBLIC_KEY');
+        const privateKey = Deno.env.get('VAPID_PRIVATE_KEY') || Deno.env.get('VITE_VAPID_PRIVATE_KEY');
 
         if (!publicKey || !privateKey) {
-            throw new Error('Missing VAPID keys in Edge Function environment.');
+            throw new Error('Missing VAPID keys in Edge Function environment (Standard or VITE_ prefix).');
         }
 
         webpush.setVapidDetails(subject, publicKey, privateKey);
@@ -83,7 +82,8 @@ Deno.serve(async (req) => {
             title: `⚠️ هشدار: ${farmName}`,
             body: message,
             icon: '/icons/icon-192x192.png',
-            data: { url: '/#/sales' },
+            tag: id || 'farm-alert',
+            data: { url: '/#/sales', alertId: id },
         });
 
         const sendPromises = subscriptions.map((sub) =>
