@@ -162,7 +162,12 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
                                                             <div key={stat.id} className={`bg-white dark:bg-gray-800 p-4 rounded-[20px] shadow-sm border ${isAdminCreated ? 'border-purple-300 dark:border-purple-800 bg-purple-50/30' : 'border-gray-100 dark:border-gray-700'}`}>
                                                                 <div className="flex justify-between items-center mb-3">
                                                                     <div className="flex items-center gap-2">
-                                                                        <h5 className="font-bold text-gray-800 dark:text-white">{prod?.name}</h5>
+                                                                        <div className={`px-3 py-1 rounded-lg border-r-4 ${prod?.name.includes('قابل چاپ') ? 'bg-purple-50 border-purple-500 text-purple-700' :
+                                                                                prod?.name.includes('ساده') ? 'bg-blue-50 border-blue-500 text-blue-700' :
+                                                                                    'bg-gray-50 border-gray-400 text-gray-700'
+                                                                            }`}>
+                                                                            <h5 className="font-black text-sm lg:text-base">{prod?.name}</h5>
+                                                                        </div>
                                                                         {isAdminCreated && <span className="text-[10px] font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">ثبت توسط مدیر</span>}
                                                                     </div>
                                                                     {showTime && (
@@ -173,13 +178,13 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
                                                                         </div>
                                                                     )}
                                                                 </div>
-                                                                <div className={`grid gap-2 text-center text-xs ${isMotefereghe ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'}`}>
+                                                                <div className={`grid gap-2 text-center text-xs ${isMotefereghe ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-5'}`}>
                                                                     {!isMotefereghe && <div className="p-2 bg-gray-50 dark:bg-gray-700/30 rounded-xl"><span className="text-xs lg:text-sm font-bold text-gray-500 dark:text-gray-400 block mb-1">قبل</span>{renderVal(stat.previousBalance, stat.previousBalanceKg || 0, 'text-gray-700 dark:text-gray-200')}</div>}
                                                                     <div className="p-2 bg-green-50 dark:bg-green-900/10 rounded-xl"><span className="text-xs lg:text-sm font-bold text-green-700 dark:text-green-400 block mb-1">تولید</span>{renderVal(stat.production, stat.productionKg || 0, 'text-green-600 dark:text-green-400')}</div>
                                                                     {!isMotefereghe && <div className="p-2 bg-purple-50 dark:bg-purple-900/10 rounded-xl"><span className="text-xs lg:text-sm font-bold text-purple-600 dark:text-purple-400 block mb-1">جداسازی</span>{renderVal(stat.separationAmount || 0, 0, 'text-purple-600 dark:text-purple-400')}</div>}
 
                                                                     {/* SALES CARD: Shows Display Sales (What was sold), but calculated using physical usage behind the scenes */}
-                                                                    <div className="p-2 bg-red-50 dark:bg-red-900/10 rounded-xl"><span className="text-xs lg:text-sm font-bold text-red-600 dark:text-red-400 block mb-1">فروش</span>{renderVal(displaySales, displaySalesKg, 'text-red-600 dark:text-red-400')}</div>
+                                                                    <div className="p-2 bg-red-50 dark:bg-red-900/10 rounded-xl"><span className="text-xs lg:text-sm font-bold text-red-600 dark:text-red-400 block mb-1">فروش</span>{renderVal(displaySales, 0, 'text-red-600 dark:text-red-400')}</div>
 
                                                                     <div className="p-2 bg-blue-50 dark:bg-blue-900/10 rounded-xl"><span className="text-xs lg:text-sm font-bold text-blue-700 dark:text-blue-400 block mb-1">مانده</span>{renderVal(effectiveRemaining.remaining, effectiveRemaining.remainingKg || 0, 'text-blue-600 dark:text-blue-400')}</div>
                                                                 </div>
@@ -363,7 +368,7 @@ const VirtualizedInvoiceRow = ({ index, style, data }: { index: number, style: R
     const farmName = farms.find((f: any) => f.id === invoice.farmId)?.name || 'نامشخص';
 
     return (
-        <div style={style} className={`grid grid-cols-[0.8fr_1fr_1.2fr_1.5fr_0.8fr_0.8fr_1fr_0.8fr] gap-2 items-center px-4 text-gray-800 dark:text-gray-200 text-sm border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors ${index % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-900/30'} ${isAdminCreated ? 'bg-purple-50/20' : ''} ${isPending ? 'bg-blue-50/50 animate-pulse' : ''} ${isOffline ? 'bg-orange-50/30' : ''}`}>
+        <div style={style} className={`grid grid-cols-[0.9fr_1fr_1.3fr_1.8fr_0.7fr_0.7fr_1fr_0.7fr] gap-2 items-center px-4 text-gray-800 dark:text-gray-200 text-sm border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors ${index % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-900/30'} ${isAdminCreated ? 'bg-purple-50/20' : ''} ${isPending ? 'bg-blue-50/50 animate-pulse' : ''} ${isOffline ? 'bg-orange-50/30' : ''}`}>
             {/* 1. Date */}
             <div className={`font-black tracking-tight text-center truncate ${isPending ? 'text-blue-500' : isOffline ? 'text-orange-600' : ''}`}>
                 {toPersianDigits(invoice.date)}
@@ -410,7 +415,7 @@ const VirtualizedInvoiceRow = ({ index, style, data }: { index: number, style: R
             {/* 8. Time */}
             <div className="text-center">
                 <div className="flex flex-col items-center">
-                    <span className="font-mono text-[10px] font-bold text-gray-600 dark:text-gray-400 dir-ltr">{toPersianDigits(displayTime)}</span>
+                    <span className="text-[10px] font-bold text-gray-600 dark:text-gray-400 dir-ltr">{toPersianDigits(displayTime)}</span>
                     {isEdited && !isAdminCreated && <span className="text-[8px] text-orange-500 font-bold mt-0.5">(ویرایش)</span>}
                     {isPending && <span className="text-[8px] text-blue-500 font-black animate-bounce mt-0.5">ارسال...</span>}
                     {isOffline && <span className="text-[8px] text-orange-600 font-black mt-0.5">در صف</span>}
@@ -504,15 +509,20 @@ const InvoiceList = React.memo(() => {
         addToast('لیست حواله‌ها بروزرسانی شد', 'info');
     };
 
+    const handleClearSearch = () => {
+        setSearchTerm('');
+        setSelectedFarmId('all');
+    };
+
     const renderInvoiceNumber = useCallback((num: string) => {
         const strNum = toPersianDigits(num);
-        if (strNum.length < 4) return <span className="text-gray-800 dark:text-gray-200 text-lg font-mono">{strNum}</span>;
+        if (strNum.length < 4) return <span className="text-gray-800 dark:text-gray-200 text-lg font-black">{strNum}</span>;
         const mainPart = strNum.slice(0, -4);
         const lastPart = strNum.slice(-4);
         return (
             <div className="flex justify-center items-center gap-0.5">
-                <span className="text-gray-500 dark:text-gray-400 font-bold text-base font-mono">{mainPart}</span>
-                <span className="text-black dark:text-white font-black text-lg font-mono">{lastPart}</span>
+                <span className="text-gray-500 dark:text-gray-400 font-bold text-base">{mainPart}</span>
+                <span className="text-black dark:text-white font-black text-lg">{lastPart}</span>
             </div>
         );
     }, []);
@@ -538,6 +548,15 @@ const InvoiceList = React.memo(() => {
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
+                        {(searchTerm || selectedFarmId !== 'all') && (
+                            <button
+                                onClick={handleClearSearch}
+                                className="p-3 bg-gray-100 dark:bg-gray-700 text-gray-500 rounded-xl hover:bg-gray-200 transition-colors"
+                                title="حذف فیلترها"
+                            >
+                                <Icons.X className="w-5 h-5" />
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -575,7 +594,7 @@ const InvoiceList = React.memo(() => {
                 {/* Virtualized List Container */}
                 <div className="flex-1 w-full relative">
                     {/* Header Row - Sticky */}
-                    <div className="grid grid-cols-[0.8fr_1fr_1.2fr_1.5fr_0.8fr_0.8fr_1fr_0.8fr] gap-2 px-4 py-3 bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400 text-xs lg:text-sm font-black uppercase border-b border-gray-200 dark:border-gray-700">
+                    <div className="grid grid-cols-[0.9fr_1fr_1.3fr_1.8fr_0.7fr_0.7fr_1fr_0.7fr] gap-2 px-4 py-3 bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400 text-xs lg:text-sm font-black uppercase border-b border-gray-200 dark:border-gray-700">
                         <div className="text-center">تاریخ خروج</div>
                         <div className="text-center">رمز حواله</div>
                         <div className="text-right">فارم</div>

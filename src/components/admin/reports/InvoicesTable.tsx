@@ -31,17 +31,17 @@ const InvoicesTable: React.FC<InvoicesTableProps> = ({
                 <table className="w-full text-right border-collapse min-w-[1200px]">
                     <thead className="bg-gray-50 dark:bg-gray-900 text-gray-500 font-black text-xs lg:text-sm uppercase tracking-wider sticky top-0 z-10 shadow-md">
                         <tr>
-                            <th className="p-3">تاریخ</th>
-                            <th className="p-3 text-center">رمز حواله</th>
-                            <th className="p-3">فارم</th>
-                            <th className="p-3">نوع محصول</th>
-                            <th className="p-3 text-center">تعداد</th>
-                            <th className="p-3 text-center">وزن</th>
-                            <th className="p-3">شماره تماس</th>
-                            <th className="p-3">راننده</th>
-                            <th className="p-3">پلاک</th>
-                            <th className="p-3">اطلاعات ثبت</th>
-                            {isAdmin && <th className="p-3 text-center">عملیات</th>}
+                            <th className="p-3 text-center w-[10%]">تاریخ</th>
+                            <th className="p-3 text-center w-[10%]">رمز حواله</th>
+                            <th className="p-3 text-center w-[12%]">فارم</th>
+                            <th className="p-3 text-center w-[15%]">نوع محصول</th>
+                            <th className="p-3 text-center w-[8%]">تعداد</th>
+                            <th className="p-3 text-center w-[8%]">وزن</th>
+                            <th className="p-3 text-center w-[10%]">شماره تماس</th>
+                            <th className="p-3 text-center w-[10%]">راننده</th>
+                            <th className="p-3 text-center w-[10%]">پلاک</th>
+                            <th className="p-3 text-center w-[7%]">ثبت</th>
+                            {isAdmin && <th className="p-3 text-center w-[10%]">عملیات</th>}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -67,17 +67,17 @@ const InvoicesTable: React.FC<InvoicesTableProps> = ({
 
                                 return (
                                     <tr key={row.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${isAdminCreated ? 'bg-purple-50/50 dark:bg-purple-900/10' : ''}`}>
-                                        <td className="p-3 font-mono font-bold text-lg text-gray-800 dark:text-white">{toPersianDigits(row.date)}</td>
+                                        <td className="p-3 font-black text-lg text-gray-800 dark:text-gray-white text-center">{toPersianDigits(row.date)}</td>
                                         <td className="p-3 text-center font-black text-xl lg:text-2xl tracking-widest text-metro-orange">{toPersianDigits(row.invoiceNumber)}</td>
-                                        <td className="p-3 font-bold text-gray-800 dark:text-white">{farms.find(f => f.id === row.farmId)?.name}</td>
-                                        <td className="p-3 font-bold text-gray-600 dark:text-gray-300">{prod?.name || '-'}</td>
+                                        <td className="p-3 font-bold text-gray-800 dark:text-white text-center">{farms.find(f => f.id === row.farmId)?.name}</td>
+                                        <td className="p-3 font-bold text-gray-600 dark:text-gray-300 text-center">{prod?.name || '-'}</td>
                                         <td className={`p-3 text-center font-black text-xl lg:text-2xl text-gray-800 dark:text-white ${isEdited ? 'bg-yellow-50 dark:bg-yellow-900/10 rounded' : ''}`}>{toPersianDigits(row.totalCartons || 0)}</td>
                                         <td className={`p-3 text-center text-blue-600 font-black text-xl lg:text-2xl ${isEdited ? 'bg-yellow-50 dark:bg-yellow-900/10 rounded' : ''}`}>{toPersianDigits(row.totalWeight || 0)}</td>
-                                        <td className="p-3 font-mono font-bold text-sm text-gray-600 dark:text-gray-400">{toPersianDigits(row.driverPhone || '-')}</td>
-                                        <td className="p-3 font-bold text-gray-700 dark:text-gray-300">{row.driverName || '-'}</td>
-                                        <td className="p-3 font-mono text-sm text-gray-600 dark:text-gray-400 text-center" dir="rtl">{formatPlateVisual(row.plateNumber || '') || '-'}</td>
-                                        <td className="p-3">
-                                            <div className="flex flex-col gap-1">
+                                        <td className="p-3 font-bold text-sm text-gray-600 dark:text-gray-400 text-center">{toPersianDigits(row.driverPhone || '-')}</td>
+                                        <td className="p-3 font-bold text-gray-700 dark:text-gray-300 text-center">{row.driverName || '-'}</td>
+                                        <td className="p-3 text-sm text-gray-600 dark:text-gray-400 text-center font-bold" dir="rtl">{formatPlateVisual(row.plateNumber || '') || '-'}</td>
+                                        <td className="p-3 text-center">
+                                            <div className="flex flex-col gap-1 items-center">
                                                 <div className="flex items-center gap-2">
                                                     <span className={`px-2 py-0.5 rounded-md font-bold text-xs ${isAdminCreated ? 'bg-purple-200 text-purple-800' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}>
                                                         {isAdminCreated ? 'ثبت توسط مدیر' : (row.creatorName || 'ناشناس')}

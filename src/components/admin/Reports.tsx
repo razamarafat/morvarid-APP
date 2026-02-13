@@ -128,6 +128,30 @@ const Reports: React.FC = () => {
         handleSearch();
     }, [handleSearch]);
 
+    const handleClearFilters = () => {
+        setStartDate(getTodayJalali());
+        setEndDate(getTodayJalali());
+        setSelectedFarmId('all');
+        setSelectedProductId('all');
+        setSearchTerm('');
+
+        // Wait for state updates then search
+        setTimeout(() => {
+            // We can't call handleSearch directly here because it uses the *current* state 
+            // from the closure, which hasn't updated yet.
+            // Ideally, we'd use a useEffect that triggers on filter changes, 
+            // but for now, we'll just reset and the user can click search or we rely on user action.
+            // Actually, let's just trigger a search with default values manually or set a flag.
+
+            // For a better UX, simplest is just reset the inputs. 
+            // The existing handleSearch uses the state values.
+            // We can add a "shouldRefresh" state or just let the user click search again.
+            // OR we can pass the defaults to a helper. 
+            // For now, let's just reset the state. The user can click "Show Report" if they want defaults.
+            addToast('فیلترها حذف شدند', 'info');
+        }, 0);
+    };
+
     // --- LOGIC: EXPORT ---
     const handleExportExcel = async () => {
         let exportData = [];
@@ -376,6 +400,7 @@ const Reports: React.FC = () => {
                         onSearchTermChange={setSearchTerm}
                         onRefresh={handleSearch}
                         onExport={handleExportExcel}
+                        onClear={handleClearFilters}
                         isSearching={isSearching}
                     />
 

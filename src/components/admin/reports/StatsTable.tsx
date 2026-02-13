@@ -41,14 +41,14 @@ const StatsTable: React.FC<StatsTableProps> = ({
                 <table className="w-full text-right border-collapse min-w-[1200px]">
                     <thead className="bg-gray-50 dark:bg-gray-900 text-gray-500 font-black text-xs lg:text-sm uppercase tracking-wider sticky top-0 z-10 shadow-md">
                         <tr>
-                            <th className="p-3 text-center">تاریخ</th>
-                            <th className="p-3 text-center">فارم</th>
-                            <th className="p-3 text-center">محصول</th>
-                            <th className="p-3 text-center">تولید</th>
-                            <th className="p-3 text-center">فروش</th>
-                            <th className="p-3 text-center">موجودی</th>
-                            <th className="p-3 text-center">اطلاعات ثبت</th>
-                            {isAdmin && <th className="p-3 text-center">عملیات</th>}
+                            <th className="p-3 text-center w-[10%]">تاریخ</th>
+                            <th className="p-3 text-center w-[12%]">فارم</th>
+                            <th className="p-3 text-center w-[15%]">محصول</th>
+                            <th className="p-3 text-center w-[12%]">تولید</th>
+                            <th className="p-3 text-center w-[12%]">فروش</th>
+                            <th className="p-3 text-center w-[12%]">موجودی</th>
+                            <th className="p-3 text-center w-[17%]">اطلاعات ثبت</th>
+                            {isAdmin && <th className="p-3 text-center w-[10%]">عملیات</th>}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-700">

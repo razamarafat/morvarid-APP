@@ -21,6 +21,7 @@ interface ReportsFilterBarProps {
     onSearchTermChange: (term: string) => void;
     onRefresh: () => void;
     onExport: () => void;
+    onClear: () => void;
     isSearching: boolean;
 }
 
@@ -41,6 +42,7 @@ const ReportsFilterBar: React.FC<ReportsFilterBarProps> = ({
     onSearchTermChange,
     onRefresh,
     onExport,
+    onClear,
     isSearching
 }) => {
     return (
@@ -97,6 +99,14 @@ const ReportsFilterBar: React.FC<ReportsFilterBarProps> = ({
                     >
                         {!isSearching && <Icons.Refresh className="w-5 h-5 ml-2" />}
                         نمایش گزارش
+                    </Button>
+                    <Button
+                        onClick={onClear}
+                        variant="secondary"
+                        className="flex-1 md:flex-none px-6 h-[52px] rounded-xl font-bold text-gray-600 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 whitespace-nowrap"
+                    >
+                        <Icons.X className="w-5 h-5 ml-2" />
+                        حذف فیلترها
                     </Button>
                     <Button
                         onClick={onExport}

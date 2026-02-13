@@ -162,7 +162,7 @@ const InvoiceRecordCard = ({ inv, getProductName, canEdit, onEdit, onDelete, onA
 
             <div className={`flex items-center gap-2 text-[10px] lg:text-xs text-gray-500 mb-3 p-2 lg:p-3 rounded-lg lg:rounded-xl ${isOffline ? 'bg-orange-100/30' : isPending ? 'bg-blue-100/30' : 'bg-gray-50 dark:bg-gray-900/50'}`}>
                 <span className="font-black bg-white dark:bg-gray-800 px-2 py-1 rounded shadow-sm">{toPersianDigits(inv.date)}</span>
-                {inv.plateNumber && <span className="font-mono border-r pr-2 border-gray-300 lg:text-sm text-center flex-1" dir="rtl">{formatPlateNumberForUI(inv.plateNumber)}</span>}
+                {inv.plateNumber && <span className="border-r pr-2 border-gray-300 lg:text-sm text-center flex-1 font-bold" dir="rtl">{formatPlateNumberForUI(inv.plateNumber)}</span>}
                 <span className="flex-1 text-left font-bold">{inv.creatorName}</span>
             </div>
 
@@ -235,6 +235,15 @@ const RecentRecords: React.FC = () => {
             setSelectedFarmId(assignedFarmIds[0]);
         }
     }, [assignedFarmIds, isAdmin, selectedFarmId]);
+
+    const handleClearFilters = () => {
+        setSelectedDate(getTodayJalali());
+        if (isAdmin) {
+            setSelectedFarmId('all');
+        } else if (assignedFarmIds.length > 0) {
+            setSelectedFarmId(assignedFarmIds[0]);
+        }
+    };
 
 
     const [invoiceValues, setInvoiceValues] = useState({
@@ -716,8 +725,17 @@ const RecentRecords: React.FC = () => {
                         <Icons.FileText className="w-4 h-4" /> حواله‌ها
                     </button>
                 </div>
-                <div className="flex justify-center mb-4">
+                <div className="flex justify-center mb-4 gap-2 items-center">
                     <div className="w-full max-w-xs"><JalaliDatePicker value={selectedDate} onChange={setSelectedDate} label="انتخاب تاریخ" /></div>
+                    {(selectedFarmId !== 'all' || selectedDate !== defaultStartDate) && (
+                        <button
+                            onClick={handleClearFilters}
+                            className="p-3 bg-gray-50 dark:bg-gray-700/50 text-gray-500 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors h-[50px] flex items-center justify-center mt-6"
+                            title="حذف فیلترها"
+                        >
+                            <Icons.X className="w-5 h-5" />
+                        </button>
+                    )}
                 </div>
 
                 {availableFarms.length > 1 && (
