@@ -183,6 +183,8 @@ function urlB64ToUint8Array(base64String) {
 }
 
 self.addEventListener('push', (event) => {
+  console.log('[SW] Push Received!', event);
+
   let data = {
     title: 'سامانه مروارید',
     body: 'پیام جدید',
@@ -193,8 +195,13 @@ self.addEventListener('push', (event) => {
   };
 
   try {
-    if (event.data) data = { ...data, ...event.data.json() };
+    if (event.data) {
+      const json = event.data.json();
+      console.log('[SW] Push Data:', json);
+      data = { ...data, ...json };
+    }
   } catch (e) {
+    console.error('[SW] Push Data JSON Parse Error:', e);
     if (event.data) data.body = event.data.text();
   }
 
@@ -205,15 +212,19 @@ self.addEventListener('push', (event) => {
     dir: 'rtl',
     lang: 'fa-IR',
     renotify: true,
-    tag: data.tag,
+    tag: (data.tag || 'morvarid-alert') + '-' + Date.now(),
+    requireInteraction: true,
+    vibrate: [200, 100, 200],
     data: { url: data.url, action: data.action, timestamp: Date.now() },
-    actions: [
-      { action: 'open', title: 'مشاهده' },
-      { action: 'dismiss', title: 'بستن' }
-    ]
   };
 
-  event.waitUntil(self.registration.showNotification(data.title, options));
+  console.log('[SW] Showing Notification (Final Options):', data.title, options);
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+      .then(() => console.log('[SW] Notification Shown Successfully'))
+      .catch(err => console.error('[SW] Show Notification Error:', err))
+  );
 });
 
 self.addEventListener('notificationclick', (event) => {

@@ -86,12 +86,30 @@ class PushNotificationService {
         throw new Error('Notification permission denied');
       }
 
-      // Subscribe to push
       const applicationServerKey = this.urlB64ToUint8Array(this.vapidPublicKey!);
-      this.subscription = await this.registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: applicationServerKey as BufferSource
-      });
+
+      try {
+        // Try subscribing with the new key
+        this.subscription = await this.registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: applicationServerKey as BufferSource
+        });
+      } catch (subError: any) {
+        // If VAPID key changed, unsubscribe old and retry
+        if (subError.name === 'InvalidStateError') {
+          log.info('[PushService] VAPID key changed, re-subscribing...');
+          const existingSub = await this.registration.pushManager.getSubscription();
+          if (existingSub) {
+            await existingSub.unsubscribe();
+          }
+          this.subscription = await this.registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: applicationServerKey as BufferSource
+          });
+        } else {
+          throw subError;
+        }
+      }
 
       log.info('[PushService] Successfully subscribed to push notifications');
 
@@ -304,9 +322,9 @@ class PushNotificationService {
         // Ensure DB is in sync on startup
         await this.syncSubscriptionToDb(this.subscription);
       } else {
-        log.info('[PushService] No existing subscription');
-        // Optional: Auto-subscribe if user is logged in? 
-        // Better to let user initiate or do it once after login.
+        log.info('[PushService] No existing subscription, attempting to subscribe...');
+        // Auto-subscribe with current VAPID key
+        await this.subscribe();
       }
     } catch (error) {
       log.error('[PushService] Failed to initialize subscription:', error);

@@ -323,21 +323,32 @@ export const useAlertStore = create<AlertState>()(
                 const socketResult = await channel?.send({ type: 'broadcast', event: 'farm_alert', payload });
 
                 try {
-                    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+                    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, ''); // Remove trailing slash
                     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+                    console.log(`[Alert] Sending Push to ${supabaseUrl}/functions/v1/send-push`);
+
                     const res = await fetch(`${supabaseUrl}/functions/v1/send-push`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${supabaseKey}`,
+                            'apikey': supabaseKey, // Explicitly add apikey
                         },
                         body: JSON.stringify(payload),
                     });
 
                     if (!res.ok) {
-                        const errData = await res.json().catch(() => ({}));
-                        console.warn('[Alert] Push Function Error:', errData);
-                        get().addLog('خطا در ارسال Push: ' + (errData.error || res.statusText));
+                        const text = await res.text();
+                        console.warn(`[Alert] Push Function Error (${res.status}):`, text);
+                        try {
+                            const errData = JSON.parse(text);
+                            get().addLog('خطا در ارسال Push: ' + (errData.error || res.statusText));
+                        } catch {
+                            get().addLog(`خطا در ارسال Push: ${res.status} ${res.statusText}`);
+                        }
+                    } else {
+                        console.log('[Alert] Push sent successfully');
                     }
                 } catch (e) {
                     console.error('[Alert] Push Invocation Failed:', e);

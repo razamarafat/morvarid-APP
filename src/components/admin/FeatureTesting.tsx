@@ -87,13 +87,44 @@ const FeatureTesting: React.FC = () => {
                     const target = farms[0] || { id: 'test-farm', name: 'Test Farm' };
                     addLog(`Targeting channel for farm: ${target.name} (${target.id})`, 'info');
 
-                    const resp = await sendAlert(target.id, target.name, 'تست فنی ارسال هشدار');
+                    // DIRECT EDGE FUNCTION CALL FOR TESTING
+                    // We bypass alertStore.sendAlert because it automatically adds senderId,
+                    // which causes the Edge Function to filter out the sender (Admin).
+                    // For testing, we want the Admin to RECEIVE the notification.
+                    try {
+                        addLog('Invoking Edge Function directly (Sender bypass)...', 'info');
+                        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, '');
+                        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-                    if (resp.success) {
-                        addLog(`Broadcast Result: ${resp.detail}`, 'success');
-                        success = true;
-                    } else {
-                        addLog(`Broadcast Failed: ${resp.detail}`, 'error');
+                        const payload = {
+                            targetFarmId: target.id,
+                            farmName: target.name,
+                            message: 'تست فنی ارسال هشدار (Sender Bypass)',
+                            senderId: null, // Explicitly null so Admin receives it
+                            sentAt: Date.now(),
+                            action: 'test_broadcast'
+                        };
+
+                        const res = await fetch(`${supabaseUrl}/functions/v1/send-push`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${supabaseKey}`,
+                                'apikey': supabaseKey,
+                            },
+                            body: JSON.stringify(payload),
+                        });
+
+                        if (res.ok) {
+                            const json = await res.json();
+                            addLog(`Broadcast Result: Success (Count: ${json.count || '?'})`, 'success');
+                            success = true;
+                        } else {
+                            const text = await res.text();
+                            addLog(`Broadcast Failed: ${res.status} ${text}`, 'error');
+                        }
+                    } catch (err: any) {
+                        addLog(`Fetch Error: ${err.message}`, 'error');
                     }
                     break;
                 }
