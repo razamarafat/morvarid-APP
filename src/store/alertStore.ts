@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '../lib/supabase';
@@ -8,19 +7,14 @@ import { useAuthStore } from './authStore';
 import { usePermissionStore } from './permissionStore';
 import { UserRole, NotificationItem } from '../types';
 import { v4 as uuidv4 } from 'uuid';
+import { pushNotificationService } from '../services/pushNotificationService';
 
 // Access VAPID Key from Environment Variables
-// In production, define VITE_VAPID_PUBLIC_KEY in .env
-// No fallback provided to ensure secure configuration
-
-// Safely access env vars
-const meta = (import.meta as any) || {};
-const env = meta.env || {};
-const VAPID_PUBLIC_KEY = env.VITE_VAPID_PUBLIC_KEY;
+const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
 
 // Ensure VAPID key is properly configured
 if (!VAPID_PUBLIC_KEY) {
-  console.warn('[Alert] VAPID Public Key not configured. Push notifications will not work properly.');
+    console.warn('[Alert] VAPID Public Key not configured. Push notifications will not work properly.');
 }
 
 interface AlertPayload {
@@ -182,30 +176,17 @@ export const useAlertStore = create<AlertState>()(
             },
 
             subscribeToPushNotifications: async () => {
-                if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+                if (!pushNotificationService.isSupported()) {
+                    get().addLog('هشدار: نوتیفیکیشن در این مرورگر پشتیبانی نمی‌شود یا کلید VAPID تنظیم نشده است.');
+                    return;
+                }
 
                 try {
-                    const registration = await navigator.serviceWorker.ready;
-                    let sub = await registration.pushManager.getSubscription();
-
-                    if (!sub) {
-                        const options: any = { userVisibleOnly: true };
-
-                        if (VAPID_PUBLIC_KEY && !VAPID_PUBLIC_KEY.includes('PLACEHOLDER')) {
-                            options.applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
-                        } else {
-                            console.warn('[Alert] VAPID Key Issue. Using fallback logic if available.');
-                            get().addLog('هشدار: کلید VAPID تنظیم نشده است.');
-                        }
-
-                        sub = await registration.pushManager.subscribe(options);
-                    }
-
+                    const sub = await pushNotificationService.subscribe();
                     set({ pushSubscription: sub });
                     if (sub) {
-                        await get().saveSubscriptionToDb(sub);
+                        get().addLog('دستگاه با موفقیت برای دریافت اعلان ثبت شد.');
                     }
-
                 } catch (e: any) {
                     console.warn('[Alert] Push Subscription failed:', e);
                     get().addLog(`خطا در اشتراک Push: ${e.message || String(e)}`);

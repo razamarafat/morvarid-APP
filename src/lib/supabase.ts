@@ -24,9 +24,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     detectSessionInUrl: false,
   },
-  global: {
-    headers: { 'x-application-name': 'morvarid-mis-client-v2.9.62-fix' },
-  },
 });
 
 /**

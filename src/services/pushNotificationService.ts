@@ -122,7 +122,7 @@ class PushNotificationService {
           user_agent: navigator.userAgent,
           updated_at: new Date().toISOString()
         }, {
-          onConflict: 'user_id, subscription->>endpoint'
+          onConflict: 'user_id, user_agent'
         });
 
       if (error) {
