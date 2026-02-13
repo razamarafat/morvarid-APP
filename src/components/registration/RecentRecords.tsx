@@ -23,7 +23,7 @@ import PlateInput from '../common/PlateInput';
 // Unified Record Card for Statistics
 const StatRecordCard = ({ stat, getProductName, canEdit, onEdit, onDelete, farmType }: { stat: DailyStatistic, getProductName: (id: string) => string, canEdit: (c: number, r?: string) => boolean, onEdit: (s: DailyStatistic) => void, onDelete: (s: DailyStatistic) => void, farmType?: FarmType }) => {
     const isAdminCreated = stat.creatorRole === UserRole.ADMIN;
-    const isEdited = stat.updatedAt && stat.updatedAt > stat.createdAt + 2000;
+    const isEdited = stat.updatedAt && stat.updatedAt > stat.createdAt + 1000;
     const prodName = getProductName(stat.productId);
     const isPending = stat.isPending;
     const isOffline = stat.isOffline;
@@ -116,7 +116,7 @@ const StatRecordCard = ({ stat, getProductName, canEdit, onEdit, onDelete, farmT
 const InvoiceRecordCard = ({ inv, getProductName, canEdit, onEdit, onDelete, onAddItem }: { inv: Invoice, getProductName: (id: string) => string, canEdit: (c: number, r?: string) => boolean, onEdit: (i: Invoice) => void, onDelete: (i: Invoice) => void, onAddItem?: (i: Invoice) => void }) => {
     const prodName = getProductName(inv.productId || '');
     const isAdminCreated = inv.creatorRole === UserRole.ADMIN;
-    const isEdited = inv.updatedAt && inv.updatedAt > inv.createdAt + 2000;
+    const isEdited = inv.updatedAt && inv.updatedAt > inv.createdAt + 1000;
     const isPending = inv.isPending;
     const isOffline = inv.isOffline;
 

@@ -127,8 +127,8 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
                                                         const prod = products.find((p: any) => p.id === stat.productId);
                                                         const renderVal = (valC: number, valK: number, colorClass: string) => (
                                                             <div className="flex flex-col items-center">
-                                                                <span className={`font-black text-lg ${colorClass}`}>{toPersianDigits(valC)}</span>
-                                                                {valK > 0 && <span className="text-[10px] text-gray-400">{toPersianDigits(valK)} Kg</span>}
+                                                                <span className={`font-black text-lg lg:text-2xl ${colorClass}`}>{toPersianDigits(valC)}</span>
+                                                                {valK > 0 && <span className="text-[10px] lg:text-xs font-bold text-gray-500 dark:text-gray-400">{toPersianDigits(valK)} Kg</span>}
                                                             </div>
                                                         );
 
@@ -151,10 +151,10 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
                                                                     )}
                                                                 </div>
                                                                 <div className={`grid gap-2 text-center ${isMotefereghe ? 'grid-cols-3' : 'grid-cols-4'}`}>
-                                                                    {!isMotefereghe && <div className="p-2 bg-gray-50 dark:bg-gray-700/30 rounded-xl"><span className="text-[10px] text-gray-400 block">قبل</span>{renderVal(stat.previousBalance, stat.previousBalanceKg || 0, 'text-gray-600 dark:text-gray-300')}</div>}
-                                                                    <div className="p-2 bg-green-50 dark:bg-green-900/10 rounded-xl"><span className="text-[10px] text-green-600 block">تولید</span>{renderVal(stat.production, stat.productionKg || 0, 'text-green-600')}</div>
-                                                                    <div className="p-2 bg-red-50 dark:bg-red-900/10 rounded-xl"><span className="text-[10px] text-red-500 block">فروش</span>{renderVal(stat.sales, stat.salesKg || 0, 'text-red-500')}</div>
-                                                                    <div className="p-2 bg-blue-50 dark:bg-blue-900/10 rounded-xl"><span className="text-[10px] text-blue-600 block">مانده</span>{renderVal(stat.currentInventory, stat.currentInventoryKg || 0, 'text-blue-600')}</div>
+                                                                    {!isMotefereghe && <div className="p-2 bg-gray-50 dark:bg-gray-700/30 rounded-xl"><span className="text-xs lg:text-sm font-bold text-gray-500 dark:text-gray-400 block mb-1">قبل</span>{renderVal(stat.previousBalance, stat.previousBalanceKg || 0, 'text-gray-700 dark:text-gray-200')}</div>}
+                                                                    <div className="p-2 bg-green-50 dark:bg-green-900/10 rounded-xl"><span className="text-xs lg:text-sm font-bold text-green-700 dark:text-green-400 block mb-1">تولید</span>{renderVal(stat.production, stat.productionKg || 0, 'text-green-600 dark:text-green-400')}</div>
+                                                                    <div className="p-2 bg-red-50 dark:bg-red-900/10 rounded-xl"><span className="text-xs lg:text-sm font-bold text-red-600 dark:text-red-400 block mb-1">فروش</span>{renderVal(stat.sales, stat.salesKg || 0, 'text-red-600 dark:text-red-400')}</div>
+                                                                    <div className="p-2 bg-blue-50 dark:bg-blue-900/10 rounded-xl"><span className="text-xs lg:text-sm font-bold text-blue-700 dark:text-blue-400 block mb-1">مانده</span>{renderVal(stat.currentInventory, stat.currentInventoryKg || 0, 'text-blue-600 dark:text-blue-400')}</div>
                                                                 </div>
                                                             </div>
                                                         )

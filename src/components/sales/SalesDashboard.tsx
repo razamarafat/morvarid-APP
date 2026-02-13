@@ -150,8 +150,8 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
 
                                                         const renderVal = (valC: number, valK: number, colorClass: string) => (
                                                             <div className="flex flex-col items-center">
-                                                                <span className={`font-black text-lg ${colorClass}`}>{toPersianDigits(valC)}</span>
-                                                                {valK > 0 && <span className="text-[10px] text-gray-400">{toPersianDigits(valK)} Kg</span>}
+                                                                <span className={`font-black text-lg lg:text-2xl ${colorClass}`}>{toPersianDigits(valC)}</span>
+                                                                {valK > 0 && <span className="text-[10px] lg:text-xs font-bold text-gray-500 dark:text-gray-400">{toPersianDigits(valK)} Kg</span>}
                                                             </div>
                                                         );
 
@@ -174,14 +174,14 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
                                                                     )}
                                                                 </div>
                                                                 <div className={`grid gap-2 text-center text-xs ${isMotefereghe ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'}`}>
-                                                                    {!isMotefereghe && <div className="p-2 bg-gray-50 dark:bg-gray-700/30 rounded-xl"><span className="text-[10px] text-gray-400 block">قبل</span>{renderVal(stat.previousBalance, stat.previousBalanceKg || 0, 'text-gray-600 dark:text-gray-300')}</div>}
-                                                                    <div className="p-2 bg-green-50 dark:bg-green-900/10 rounded-xl"><span className="text-[10px] text-green-600 block">تولید</span>{renderVal(stat.production, stat.productionKg || 0, 'text-green-600')}</div>
-                                                                    {!isMotefereghe && <div className="p-2 bg-purple-50 dark:bg-purple-900/10 rounded-xl"><span className="text-[10px] text-purple-600 block">جداسازی</span>{renderVal(stat.separationAmount || 0, 0, 'text-purple-600')}</div>}
+                                                                    {!isMotefereghe && <div className="p-2 bg-gray-50 dark:bg-gray-700/30 rounded-xl"><span className="text-xs lg:text-sm font-bold text-gray-500 dark:text-gray-400 block mb-1">قبل</span>{renderVal(stat.previousBalance, stat.previousBalanceKg || 0, 'text-gray-700 dark:text-gray-200')}</div>}
+                                                                    <div className="p-2 bg-green-50 dark:bg-green-900/10 rounded-xl"><span className="text-xs lg:text-sm font-bold text-green-700 dark:text-green-400 block mb-1">تولید</span>{renderVal(stat.production, stat.productionKg || 0, 'text-green-600 dark:text-green-400')}</div>
+                                                                    {!isMotefereghe && <div className="p-2 bg-purple-50 dark:bg-purple-900/10 rounded-xl"><span className="text-xs lg:text-sm font-bold text-purple-600 dark:text-purple-400 block mb-1">جداسازی</span>{renderVal(stat.separationAmount || 0, 0, 'text-purple-600 dark:text-purple-400')}</div>}
 
                                                                     {/* SALES CARD: Shows Display Sales (What was sold), but calculated using physical usage behind the scenes */}
-                                                                    <div className="p-2 bg-red-50 dark:bg-red-900/10 rounded-xl"><span className="text-[10px] text-red-500 block">فروش</span>{renderVal(displaySales, displaySalesKg, 'text-red-500')}</div>
+                                                                    <div className="p-2 bg-red-50 dark:bg-red-900/10 rounded-xl"><span className="text-xs lg:text-sm font-bold text-red-600 dark:text-red-400 block mb-1">فروش</span>{renderVal(displaySales, displaySalesKg, 'text-red-600 dark:text-red-400')}</div>
 
-                                                                    <div className="p-2 bg-blue-50 dark:bg-blue-900/10 rounded-xl"><span className="text-[10px] text-blue-600 block">مانده</span>{renderVal(effectiveRemaining.remaining, effectiveRemaining.remainingKg || 0, 'text-blue-600')}</div>
+                                                                    <div className="p-2 bg-blue-50 dark:bg-blue-900/10 rounded-xl"><span className="text-xs lg:text-sm font-bold text-blue-700 dark:text-blue-400 block mb-1">مانده</span>{renderVal(effectiveRemaining.remaining, effectiveRemaining.remainingKg || 0, 'text-blue-600 dark:text-blue-400')}</div>
                                                                 </div>
                                                             </div>
                                                         )

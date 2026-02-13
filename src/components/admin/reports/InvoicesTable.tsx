@@ -59,7 +59,7 @@ const InvoicesTable: React.FC<InvoicesTableProps> = ({
                         ) : (
                             data.map(row => {
                                 const prod = getProductById(row.productId);
-                                const isEdited = row.updatedAt && row.updatedAt > row.createdAt + 2000;
+                                const isEdited = row.updatedAt && row.updatedAt > row.createdAt + 1000;
                                 const isAdminCreated = row.creatorRole === UserRole.ADMIN;
                                 const displayTime = (!isAdminCreated || isAdmin)
                                     ? new Date(isEdited ? row.updatedAt : row.createdAt).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })

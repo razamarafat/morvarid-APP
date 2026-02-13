@@ -66,7 +66,7 @@ const StatsTable: React.FC<StatsTableProps> = ({
                         ) : (
                             data.map(row => {
                                 const prod = getProductById(row.productId);
-                                const isEdited = row.updatedAt && row.updatedAt > row.createdAt + 2000;
+                                const isEdited = row.updatedAt && row.updatedAt > row.createdAt + 1000;
                                 const isAdminCreated = row.creatorRole === UserRole.ADMIN;
                                 const displayTime = (!isAdminCreated || isAdmin)
                                     ? new Date(isEdited ? row.updatedAt : row.createdAt).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })
@@ -79,16 +79,16 @@ const StatsTable: React.FC<StatsTableProps> = ({
                                         <td className="p-3 text-sm text-gray-500 font-bold w-[220px] text-center">{prod?.name}</td>
                                         <td className="p-3 text-center">{renderDualCell(row.production || 0, row.productionKg || 0, 'text-green-600', isEdited)}</td>
                                         <td className="p-3 text-center">{(() => {
-  const prod = getProductById(row.productId);
-  // اگر محصول مایع باشد (بر اساس نام یا hasKilogramUnit):
-  if (prod?.name?.includes('مایع') || prod?.hasKilogramUnit) {
-    const kg = row.salesKg || 0;
-    return <span className="font-black text-lg text-red-500">{toPersianDigits(kg)} <small className="text-xs text-gray-400">Kg</small></span>;
-  } else {
-    // برای سایر محصولات فقط تعداد کارتن
-    return <span className="font-black text-lg text-red-500">{toPersianDigits(row.sales || 0)} <small className="text-xs text-gray-400">کارتن</small></span>;
-  }
-})()}</td>
+                                            const prod = getProductById(row.productId);
+                                            // اگر محصول مایع باشد (بر اساس نام یا hasKilogramUnit):
+                                            if (prod?.name?.includes('مایع') || prod?.hasKilogramUnit) {
+                                                const kg = row.salesKg || 0;
+                                                return <span className="font-black text-lg text-red-500">{toPersianDigits(kg)} <small className="text-xs text-gray-400">Kg</small></span>;
+                                            } else {
+                                                // برای سایر محصولات فقط تعداد کارتن
+                                                return <span className="font-black text-lg text-red-500">{toPersianDigits(row.sales || 0)} <small className="text-xs text-gray-400">کارتن</small></span>;
+                                            }
+                                        })()}</td>
                                         <td className="p-3 text-center">{renderDualCell(row.currentInventory || 0, row.currentInventoryKg || 0, 'text-metro-blue', isEdited)}</td>
                                         <td className="p-3">
                                             <div className="flex flex-col gap-1">
