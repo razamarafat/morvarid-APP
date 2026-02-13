@@ -1,4 +1,6 @@
+// @ts-ignore
 import { createClient } from "supabase";
+// @ts-ignore
 import webpush from "web-push";
 
 const corsHeaders = {
@@ -7,7 +9,8 @@ const corsHeaders = {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-Deno.serve(async (req) => {
+// @ts-ignore: Deno is available in Supabase environment
+Deno.serve(async (req: Request) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
     }
@@ -16,8 +19,9 @@ Deno.serve(async (req) => {
         const { id, message, targetFarmId, farmName, action, senderId } = await req.json();
 
         const subject = 'mailto:admin@morvarid.app';
-        // Try both VITE_ prefix (legacy) and standard naming for robustness
+        // @ts-ignore
         const publicKey = Deno.env.get('VAPID_PUBLIC_KEY') || Deno.env.get('VITE_VAPID_PUBLIC_KEY');
+        // @ts-ignore
         const privateKey = Deno.env.get('VAPID_PRIVATE_KEY') || Deno.env.get('VITE_VAPID_PRIVATE_KEY');
 
         if (!publicKey || !privateKey) {
@@ -27,11 +31,13 @@ Deno.serve(async (req) => {
         webpush.setVapidDetails(subject, publicKey, privateKey);
 
         const supabaseClient = createClient(
+            // @ts-ignore
             Deno.env.get('SUPABASE_URL') ?? '',
+            // @ts-ignore
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
         );
 
-        let targetUserIds = [];
+        let targetUserIds: string[] = [];
 
         if (targetFarmId) {
             const { data: assignedUsers, error: farmError } = await supabaseClient
@@ -48,8 +54,8 @@ Deno.serve(async (req) => {
 
             if (adminError) throw adminError;
 
-            const assignedIds = assignedUsers?.map((u) => u.user_id) || [];
-            const adminIds = admins?.map((a) => a.id) || [];
+            const assignedIds = assignedUsers?.map((u: any) => u.user_id) || [];
+            const adminIds = admins?.map((a: any) => a.id) || [];
             targetUserIds = [...new Set([...assignedIds, ...adminIds])];
         }
 
@@ -86,9 +92,9 @@ Deno.serve(async (req) => {
             data: { url: '/#/sales', alertId: id },
         });
 
-        const sendPromises = subscriptions.map((sub) =>
+        const sendPromises = subscriptions.map((sub: any) =>
             webpush.sendNotification(sub.subscription, notificationPayload)
-                .catch((err) => console.error('Failed to send push:', err))
+                .catch((err: any) => console.error('Failed to send push:', err))
         );
 
         await Promise.all(sendPromises);
@@ -98,7 +104,7 @@ Deno.serve(async (req) => {
             status: 200,
         });
 
-    } catch (error) {
+    } catch (error: any) {
         return new Response(JSON.stringify({ error: error.message || 'Unknown error' }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 400,
