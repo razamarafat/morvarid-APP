@@ -602,16 +602,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                     break; // Success!
                 } else {
                     loginError = error;
-                    // If it's a clear wrong password error, don't try other domains or offline
-                    if (error?.message?.includes('Invalid login credentials')) {
-                        break;
-                    }
+                    // If network error, stop trying domains and trigger fallback
+                    const isNetworkErr = error?.isNetworkError || error?.message?.includes('fetch') || error?.message?.includes('Failed to fetch') || error?.status === 0;
+                    if (isNetworkErr) break;
                 }
             } catch (err: any) {
                 loginError = err;
-                if (err?.message?.includes('Invalid login credentials')) {
-                    break;
-                }
+                const isNetworkErr = err?.isNetworkError || err?.message?.includes('fetch') || err?.message?.includes('Failed to fetch') || err?.status === 0;
+                if (isNetworkErr) break;
             }
         }
 
