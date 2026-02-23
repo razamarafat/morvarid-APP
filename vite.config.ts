@@ -85,6 +85,7 @@ export default defineConfig(({ mode }) => {
         filename: 'sw.js',
         injectManifest: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,json,webp}'],
+          globIgnores: ['**/version.json'],
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         },
         workbox: {

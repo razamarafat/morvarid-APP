@@ -86,7 +86,7 @@ const ReportsFilterBar: React.FC<ReportsFilterBarProps> = ({
                     <input
                         type="text"
                         placeholder={reportTab === 'invoices' ? "جستجو در شماره حواله، نام راننده، پلاک..." : "جستجو در نام ثبت کننده..."}
-                        className="w-full pl-4 pr-12 py-3 lg:py-4 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-900/50 dark:text-white font-bold outline-none focus:border-metro-blue focus:bg-white dark:focus:bg-gray-800 transition-all placeholder:text-gray-400"
+                        className="w-full pl-4 pr-12 h-[50px] lg:h-[60px] border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-900/50 dark:text-white font-bold outline-none focus:border-metro-blue focus:bg-white dark:focus:bg-gray-800 transition-all placeholder:text-gray-400"
                         value={searchTerm}
                         onChange={(e) => onSearchTermChange(e.target.value)}
                     />
@@ -95,7 +95,7 @@ const ReportsFilterBar: React.FC<ReportsFilterBarProps> = ({
                     <Button
                         onClick={onRefresh}
                         isLoading={isSearching}
-                        className="flex-1 md:flex-none px-8 h-[52px] lg:h-[60px] rounded-xl font-bold bg-metro-blue hover:bg-metro-cobalt shadow-lg shadow-blue-500/30 text-base whitespace-nowrap"
+                        className="flex-1 md:flex-none px-8 !h-[50px] lg:!h-[60px] rounded-xl font-bold bg-metro-blue hover:bg-metro-cobalt shadow-lg shadow-blue-500/30 text-base whitespace-nowrap"
                     >
                         {!isSearching && <Icons.Refresh className="w-5 h-5 ml-2" />}
                         نمایش گزارش
@@ -103,7 +103,7 @@ const ReportsFilterBar: React.FC<ReportsFilterBarProps> = ({
                     <Button
                         onClick={onClear}
                         variant="secondary"
-                        className="flex-1 md:flex-none px-6 h-[52px] lg:h-[60px] rounded-xl font-bold text-gray-600 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 whitespace-nowrap"
+                        className="flex-1 md:flex-none px-6 !h-[50px] lg:!h-[60px] rounded-xl font-bold text-gray-600 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 whitespace-nowrap"
                     >
                         <Icons.X className="w-5 h-5 ml-2" />
                         حذف فیلترها
@@ -111,7 +111,7 @@ const ReportsFilterBar: React.FC<ReportsFilterBarProps> = ({
                     <Button
                         onClick={onExport}
                         variant="ghost"
-                        className="flex-1 md:flex-none px-6 h-[52px] lg:h-[60px] rounded-xl font-bold text-sm bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-500/20 border-none whitespace-nowrap"
+                        className="flex-1 md:flex-none px-6 !h-[50px] lg:!h-[60px] rounded-xl font-bold text-sm bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-500/20 border-none whitespace-nowrap"
                     >
                         <Icons.Download className="w-4 h-4 ml-2" /> خروجی اکسل
                     </Button>
