@@ -91,7 +91,7 @@ const ReportsFilterBar: React.FC<ReportsFilterBarProps> = ({
                         onChange={(e) => onSearchTermChange(e.target.value)}
                     />
                 </div>
-                <div className="flex gap-2 w-full md:w-auto">
+                <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
                     <Button
                         onClick={onRefresh}
                         isLoading={isSearching}

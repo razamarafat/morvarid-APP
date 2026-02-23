@@ -13,7 +13,7 @@ const UserManagement: React.FC = () => {
   const { users, deleteUser } = useUserStore();
   const { user: currentUser } = useAuthStore();
   const { addToast } = useToastStore();
-  
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const { confirm } = useConfirm();
@@ -31,8 +31,8 @@ const UserManagement: React.FC = () => {
   const handleDelete = async (userToDelete: User) => {
     // Prevent self-deletion
     if (currentUser?.id === userToDelete.id) {
-        addToast('شما نمی‌توانید حساب کاربری خودتان را حذف کنید.', 'warning');
-        return;
+      addToast('شما نمی‌توانید حساب کاربری خودتان را حذف کنید.', 'warning');
+      return;
     }
 
     const confirmed = await confirm({
@@ -48,11 +48,11 @@ const UserManagement: React.FC = () => {
   };
 
   const getRoleBadge = (role: UserRole) => {
-      switch(role) {
-          case UserRole.ADMIN: return <span className="px-3 py-1.5 lg:px-4 lg:py-2 rounded-full text-xs lg:text-sm font-bold bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 border border-purple-200 dark:border-purple-800">مدیر</span>;
-          case UserRole.REGISTRATION: return <span className="px-3 py-1.5 lg:px-4 lg:py-2 rounded-full text-xs lg:text-sm font-bold bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300 border border-orange-200 dark:border-orange-800">مسئول ثبت</span>;
-          case UserRole.SALES: return <span className="px-3 py-1.5 lg:px-4 lg:py-2 rounded-full text-xs lg:text-sm font-bold bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800">مسئول فروش</span>;
-      }
+    switch (role) {
+      case UserRole.ADMIN: return <span className="px-3 py-1.5 lg:px-4 lg:py-2 rounded-full text-xs lg:text-sm font-bold bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 border border-purple-200 dark:border-purple-800">مدیر</span>;
+      case UserRole.REGISTRATION: return <span className="px-3 py-1.5 lg:px-4 lg:py-2 rounded-full text-xs lg:text-sm font-bold bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300 border border-orange-200 dark:border-orange-800">مسئول ثبت</span>;
+      case UserRole.SALES: return <span className="px-3 py-1.5 lg:px-4 lg:py-2 rounded-full text-xs lg:text-sm font-bold bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800">مسئول فروش</span>;
+    }
   };
 
   return (
@@ -65,43 +65,43 @@ const UserManagement: React.FC = () => {
         </Button>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 shadow-md rounded-[24px] overflow-hidden border border-gray-200 dark:border-gray-700">
-        <div className="overflow-x-auto">
-            <table className="w-full text-sm text-right text-gray-500 dark:text-gray-400 min-w-[700px]">
+      <div className="bg-white dark:bg-gray-800 shadow-md rounded-[24px] overflow-hidden border border-gray-200 dark:border-gray-700 w-full relative">
+        <div className="overflow-x-auto max-w-full custom-scrollbar relative">
+          <table className="w-full text-sm text-right text-gray-500 dark:text-gray-400 min-w-[700px]">
             <thead className="text-xs lg:text-base text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400 font-bold">
-                <tr>
+              <tr>
                 <th scope="col" className="px-6 py-4 lg:py-6 whitespace-nowrap">نام کامل</th>
                 <th scope="col" className="px-6 py-4 lg:py-6 whitespace-nowrap">نام کاربری</th>
                 <th scope="col" className="px-6 py-4 lg:py-6 whitespace-nowrap">نقش</th>
                 <th scope="col" className="px-6 py-4 lg:py-6 whitespace-nowrap">وضعیت</th>
                 <th scope="col" className="px-6 py-4 lg:py-6 whitespace-nowrap text-center">عملیات</th>
-                </tr>
+              </tr>
             </thead>
             <tbody>
-                {users.map((user) => (
+              {users.map((user) => (
                 <tr key={user.id} className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
-                    <th scope="row" className="px-6 py-5 lg:py-7 font-black text-gray-900 whitespace-nowrap dark:text-white lg:text-lg">
+                  <th scope="row" className="px-6 py-5 lg:py-7 font-black text-gray-900 whitespace-nowrap dark:text-white lg:text-lg">
                     {user.fullName}
-                    </th>
-                    <td className="px-6 py-5 lg:py-7 font-mono lg:text-lg font-bold tracking-wide">{user.username}</td>
-                    <td className="px-6 py-5 lg:py-7 whitespace-nowrap">{getRoleBadge(user.role)}</td>
-                    <td className="px-6 py-5 lg:py-7 whitespace-nowrap">
+                  </th>
+                  <td className="px-6 py-5 lg:py-7 font-mono lg:text-lg font-bold tracking-wide">{user.username}</td>
+                  <td className="px-6 py-5 lg:py-7 whitespace-nowrap">{getRoleBadge(user.role)}</td>
+                  <td className="px-6 py-5 lg:py-7 whitespace-nowrap">
                     <span className={`px-3 py-1.5 lg:px-4 lg:py-2 rounded-full text-xs lg:text-sm font-bold ${user.isActive ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'}`}>
-                        {user.isActive ? 'فعال' : 'غیرفعال'}
+                      {user.isActive ? 'فعال' : 'غیرفعال'}
                     </span>
-                    </td>
-                    <td className="px-6 py-5 lg:py-7 flex items-center justify-center gap-3">
+                  </td>
+                  <td className="px-6 py-5 lg:py-7 flex items-center justify-center gap-3">
                     <Button size="icon" variant="ghost" onClick={() => handleEdit(user)} title="ویرایش" className="lg:w-10 lg:h-10 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600">
-                        <Icons.Edit className="w-4 h-4 lg:w-6 lg:h-6" />
+                      <Icons.Edit className="w-4 h-4 lg:w-6 lg:h-6" />
                     </Button>
                     <Button size="icon" variant="ghost" className="text-red-500 hover:text-red-600 lg:w-10 lg:h-10 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => handleDelete(user)} title="حذف">
-                        <Icons.Trash className="w-4 h-4 lg:w-6 lg:h-6" />
+                      <Icons.Trash className="w-4 h-4 lg:w-6 lg:h-6" />
                     </Button>
-                    </td>
+                  </td>
                 </tr>
-                ))}
+              ))}
             </tbody>
-            </table>
+          </table>
         </div>
       </div>
 

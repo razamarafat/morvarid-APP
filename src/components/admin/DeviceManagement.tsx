@@ -111,8 +111,8 @@ const DeviceManagement: React.FC = () => {
                 </Button>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-[24px] shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700">
-                <div className="overflow-x-auto">
+            <div className="bg-white dark:bg-gray-800 rounded-[24px] shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700 w-full relative">
+                <div className="overflow-x-auto max-w-full custom-scrollbar relative">
                     <table className="w-full text-right">
                         <thead className="bg-gray-50 dark:bg-gray-900 text-gray-500 text-xs font-black uppercase">
                             <tr>

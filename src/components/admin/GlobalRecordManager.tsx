@@ -211,8 +211,8 @@ const GlobalRecordManager: React.FC = () => {
             </div>
 
             {/* Content Table */}
-            <div className="bg-white dark:bg-gray-800 rounded-[24px] shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700 min-h-[400px]">
-                <div className="overflow-x-auto">
+            <div className="bg-white dark:bg-gray-800 rounded-[24px] shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700 min-h-[400px] w-full relative">
+                <div className="overflow-x-auto max-w-full custom-scrollbar relative">
                     <table className="w-full text-base lg:text-lg text-right min-w-[900px]">
                         <thead className="bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 uppercase text-sm lg:text-base font-black">
                             <tr>

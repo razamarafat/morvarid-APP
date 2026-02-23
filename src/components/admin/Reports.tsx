@@ -5,7 +5,7 @@ import { useInvoiceStore } from '../../store/invoiceStore';
 import { useToastStore } from '../../store/toastStore';
 import { useAuthStore } from '../../store/authStore';
 import { UserRole } from '../../types';
-import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange } from '../../utils/dateUtils';
+import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange, formatJalali } from '../../utils/dateUtils';
 import { formatPlateNumber, formatPlateNumberForExcel } from '../../utils/formatUtils';
 import { compareProducts, compareFarms } from '../../utils/sortUtils';
 import { useConfirm } from '../../hooks/useConfirm';
@@ -42,7 +42,11 @@ const Reports: React.FC = () => {
     // Search & Filter State
     const [selectedFarmId, setSelectedFarmId] = useState<string>('all');
     const [selectedProductId, setSelectedProductId] = useState<string>('all');
-    const [startDate, setStartDate] = useState(getTodayJalali());
+    const [startDate, setStartDate] = useState(() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 30);
+        return formatJalali(d);
+    });
     const [endDate, setEndDate] = useState(getTodayJalali());
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -129,7 +133,9 @@ const Reports: React.FC = () => {
     }, [handleSearch]);
 
     const handleClearFilters = () => {
-        setStartDate(getTodayJalali());
+        const d = new Date();
+        d.setDate(d.getDate() - 30);
+        setStartDate(formatJalali(d));
         setEndDate(getTodayJalali());
         setSelectedFarmId('all');
         setSelectedProductId('all');

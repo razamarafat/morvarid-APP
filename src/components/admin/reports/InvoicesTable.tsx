@@ -26,8 +26,8 @@ const InvoicesTable: React.FC<InvoicesTableProps> = ({
     const formatPlateVisual = (plate: string) => formatPlateNumberForUI(plate) || '-';
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-[28px] shadow-md overflow-hidden border border-gray-100 dark:border-gray-700 relative">
-            <div className="overflow-x-auto max-h-[600px] custom-scrollbar relative">
+        <div className="bg-white dark:bg-gray-800 rounded-[28px] shadow-md overflow-hidden border border-gray-100 dark:border-gray-700 relative w-full">
+            <div className="overflow-x-auto max-w-full max-h-[600px] custom-scrollbar relative">
                 <table className="w-full text-right border-collapse min-w-[1200px]">
                     <thead className="bg-gray-50 dark:bg-gray-900 text-gray-500 font-black text-xs lg:text-sm uppercase tracking-wider sticky top-0 z-10 shadow-md">
                         <tr>

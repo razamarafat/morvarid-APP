@@ -66,8 +66,8 @@ const FarmManagement: React.FC = () => {
         </Button>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 shadow-md rounded-[24px] overflow-hidden border border-gray-200 dark:border-gray-700">
-        <div className="overflow-x-auto">
+      <div className="bg-white dark:bg-gray-800 shadow-md rounded-[24px] overflow-hidden border border-gray-200 dark:border-gray-700 w-full relative">
+        <div className="overflow-x-auto max-w-full custom-scrollbar relative">
           <table className="w-full text-sm text-right text-gray-500 dark:text-gray-400 min-w-[600px]">
             <thead className="text-xs lg:text-base text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400 font-bold">
               <tr>
