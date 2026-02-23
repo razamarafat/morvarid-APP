@@ -152,7 +152,7 @@ export const InvoiceForm: React.FC = () => {
                         const isPrintable = productName.includes('پرینت') || productName.includes('printable');
                         newState[pid] = {
                             cartons: String(pendingDraftData.cartons),
-                            weight: String(pendingDraftData.weight),
+                            weight: '', // Weight must be entered manually
                             isSorted: isPrintable
                         };
                     }
@@ -201,7 +201,7 @@ export const InvoiceForm: React.FC = () => {
             setReferenceDate(normalizeDate(draft.date));
         }
 
-        setPendingDraftData({ cartons: draft.cartons, weight: draft.weight });
+        setPendingDraftData({ cartons: draft.cartons, weight: 0 }); // Weight is zeroed out for manual entry
         setActiveDraftId(draft.id);
 
         if (selectedProductIds.length > 0) {
@@ -214,7 +214,7 @@ export const InvoiceForm: React.FC = () => {
                     const isPrintable = productName.includes('پرینت') || productName.includes('printable');
                     newState[pid] = {
                         cartons: String(draft.cartons),
-                        weight: String(draft.weight),
+                        weight: '', // Weight must be entered manually
                         isSorted: prev[pid]?.isSorted ?? isPrintable
                     };
                 });
