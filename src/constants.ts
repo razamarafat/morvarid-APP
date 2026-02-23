@@ -89,7 +89,7 @@ export const THEMES = {
  * NOTE: Provide 'package.json' update in every XML output to keep sync.
  */
 declare const __APP_VERSION__: string;
-export const APP_VERSION = '4.3.44';
+export const APP_VERSION = '4.3.45';
 
 /**
  * NOTIFICATION CONFIGURATION

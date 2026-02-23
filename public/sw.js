@@ -27,20 +27,12 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// 2. Claim clients and clean up old caches upon activation.
+// 2. Claim clients upon activation — do NOT trigger reloads from here.
+//    App-side code (UpdatePrompt/useAutoUpdate) handles reload decisions.
 self.addEventListener('activate', (event) => {
   console.log('[SW] Service Worker activating...');
   // Take control of all open pages.
-  event.waitUntil(
-    clients.claim().then(() => {
-      // Notify all clients that SW has been updated
-      return clients.matchAll({ type: 'window' }).then(clientList => {
-        clientList.forEach(client => {
-          client.postMessage({ type: 'SW_UPDATED', timestamp: Date.now() });
-        });
-      });
-    })
-  );
+  event.waitUntil(clients.claim());
 
   // Clean up outdated Workbox caches is handled by the function called at top level.
 

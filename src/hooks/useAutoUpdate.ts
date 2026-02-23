@@ -1,100 +1,103 @@
 
 import { useEffect, useRef } from 'react';
-import { useToastStore } from '../store/toastStore';
-import { useAlertStore } from '../store/alertStore';
-import { TOAST_IDS } from '../constants';
+import { APP_VERSION } from '../constants';
+
+/**
+ * Unified Auto-Update Hook
+ * ========================
+ * Single source of truth for detecting new deployments.
+ * 
+ * Strategy:
+ * - Poll version.json every 2 minutes (not 30s — reduces load)
+ * - Compare server version string with compiled APP_VERSION
+ * - On mismatch: reload ONCE using sessionStorage guard
+ * - Does NOT unregister SW or nuke caches (that causes re-register loops)
+ * - The SW + Workbox precache handles cache busting automatically via hashed filenames
+ */
+
+const CHECK_INTERVAL = 2 * 60 * 1000; // 2 minutes
+const RELOAD_GUARD_KEY = 'morvarid_last_update_version';
 
 export const useAutoUpdate = () => {
-  const { addToast } = useToastStore();
-  const { sendLocalNotification } = useAlertStore();
-  const initialBuildDate = useRef<number | null>(null);
-  
-  // Check frequently (every 30 seconds) - TIMING.VERSION_CHECK_INTERVAL
-  const CHECK_INTERVAL = 30 * 1000; 
+  const isReloading = useRef(false);
 
   useEffect(() => {
     const checkVersion = async () => {
-      // OPTIMIZATION: Do not fetch if offline
-      if (!navigator.onLine) return;
+      if (!navigator.onLine || isReloading.current) return;
+
+      // Skip in preview/iframe environments
+      try {
+        if (
+          window.location.hostname.includes('googleusercontent') ||
+          window.location.hostname.includes('usercontent.goog') ||
+          window.location.hostname.includes('ai.studio')
+        ) return;
+      } catch { /* ignore */ }
 
       try {
-        const isGooglePreview = 
-            window.location.hostname.includes('googleusercontent') || 
-            window.location.hostname.includes('ai.studio') || 
-            window.location.hostname.includes('usercontent.goog') ||
-            (window.origin && window.origin.includes('usercontent.goog'));
-
-        if (isGooglePreview) return;
-
-        const response = await fetch(`./version.json?t=${Date.now()}&r=${Math.random()}`, {
+        const response = await fetch(`./version.json?_=${Date.now()}`, {
           cache: 'no-store',
-          headers: {
-            'Pragma': 'no-cache',
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Expires': '0'
-          }
+          headers: { 'Cache-Control': 'no-cache, no-store' }
         });
 
         if (!response.ok) return;
 
         const data = await response.json();
-        const serverBuildDate = data.buildDate;
+        const serverVersion = data.version;
 
-        if (initialBuildDate.current === null) {
-          initialBuildDate.current = serverBuildDate;
-        } else if (serverBuildDate !== initialBuildDate.current) {
-          console.log('[AutoUpdate] New version detected! Forcing update...');
-          
-          sendLocalNotification(
-              'بروزرسانی سیستم',
-              'نسخه جدیدی از سامانه مروارید موجود است. برنامه در حال بارگذاری مجدد است...',
-              'system-update'
-          );
+        // Skip dev mode
+        if (!serverVersion || serverVersion.endsWith('-dev')) return;
 
-          addToast('نسخه جدید شناسایی شد. در حال بروزرسانی...', 'info', TOAST_IDS.SYSTEM_UPDATE);
-          
-          if ('serviceWorker' in navigator && !isGooglePreview) {
-            try {
-                const registrations = await navigator.serviceWorker.getRegistrations();
-                for (const registration of registrations) {
-                  await registration.unregister();
-                }
-            } catch (swError) {
-                console.warn('[AutoUpdate] Failed to unregister SW:', swError);
-            }
-          }
+        // Compare with compiled version
+        if (serverVersion === APP_VERSION) return;
 
-          if ('caches' in window) {
-             const keys = await caches.keys();
-             await Promise.all(keys.map(key => caches.delete(key)));
-          }
-
-          setTimeout(() => {
-              window.location.href = window.location.href.split('?')[0] + '?v=' + Date.now();
-              window.location.reload();
-          }, 2000);
+        // RELOAD GUARD: Check if we already reloaded for this version
+        const lastReloadedVersion = sessionStorage.getItem(RELOAD_GUARD_KEY);
+        if (lastReloadedVersion === serverVersion) {
+          // Already reloaded for this version in this session — do nothing
+          return;
         }
-      } catch (error) {
-        // Silent fail is fine here
+
+        console.log(`[AutoUpdate] Version mismatch: local=${APP_VERSION}, server=${serverVersion}. Reloading once.`);
+
+        // Mark that we are reloading for this version BEFORE reload
+        sessionStorage.setItem(RELOAD_GUARD_KEY, serverVersion);
+        isReloading.current = true;
+
+        // Trigger SW update if available (non-destructive)
+        if ('serviceWorker' in navigator) {
+          const reg = await navigator.serviceWorker.getRegistration();
+          if (reg) {
+            await reg.update().catch(() => { });
+          }
+        }
+
+        // Clean reload after short delay
+        setTimeout(() => {
+          window.location.reload();
+        }, 500);
+
+      } catch {
+        // Network error — ignore silently
       }
     };
 
-    checkVersion();
+    // First check after 5 seconds (let app stabilize)
+    const initialTimer = setTimeout(checkVersion, 5000);
     const interval = setInterval(checkVersion, CHECK_INTERVAL);
 
-    const handleVisibilityChange = () => {
-        if (document.visibilityState === 'visible') {
-            checkVersion();
-        }
+    // Also check when user returns to tab
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        checkVersion();
+      }
     };
-    
-    window.addEventListener('focus', checkVersion);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
-        clearInterval(interval);
-        window.removeEventListener('focus', checkVersion);
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearTimeout(initialTimer);
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, []);
 };
