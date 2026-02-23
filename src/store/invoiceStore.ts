@@ -62,13 +62,17 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
 
             // Role-based filtering for fetching
             if (currentUser && currentUser.role !== 'ADMIN') {
-                // Fetch records for all assigned farms
-                const farmIds = (currentUser.assignedFarms || []).map(f => f.id);
-                if (farmIds.length > 0) {
-                    query = query.in('farm_id', farmIds);
-                } else if (currentUser.role === 'SALES' || currentUser.role === 'REGISTRATION') {
-                    set({ invoices: [], isLoading: false });
-                    return;
+                if (currentUser.role === 'SALES') {
+                    // Sales can see all invoices
+                } else {
+                    // Fetch records for assigned farms
+                    const farmIds = (currentUser.assignedFarms || []).map(f => f.id);
+                    if (farmIds.length > 0) {
+                        query = query.in('farm_id', farmIds);
+                    } else {
+                        set({ invoices: [], isLoading: false });
+                        return;
+                    }
                 }
             }
 
@@ -83,7 +87,11 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
                     .limit(2000);
 
                 if (currentUser && currentUser.role !== 'ADMIN') {
-                    simpleQuery = simpleQuery.eq('created_by', currentUser.id);
+                    if (currentUser.role === 'SALES') {
+                        // No filter
+                    } else {
+                        simpleQuery = simpleQuery.eq('created_by', currentUser.id);
+                    }
                 }
                 const simple = await simpleQuery;
                 if (simple.error) throw simple.error;

@@ -84,14 +84,18 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
 
             // Role-based filtering for fetching
             if (currentUser && currentUser.role !== 'ADMIN') {
-                // Fetch records for all assigned farms to ensure visibility
-                const farmIds = (currentUser.assignedFarms || []).map(f => f.id);
-                if (farmIds.length > 0) {
-                    query = query.in('farm_id', farmIds);
-                } else if (currentUser.role === 'SALES' || currentUser.role === 'REGISTRATION') {
-                    // If no farms assigned, they can't see anything anyway
-                    set({ statistics: [], isLoading: false });
-                    return;
+                if (currentUser.role === 'SALES') {
+                    // Sales can see all statistics, no farm filter needed
+                } else {
+                    // REGISTRATION sees only assigned farms
+                    const farmIds = (currentUser.assignedFarms || []).map(f => f.id);
+                    if (farmIds.length > 0) {
+                        query = query.in('farm_id', farmIds);
+                    } else {
+                        // If no farms assigned, they can't see anything anyway
+                        set({ statistics: [], isLoading: false });
+                        return;
+                    }
                 }
             }
 
@@ -107,7 +111,11 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                     .limit(3000);
 
                 if (currentUser && currentUser.role !== 'ADMIN') {
-                    simpleQuery = simpleQuery.eq('created_by', currentUser.id);
+                    if (currentUser.role === 'SALES') {
+                        // No filter
+                    } else {
+                        simpleQuery = simpleQuery.eq('created_by', currentUser.id);
+                    }
                 }
                 const simple = await simpleQuery;
                 if (simple.error) throw simple.error;

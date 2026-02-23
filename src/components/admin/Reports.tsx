@@ -42,11 +42,7 @@ const Reports: React.FC = () => {
     // Search & Filter State
     const [selectedFarmId, setSelectedFarmId] = useState<string>('all');
     const [selectedProductId, setSelectedProductId] = useState<string>('all');
-    const [startDate, setStartDate] = useState(() => {
-        const d = new Date();
-        d.setDate(d.getDate() - 30);
-        return formatJalali(d);
-    });
+    const [startDate, setStartDate] = useState(getTodayJalali());
     const [endDate, setEndDate] = useState(getTodayJalali());
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -133,9 +129,7 @@ const Reports: React.FC = () => {
     }, [handleSearch]);
 
     const handleClearFilters = () => {
-        const d = new Date();
-        d.setDate(d.getDate() - 30);
-        setStartDate(formatJalali(d));
+        setStartDate(getTodayJalali());
         setEndDate(getTodayJalali());
         setSelectedFarmId('all');
         setSelectedProductId('all');
