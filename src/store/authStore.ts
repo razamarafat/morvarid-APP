@@ -521,9 +521,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const cleanUsername = username.trim();
         if (!cleanUsername) return { success: false, error: 'نام کاربری نامعتبر است' };
 
-        // --- OFFLINE LOGIN PATH ---
-        if (!navigator.onLine) {
-            // Check if we have cached credentials
+        // --- HELPER: OFFLINE LOGIN ---
+        const performOfflineLogin = async () => {
             const storedHash = localStorage.getItem(STORAGE_KEYS.OFFLINE_PW_HASH);
             const storedSalt = localStorage.getItem(STORAGE_KEYS.OFFLINE_PW_SALT);
 
@@ -531,20 +530,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 return { success: false, error: 'اینترنت متصل نیست و اطلاعات ورود آفلاین موجود نیست. لطفاً ابتدا یکبار با اینترنت وارد شوید.' };
             }
 
-            // Verify password against stored hash
             const isValid = await verifyPasswordOffline(password, storedHash, storedSalt);
             if (!isValid) {
                 get().recordFailedAttempt();
                 return { success: false, error: 'رمز عبور اشتباه است' };
             }
 
-            // Restore cached profile
             const cachedUser = await restoreCachedProfile();
             if (!cachedUser) {
                 return { success: false, error: 'اطلاعات پروفایل آفلاین معتبر نیست. لطفاً با اینترنت وارد شوید.' };
             }
 
-            // Verify username matches cached profile
             if (cachedUser.username !== cleanUsername) {
                 get().recordFailedAttempt();
                 return { success: false, error: 'نام کاربری یا رمز عبور اشتباه است' };
@@ -552,7 +548,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
             get().resetAttempts();
 
-            // Handle remember me
             if (rememberMe) {
                 const encrypted = await encryptUsername(cleanUsername);
                 if (encrypted) {
@@ -573,88 +568,147 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
             console.log('[OfflineAuth] Offline login successful for:', cleanUsername);
             return { success: true };
+        };
+
+        // 1. FAST OFFLINE CHECK
+        if (!navigator.onLine) {
+            console.log('[Auth] navigator.onLine is false, using offline login directly.');
+            return await performOfflineLogin();
         }
 
-        // --- ONLINE LOGIN PATH (existing logic) ---
+        // 2. ONLINE LOGIN WITH TIMEOUT & FALLBACK
         const domains = ['morvarid.app', 'morvarid.com', 'morvarid-system.com'];
         let loginData = null;
-        let loginError = null;
+        let loginError: any = null;
 
         for (const domain of domains) {
-            const { data, error } = await supabase.auth.signInWithPassword({
-                email: `${cleanUsername}@${domain}`,
-                password,
-            });
-            if (!error && data.user) {
-                loginData = data;
-                loginError = null;
-                break;
-            } else {
-                loginError = error;
+            try {
+                // Wrapper with timeout just in case fetch hangs on spotty networks
+                const signInPromise = supabase.auth.signInWithPassword({
+                    email: `${cleanUsername}@${domain}`,
+                    password,
+                });
+
+                // 10 seconds timeout for online attempt
+                const timeoutPromise = new Promise<{ data: any, error: any }>((resolve) =>
+                    setTimeout(() => resolve({ data: { user: null }, error: { message: 'Network Timeout', isNetworkError: true } }), 10000)
+                );
+
+                const { data, error } = await Promise.race([signInPromise, timeoutPromise]);
+
+                if (!error && data?.user) {
+                    loginData = data;
+                    loginError = null;
+                    break; // Success!
+                } else {
+                    loginError = error;
+                    // If it's a clear wrong password error, don't try other domains or offline
+                    if (error?.message?.includes('Invalid login credentials')) {
+                        break;
+                    }
+                }
+            } catch (err: any) {
+                loginError = err;
+                if (err?.message?.includes('Invalid login credentials')) {
+                    break;
+                }
             }
         }
 
         if (loginError || !loginData) {
+            // Determine if the error is a network issue rather than wrong password
+            const isNetworkError =
+                loginError?.isNetworkError ||
+                loginError?.message?.includes('fetch') ||
+                loginError?.message?.includes('network') ||
+                loginError?.message?.includes('Failed to fetch') ||
+                loginError?.message?.includes('Timeout') ||
+                loginError?.status === 0 ||
+                // Any error that isn't explicitly invalid credentials can trigger a fallback check
+                !loginError?.message?.includes('Invalid login credentials');
+
+            if (isNetworkError) {
+                console.warn('[Auth] Network error during online login. Falling back to offline login.', loginError);
+                return await performOfflineLogin();
+            }
+
             get().recordFailedAttempt();
             return { success: false, error: 'نام کاربری یا رمز عبور اشتباه است' };
         }
 
-        if (loginData.user) {
-            const { data: profile } = await supabase.from('profiles').select('is_active, username, role').eq('id', loginData.user.id).single();
+        // --- SUCCESSFUL ONLINE LOGIN PROCESSING ---
+        if (loginData?.user) {
+            try {
+                const { data: profile, error: profileError } = await supabase.from('profiles').select('is_active, username, role').eq('id', loginData.user.id).single();
 
-            if (profile && !profile.is_active) {
-                await supabase.auth.signOut();
-                return { success: false, error: 'حساب کاربری شما غیرفعال شده است.' };
-            }
+                // Handle network error during profile fetch
+                if (profileError && (profileError.message?.includes('fetch') || profileError.message?.includes('network'))) {
+                    console.warn('[Auth] Network error fetching profile after login. Falling back to offline.');
+                    return await performOfflineLogin();
+                }
 
-            // Check if user's farms are active
-            if (profile && profile.role !== UserRole.ADMIN) {
-                const { data: userFarms } = await supabase
-                    .from('user_farms')
-                    .select('farm_id, farms:farms(is_active)')
-                    .eq('user_id', loginData.user.id);
+                if (profile && !profile.is_active) {
+                    await supabase.auth.signOut();
+                    return { success: false, error: 'حساب کاربری شما غیرفعال شده است.' };
+                }
 
-                if (userFarms && userFarms.length > 0) {
-                    const allInactive = userFarms.every((uf: any) => !uf.farms?.is_active);
-                    if (allInactive) {
-                        await supabase.auth.signOut();
-                        return { success: false, error: 'فارم شما غیرفعال شده است و امکان ورود وجود ندارد.' };
+                // Check if user's farms are active
+                if (profile && profile.role !== UserRole.ADMIN) {
+                    const { data: userFarms, error: farmsError } = await supabase
+                        .from('user_farms')
+                        .select('farm_id, farms:farms(is_active)')
+                        .eq('user_id', loginData.user.id);
+
+                    if (farmsError && (farmsError.message?.includes('fetch') || farmsError.message?.includes('network'))) {
+                        console.warn('[Auth] Network error fetching farms after login. Falling back to offline.');
+                        return await performOfflineLogin();
+                    }
+
+                    if (userFarms && userFarms.length > 0) {
+                        const allInactive = userFarms.every((uf: any) => !uf.farms?.is_active);
+                        if (allInactive) {
+                            await supabase.auth.signOut();
+                            return { success: false, error: 'فارم شما غیرفعال شده است و امکان ورود وجود ندارد.' };
+                        }
                     }
                 }
-            }
 
-            get().resetAttempts();
+                get().resetAttempts();
 
-            if (rememberMe) {
-                const encrypted = await encryptUsername(cleanUsername);
-                if (encrypted) {
-                    localStorage.setItem(STORAGE_KEYS.ENCRYPTED_UID, encrypted.encrypted);
-                    localStorage.setItem(STORAGE_KEYS.CRYPTO_IV, encrypted.iv);
-                    localStorage.setItem(STORAGE_KEYS.REMEMBERED_FLAG, 'true');
+                if (rememberMe) {
+                    const encrypted = await encryptUsername(cleanUsername);
+                    if (encrypted) {
+                        localStorage.setItem(STORAGE_KEYS.ENCRYPTED_UID, encrypted.encrypted);
+                        localStorage.setItem(STORAGE_KEYS.CRYPTO_IV, encrypted.iv);
+                        localStorage.setItem(STORAGE_KEYS.REMEMBERED_FLAG, 'true');
+                    }
+                    set({ savedUsername: cleanUsername });
+                } else {
+                    localStorage.removeItem(STORAGE_KEYS.ENCRYPTED_UID);
+                    localStorage.removeItem(STORAGE_KEYS.CRYPTO_IV);
+                    localStorage.removeItem(STORAGE_KEYS.REMEMBERED_FLAG);
+                    localStorage.removeItem('morvarid_saved_uid'); // Clean legacy
+                    set({ savedUsername: '' });
                 }
-                set({ savedUsername: cleanUsername });
-            } else {
-                localStorage.removeItem(STORAGE_KEYS.ENCRYPTED_UID);
-                localStorage.removeItem(STORAGE_KEYS.CRYPTO_IV);
-                localStorage.removeItem(STORAGE_KEYS.REMEMBERED_FLAG);
-                localStorage.removeItem('morvarid_saved_uid'); // Clean legacy
-                set({ savedUsername: '' });
-            }
 
-            localStorage.setItem(STORAGE_KEYS.ACTIVITY, Date.now().toString());
+                localStorage.setItem(STORAGE_KEYS.ACTIVITY, Date.now().toString());
 
-            await get().checkSession();
-            const currentUser = get().user;
-            if (currentUser) {
-                // --- Cache for offline use (always, regardless of rememberMe) ---
-                await cacheUserProfileForOffline(currentUser, password);
+                await get().checkSession();
+                const currentUser = get().user;
+                if (currentUser) {
+                    // --- Cache for offline use (always, regardless of rememberMe) ---
+                    await cacheUserProfileForOffline(currentUser, password);
 
-                // Notify successful login
-                notifyEvent('login', { user: currentUser.fullName });
-                set({ isOfflineSession: false });
-                return { success: true };
-            } else {
-                return { success: false, error: 'خطا در دریافت پروفایل' };
+                    // Notify successful login
+                    notifyEvent('login', { user: currentUser.fullName });
+                    set({ isOfflineSession: false });
+                    return { success: true };
+                } else {
+                    return { success: false, error: 'خطا در دریافت پروفایل' };
+                }
+            } catch (err) {
+                console.warn('[Auth] Unexpected error during online profile fetch. Falling back to offline.', err);
+                return await performOfflineLogin();
             }
         }
         return { success: false, error: 'خطای ناشناخته' };
