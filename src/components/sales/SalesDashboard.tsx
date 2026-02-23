@@ -11,15 +11,13 @@ import { useAuthStore } from '../../store/authStore';
 import { useAlertStore } from '../../store/alertStore';
 import { getTodayJalali, normalizeDate, toPersianDigits } from '../../utils/dateUtils';
 import { useSyncStore, SyncItem } from '../../store/syncStore';
-import { formatPlateNumber } from '../../utils/formatUtils';
+import { formatPlateNumber, formatPlateNumberForUI } from '../../utils/formatUtils';
 import { compareProducts } from '../../utils/sortUtils';
 import Button from '../common/Button';
 import MetroTile from '../common/MetroTile';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FarmType, Invoice, UserRole } from '../../types';
 import { SkeletonTile, SkeletonRow } from '../common/Skeleton';
-import { FixedSizeList as List } from 'react-window';
-import AutoSizer from 'react-virtualized-auto-sizer';
 
 // --- COMPONENT: FarmGroup ---
 const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate, products, invoiceTotalsMap }: any) => {
@@ -348,86 +346,10 @@ const FarmStatistics = React.memo(() => {
     );
 });
 
-// Optimized Row Component for react-window
-const VirtualizedInvoiceRow = ({ index, style, data }: { index: number, style: React.CSSProperties, data: { invoices: Invoice[], farms: any[], products: any[], renderInvoiceNumber: any } }) => {
-    const invoice = data.invoices[index];
-    const { farms, products, renderInvoiceNumber } = data;
-
-    if (!invoice) return null;
-
-    const productName = products.find((p: any) => p.id === invoice.productId)?.name || '-';
-    const isEdited = invoice.updatedAt && invoice.updatedAt > invoice.createdAt + 2000;
-    const isAdminCreated = invoice.creatorRole === UserRole.ADMIN;
-    const isPending = invoice.isPending;
-    const isOffline = invoice.isOffline;
-
-    const displayTime = isAdminCreated
-        ? '---'
-        : new Date(isEdited ? invoice.updatedAt! : invoice.createdAt).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
-
-    const farmName = farms.find((f: any) => f.id === invoice.farmId)?.name || 'نامشخص';
-
-    return (
-        <div style={style} className={`grid grid-cols-[0.9fr_1fr_1.3fr_1.8fr_0.7fr_0.7fr_1fr_0.7fr] gap-2 items-center px-4 text-gray-800 dark:text-gray-200 text-sm border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors ${index % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-900/30'} ${isAdminCreated ? 'bg-purple-50/20' : ''} ${isPending ? 'bg-blue-50/50 animate-pulse' : ''} ${isOffline ? 'bg-orange-50/30' : ''}`}>
-            {/* 1. Date */}
-            <div className={`font-black tracking-tight text-center truncate ${isPending ? 'text-blue-500' : isOffline ? 'text-orange-600' : ''}`}>
-                {toPersianDigits(invoice.date)}
-            </div>
-
-            {/* 2. Invoice Num */}
-            <div className="text-center font-mono font-bold scale-95 truncate flex items-center justify-center gap-1" dir="ltr">
-                {isPending && <Icons.Refresh className="w-3 h-3 animate-spin text-blue-500" />}
-                {isOffline && <Icons.Clock className="w-3 h-3 text-orange-500" />}
-                {renderInvoiceNumber(invoice.invoiceNumber)}
-            </div>
-
-            {/* 3. Farm */}
-            <div className="font-bold text-right truncate text-xs lg:text-sm" title={farmName}>
-                {farmName}
-            </div>
-
-            {/* 4. Product */}
-            <div className="font-bold text-gray-700 dark:text-gray-200 text-xs leading-tight truncate" title={productName}>
-                {productName}
-            </div>
-
-            {/* 5. Count */}
-            <div className="text-center">
-                <span className={`text-base px-2 py-0.5 rounded shadow-sm inline-block min-w-[40px] ${isOffline ? 'bg-orange-100 text-orange-700 font-black' : isPending ? 'bg-blue-100 text-blue-700 font-black' : 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 font-bold'}`}>
-                    {toPersianDigits(invoice.totalCartons)}
-                </span>
-            </div>
-
-            {/* 6. Weight */}
-            <div className="text-center">
-                <span className={`text-base px-2 py-0.5 rounded shadow-sm inline-block min-w-[50px] ${isOffline ? 'bg-orange-50 text-orange-600 font-black' : isPending ? 'bg-blue-50 text-blue-500 font-black' : 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 font-bold'}`}>
-                    {toPersianDigits(invoice.totalWeight)}
-                </span>
-            </div>
-
-            {/* 7. Registrar */}
-            <div className="text-center">
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold truncate inline-block max-w-[90%] ${isOffline ? 'bg-orange-500 text-white' : isPending ? 'bg-blue-500 text-white' : isAdminCreated ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 dark:bg-gray-700'}`}>
-                    {isOffline ? 'آفلاین' : isPending ? 'کمی صبر...' : (isAdminCreated ? 'مدیر' : (invoice.creatorName || 'ناشناس'))}
-                </span>
-            </div>
-
-            {/* 8. Time */}
-            <div className="text-center">
-                <div className="flex flex-col items-center">
-                    <span className="text-[10px] font-bold text-gray-600 dark:text-gray-400 dir-ltr">{toPersianDigits(displayTime)}</span>
-                    {isEdited && !isAdminCreated && <span className="text-[8px] text-orange-500 font-bold mt-0.5">(ویرایش)</span>}
-                    {isPending && <span className="text-[8px] text-blue-500 font-black animate-bounce mt-0.5">ارسال...</span>}
-                    {isOffline && <span className="text-[8px] text-orange-600 font-black mt-0.5">در صف</span>}
-                </div>
-            </div>
-        </div>
-    );
-};
-
+// Redesigned InvoiceList to match Reports table exactly
 const InvoiceList = React.memo(() => {
     const { invoices, fetchInvoices, isLoading } = useInvoiceStore();
-    const { farms, products } = useFarmStore();
+    const { farms, products, getProductById } = useFarmStore();
     const { addToast } = useToastStore();
     const [selectedFarmId, setSelectedFarmId] = useState<string>('all');
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -444,7 +366,6 @@ const InvoiceList = React.memo(() => {
         const term = searchTerm.trim().toLowerCase();
         const { queue } = useSyncStore.getState();
 
-        // 1. Base results from store
         const baseResults = invoices.filter(i => {
             const itemDate = normalizeDate(i.date);
             const dateMatch = itemDate === normalizedToday;
@@ -452,13 +373,11 @@ const InvoiceList = React.memo(() => {
             const searchMatch = !term || (
                 i.invoiceNumber.includes(term) ||
                 i.driverName?.toLowerCase().includes(term) ||
-                i.plateNumber?.includes(term) ||
-                formatPlateNumber(i.plateNumber).includes(term)
+                i.plateNumber?.includes(term)
             );
             return dateMatch && farmMatch && searchMatch;
         });
 
-        // 2. Add queued invoices
         const currentUser = useAuthStore.getState().user;
         const queuedInvoices: Invoice[] = queue
             .filter((item: SyncItem) => item.type === 'INVOICE')
@@ -497,7 +416,7 @@ const InvoiceList = React.memo(() => {
             const timeB = new Date(b.createdAt).getTime() || Date.parse(b.date) || 0;
             return timeB - timeA;
         });
-    }, [invoices, normalizedToday, selectedFarmId, searchTerm, farms, products]);
+    }, [invoices, normalizedToday, selectedFarmId, searchTerm]);
 
     const totals = useMemo(() => {
         return filteredInvoices.reduce((acc, curr) => ({
@@ -517,27 +436,6 @@ const InvoiceList = React.memo(() => {
         setSearchTerm('');
         setSelectedFarmId('all');
     };
-
-    const renderInvoiceNumber = useCallback((num: string) => {
-        const strNum = toPersianDigits(num);
-        if (strNum.length < 4) return <span className="text-gray-800 dark:text-gray-200 text-lg font-black">{strNum}</span>;
-        const mainPart = strNum.slice(0, -4);
-        const lastPart = strNum.slice(-4);
-        return (
-            <div className="flex justify-center items-center gap-0.5">
-                <span className="text-gray-500 dark:text-gray-400 font-bold text-base">{mainPart}</span>
-                <span className="text-black dark:text-white font-black text-lg">{lastPart}</span>
-            </div>
-        );
-    }, []);
-
-    // Helper for List Data
-    const itemData = useMemo(() => ({
-        invoices: filteredInvoices,
-        farms,
-        products,
-        renderInvoiceNumber
-    }), [filteredInvoices, farms, products, renderInvoiceNumber]);
 
     return (
         <div className="space-y-4 lg:space-y-6 flex flex-col h-full">
@@ -584,8 +482,8 @@ const InvoiceList = React.memo(() => {
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 p-0 shadow-sm overflow-hidden border border-gray-100 dark:border-gray-700 rounded-xl flex-1 flex flex-col min-h-[500px]">
-                <div className="p-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shrink-0 flex justify-between items-center">
+            <div className="bg-white dark:bg-gray-800 p-0 shadow-md overflow-hidden border border-gray-100 dark:border-gray-700 rounded-[28px] flex-1 flex flex-col min-h-[500px]">
+                <div className="p-5 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shrink-0 flex justify-between items-center">
                     <h3 className="font-black text-xl text-gray-800 dark:text-white flex items-center gap-2">
                         <Icons.FileText className="w-6 h-6 text-metro-orange" />
                         فروش امروز ({toPersianDigits(today)})
@@ -595,50 +493,78 @@ const InvoiceList = React.memo(() => {
                     </span>
                 </div>
 
-                {/* Virtualized List Container */}
-                <div className="flex-1 w-full relative">
-                    {/* Header Row - Sticky */}
-                    <div className="grid grid-cols-[0.9fr_1fr_1.3fr_1.8fr_0.7fr_0.7fr_1fr_0.7fr] gap-2 px-4 py-3 bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400 text-xs lg:text-sm font-black uppercase border-b border-gray-200 dark:border-gray-700">
-                        <div className="text-center">تاریخ خروج</div>
-                        <div className="text-center">رمز حواله</div>
-                        <div className="text-right">فارم</div>
-                        <div className="text-right">نوع محصول</div>
-                        <div className="text-center">تعداد (کارتن)</div>
-                        <div className="text-center">وزن (Kg)</div>
-                        <div className="text-center">ثبت کننده</div>
-                        <div className="text-center">ساعت</div>
-                    </div>
+                <div className="flex-1 w-full relative overflow-x-auto custom-scrollbar overflow-y-auto">
+                    <table className="w-full text-right border-collapse min-w-[1000px] lg:min-w-[1200px]">
+                        <thead className="bg-gray-50 dark:bg-gray-900 text-gray-500 font-black text-xs lg:text-sm uppercase tracking-wider sticky top-0 z-10 shadow-sm border-b border-gray-100 dark:border-gray-700">
+                            <tr>
+                                <th className="p-3 text-center w-[8%]">تاریخ</th>
+                                <th className="p-3 text-center w-[10%]">رمز حواله</th>
+                                <th className="p-3 text-center w-[12%]">فارم</th>
+                                <th className="p-3 text-center w-[15%]">نوع محصول</th>
+                                <th className="p-3 text-center w-[7%]">تعداد</th>
+                                <th className="p-3 text-center w-[7%]">وزن (Kg)</th>
+                                <th className="p-3 text-center w-[10%]">شماره تماس</th>
+                                <th className="p-3 text-center w-[10%]">راننده</th>
+                                <th className="p-3 text-center w-[10%]">پلاک</th>
+                                <th className="p-3 text-center w-[11%]">ثبت</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                            {isLoading ? (
+                                <tr><td colSpan={11} className="text-center py-20 text-gray-400">در حال دریافت اطلاعات...</td></tr>
+                            ) : filteredInvoices.length === 0 ? (
+                                <tr>
+                                    <td colSpan={11} className="text-center py-24 text-gray-300">
+                                        <Icons.FileText className="w-20 h-20 mx-auto mb-4 opacity-20" />
+                                        <span className="text-lg font-bold">هیچ حواله‌ای یافت نشد</span>
+                                    </td>
+                                </tr>
+                            ) : (
+                                filteredInvoices.map((inv, idx) => {
+                                    const prod = inv.productId ? getProductById(inv.productId) : undefined;
+                                    const farm = farms.find(f => f.id === inv.farmId);
+                                    const isEdited = inv.updatedAt && inv.updatedAt > inv.createdAt + 2000;
+                                    const isAdminCreated = inv.creatorRole === UserRole.ADMIN;
+                                    const displayTime = isAdminCreated ? '---' : new Date(isEdited ? inv.updatedAt! : inv.createdAt).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
 
-                    <div className="absolute top-[45px] bottom-0 left-0 right-0">
-                        {isLoading ? (
-                            <div className="p-4 space-y-4">
-                                <SkeletonRow cols={8} />
-                                <SkeletonRow cols={8} />
-                                <SkeletonRow cols={8} />
-                            </div>
-                        ) : filteredInvoices.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                                <Icons.FileText className="w-16 h-16 mb-2 opacity-30" />
-                                <span className="font-bold lg:text-lg">هیچ حواله‌ای برای امروز ثبت نشده است.</span>
-                            </div>
-                        ) : (
-                            <AutoSizer>
-                                {({ height, width }: { height: number, width: number }) => (
-                                    <List
-                                        height={height}
-                                        itemCount={filteredInvoices.length}
-                                        itemSize={64} // Row height
-                                        width={width}
-                                        itemData={itemData}
-                                        className="custom-scrollbar"
-                                        direction="rtl"
-                                    >
-                                        {VirtualizedInvoiceRow}
-                                    </List>
-                                )}
-                            </AutoSizer>
-                        )}
-                    </div>
+                                    return (
+                                        <tr key={inv.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${isAdminCreated ? 'bg-purple-50/20' : ''}`}>
+                                            <td className="p-3 text-center font-black text-lg text-gray-700 dark:text-gray-300">{toPersianDigits(inv.date)}</td>
+                                            <td className="p-3 text-center font-black text-xl text-metro-orange">{toPersianDigits(inv.invoiceNumber)}</td>
+                                            <td className="p-3 text-center font-bold text-gray-800 dark:text-white">{farm?.name || '-'}</td>
+                                            <td className="p-3 text-center font-bold text-gray-600 dark:text-gray-300">{prod?.name || '-'}</td>
+                                            <td className="p-3 text-center">
+                                                <span className="inline-block px-3 py-1 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 font-black text-xl rounded">
+                                                    {toPersianDigits(inv.totalCartons)}
+                                                </span>
+                                            </td>
+                                            <td className="p-3 text-center">
+                                                <span className="inline-block px-3 py-1 bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400 font-black text-xl rounded">
+                                                    {toPersianDigits(inv.totalWeight)}
+                                                </span>
+                                            </td>
+                                            <td className="p-3 text-center font-bold text-sm text-gray-600 dark:text-gray-400">{toPersianDigits(inv.driverPhone || '-')}</td>
+                                            <td className="p-3 text-center font-bold text-gray-700 dark:text-gray-300">{inv.driverName || '-'}</td>
+                                            <td className="p-3 text-center font-bold text-gray-600 dark:text-gray-400 text-sm" dir="rtl">{formatPlateNumberForUI(inv.plateNumber || '') || '-'}</td>
+                                            <td className="p-3 text-center">
+                                                <div className="flex flex-col gap-1 items-center">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${isAdminCreated ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}>
+                                                            {isAdminCreated ? 'مدیر' : (inv.creatorName || 'ناشناس')}
+                                                        </span>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[10px] opacity-60 text-gray-500">{toPersianDigits(displayTime)}</span>
+                                                            {isEdited && !isAdminCreated && <span className="text-[8px] text-orange-500 font-bold">(ویرایش)</span>}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
+                            )}
+                        </tbody>
+                    </table>
                 </div>
 
                 {filteredInvoices.length > 0 && (
