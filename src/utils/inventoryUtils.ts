@@ -45,13 +45,13 @@ export const calculateProductUsage = (invoices: InvoiceItem[], targetProductId: 
         // Case B: This product was the SOURCE for another product
         if (inv.source_product_id === targetProductId && inv.is_converted) {
             const converted = inv.converted_amount || 0;
-            const total = inv.total_cartons || 0; // The total of the TARGET product
-            const weight = inv.total_weight || 0; // The weight of the TARGET product
+            const total = inv.total_cartons || 0;
+            const weight = inv.total_weight || 0;
 
             // Usage = The amount I gave
             usageCartons += converted;
 
-            // Proportional weight (Estimating weight of the converted portion based on sales density)
+            // Proportional weight estimation
             const myWeight = total > 0 ? (converted / total) * weight : 0;
             usageWeight += myWeight;
         }

@@ -238,10 +238,16 @@ export const InvoiceForm: React.FC = () => {
     const handleProductToggle = (pid: string) => {
         const normalizedRefDate = normalizeDate(referenceDate);
         const statRecord = statistics.find(s => s.farmId === selectedFarmId && normalizeDate(s.date) === normalizedRefDate && s.productId === pid);
-        if (!statRecord) {
+
+        // --- RELAXED VALIDATION FOR SIMPLE PRODUCTS ---
+        const product = getProductById(pid);
+        const name = product?.name || '';
+        const isSimpleProduct = name.includes('ساده') || name.toLowerCase().includes('simple');
+
+        if (!statRecord && !isSimpleProduct) {
             // Decode HTML entities in date for display
             const decodedDate = referenceDate.replace(/&#x2F;/g, '/').replace(/&#[xX]0+;/g, '').replace(/&\w+;/g, '');
-            addToast(`ابتدا باید آمار تولید ${getProductById(pid)?.name} برای تاریخ ${decodedDate} ثبت شود.`, 'error');
+            addToast(`ابتدا باید آمار تولید ${name} برای تاریخ ${decodedDate} ثبت شود.`, 'error');
             return;
         }
 
@@ -312,15 +318,18 @@ export const InvoiceForm: React.FC = () => {
                 return;
             }
 
+            // 1. Find Statistics Record
             const statRecord = statistics.find(s => s.farmId === selectedFarmId && normalizeDate(s.date) === normalizeDate(referenceDate) && s.productId === pid);
-            if (!statRecord) {
-                addToast(`خطا: آمار تولید برای "${name}" یافت نشد.`, 'error');
-                return;
-            }
 
             // --- Inventory Conversion Logic (Split Item Strategy) ---
             const isSimpleProduct = name.includes('ساده') || name.toLowerCase().includes('simple');
-            const currentStock = statRecord.currentInventory || 0;
+            const currentStock = statRecord ? (statRecord.currentInventory || 0) : 0;
+
+            // If no stats AND not a simple product, we must block
+            if (!statRecord && !isSimpleProduct) {
+                addToast(`خطا: آمار تولید برای "${name}" یافت نشد.`, 'error');
+                return;
+            }
 
             // CONVERSION CONDITION: Simple Product AND Not Enough Stock
             if (isSimpleProduct && currentStock < cartonsVal) {

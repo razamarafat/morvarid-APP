@@ -86,6 +86,34 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
                                     uniqueMap.set(stat.productId, stat);
                                 }
                             });
+
+                            // --- SYNTHETIC STATS INJECTION ---
+                            // Check for products that have invoices (Sales/Usage) but NO statistics record
+                            products.forEach((prod: any) => {
+                                // Only look at products linked to this farm (optional check based on your architecture)
+                                if (farm.productIds?.includes(prod.id)) {
+                                    const key = `${farm.id}|${normalizedSelectedDate}|${prod.id}`;
+                                    const hasInvoices = invoiceTotalsMap?.has(key);
+                                    const hasStats = uniqueMap.has(prod.id);
+
+                                    if (hasInvoices && !hasStats) {
+                                        // Create a synthetic record to show the sale
+                                        uniqueMap.set(prod.id, {
+                                            id: `synthetic-${prod.id}`,
+                                            farmId: farm.id,
+                                            date: normalizedSelectedDate,
+                                            productId: prod.id,
+                                            previousBalance: 0,
+                                            production: 0,
+                                            sales: 0, // Will be overridden by invoiceTotals in render
+                                            currentInventory: 0,
+                                            createdAt: Date.now(),
+                                            isSynthetic: true // Flag for special UI if needed
+                                        } as any);
+                                    }
+                                }
+                            });
+
                             const dedupedStats = Array.from(uniqueMap.values());
 
                             const sortedFarmStats = [...dedupedStats].sort((a, b) => {
@@ -95,22 +123,22 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
                                 return compareProducts(pA, pB);
                             });
 
-                            const hasStats = sortedFarmStats.length > 0;
+                            const hasPhysicalStats = sortedFarmStats.some(s => !(s as any).isSynthetic);
                             const isExpanded = expandedFarmId === farm.id;
                             const isMotefereghe = farm.type === FarmType.MOTEFEREGHE;
 
                             return (
                                 <div key={farm.id} className="group bg-white dark:bg-[#1e293b] shadow-sm rounded-[24px] overflow-hidden border border-gray-100 dark:border-gray-700 transition-all hover:shadow-md">
-                                    <div onClick={() => toggleFarm(farm.id)} className={`p-5 flex items-center justify-between cursor-pointer border-r-[6px] ${hasStats ? 'border-green-500' : 'border-red-500'}`}>
+                                    <div onClick={() => toggleFarm(farm.id)} className={`p-5 flex items-center justify-between cursor-pointer border-r-[6px] ${hasPhysicalStats ? 'border-green-500' : 'border-red-500'}`}>
                                         <div className="flex items-center gap-4">
-                                            <div className={`p-3 rounded-2xl text-white ${hasStats ? 'bg-gradient-to-br from-green-500 to-emerald-600' : 'bg-gradient-to-br from-red-500 to-rose-600'}`}><Icons.Home className="w-6 h-6" /></div>
+                                            <div className={`p-3 rounded-2xl text-white ${hasPhysicalStats ? 'bg-gradient-to-br from-green-500 to-emerald-600' : 'bg-gradient-to-br from-red-500 to-rose-600'}`}><Icons.Home className="w-6 h-6" /></div>
                                             <div>
                                                 <h4 className="font-black text-xl text-gray-800 dark:text-white">{farm.name}</h4>
-                                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${hasStats ? 'bg-green-100 text-green-700 dark:bg-green-900/30' : 'bg-red-100 text-red-700 dark:bg-red-900/30'}`}>{hasStats ? 'ثبت شده' : 'منتظر ثبت'}</span>
+                                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${hasPhysicalStats ? 'bg-green-100 text-green-700 dark:bg-green-900/30' : 'bg-red-100 text-red-700 dark:bg-red-900/30'}`}>{hasPhysicalStats ? 'ثبت شده' : 'منتظر ثبت'}</span>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            {!hasStats && (
+                                            {!hasPhysicalStats && (
                                                 <Button variant="danger" size="sm" isLoading={alertLoading === farm.id} onClick={(e) => handleSendAlert(farm.id, farm.name, e)} className="shadow-none px-4">
                                                     <Icons.Bell className="w-4 h-4" />
                                                     <span className="hidden lg:inline ml-2 text-sm">ارسال هشدار</span>
@@ -120,7 +148,7 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
                                         </div>
                                     </div>
                                     <AnimatePresence>
-                                        {isExpanded && hasStats && (
+                                        {isExpanded && sortedFarmStats.length > 0 && (
                                             <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="bg-gray-50/50 dark:bg-black/10 p-4 border-t border-gray-100 dark:border-gray-700">
                                                 <div className="grid grid-cols-1 gap-3">
                                                     {sortedFarmStats.map(stat => {
