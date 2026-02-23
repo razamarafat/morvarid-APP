@@ -22,7 +22,12 @@ const STORAGE_KEYS = {
     ENCRYPTED_UID: 'morvarid_encrypted_uid',   // Encrypted username (AES-GCM)
     CRYPTO_IV: 'morvarid_crypto_iv',            // Initialization vector
     LOGIN_ATTEMPTS: 'morvarid_login_attempts',
-    BLOCK_UNTIL: 'morvarid_block_until'
+    BLOCK_UNTIL: 'morvarid_block_until',
+    // --- Offline Auth Keys ---
+    OFFLINE_PROFILE: 'morvarid_offline_profile',   // AES-GCM encrypted user profile JSON
+    OFFLINE_PROFILE_IV: 'morvarid_offline_profile_iv',
+    OFFLINE_PW_HASH: 'morvarid_offline_pw_hash',   // PBKDF2 password hash (base64)
+    OFFLINE_PW_SALT: 'morvarid_offline_pw_salt',   // Random salt for password hash (base64)
 };
 
 // --- Secure Crypto Utilities ---
@@ -91,9 +96,150 @@ const decryptUsername = async (encryptedData: string, ivData: string): Promise<s
     }
 };
 
+// --- Offline Auth: Encrypt/Decrypt Profile ---
+const encryptData = async (data: string): Promise<{ encrypted: string; iv: string } | null> => {
+    try {
+        const encoder = new TextEncoder();
+        const key = await getCryptoKey();
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const encrypted = await crypto.subtle.encrypt(
+            { name: 'AES-GCM', iv },
+            key,
+            encoder.encode(data)
+        );
+        return {
+            encrypted: btoa(String.fromCharCode(...new Uint8Array(encrypted))),
+            iv: btoa(String.fromCharCode(...iv))
+        };
+    } catch (e) {
+        console.error('[OfflineAuth] Encrypt data failed:', e);
+        return null;
+    }
+};
+
+const decryptData = async (encryptedData: string, ivData: string): Promise<string | null> => {
+    try {
+        const key = await getCryptoKey();
+        const encrypted = Uint8Array.from(atob(encryptedData), c => c.charCodeAt(0));
+        const iv = Uint8Array.from(atob(ivData), c => c.charCodeAt(0));
+        const decrypted = await crypto.subtle.decrypt(
+            { name: 'AES-GCM', iv },
+            key,
+            encrypted
+        );
+        return new TextDecoder().decode(decrypted);
+    } catch (e) {
+        console.error('[OfflineAuth] Decrypt data failed:', e);
+        return null;
+    }
+};
+
+// --- Offline Auth: Password Hashing with PBKDF2 ---
+const hashPasswordForOffline = async (password: string, salt?: Uint8Array): Promise<{ hash: string; salt: string } | null> => {
+    try {
+        const encoder = new TextEncoder();
+        const passwordSalt = salt || crypto.getRandomValues(new Uint8Array(16));
+        const keyMaterial = await crypto.subtle.importKey(
+            'raw',
+            encoder.encode(password),
+            { name: 'PBKDF2' },
+            false,
+            ['deriveBits']
+        );
+        const hashBits = await crypto.subtle.deriveBits(
+            {
+                name: 'PBKDF2',
+                salt: passwordSalt.buffer as ArrayBuffer,
+                iterations: 100000,
+                hash: 'SHA-256'
+            },
+            keyMaterial,
+            256
+        );
+        return {
+            hash: btoa(String.fromCharCode(...new Uint8Array(hashBits))),
+            salt: btoa(String.fromCharCode(...passwordSalt))
+        };
+    } catch (e) {
+        console.error('[OfflineAuth] Password hash failed:', e);
+        return null;
+    }
+};
+
+const verifyPasswordOffline = async (password: string, storedHash: string, storedSalt: string): Promise<boolean> => {
+    try {
+        const salt = Uint8Array.from(atob(storedSalt), c => c.charCodeAt(0));
+        const result = await hashPasswordForOffline(password, salt);
+        if (!result) return false;
+        return result.hash === storedHash;
+    } catch (e) {
+        console.error('[OfflineAuth] Password verify failed:', e);
+        return false;
+    }
+};
+
+// --- Offline Auth: Cache/Restore User Profile ---
+const cacheUserProfileForOffline = async (user: User, password: string): Promise<void> => {
+    try {
+        // 1. Encrypt and store user profile
+        const profileJson = JSON.stringify(user);
+        const encryptedProfile = await encryptData(profileJson);
+        if (encryptedProfile) {
+            localStorage.setItem(STORAGE_KEYS.OFFLINE_PROFILE, encryptedProfile.encrypted);
+            localStorage.setItem(STORAGE_KEYS.OFFLINE_PROFILE_IV, encryptedProfile.iv);
+        }
+
+        // 2. Hash and store password
+        const pwHash = await hashPasswordForOffline(password);
+        if (pwHash) {
+            localStorage.setItem(STORAGE_KEYS.OFFLINE_PW_HASH, pwHash.hash);
+            localStorage.setItem(STORAGE_KEYS.OFFLINE_PW_SALT, pwHash.salt);
+        }
+
+        console.log('[OfflineAuth] User profile cached for offline access.');
+    } catch (e) {
+        console.error('[OfflineAuth] Failed to cache profile:', e);
+    }
+};
+
+const restoreCachedProfile = async (): Promise<User | null> => {
+    try {
+        const encryptedProfile = localStorage.getItem(STORAGE_KEYS.OFFLINE_PROFILE);
+        const profileIv = localStorage.getItem(STORAGE_KEYS.OFFLINE_PROFILE_IV);
+        if (!encryptedProfile || !profileIv) return null;
+
+        const profileJson = await decryptData(encryptedProfile, profileIv);
+        if (!profileJson) return null;
+
+        const user = JSON.parse(profileJson) as User;
+        console.log('[OfflineAuth] Restored cached profile for:', user.username);
+        return user;
+    } catch (e) {
+        console.error('[OfflineAuth] Failed to restore cached profile:', e);
+        return null;
+    }
+};
+
+const clearOfflineCache = () => {
+    localStorage.removeItem(STORAGE_KEYS.OFFLINE_PROFILE);
+    localStorage.removeItem(STORAGE_KEYS.OFFLINE_PROFILE_IV);
+    localStorage.removeItem(STORAGE_KEYS.OFFLINE_PW_HASH);
+    localStorage.removeItem(STORAGE_KEYS.OFFLINE_PW_SALT);
+};
+
+// --- Helper: Check if offline auth data is available ---
+const hasOfflineCredentials = (): boolean => {
+    return !!(
+        localStorage.getItem(STORAGE_KEYS.OFFLINE_PROFILE) &&
+        localStorage.getItem(STORAGE_KEYS.OFFLINE_PW_HASH) &&
+        localStorage.getItem(STORAGE_KEYS.OFFLINE_PW_SALT)
+    );
+};
+
 interface AuthState {
     user: User | null;
     isLoading: boolean;
+    isOfflineSession: boolean; // NEW: indicates offline-restored session
     loginAttempts: number;
     blockUntil: number | null;
     savedUsername: string;
@@ -110,6 +256,7 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set, get) => ({
     user: null,
     isLoading: true,
+    isOfflineSession: false,
     loginAttempts: parseInt(localStorage.getItem('morvarid_login_attempts') || '0'),
     blockUntil: localStorage.getItem('morvarid_block_until') ? parseInt(localStorage.getItem('morvarid_block_until')!) : null,
     savedUsername: '',
@@ -190,6 +337,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 return;
             }
 
+            // --- OFFLINE FALLBACK ---
+            // If we're offline, try to restore the cached profile immediately
+            if (!navigator.onLine) {
+                const cachedUser = await restoreCachedProfile();
+                if (cachedUser) {
+                    console.log('[Auth] Offline mode: Restored cached profile.');
+                    set({
+                        user: cachedUser,
+                        isLoading: false,
+                        isOfflineSession: true
+                    });
+                    localStorage.setItem(STORAGE_KEYS.ACTIVITY, Date.now().toString());
+                    return;
+                }
+                // No cached profile — user must login online first
+                set({ user: null, isLoading: false });
+                return;
+            }
+
             const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
             if (sessionError) {
@@ -205,6 +371,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                     return;
                 }
 
+                // Network error during session check — try offline fallback
+                if (errMsg.includes('fetch') || errMsg.includes('network') || errMsg.includes('Failed to fetch')) {
+                    const cachedUser = await restoreCachedProfile();
+                    if (cachedUser) {
+                        console.log('[Auth] Network error during session check, using cached profile.');
+                        set({ user: cachedUser, isLoading: false, isOfflineSession: true });
+                        localStorage.setItem(STORAGE_KEYS.ACTIVITY, Date.now().toString());
+                        return;
+                    }
+                }
+
                 console.error('Session Check Error:', sessionError);
                 set({ user: null, isLoading: false });
                 return;
@@ -212,8 +389,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
             const lastActivityStr = localStorage.getItem(STORAGE_KEYS.ACTIVITY);
             if (session?.user && !lastActivityStr) {
-                // If session exists but no activity record (e.g. cleared storage manually), treat as fresh login or set activity
-                // For security, we can reset activity here to keep session alive if token is valid
                 localStorage.setItem(STORAGE_KEYS.ACTIVITY, Date.now().toString());
             }
 
@@ -236,10 +411,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                     profileError.message?.includes('net::ERR_FAILED') ||
                     profileError.code === '401') {
                     console.warn('[Auth] Network or auth error, attempting to refresh session');
-                    // Try to refresh the session and retry once
                     const { error: refreshError } = await supabase.auth.refreshSession();
                     if (!refreshError) {
-                        // Retry profile fetch after refresh
                         const retryResult = await supabase
                             .from('profiles')
                             .select('*, farms:user_farms(farm_id)')
@@ -247,7 +420,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                             .single();
 
                         if (!retryResult.error && retryResult.data) {
-                            // Update variables with retry data
                             profile = retryResult.data;
                             profileError = retryResult.error;
                         }
@@ -255,6 +427,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 }
 
                 if (profileError) {
+                    // Last resort offline fallback
+                    const cachedUser = await restoreCachedProfile();
+                    if (cachedUser) {
+                        console.log('[Auth] Profile fetch failed, using cached profile.');
+                        set({ user: cachedUser, isLoading: false, isOfflineSession: true });
+                        return;
+                    }
                     set({ user: null, isLoading: false });
                     return;
                 }
@@ -266,7 +445,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                     return;
                 }
 
-                let assignedFarms = [];
+                let assignedFarms: any[] = [];
                 if (profile.farms && profile.farms.length > 0) {
                     const farmIds = profile.farms.map((f: any) => f.farm_id);
                     const { data: farmsData } = await supabase.from('farms').select('*').in('id', farmIds);
@@ -279,9 +458,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                         return { ...f, productIds: pIds };
                     });
 
-                    // Block logic: If user has farms, but ALL are inactive, and user is NOT Admin
                     if (profile.role !== UserRole.ADMIN && assignedFarms.length > 0) {
-                        const allInactive = assignedFarms.every((f: any) => !f.is_active); // Note: supabase returns is_active (snake_case)
+                        const allInactive = assignedFarms.every((f: any) => !f.is_active);
                         if (allInactive) {
                             console.warn('[Auth] User blocked: All assigned farms are inactive.');
                             await get().logout();
@@ -290,24 +468,45 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                     }
                 }
 
+                const userObj: User = {
+                    id: profile.id,
+                    username: profile.username,
+                    fullName: profile.full_name,
+                    role: profile.role as UserRole,
+                    isActive: profile.is_active,
+                    assignedFarms: assignedFarms,
+                    phoneNumber: profile.phone_number
+                };
+
                 set({
-                    user: {
-                        id: profile.id,
-                        username: profile.username,
-                        fullName: profile.full_name,
-                        role: profile.role as UserRole,
-                        isActive: profile.is_active,
-                        assignedFarms: assignedFarms,
-                        phoneNumber: profile.phone_number
-                    },
-                    isLoading: false
+                    user: userObj,
+                    isLoading: false,
+                    isOfflineSession: false
                 });
 
                 // Refresh activity timestamp on successful session check
                 localStorage.setItem(STORAGE_KEYS.ACTIVITY, Date.now().toString());
+
+                // Update the offline cache with latest profile data silently
+                // (password stays unchanged — only refreshed on login)
+                if (hasOfflineCredentials()) {
+                    const profileJson = JSON.stringify(userObj);
+                    encryptData(profileJson).then(enc => {
+                        if (enc) {
+                            localStorage.setItem(STORAGE_KEYS.OFFLINE_PROFILE, enc.encrypted);
+                            localStorage.setItem(STORAGE_KEYS.OFFLINE_PROFILE_IV, enc.iv);
+                        }
+                    }).catch(() => { });
+                }
             }
         } catch (error: any) {
             console.error('Unexpected Auth Error:', error);
+            // Offline fallback on unexpected errors
+            const cachedUser = await restoreCachedProfile();
+            if (cachedUser && !navigator.onLine) {
+                set({ user: cachedUser, isLoading: false, isOfflineSession: true });
+                return;
+            }
             set({ user: null, isLoading: false });
         }
     },
@@ -322,6 +521,61 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const cleanUsername = username.trim();
         if (!cleanUsername) return { success: false, error: 'نام کاربری نامعتبر است' };
 
+        // --- OFFLINE LOGIN PATH ---
+        if (!navigator.onLine) {
+            // Check if we have cached credentials
+            const storedHash = localStorage.getItem(STORAGE_KEYS.OFFLINE_PW_HASH);
+            const storedSalt = localStorage.getItem(STORAGE_KEYS.OFFLINE_PW_SALT);
+
+            if (!storedHash || !storedSalt) {
+                return { success: false, error: 'اینترنت متصل نیست و اطلاعات ورود آفلاین موجود نیست. لطفاً ابتدا یکبار با اینترنت وارد شوید.' };
+            }
+
+            // Verify password against stored hash
+            const isValid = await verifyPasswordOffline(password, storedHash, storedSalt);
+            if (!isValid) {
+                get().recordFailedAttempt();
+                return { success: false, error: 'رمز عبور اشتباه است' };
+            }
+
+            // Restore cached profile
+            const cachedUser = await restoreCachedProfile();
+            if (!cachedUser) {
+                return { success: false, error: 'اطلاعات پروفایل آفلاین معتبر نیست. لطفاً با اینترنت وارد شوید.' };
+            }
+
+            // Verify username matches cached profile
+            if (cachedUser.username !== cleanUsername) {
+                get().recordFailedAttempt();
+                return { success: false, error: 'نام کاربری یا رمز عبور اشتباه است' };
+            }
+
+            get().resetAttempts();
+
+            // Handle remember me
+            if (rememberMe) {
+                const encrypted = await encryptUsername(cleanUsername);
+                if (encrypted) {
+                    localStorage.setItem(STORAGE_KEYS.ENCRYPTED_UID, encrypted.encrypted);
+                    localStorage.setItem(STORAGE_KEYS.CRYPTO_IV, encrypted.iv);
+                    localStorage.setItem(STORAGE_KEYS.REMEMBERED_FLAG, 'true');
+                }
+                set({ savedUsername: cleanUsername });
+            }
+
+            localStorage.setItem(STORAGE_KEYS.ACTIVITY, Date.now().toString());
+
+            set({
+                user: cachedUser,
+                isLoading: false,
+                isOfflineSession: true
+            });
+
+            console.log('[OfflineAuth] Offline login successful for:', cleanUsername);
+            return { success: true };
+        }
+
+        // --- ONLINE LOGIN PATH (existing logic) ---
         const domains = ['morvarid.app', 'morvarid.com', 'morvarid-system.com'];
         let loginData = null;
         let loginError = null;
@@ -361,7 +615,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                     .eq('user_id', loginData.user.id);
 
                 if (userFarms && userFarms.length > 0) {
-                    // Check if all assigned farms are inactive
                     const allInactive = userFarms.every((uf: any) => !uf.farms?.is_active);
                     if (allInactive) {
                         await supabase.auth.signOut();
@@ -373,7 +626,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             get().resetAttempts();
 
             if (rememberMe) {
-                // Encrypt username with AES-GCM before saving
                 const encrypted = await encryptUsername(cleanUsername);
                 if (encrypted) {
                     localStorage.setItem(STORAGE_KEYS.ENCRYPTED_UID, encrypted.encrypted);
@@ -394,8 +646,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             await get().checkSession();
             const currentUser = get().user;
             if (currentUser) {
+                // --- Cache for offline use (always, regardless of rememberMe) ---
+                await cacheUserProfileForOffline(currentUser, password);
+
                 // Notify successful login
                 notifyEvent('login', { user: currentUser.fullName });
+                set({ isOfflineSession: false });
                 return { success: true };
             } else {
                 return { success: false, error: 'خطا در دریافت پروفایل' };
@@ -412,11 +668,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
 
         // Aggressively clear ALL Supabase tokens and App data from localStorage
-        // Preserve Remember Me data (encrypted username) unless explicitly logged out
+        // Preserve Remember Me data AND Offline Auth data
         const keysToPreserve = [
             STORAGE_KEYS.ENCRYPTED_UID,
             STORAGE_KEYS.CRYPTO_IV,
-            STORAGE_KEYS.REMEMBERED_FLAG
+            STORAGE_KEYS.REMEMBERED_FLAG,
+            // Keep offline credentials so user can log back in offline
+            STORAGE_KEYS.OFFLINE_PROFILE,
+            STORAGE_KEYS.OFFLINE_PROFILE_IV,
+            STORAGE_KEYS.OFFLINE_PW_HASH,
+            STORAGE_KEYS.OFFLINE_PW_SALT,
         ];
 
         Object.keys(localStorage).forEach(key => {
@@ -429,7 +690,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             }
         });
 
-        set({ user: null, isLoading: false });
+        set({ user: null, isLoading: false, isOfflineSession: false });
 
         // Notify logout event
         notifyEvent('logout', { isTimeout });
