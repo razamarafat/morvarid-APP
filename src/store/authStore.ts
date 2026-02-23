@@ -714,6 +714,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     logout: async (isTimeout = false) => {
         try {
+            const { user } = get();
+            if (user && navigator.onLine) {
+                await supabase.from('push_subscriptions')
+                    .delete()
+                    .match({ user_id: user.id, user_agent: navigator.userAgent });
+            }
+        } catch (e) {
+            console.warn("[Auth] Failed to remove push subscription on logout", e);
+        }
+
+        try {
             await supabase.auth.signOut();
         } catch (err) {
             console.warn("SignOut warning (token likely invalid):", err);

@@ -99,23 +99,11 @@ const Reports: React.FC = () => {
             }
 
             // --- SORT LOGIC ---
+            // User requested default sort should ALWAYS be strictly by creation time descending (latest first)
             data.sort((a, b) => {
-                const farmA = farms.find(f => f.id === a.farmId);
-                const farmB = farms.find(f => f.id === b.farmId);
-                if (farmA && farmB) {
-                    const farmDiff = compareFarms(farmA, farmB);
-                    if (farmDiff !== 0) return farmDiff;
-                }
-
-                const prodA = getProductById(a.productId);
-                const prodB = getProductById(b.productId);
-                if (prodA && prodB) {
-                    const prodDiff = compareProducts(prodA, prodB);
-                    if (prodDiff !== 0) return prodDiff;
-                }
-
-                if (a.date !== b.date) return b.date.localeCompare(a.date);
-                return 0;
+                const timeA = a.createdAt || Date.parse(a.date) || 0;
+                const timeB = b.createdAt || Date.parse(b.date) || 0;
+                return timeB - timeA;
             });
 
             setPreviewData(data);

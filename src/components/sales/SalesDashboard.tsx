@@ -163,8 +163,8 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
                                                                 <div className="flex justify-between items-center mb-3">
                                                                     <div className="flex items-center gap-2">
                                                                         <div className={`px-3 py-1 rounded-lg border-r-4 ${prod?.name.includes('قابل چاپ') ? 'bg-purple-50 border-purple-500 text-purple-700' :
-                                                                                prod?.name.includes('ساده') ? 'bg-blue-50 border-blue-500 text-blue-700' :
-                                                                                    'bg-gray-50 border-gray-400 text-gray-700'
+                                                                            prod?.name.includes('ساده') ? 'bg-blue-50 border-blue-500 text-blue-700' :
+                                                                                'bg-gray-50 border-gray-400 text-gray-700'
                                                                             }`}>
                                                                             <h5 className="font-black text-sm lg:text-base">{prod?.name}</h5>
                                                                         </div>
@@ -492,7 +492,11 @@ const InvoiceList = React.memo(() => {
             if (!isDuplicate) merged.push(queued);
         });
 
-        return merged.sort((a, b) => b.createdAt - a.createdAt);
+        return merged.sort((a, b) => {
+            const timeA = new Date(a.createdAt).getTime() || Date.parse(a.date) || 0;
+            const timeB = new Date(b.createdAt).getTime() || Date.parse(b.date) || 0;
+            return timeB - timeA;
+        });
     }, [invoices, normalizedToday, selectedFarmId, searchTerm, farms, products]);
 
     const totals = useMemo(() => {
