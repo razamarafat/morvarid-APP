@@ -15,7 +15,7 @@ import { APP_VERSION } from '../constants';
  * - The SW + Workbox precache handles cache busting automatically via hashed filenames
  */
 
-const CHECK_INTERVAL = 2 * 60 * 1000; // 2 minutes
+const CHECK_INTERVAL = 30 * 1000; // 30 seconds - aggressive check for fast updates
 const RELOAD_GUARD_KEY = 'morvarid_last_update_version';
 
 export const useAutoUpdate = () => {
@@ -68,17 +68,32 @@ export const useAutoUpdate = () => {
         if ('serviceWorker' in navigator) {
           const reg = await navigator.serviceWorker.getRegistration();
           if (reg) {
+            // First try normal update
             await reg.update().catch(() => { });
+
+            // Wait for new worker to install
+            await new Promise((resolve) => setTimeout(resolve, 500));
+
+            // Force unregister to ensure the next load gets fresh content if update fails
+            await reg.unregister().catch(() => { });
+          }
+
+          // Clear all caches aggressively
+          if ('caches' in window) {
+            const cacheNames = await caches.keys();
+            await Promise.all(cacheNames.map(name => caches.delete(name)));
           }
         }
 
-        // Clean reload after short delay
+        // Clean reload with a cache-busting query parameter
         setTimeout(() => {
-          window.location.reload();
+          const url = new URL(window.location.href);
+          url.searchParams.set('v', Date.now().toString());
+          window.location.replace(url.toString()); // replace avoids history clutter
         }, 500);
 
-      } catch {
-        // Network error — ignore silently
+      } catch (e) {
+        console.warn('[AutoUpdate] Error during version check:', e);
       }
     };
 
