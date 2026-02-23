@@ -97,6 +97,7 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
                                     const hasStats = uniqueMap.has(prod.id);
 
                                     if (hasInvoices && !hasStats) {
+                                        const totals = invoiceTotalsMap?.get(key);
                                         // Create a synthetic record to show the sale
                                         uniqueMap.set(prod.id, {
                                             id: `synthetic-${prod.id}`,
@@ -107,7 +108,8 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
                                             production: 0,
                                             sales: 0, // Will be overridden by invoiceTotals in render
                                             currentInventory: 0,
-                                            createdAt: Date.now(),
+                                            createdAt: totals?.createdAt || Date.now(),
+                                            creatorName: totals?.creatorName,
                                             isSynthetic: true // Flag for special UI if needed
                                         } as any);
                                     }
@@ -263,7 +265,7 @@ const FarmStatistics = React.memo(() => {
     }, [farms, searchTerm]);
 
     const invoiceTotalsMap = useMemo(() => {
-        const map = new Map<string, { salesCartons: number; salesWeight: number; usageCartons: number; usageWeight: number }>();
+        const map = new Map<string, { salesCartons: number; salesWeight: number; usageCartons: number; usageWeight: number; creatorName?: string; createdAt?: number }>();
 
         invoices.forEach(inv => {
             const totalCartons = inv.totalCartons || 0;
@@ -279,8 +281,10 @@ const FarmStatistics = React.memo(() => {
             map.set(salesKey, {
                 ...prevSales,
                 salesCartons: prevSales.salesCartons + totalCartons,
-                salesWeight: prevSales.salesWeight + totalWeight
-                // usageCartons will be updated in part B
+                salesWeight: prevSales.salesWeight + totalWeight,
+                // Track latest creator for synthetic stats
+                creatorName: (!prevSales.createdAt || (inv.createdAt || 0) > prevSales.createdAt) ? inv.creatorName : prevSales.creatorName,
+                createdAt: (!prevSales.createdAt || (inv.createdAt || 0) > prevSales.createdAt) ? inv.createdAt : prevSales.createdAt
             });
 
             // --- B. USAGE RECORDING (What is physically deducted) ---
