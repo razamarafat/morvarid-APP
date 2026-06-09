@@ -42,6 +42,10 @@ export const useAutoUpdate = () => {
 
         if (!response.ok) return;
 
+        // Guard against non-JSON responses (e.g., SPA fallback returning HTML)
+        const contentType = (response.headers.get('content-type') || '').toLowerCase();
+        if (!contentType.includes('application/json')) return;
+
         const data = await response.json();
         const serverVersion = data.version;
 

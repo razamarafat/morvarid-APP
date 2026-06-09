@@ -31,7 +31,7 @@ const generateVersionFile = () => {
     },
     configureServer(server: any) {
       server.middlewares.use((req: any, res: any, next: any) => {
-        if (req.url === '/version.json') {
+        if (req.url && req.url.split('?')[0] === '/version.json') {
           res.setHeader('Content-Type', 'application/json');
           res.end(JSON.stringify({ buildDate: Date.now(), version: appVersion + '-dev' }));
           return;

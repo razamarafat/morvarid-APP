@@ -7,6 +7,7 @@ import UserManagement from '../components/admin/UserManagement';
 import FeatureTesting from '../components/admin/FeatureTesting';
 import Reports from '../components/admin/Reports';
 import DeviceManagement from '../components/admin/DeviceManagement';
+import FactoryResetButton from '../components/admin/FactoryResetButton';
 import MetroTile from '../components/common/MetroTile';
 import { usePwaStore } from '../store/pwaStore';
 import { useToastStore } from '../store/toastStore';
@@ -212,6 +213,7 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
     };
 
     const pwaConfig = getPwaTileConfig();
+    const handleFactoryResetComplete = () => { addToast('سیستم بازنشانی شد — در حال بازآوری صفحه...', 'success'); };
 
     return (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 animate-in slide-in-from-bottom-5 duration-500">
@@ -228,6 +230,7 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
                 color={pwaConfig.color}
                 className={!isInstalled && !deferredPrompt ? "opacity-80 grayscale-[0.3]" : ""}
             />
+            <FactoryResetButton onResetComplete={handleFactoryResetComplete} />
             <VersionTile 
                 version={APP_VERSION}
                 onClick={() => addToast(`نسخه فعلی: ${APP_VERSION}`, 'info')}
