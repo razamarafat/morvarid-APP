@@ -7,7 +7,7 @@ import { useAuthStore } from '../../store/authStore';
 import { UserRole } from '../../types';
 import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange, formatJalali } from '../../utils/dateUtils';
 import { formatPlateNumber, formatPlateNumberForExcel } from '../../utils/formatUtils';
-import { compareProducts, compareFarms } from '../../utils/sortUtils';
+import { compareProducts, compareFarms, isShrinkPack } from '../../utils/sortUtils';
 import { useConfirm } from '../../hooks/useConfirm';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
@@ -218,11 +218,14 @@ const Reports: React.FC = () => {
 
     const saveStatEdit = async () => {
         if (!editingStat) return;
+        // For shrink pack products, separation is NOT included in remaining (preserves existing behavior)
+        const prodName = products.find(p => p.id === editingStat.productId)?.name || '';
+        const existingSeparation = !isShrinkPack(prodName) ? (editingStat.separationAmount || 0) : 0;
         const result = await updateStatistic(editingStat.id, {
             production: Number(statForm.prod),
             sales: Number(statForm.sales),
             previousBalance: Number(statForm.prev),
-            currentInventory: Number(statForm.prev) + Number(statForm.prod) - Number(statForm.sales),
+            currentInventory: Number(statForm.prev) + Number(statForm.prod) + existingSeparation - Number(statForm.sales),
             productionKg: Number(statForm.prodKg),
             salesKg: Number(statForm.salesKg),
             previousBalanceKg: Number(statForm.prevKg),

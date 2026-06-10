@@ -6,6 +6,9 @@ import { resolve } from 'path';
 
 export default defineConfig({
   plugins: [react()],
+  define: {
+    '__APP_VERSION__': JSON.stringify('1.0.1'),
+  },
   test: {
     globals: true,
     environment: 'jsdom',

@@ -12,7 +12,7 @@ import Button from '../common/Button';
 import { useToastStore } from '../../store/toastStore';
 import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange, formatJalali } from '../../utils/dateUtils';
 import { formatPlateNumber, formatPlateNumberForUI } from '../../utils/formatUtils';
-import { compareProducts } from '../../utils/sortUtils';
+import { compareProducts, isShrinkPack } from '../../utils/sortUtils';
 import JalaliDatePicker from '../common/JalaliDatePicker';
 import PersianNumberInput from '../common/PersianNumberInput';
 import PlateInput from '../common/PlateInput';
@@ -463,7 +463,10 @@ const RecentRecords: React.FC = () => {
             finalPrevious = prev;
             finalPreviousKg = prevKg;
 
-            finalCurrent = prev + inputVal - (targetStat.sales || 0);
+            // For shrink pack products, separation is NOT included in remaining (preserves existing behavior)
+            const productName = getProductName(targetStat.productId);
+            const effectiveSeparation = !isShrinkPack(productName) ? separationInput : 0;
+            finalCurrent = prev + inputVal + effectiveSeparation - (targetStat.sales || 0);
             finalCurrentKg = prevKg + inputValKg - (targetStat.salesKg || 0);
         }
 

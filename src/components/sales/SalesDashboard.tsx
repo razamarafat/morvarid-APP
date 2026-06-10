@@ -12,7 +12,7 @@ import { useAlertStore } from '../../store/alertStore';
 import { getTodayJalali, normalizeDate, toPersianDigits } from '../../utils/dateUtils';
 import { useSyncStore, SyncItem } from '../../store/syncStore';
 import { formatPlateNumber, formatPlateNumberForUI } from '../../utils/formatUtils';
-import { compareProducts } from '../../utils/sortUtils';
+import { compareProducts, isShrinkPack } from '../../utils/sortUtils';
 import Button from '../common/Button';
 import MetroTile from '../common/MetroTile';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -167,13 +167,16 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
                                                         const physicalUsageKg = invoiceTotals?.usageWeight ?? (stat.salesKg || 0);
 
                                                         // Calculation uses USAGE, not Display Sales
+                                                        // For shrink pack products, separation is NOT included in remaining (preserves existing behavior)
+                                                        const effectiveSeparation = !isShrinkPack(prod?.name || '') ? (stat.separationAmount || 0) : 0;
                                                         const effectiveRemaining = calculateFarmStats({
                                                             previousStock: stat.previousBalance || 0,
                                                             production: stat.production || 0,
                                                             sales: physicalUsage, // Pass USAGE here for correct remaining calculation
                                                             previousStockKg: stat.previousBalanceKg || 0,
                                                             productionKg: stat.productionKg || 0,
-                                                            salesKg: physicalUsageKg
+                                                            salesKg: physicalUsageKg,
+                                                            separationAmount: effectiveSeparation
                                                         });
 
                                                         const renderVal = (valC: number, valK: number, colorClass: string) => (

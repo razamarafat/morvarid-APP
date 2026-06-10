@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { normalizeDate } from '../utils/dateUtils';
 import { useSyncStore } from './syncStore';
 import { useAuthStore } from './authStore';
+import { useFarmStore } from './farmStore';
 import { calculateProductUsage, InvoiceItem } from '../utils/inventoryUtils';
 
 export interface DailyStatistic {
@@ -31,6 +32,7 @@ export interface DailyStatistic {
 
 import { getErrorMessage } from '../utils/errorUtils';
 import { mapLegacyProductId } from '../utils/productUtils';
+import { isShrinkPack } from '../utils/sortUtils';
 
 export const calculateFarmStats = (input: {
     previousStock: number;
@@ -39,9 +41,11 @@ export const calculateFarmStats = (input: {
     previousStockKg?: number;
     productionKg?: number;
     salesKg?: number;
+    separationAmount?: number;
 }) => {
     const previousStock = input.previousStock || 0;
     const production = input.production || 0;
+    const separation = input.separationAmount || 0;
     const totalDeduction = input.sales || 0; // Renamed for clarity: this is Total Deducted Usage
     const totalDeductionKg = input.salesKg || 0;
 
@@ -49,7 +53,7 @@ export const calculateFarmStats = (input: {
     const productionKg = input.productionKg || 0;
 
     return {
-        remaining: (previousStock + production) - totalDeduction,
+        remaining: (previousStock + production + separation) - totalDeduction,
         remainingKg: (previousStockKg + productionKg) - totalDeductionKg
     };
 };
@@ -471,8 +475,11 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
 
             if (stats) {
                 // 6. Recalculate inventory
-                // Remaining = Previous + Production - DEDUCTED
-                const remaining = (stats.previous_balance || 0) + (stats.production || 0) - totalDeducted;
+                // Remaining = Previous + Production + Separation - DEDUCTED
+                // For shrink pack products, separation is NOT included in remaining
+                const productName = useFarmStore.getState().getProductById?.(productId)?.name || '';
+                const effectiveSeparation = !isShrinkPack(productName) ? (stats.separation_amount || 0) : 0;
+                const remaining = (stats.previous_balance || 0) + (stats.production || 0) + effectiveSeparation - totalDeducted;
                 const remainingKg = (stats.previous_balance_kg || 0) + (stats.production_kg || 0) - totalDeductedKg;
 
                 // 7. Update the record

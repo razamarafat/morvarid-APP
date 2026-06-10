@@ -37,6 +37,15 @@ export const getProductRank = (name: string): number => {
 };
 
 /**
+ * Checks if a product is a shrink pack (شیرینگ پک) based on its name.
+ * Shrink packs have special handling — separation amount is NOT included in remaining.
+ */
+export const isShrinkPack = (productName: string): boolean => {
+    const n = productName.trim();
+    return (n.includes('شیرینگ') || n.includes('شیرینک')) && n.includes('۶');
+};
+
+/**
  * Comparator function for sorting Products.
  */
 export const compareProducts = (a: Product | { name: string }, b: Product | { name: string }): number => {
