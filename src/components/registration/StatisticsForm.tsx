@@ -6,7 +6,7 @@ import { useStatisticsStore } from '../../store/statisticsStore';
 import { useInvoiceStore } from '../../store/invoiceStore';
 import { useToastStore } from '../../store/toastStore';
 import { getTodayJalali, getTodayDayName, getCurrentTime, normalizeDate, toPersianDigits } from '../../utils/dateUtils';
-import { compareProducts } from '../../utils/sortUtils';
+import { compareProducts, isShrinkPack } from '../../utils/sortUtils';
 import Button from '../common/Button';
 import { useConfirm } from '../../hooks/useConfirm';
 import { Icons } from '../common/Icons';
@@ -177,6 +177,8 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
             let finalProductionKg = inputValKg;
             let finalCurrentKg = 0;
 
+            const separationVal = vals.separation === '' ? 0 : Number(vals.separation);
+
             if (isMotefereghe) {
                 finalPrevious = 0;
                 finalPreviousKg = 0;
@@ -185,11 +187,11 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                 finalProduction = inputVal + totalSales;
                 finalProductionKg = inputValKg + totalSalesKg;
             } else {
-                finalCurrent = prev + inputVal - totalSales;
+                // For shrink pack products, separation is NOT included in remaining
+                const effectiveSeparation = !isShrinkPack(prodName) ? separationVal : 0;
+                finalCurrent = prev + inputVal + effectiveSeparation - totalSales;
                 finalCurrentKg = prevKg + inputValKg - totalSalesKg;
             }
-
-            const separationVal = vals.separation === '' ? 0 : Number(vals.separation);
 
             payloads.push({
                 farmId: selectedFarmId,
