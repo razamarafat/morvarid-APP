@@ -54,7 +54,7 @@ const Reports: React.FC = () => {
     const [editingStat, setEditingStat] = useState<any | null>(null);
     const [editingInvoice, setEditingInvoice] = useState<any | null>(null);
 
-    const [statForm, setStatForm] = useState({ prod: '', sales: '', prev: '', prodKg: '', salesKg: '', prevKg: '' });
+    const [statForm, setStatForm] = useState({ prod: '', sales: '', prev: '', prodKg: '', salesKg: '', prevKg: '', separation: '' });
     const [invoiceForm, setInvoiceForm] = useState({ invoiceNumber: '', cartons: '', weight: '', driver: '', plate: '', phone: '', desc: '' });
 
     // Create State
@@ -213,24 +213,27 @@ const Reports: React.FC = () => {
             prev: f(stat.previousBalance),
             prodKg: f(stat.productionKg),
             salesKg: f(stat.salesKg),
-            prevKg: f(stat.previousBalanceKg)
+            prevKg: f(stat.previousBalanceKg),
+            separation: f(stat.separationAmount)
         });
     };
 
     const saveStatEdit = async () => {
         if (!editingStat) return;
-        // For shrink pack products, separation is NOT included in remaining (preserves existing behavior)
         const prodName = products.find(p => p.id === editingStat.productId)?.name || '';
-        const existingSeparation = !isShrinkPack(prodName) ? (editingStat.separationAmount || 0) : 0;
+        const separationFromForm = Number(statForm.separation) || 0;
+        // For shrink pack products, separation is NOT included in remaining (preserves existing behavior)
+        const effectiveSeparation = !isShrinkPack(prodName) ? separationFromForm : 0;
         const result = await updateStatistic(editingStat.id, {
             production: Number(statForm.prod),
             sales: Number(statForm.sales),
             previousBalance: Number(statForm.prev),
-            currentInventory: Number(statForm.prev) + Number(statForm.prod) + existingSeparation - Number(statForm.sales),
+            currentInventory: Number(statForm.prev) + Number(statForm.prod) + effectiveSeparation - Number(statForm.sales),
             productionKg: Number(statForm.prodKg),
             salesKg: Number(statForm.salesKg),
             previousBalanceKg: Number(statForm.prevKg),
-            currentInventoryKg: Number(statForm.prevKg) + Number(statForm.prodKg) - Number(statForm.salesKg)
+            currentInventoryKg: Number(statForm.prevKg) + Number(statForm.prodKg) - Number(statForm.salesKg),
+            separationAmount: separationFromForm
         });
         if (result.success) { setEditingStat(null); addToast('آمار ویرایش شد', 'success'); handleSearch(); }
         else addToast(result.error || 'خطا در ثبت تغییرات', 'error');
@@ -428,6 +431,10 @@ const Reports: React.FC = () => {
                     <PersianNumberInput label="تولید (Kg)" value={statForm.prodKg} onChange={v => setStatForm(s => ({ ...s, prodKg: v }))} />
                     <PersianNumberInput label="مانده قبلی (کارتن)" value={statForm.prev} onChange={v => setStatForm(s => ({ ...s, prev: v }))} />
                     <PersianNumberInput label="مانده قبلی (Kg)" value={statForm.prevKg} onChange={v => setStatForm(s => ({ ...s, prevKg: v }))} />
+                    <div className="col-span-2">
+                        <label className="block text-sm font-bold text-purple-600 dark:text-purple-400 mb-1 px-1">جداسازی (حدودی)</label>
+                        <PersianNumberInput value={statForm.separation} onChange={v => setStatForm(s => ({ ...s, separation: v }))} />
+                    </div>
                     <div className="col-span-2 mt-6 flex gap-3">
                         <Button onClick={saveStatEdit} variant="primary" className="flex-1 h-12 rounded-xl font-bold">ذخیره تغییرات</Button>
                         <Button onClick={() => setEditingStat(null)} variant="secondary" className="px-6 h-12 rounded-xl font-bold">انصراف</Button>
