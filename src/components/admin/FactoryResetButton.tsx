@@ -10,6 +10,64 @@ interface FactoryResetButtonProps {
   onResetComplete?: () => void;
 }
 
+/**
+ * Completely wipes ALL local state: localStorage, sessionStorage, IndexedDB,
+ * Cache API, and unregisters service workers.
+ * This ensures no stale auth tokens, offline profiles, or cached data survive the reset.
+ */
+async function wipeAllLocalState(): Promise<void> {
+  // 1. Sign out from Supabase (clears supabase auth tokens from localStorage)
+  try {
+    await supabase.auth.signOut();
+  } catch {
+    // Token may already be invalid after DB reset — that's expected and fine
+  }
+
+  // 2. Clear ALL localStorage (offline profiles, remember-me, activity, etc.)
+  localStorage.clear();
+
+  // 3. Clear sessionStorage (permission store, etc.)
+  sessionStorage.clear();
+
+  // 4. Delete ALL IndexedDB databases (Morvarid data stores, workbox caches, etc.)
+  if ('indexedDB' in window && 'databases' in indexedDB) {
+    try {
+      const databases = await indexedDB.databases();
+      for (const db of databases) {
+        if (db.name) {
+          indexedDB.deleteDatabase(db.name);
+        }
+      }
+    } catch {
+      // IndexedDB might not be available — non-critical
+    }
+  }
+
+  // 5. Delete all Cache API caches (service worker caches, etc.)
+  if ('caches' in window) {
+    try {
+      const cacheNames = await caches.keys();
+      for (const name of cacheNames) {
+        await caches.delete(name);
+      }
+    } catch {
+      // Non-critical
+    }
+  }
+
+  // 6. Unregister all service workers
+  if ('serviceWorker' in navigator) {
+    try {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      for (const registration of registrations) {
+        await registration.unregister();
+      }
+    } catch {
+      // Non-critical
+    }
+  }
+}
+
 const FactoryResetButton: React.FC<FactoryResetButtonProps> = ({ onResetComplete }) => {
   const [step, setStep] = useState<ResetStep>('idle');
   const [confirmText, setConfirmText] = useState('');
@@ -41,7 +99,14 @@ const FactoryResetButton: React.FC<FactoryResetButtonProps> = ({ onResetComplete
         setStep('success');
         addToast('سیستم با موفقیت بازنشانی شد', 'success');
         if (onResetComplete) onResetComplete();
-        setTimeout(() => { window.location.reload(); }, 3000);
+        
+        // CRITICAL: Wipe ALL local state before reloading.
+        // This clears offline profiles, remember-me data, Supabase auth tokens,
+        // IndexedDB, sessionStorage, caches, and service workers.
+        // Must happen BEFORE reload so no stale data survives the page refresh.
+        await wipeAllLocalState();
+        
+        setTimeout(() => { window.location.reload(); }, 1000);
       } else { throw new Error(data?.message || 'خطای ناشناخته در بازنشانی'); }
     } catch (err: any) {
       console.error('[FactoryReset] Error:', err);
@@ -143,8 +208,9 @@ const FactoryResetButton: React.FC<FactoryResetButtonProps> = ({ onResetComplete
             {resetDetails && (
               <div className="bg-gray-800 rounded-xl p-4 text-right space-y-1">
                 <p className="text-xs text-gray-500">آمار حذف شده:</p>
+                <p className="text-xs text-gray-400">حساب‌های کاربری: {resetDetails.auth_users_deleted || 0}</p>
+                <p className="text-xs text-gray-400">پروفایل‌ها: {resetDetails.profiles_deleted || 0}</p>
                 <p className="text-xs text-gray-400">فارم‌ها: {resetDetails.farms_deleted || 0}</p>
-                <p className="text-xs text-gray-400">کاربران: {resetDetails.profiles_deleted || 0}</p>
                 <p className="text-xs text-gray-400">آمار روزانه: {resetDetails.daily_statistics_deleted || 0}</p>
                 <p className="text-xs text-gray-400">حواله‌ها: {resetDetails.invoices_deleted || 0}</p>
               </div>
