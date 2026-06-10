@@ -7,6 +7,7 @@ import { useAuthStore } from '../../store/authStore';
 import { UserRole } from '../../types';
 import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange, formatJalali } from '../../utils/dateUtils';
 import { formatPlateNumber, formatPlateNumberForExcel } from '../../utils/formatUtils';
+import { getCorrectedInventory } from '../../utils/inventoryUtils';
 import { compareProducts, compareFarms, isShrinkPack } from '../../utils/sortUtils';
 import { useConfirm } from '../../hooks/useConfirm';
 import Modal from '../common/Modal';
@@ -153,7 +154,7 @@ const Reports: React.FC = () => {
                     'محصول': prod?.name,
                     'تولید (کارتن)': s.production,
                     'تولید (Kg)': s.productionKg,
-                    'موجودی': s.currentInventory,
+                    'موجودی': getCorrectedInventory(s, prod?.name).units,
                     'ثبت کننده': s.creatorName,
                     'زمان ثبت': new Date(s.createdAt).toLocaleTimeString('fa-IR')
                 };

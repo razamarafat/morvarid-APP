@@ -2,6 +2,7 @@ import React from 'react';
 import { Farm, Product, UserRole } from '../../../types';
 import { Icons } from '../../common/Icons';
 import { toPersianDigits } from '../../../utils/dateUtils';
+import { getCorrectedInventory } from '../../../utils/inventoryUtils';
 
 interface StatsTableProps {
     data: any[];
@@ -89,7 +90,10 @@ const StatsTable: React.FC<StatsTableProps> = ({
                                                 return <span className="font-black text-lg text-red-500">{toPersianDigits(row.sales || 0)} <small className="text-xs text-gray-400">کارتن</small></span>;
                                             }
                                         })()}</td>
-                                        <td className="p-3 text-center">{renderDualCell(row.currentInventory || 0, row.currentInventoryKg || 0, 'text-metro-blue', isEdited)}</td>
+                                        <td className="p-3 text-center">{(() => {
+                                            const corrected = getCorrectedInventory(row, prod?.name);
+                                            return renderDualCell(corrected.units, corrected.kg, 'text-metro-blue', isEdited);
+                                        })()}</td>
                                         <td className="p-3">
                                             <div className="flex flex-col gap-1">
                                                 <div className="flex items-center justify-center gap-2">

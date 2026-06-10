@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { calculateFarmStats } from '../statisticsStore';
 import { isShrinkPack } from '../../utils/sortUtils';
+import { getCorrectedInventory } from '../../utils/inventoryUtils';
 
 describe('calculateFarmStats', () => {
   it('should include separationAmount in remaining for non-shrink-pack products', () => {
@@ -64,6 +65,51 @@ describe('calculateFarmStats', () => {
     });
     expect(result.remainingKg).toBe(13); // 10 + 5 - 2 = 13
     expect(result.remaining).toBe(0);
+  });
+});
+
+describe('getCorrectedInventory', () => {
+  it('should include separation for non-shrink-pack products when productName is given', () => {
+    const result = getCorrectedInventory({
+      previousBalance: 1,
+      production: 1,
+      separationAmount: 1,
+      sales: 0,
+    }, 'کودی');
+    expect(result.units).toBe(3);
+  });
+
+  it('should exclude separation for shrink pack products', () => {
+    const result = getCorrectedInventory({
+      previousBalance: 1,
+      production: 1,
+      separationAmount: 1,
+      sales: 0,
+    }, 'شیرینگ پک ۶ شانه ساده');
+    expect(result.units).toBe(2); // separation excluded for shrink pack
+  });
+
+  it('should include separation when no productName is provided', () => {
+    const result = getCorrectedInventory({
+      previousBalance: 1,
+      production: 1,
+      separationAmount: 1,
+      sales: 0,
+    });
+    expect(result.units).toBe(3);
+  });
+
+  it('should handle kg correctly', () => {
+    const result = getCorrectedInventory({
+      previousBalance: 0,
+      production: 0,
+      sales: 0,
+      previousBalanceKg: 10,
+      productionKg: 5,
+      salesKg: 2,
+    });
+    expect(result.kg).toBe(13);
+    expect(result.units).toBe(0);
   });
 });
 

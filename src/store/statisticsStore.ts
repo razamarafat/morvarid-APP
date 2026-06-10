@@ -33,6 +33,7 @@ export interface DailyStatistic {
 import { getErrorMessage } from '../utils/errorUtils';
 import { mapLegacyProductId } from '../utils/productUtils';
 import { isShrinkPack } from '../utils/sortUtils';
+import { getCorrectedInventory } from '../utils/inventoryUtils';
 
 export const calculateFarmStats = (input: {
     previousStock: number;
@@ -437,7 +438,11 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
         if (stats.length === 0) return { units: 0, kg: 0 };
         // Sort by date descending to get true latest
         const sorted = [...stats].sort((a, b) => b.date.localeCompare(a.date));
-        return { units: sorted[0].currentInventory || 0, kg: sorted[0].currentInventoryKg || 0 };
+        // Compute on-the-fly for correct value (handles old records missing separation)
+        const latest = sorted[0];
+        const productName = useFarmStore.getState().getProductById?.(productId)?.name || '';
+        const corrected = getCorrectedInventory(latest, productName);
+        return { units: corrected.units, kg: corrected.kg };
     },
 
     syncSalesFromInvoices: async (farmId, date, productId) => {

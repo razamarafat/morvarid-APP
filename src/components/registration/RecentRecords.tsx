@@ -13,6 +13,7 @@ import { useToastStore } from '../../store/toastStore';
 import { toPersianDigits, getTodayJalali, normalizeDate, isDateInRange, formatJalali } from '../../utils/dateUtils';
 import { formatPlateNumber, formatPlateNumberForUI } from '../../utils/formatUtils';
 import { compareProducts, isShrinkPack } from '../../utils/sortUtils';
+import { getCorrectedInventory } from '../../utils/inventoryUtils';
 import JalaliDatePicker from '../common/JalaliDatePicker';
 import PersianNumberInput from '../common/PersianNumberInput';
 import PlateInput from '../common/PlateInput';
@@ -84,7 +85,7 @@ const StatRecordCard = ({ stat, getProductName, canEdit, onEdit, onDelete, farmT
                     </div>
                     <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800">
                         <span className="block text-[8px] lg:text-[10px] text-blue-400 font-bold mb-1">مانده</span>
-                        <span className="font-black text-xs lg:text-xl text-blue-700 dark:text-blue-300">{toPersianDigits(stat.currentInventory)}</span>
+                        <span className="font-black text-xs lg:text-xl text-blue-700 dark:text-blue-300">{toPersianDigits(getCorrectedInventory(stat, prodName).units)}</span>
                     </div>
                 </div>
             ) : (
@@ -99,7 +100,7 @@ const StatRecordCard = ({ stat, getProductName, canEdit, onEdit, onDelete, farmT
                     </div>
                     <div className={`p-2 lg:p-4 rounded-lg lg:rounded-2xl ${isOffline ? 'bg-orange-100/10' : isPending ? 'bg-blue-100/10' : 'bg-blue-50 dark:bg-blue-900/10'}`}>
                         <span className="block text-[9px] lg:text-xs text-blue-300 font-bold mb-1">موجودی</span>
-                        <span className="font-black text-sm lg:text-2xl text-black dark:text-white">{toPersianDigits(stat.currentInventory)}</span>
+                        <span className="font-black text-sm lg:text-2xl text-black dark:text-white">{toPersianDigits(getCorrectedInventory(stat, prodName).units)}</span>
                     </div>
                 </div>
             )}
@@ -553,7 +554,7 @@ const RecentRecords: React.FC = () => {
         );
 
         if (statRecord) {
-            let availableStock = statRecord.currentInventory;
+            let availableStock = getCorrectedInventory(statRecord, getProductName(targetProductId)).units;
 
             // If product didn't change, we effectively "have" the old quantity too (it's currently deducted, so we add it back to available)
             if (targetProductId === selectedInvoice.productId) {
@@ -651,9 +652,12 @@ const RecentRecords: React.FC = () => {
             s.productId === addItemProductId
         );
 
-        if (statRecord && statRecord.currentInventory < cartons) {
-            addToast(`موجودی کافی نیست. موجود: ${statRecord.currentInventory}`, 'error');
-            return;
+        if (statRecord) {
+            const correctedStock = getCorrectedInventory(statRecord, getProductName(addItemProductId)).units;
+            if (correctedStock < cartons) {
+                addToast(`موجودی کافی نیست. موجود: ${correctedStock}`, 'error');
+                return;
+            }
         }
 
         setAddItemLoading(true);

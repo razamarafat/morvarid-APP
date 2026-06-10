@@ -1,4 +1,6 @@
 
+import { isShrinkPack } from './sortUtils';
+
 export interface InvoiceItem {
     id?: string;
     product_id: string; // The product BEING SOLD (e.g., Simple)
@@ -8,6 +10,45 @@ export interface InvoiceItem {
     converted_amount?: number | null;
     is_converted?: boolean | null;
 }
+
+/**
+ * Computes the CORRECTED remaining inventory on-the-fly.
+ * 
+ * For non-shrink-pack products: remaining = previousBalance + production + separationAmount - sales
+ * For shrink pack products: remaining = previousBalance + production - sales (separation excluded)
+ * 
+ * This should be used for ALL display purposes instead of the stored currentInventory,
+ * because old records in the database may have currentInventory computed without separation.
+ */
+export const getCorrectedInventory = (stat: {
+    previousBalance?: number;
+    production?: number;
+    sales?: number;
+    separationAmount?: number;
+    currentInventory?: number;
+    currentInventoryKg?: number;
+    previousBalanceKg?: number;
+    productionKg?: number;
+    salesKg?: number;
+}, productName?: string): { units: number; kg: number } => {
+    const prev = stat.previousBalance || 0;
+    const prod = stat.production || 0;
+    const sales = stat.sales || 0;
+    const prevKg = stat.previousBalanceKg || 0;
+    const prodKg = stat.productionKg || 0;
+    const salesKg = stat.salesKg || 0;
+
+    // Determine if this is a shrink pack (separation excluded)
+    let sep = stat.separationAmount || 0;
+    if (productName && isShrinkPack(productName)) {
+        sep = 0;
+    }
+
+    return {
+        units: prev + prod + sep - sales,
+        kg: prevKg + prodKg - salesKg
+    };
+};
 
 /**
  * Calculates how much of a specific product was "used" or "deducted" from inventory

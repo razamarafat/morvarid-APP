@@ -9,6 +9,7 @@ import { useInvoiceStore } from '../../store/invoiceStore';
 import { useStatisticsStore } from '../../store/statisticsStore';
 import { useToastStore } from '../../store/toastStore';
 import { getTodayJalali, getTodayDayName, getCurrentTime, normalizeDate, toPersianDigits } from '../../utils/dateUtils';
+import { getCorrectedInventory } from '../../utils/inventoryUtils';
 import { compareProducts } from '../../utils/sortUtils';
 import Button from '../common/Button';
 import { Icons } from '../common/Icons';
@@ -323,7 +324,7 @@ export const InvoiceForm: React.FC = () => {
 
             // --- Inventory Conversion Logic (Split Item Strategy) ---
             const isSimpleProduct = name.includes('ساده') || name.toLowerCase().includes('simple');
-            const currentStock = statRecord ? (statRecord.currentInventory || 0) : 0;
+            const currentStock = statRecord ? getCorrectedInventory(statRecord, name).units : 0;
 
             // If no stats AND not a simple product, we must block
             if (!statRecord && !isSimpleProduct) {
@@ -346,7 +347,8 @@ export const InvoiceForm: React.FC = () => {
 
                     // Check if Printable has enough stock to cover the DEFICIT
                     const deficit = cartonsVal - currentStock;
-                    const printableStock = printableStat?.currentInventory || 0;
+                    const printableName = printableProduct?.name || '';
+                    const printableStock = printableStat ? getCorrectedInventory(printableStat, printableName).units : 0;
 
                     if (printableStat && printableStock >= deficit) {
                         const convertConfirmed = await confirm({
