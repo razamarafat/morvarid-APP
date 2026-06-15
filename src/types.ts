@@ -122,6 +122,8 @@ export interface SalesVoucher {
   customerPhone?: string;
   vehiclePlate?: string;
   deliveryAddress?: string;
+  driverName?: string;
+  driverPhone?: string;
   inventoryApplied: boolean;
   cancelledBy?: string;
   cancelledAt?: string;
@@ -159,9 +161,9 @@ export interface CreateSalesVoucherInput {
   notes?: string;
   totalAmount?: number;
   customerName?: string;
-  customerPhone?: string;
   vehiclePlate?: string;
-  deliveryAddress?: string;
+  driverName?: string;
+  driverPhone?: string;
   lines: CreateSalesVoucherLineInput[];
 }
 
@@ -178,9 +180,9 @@ export interface UpdateSalesVoucherInput {
   notes?: string;
   totalAmount?: number;
   customerName?: string;
-  customerPhone?: string;
   vehiclePlate?: string;
-  deliveryAddress?: string;
+  driverName?: string;
+  driverPhone?: string;
   lines?: CreateSalesVoucherLineInput[];
 }
 

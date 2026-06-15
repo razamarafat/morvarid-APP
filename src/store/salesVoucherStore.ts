@@ -118,6 +118,8 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
           customerPhone: v.customer_phone,
           vehiclePlate: v.vehicle_plate,
           deliveryAddress: v.delivery_address,
+          driverName: v.driver_name,
+          driverPhone: v.driver_phone,
           inventoryApplied: v.inventory_applied || false,
           cancelledBy: v.cancelled_by,
           cancelledAt: v.cancelled_at,
@@ -198,6 +200,8 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
         customerPhone: voucher.customer_phone,
         vehiclePlate: voucher.vehicle_plate,
         deliveryAddress: voucher.delivery_address,
+        driverName: voucher.driver_name,
+        driverPhone: voucher.driver_phone,
         inventoryApplied: voucher.inventory_applied || false,
         cancelledBy: voucher.cancelled_by,
         cancelledAt: voucher.cancelled_at,
@@ -240,9 +244,9 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
           notes: input.notes || null,
           total_amount: input.totalAmount || null,
           customer_name: input.customerName || null,
-          customer_phone: input.customerPhone || null,
           vehicle_plate: input.vehiclePlate || null,
-          delivery_address: input.deliveryAddress || null,
+          driver_name: input.driverName || null,
+          driver_phone: input.driverPhone || null,
         })
         .select('id, voucher_number')
         .single();
@@ -302,9 +306,9 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
       if (input.notes !== undefined) dbUpdates.notes = input.notes;
       if (input.totalAmount !== undefined) dbUpdates.total_amount = input.totalAmount;
       if (input.customerName !== undefined) dbUpdates.customer_name = input.customerName;
-      if (input.customerPhone !== undefined) dbUpdates.customer_phone = input.customerPhone;
       if (input.vehiclePlate !== undefined) dbUpdates.vehicle_plate = input.vehiclePlate;
-      if (input.deliveryAddress !== undefined) dbUpdates.delivery_address = input.deliveryAddress;
+      if (input.driverName !== undefined) dbUpdates.driver_name = input.driverName;
+      if (input.driverPhone !== undefined) dbUpdates.driver_phone = input.driverPhone;
 
       if (Object.keys(dbUpdates).length > 0) {
         const { error: updateError } = await supabase

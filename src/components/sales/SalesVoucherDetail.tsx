@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSalesVoucherStore } from '../../store/salesVoucherStore';
 import { useFarmStore } from '../../store/farmStore';
+import { useAuthStore } from '../../store/authStore';
 import { Icons } from '../common/Icons';
 import { toPersianDigits } from '../../utils/dateUtils';
 import { SALES_VOUCHER_STATUS_LABELS, SALES_VOUCHER_STATUS_COLORS } from '../../constants';
@@ -16,16 +17,39 @@ interface SalesVoucherDetailProps {
 const SalesVoucherDetail: React.FC<SalesVoucherDetailProps> = ({ voucherId, onBack, readOnly = false, onCopyToInvoice }) => {
   const { currentVoucher, isLoading, fetchSalesVoucherById, clearCurrentVoucher } = useSalesVoucherStore();
   const { getProductById, farms } = useFarmStore();
+  const { user } = useAuthStore();
+  const [accessDenied, setAccessDenied] = useState(false);
 
   useEffect(() => {
     fetchSalesVoucherById(voucherId);
     return () => clearCurrentVoucher();
   }, [voucherId]);
 
+  // Check farm access for operators (Issue 1 fix)
+  useEffect(() => {
+    setAccessDenied(false); // Reset on every voucher change
+    if (currentVoucher && user && user.role !== 'ADMIN' && user.role !== 'SALES') {
+      const userFarmIds = (user.assignedFarms || []).map(f => f.id);
+      if (!userFarmIds.includes(currentVoucher.farmId)) {
+        setAccessDenied(true);
+      }
+    }
+  }, [currentVoucher, user]);
+
   if (isLoading || !currentVoucher) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet-500"></div>
+      </div>
+    );
+  }
+
+  if (accessDenied) {
+    return (
+      <div className="text-center py-20">
+        <Icons.AlertTriangle className="w-16 h-16 mx-auto mb-4 text-amber-400" />
+        <p className="text-gray-500 font-bold text-lg">شما به این حواله دسترسی ندارید.</p>
+        <Button onClick={onBack} variant="secondary" className="mt-6">بازگشت</Button>
       </div>
     );
   }
@@ -83,7 +107,7 @@ const SalesVoucherDetail: React.FC<SalesVoucherDetailProps> = ({ voucherId, onBa
         <div className="bg-white dark:bg-gray-800 p-5 rounded-[20px] shadow-sm border border-gray-100 dark:border-gray-700">
           <h3 className="font-black text-sm text-gray-500 dark:text-gray-400 mb-4 flex items-center gap-2">
             <Icons.User className="w-4 h-4" />
-            اطلاعات مشتری
+            انتخاب خریدار
           </h3>
           <div className="space-y-3">
             <div className="flex justify-between">
@@ -91,16 +115,26 @@ const SalesVoucherDetail: React.FC<SalesVoucherDetailProps> = ({ voucherId, onBa
               <span className="font-bold text-gray-800 dark:text-white">{voucher.customerName || '---'}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-400 text-xs font-bold">شماره تماس</span>
-              <span className="font-bold text-gray-800 dark:text-white" dir="ltr">{voucher.customerPhone || '---'}</span>
-            </div>
-            <div className="flex justify-between">
               <span className="text-gray-400 text-xs font-bold">پلاک خودرو</span>
               <span className="font-bold text-gray-800 dark:text-white">{voucher.vehiclePlate || '---'}</span>
             </div>
+          </div>
+        </div>
+
+        {/* Transport Info */}
+        <div className="bg-white dark:bg-gray-800 p-5 rounded-[20px] shadow-sm border border-gray-100 dark:border-gray-700">
+          <h3 className="font-black text-sm text-gray-500 dark:text-gray-400 mb-4 flex items-center gap-2">
+            <Icons.Send className="w-4 h-4" />
+            اطلاعات حمل و نقل
+          </h3>
+          <div className="space-y-3">
             <div className="flex justify-between">
-              <span className="text-gray-400 text-xs font-bold">آدرس تحویل</span>
-              <span className="font-bold text-gray-800 dark:text-white text-left max-w-[200px]">{voucher.deliveryAddress || '---'}</span>
+              <span className="text-gray-400 text-xs font-bold">نام راننده</span>
+              <span className="font-bold text-gray-800 dark:text-white">{voucher.driverName || '---'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400 text-xs font-bold">شماره تماس</span>
+              <span className="font-bold text-gray-800 dark:text-white" dir="ltr">{voucher.driverPhone || '---'}</span>
             </div>
           </div>
         </div>

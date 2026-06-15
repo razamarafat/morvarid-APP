@@ -25,9 +25,9 @@ const salesVoucherSchema = z.object({
   farmId: z.string().min(1, 'انتخاب فارم الزامی است'),
   voucherDate: z.string().min(1, 'تاریخ الزامی است'),
   customerName: z.string().optional(),
-  customerPhone: z.string().optional(),
   vehiclePlate: z.string().optional(),
-  deliveryAddress: z.string().optional(),
+  driverName: z.string().optional(),
+  driverPhone: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -71,9 +71,9 @@ const SalesVoucherForm: React.FC<SalesVoucherFormProps> = ({ onNavigate, editVou
     defaultValues: {
       voucherDate: normalizedToday,
       customerName: '',
-      customerPhone: '',
       vehiclePlate: '',
-      deliveryAddress: '',
+      driverName: '',
+      driverPhone: '',
       notes: '',
       farmId: '',
     },
@@ -95,9 +95,9 @@ const SalesVoucherForm: React.FC<SalesVoucherFormProps> = ({ onNavigate, editVou
       setValue('farmId', currentVoucher.farmId);
       setValue('voucherDate', currentVoucher.voucherDate);
       setValue('customerName', currentVoucher.customerName || '');
-      setValue('customerPhone', currentVoucher.customerPhone || '');
       setValue('vehiclePlate', currentVoucher.vehiclePlate || '');
-      setValue('deliveryAddress', currentVoucher.deliveryAddress || '');
+      setValue('driverName', currentVoucher.driverName || '');
+      setValue('driverPhone', currentVoucher.driverPhone || '');
       setValue('notes', currentVoucher.notes || '');
       setSelectedFarmId(currentVoucher.farmId);
 
@@ -204,9 +204,9 @@ const SalesVoucherForm: React.FC<SalesVoucherFormProps> = ({ onNavigate, editVou
       voucherDate: normalizeDate(data.voucherDate),
       notes: data.notes,
       customerName: data.customerName,
-      customerPhone: data.customerPhone,
       vehiclePlate: data.vehiclePlate,
-      deliveryAddress: data.deliveryAddress,
+      driverName: data.driverName,
+      driverPhone: data.driverPhone,
       totalAmount: totals.totalAmount || undefined,
       lines: lines.map(l => ({
         productId: l.productId,
@@ -295,9 +295,9 @@ const SalesVoucherForm: React.FC<SalesVoucherFormProps> = ({ onNavigate, editVou
       voucherDate: normalizeDate(data.voucherDate),
       notes: data.notes,
       customerName: data.customerName,
-      customerPhone: data.customerPhone,
       vehiclePlate: data.vehiclePlate,
-      deliveryAddress: data.deliveryAddress,
+      driverName: data.driverName,
+      driverPhone: data.driverPhone,
       totalAmount: totals.totalAmount || undefined,
       lines: lines.map(l => ({
         productId: l.productId,
@@ -340,7 +340,7 @@ const SalesVoucherForm: React.FC<SalesVoucherFormProps> = ({ onNavigate, editVou
   };
 
   const handleCancel = async () => {
-    const formDirty = lines.length > 0 || watch('customerName') || watch('customerPhone');
+    const formDirty = lines.length > 0 || watch('customerName') || watch('driverName');
     if (formDirty) {
       const confirmed = await confirm({
         title: 'انصراف',
@@ -393,7 +393,7 @@ const SalesVoucherForm: React.FC<SalesVoucherFormProps> = ({ onNavigate, editVou
         <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 border-r-[8px] border-r-violet-500">
           <h3 className="font-black text-xl mb-6 text-gray-800 dark:text-white flex items-center gap-2">
             <Icons.Home className="w-6 h-6 text-violet-500" />
-            اطلاعات پایه
+            انتخاب محل فروش
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -428,7 +428,7 @@ const SalesVoucherForm: React.FC<SalesVoucherFormProps> = ({ onNavigate, editVou
         <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 border-r-[8px] border-r-violet-400">
           <h3 className="font-black text-xl mb-6 text-gray-800 dark:text-white flex items-center gap-2">
             <Icons.User className="w-6 h-6 text-violet-400" />
-            اطلاعات مشتری
+            انتخاب خریدار
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -440,9 +440,35 @@ const SalesVoucherForm: React.FC<SalesVoucherFormProps> = ({ onNavigate, editVou
               />
             </div>
             <div>
+              <label className={labelClass}>شماره پلاک خودرو</label>
+              <Input
+                {...register('vehiclePlate')}
+                className={inputClass}
+                placeholder="شماره پلاک"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Transport Info Section */}
+        <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 border-r-[8px] border-r-violet-400">
+          <h3 className="font-black text-xl mb-6 text-gray-800 dark:text-white flex items-center gap-2">
+            <Icons.Send className="w-6 h-6 text-violet-400" />
+            اطلاعات حمل و نقل
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className={labelClass}>نام راننده</label>
+              <Input
+                {...register('driverName')}
+                className={inputClass}
+                placeholder="نام راننده"
+              />
+            </div>
+            <div>
               <label className={labelClass}>شماره تماس</label>
               <Controller
-                name="customerPhone"
+                name="driverPhone"
                 control={control}
                 render={({ field }) => (
                   <PersianNumberInput
@@ -454,22 +480,6 @@ const SalesVoucherForm: React.FC<SalesVoucherFormProps> = ({ onNavigate, editVou
                     placeholder="۰۹xxxxxxxxx"
                   />
                 )}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>شماره پلاک خودرو</label>
-              <Input
-                {...register('vehiclePlate')}
-                className={inputClass}
-                placeholder="شماره پلاک"
-              />
-            </div>
-            <div>
-              <label className={labelClass}>آدرس تحویل</label>
-              <Input
-                {...register('deliveryAddress')}
-                className={inputClass}
-                placeholder="آدرس تحویل بار"
               />
             </div>
           </div>
