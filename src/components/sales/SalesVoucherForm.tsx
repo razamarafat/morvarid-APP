@@ -24,10 +24,11 @@ import { UserRole } from '../../types';
 const salesVoucherSchema = z.object({
   farmId: z.string().min(1, 'انتخاب فارم الزامی است'),
   voucherDate: z.string().min(1, 'تاریخ الزامی است'),
-  customerName: z.string().optional(),
+  voucherNumber: z.string().min(1, 'شماره حواله الزامی است'),
+  customerName: z.string().min(1, 'نام خریدار الزامی است'),
+  driverName: z.string().min(1, 'نام راننده الزامی است'),
+  driverPhone: z.string().min(1, 'شماره تماس راننده الزامی است'),
   vehiclePlate: z.string().optional(),
-  driverName: z.string().optional(),
-  driverPhone: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -70,10 +71,11 @@ const SalesVoucherForm: React.FC<SalesVoucherFormProps> = ({ onNavigate, editVou
     resolver: zodResolver(salesVoucherSchema),
     defaultValues: {
       voucherDate: normalizedToday,
+      voucherNumber: '',
       customerName: '',
-      vehiclePlate: '',
       driverName: '',
       driverPhone: '',
+      vehiclePlate: '',
       notes: '',
       farmId: '',
     },
@@ -94,6 +96,7 @@ const SalesVoucherForm: React.FC<SalesVoucherFormProps> = ({ onNavigate, editVou
     if (isEditMode && currentVoucher) {
       setValue('farmId', currentVoucher.farmId);
       setValue('voucherDate', currentVoucher.voucherDate);
+      setValue('voucherNumber', currentVoucher.voucherNumber || '');
       setValue('customerName', currentVoucher.customerName || '');
       setValue('vehiclePlate', currentVoucher.vehiclePlate || '');
       setValue('driverName', currentVoucher.driverName || '');
@@ -202,6 +205,7 @@ const SalesVoucherForm: React.FC<SalesVoucherFormProps> = ({ onNavigate, editVou
     const input = {
       farmId: data.farmId,
       voucherDate: normalizeDate(data.voucherDate),
+      voucherNumber: data.voucherNumber,
       notes: data.notes,
       customerName: data.customerName,
       vehiclePlate: data.vehiclePlate,
@@ -293,6 +297,7 @@ const SalesVoucherForm: React.FC<SalesVoucherFormProps> = ({ onNavigate, editVou
     const input = {
       farmId: data.farmId,
       voucherDate: normalizeDate(data.voucherDate),
+      voucherNumber: data.voucherNumber,
       notes: data.notes,
       customerName: data.customerName,
       vehiclePlate: data.vehiclePlate,
@@ -424,7 +429,7 @@ const SalesVoucherForm: React.FC<SalesVoucherFormProps> = ({ onNavigate, editVou
           </div>
         </div>
 
-        {/* Customer Info Section */}
+        {/* Buyer Info Section */}
         <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 border-r-[8px] border-r-violet-400">
           <h3 className="font-black text-xl mb-6 text-gray-800 dark:text-white flex items-center gap-2">
             <Icons.User className="w-6 h-6 text-violet-400" />
@@ -432,20 +437,23 @@ const SalesVoucherForm: React.FC<SalesVoucherFormProps> = ({ onNavigate, editVou
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className={labelClass}>نام مشتری</label>
+              <label className={labelClass}>نام مشتری <span className="text-red-500">*</span></label>
               <Input
                 {...register('customerName')}
                 className={inputClass}
                 placeholder="نام خریدار"
               />
+              {errors.customerName && <p className="text-red-500 text-xs font-bold mt-2 mr-1">{errors.customerName.message}</p>}
             </div>
             <div>
-              <label className={labelClass}>شماره پلاک خودرو</label>
+              <label className={labelClass}>شماره حواله <span className="text-red-500">*</span></label>
               <Input
-                {...register('vehiclePlate')}
+                {...register('voucherNumber')}
                 className={inputClass}
-                placeholder="شماره پلاک"
+                placeholder="شماره حواله را وارد کنید"
+                readOnly={isEditMode}
               />
+              {errors.voucherNumber && <p className="text-red-500 text-xs font-bold mt-2 mr-1">{errors.voucherNumber.message}</p>}
             </div>
           </div>
         </div>
@@ -458,15 +466,16 @@ const SalesVoucherForm: React.FC<SalesVoucherFormProps> = ({ onNavigate, editVou
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className={labelClass}>نام راننده</label>
+              <label className={labelClass}>نام راننده <span className="text-red-500">*</span></label>
               <Input
                 {...register('driverName')}
                 className={inputClass}
                 placeholder="نام راننده"
               />
+              {errors.driverName && <p className="text-red-500 text-xs font-bold mt-2 mr-1">{errors.driverName.message}</p>}
             </div>
             <div>
-              <label className={labelClass}>شماره تماس</label>
+              <label className={labelClass}>شماره تماس <span className="text-red-500">*</span></label>
               <Controller
                 name="driverPhone"
                 control={control}
@@ -480,6 +489,15 @@ const SalesVoucherForm: React.FC<SalesVoucherFormProps> = ({ onNavigate, editVou
                     placeholder="۰۹xxxxxxxxx"
                   />
                 )}
+              />
+              {errors.driverPhone && <p className="text-red-500 text-xs font-bold mt-2 mr-1">{errors.driverPhone.message}</p>}
+            </div>
+            <div>
+              <label className={labelClass}>شماره پلاک خودرو</label>
+              <Input
+                {...register('vehiclePlate')}
+                className={inputClass}
+                placeholder="شماره پلاک"
               />
             </div>
           </div>

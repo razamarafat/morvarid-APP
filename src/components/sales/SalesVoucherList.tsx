@@ -300,8 +300,8 @@ const SalesVoucherList: React.FC<SalesVoucherListProps> = ({ onNavigate, onEditV
                             <Icons.Eye className="w-4 h-4" />
                           </button>
 
-                          {/* Edit button - only for draft vouchers, sales users */}
-                          {!readOnly && voucher.status === 'draft' && isSales && (
+                          {/* Edit button - only for draft vouchers, by creator */}
+                          {!readOnly && voucher.status === 'draft' && isSales && voucher.createdBy === user?.id && (
                             <button
                               onClick={() => handleEdit(voucher.id)}
                               className="p-2 rounded-lg bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 hover:bg-violet-200 transition-colors"
@@ -311,8 +311,8 @@ const SalesVoucherList: React.FC<SalesVoucherListProps> = ({ onNavigate, onEditV
                             </button>
                           )}
 
-                          {/* Submit button - only for draft vouchers, sales users */}
-                          {!readOnly && voucher.status === 'draft' && isSales && (
+                          {/* Submit button - only for draft vouchers, by creator */}
+                          {!readOnly && voucher.status === 'draft' && isSales && voucher.createdBy === user?.id && (
                             <button
                               onClick={() => handleSubmit(voucher)}
                               className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 transition-colors"
@@ -322,8 +322,8 @@ const SalesVoucherList: React.FC<SalesVoucherListProps> = ({ onNavigate, onEditV
                             </button>
                           )}
 
-                          {/* Cancel button - admin only */}
-                          {isAdmin && (voucher.status === 'submitted' || voucher.status === 'draft') && (
+                          {/* Cancel button - admin or sales owner */}
+                          {(isAdmin || (isSales && voucher.createdBy === user?.id)) && (voucher.status === 'submitted' || voucher.status === 'draft') && (
                             <button
                               onClick={() => handleCancel(voucher)}
                               className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 transition-colors"
@@ -333,8 +333,8 @@ const SalesVoucherList: React.FC<SalesVoucherListProps> = ({ onNavigate, onEditV
                             </button>
                           )}
 
-                          {/* Delete button - admin only, draft only */}
-                          {isAdmin && voucher.status === 'draft' && (
+                          {/* Delete button - admin or sales owner on draft */}
+                          {(isAdmin || (isSales && voucher.createdBy === user?.id)) && voucher.status === 'draft' && (
                             <button
                               onClick={() => handleDelete(voucher)}
                               className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 transition-colors"

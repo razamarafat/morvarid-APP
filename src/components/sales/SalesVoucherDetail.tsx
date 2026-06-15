@@ -103,7 +103,7 @@ const SalesVoucherDetail: React.FC<SalesVoucherDetailProps> = ({ voucherId, onBa
 
       {/* Voucher Info Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Customer Info */}
+        {/* Buyer Info */}
         <div className="bg-white dark:bg-gray-800 p-5 rounded-[20px] shadow-sm border border-gray-100 dark:border-gray-700">
           <h3 className="font-black text-sm text-gray-500 dark:text-gray-400 mb-4 flex items-center gap-2">
             <Icons.User className="w-4 h-4" />
@@ -115,8 +115,8 @@ const SalesVoucherDetail: React.FC<SalesVoucherDetailProps> = ({ voucherId, onBa
               <span className="font-bold text-gray-800 dark:text-white">{voucher.customerName || '---'}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-400 text-xs font-bold">پلاک خودرو</span>
-              <span className="font-bold text-gray-800 dark:text-white">{voucher.vehiclePlate || '---'}</span>
+              <span className="text-gray-400 text-xs font-bold">شماره حواله</span>
+              <span className="font-bold text-violet-600 dark:text-violet-400">{toPersianDigits(voucher.voucherNumber)}</span>
             </div>
           </div>
         </div>
@@ -135,6 +135,10 @@ const SalesVoucherDetail: React.FC<SalesVoucherDetailProps> = ({ voucherId, onBa
             <div className="flex justify-between">
               <span className="text-gray-400 text-xs font-bold">شماره تماس</span>
               <span className="font-bold text-gray-800 dark:text-white" dir="ltr">{voucher.driverPhone || '---'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400 text-xs font-bold">شماره پلاک</span>
+              <span className="font-bold text-gray-800 dark:text-white">{voucher.vehiclePlate || '---'}</span>
             </div>
           </div>
         </div>

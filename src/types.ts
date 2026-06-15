@@ -158,6 +158,7 @@ export type SalesVoucherWithLines = SalesVoucher & {
 export interface CreateSalesVoucherInput {
   farmId: string;
   voucherDate: string;
+  voucherNumber: string;
   notes?: string;
   totalAmount?: number;
   customerName?: string;
