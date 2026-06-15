@@ -143,7 +143,7 @@ const SalesVoucherDetail: React.FC<SalesVoucherDetailProps> = ({ voucherId, onBa
           </div>
         </div>
 
-        {/* Status Info */}
+        {/* Status & Audit Info */}
         <div className="bg-white dark:bg-gray-800 p-5 rounded-[20px] shadow-sm border border-gray-100 dark:border-gray-700">
           <h3 className="font-black text-sm text-gray-500 dark:text-gray-400 mb-4 flex items-center gap-2">
             <Icons.Info className="w-4 h-4" />
@@ -176,6 +176,39 @@ const SalesVoucherDetail: React.FC<SalesVoucherDetailProps> = ({ voucherId, onBa
             </div>
           </div>
         </div>
+
+        {/* Audit Info */}
+        {voucher.updatedAt && new Date(voucher.updatedAt).getTime() > new Date(voucher.createdAt).getTime() + 2000 && (
+          <div className="bg-white dark:bg-gray-800 p-5 rounded-[20px] shadow-sm border border-amber-100 dark:border-amber-900/30">
+            <h3 className="font-black text-sm text-amber-600 dark:text-amber-400 mb-4 flex items-center gap-2">
+              <Icons.Edit className="w-4 h-4" />
+              تاریخچه ویرایش
+            </h3>
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-gray-400 text-xs font-bold">آخرین ویرایش</span>
+                <span className="font-bold text-gray-800 dark:text-white">
+                  {toPersianDigits(new Date(voucher.updatedAt).toLocaleDateString('fa-IR'))} ساعت {toPersianDigits(new Date(voucher.updatedAt).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }))}
+                </span>
+              </div>
+              {voucher.editorName && (
+                <div className="flex justify-between">
+                  <span className="text-gray-400 text-xs font-bold">ویرایش توسط</span>
+                  <span className="font-bold text-amber-700 dark:text-amber-400">{voucher.editorName}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        {(!voucher.updatedAt || new Date(voucher.updatedAt).getTime() <= new Date(voucher.createdAt).getTime() + 2000) && (
+          <div className="bg-white dark:bg-gray-800 p-5 rounded-[20px] shadow-sm border border-green-100 dark:border-green-900/30">
+            <h3 className="font-black text-sm text-green-600 dark:text-green-400 mb-4 flex items-center gap-2">
+              <Icons.Check className="w-4 h-4" />
+              وضعیت ویرایش
+            </h3>
+            <p className="text-green-700 dark:text-green-300 text-sm font-bold">این حواله تاکنون ویرایش نشده است.</p>
+          </div>
+        )}
       </div>
 
       {/* Lines Table */}

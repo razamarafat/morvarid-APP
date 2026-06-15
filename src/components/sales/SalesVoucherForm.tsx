@@ -91,9 +91,21 @@ const SalesVoucherForm: React.FC<SalesVoucherFormProps> = ({ onNavigate, editVou
     };
   }, [editVoucherId]);
 
-  // Populate form when voucher loads in edit mode
+  // Populate form when voucher loads in edit mode + route-level protection
   useEffect(() => {
     if (isEditMode && currentVoucher) {
+      // Route-level protection: verify ownership and draft status
+      if (currentVoucher.status !== 'draft') {
+        addToast('فقط حواله‌های پیش‌نویس قابل ویرایش هستند.', 'error');
+        onNavigate('sales-vouchers');
+        return;
+      }
+      if (user && user.role !== 'ADMIN' && currentVoucher.createdBy !== user.id) {
+        addToast('شما مجاز به ویرایش این حواله نیستید.', 'error');
+        onNavigate('sales-vouchers');
+        return;
+      }
+
       setValue('farmId', currentVoucher.farmId);
       setValue('voucherDate', currentVoucher.voucherDate);
       setValue('voucherNumber', currentVoucher.voucherNumber || '');
@@ -222,7 +234,7 @@ const SalesVoucherForm: React.FC<SalesVoucherFormProps> = ({ onNavigate, editVou
 
     let result;
     if (isEditMode && editVoucherId) {
-      result = await updateSalesVoucher(editVoucherId, input);
+      result = await updateSalesVoucher(editVoucherId, { ...input, voucherNumber: input.voucherNumber });
     } else {
       result = await createSalesVoucher(input);
     }
@@ -407,7 +419,6 @@ const SalesVoucherForm: React.FC<SalesVoucherFormProps> = ({ onNavigate, editVou
                 className={`${inputClass} h-16`}
                 value={selectedFarmId}
                 onChange={(e) => handleFarmChange(e.target.value)}
-                disabled={isEditMode}
               >
                 <option value="">انتخاب فارم...</option>
                 {availableFarms.map(f => (
@@ -451,7 +462,6 @@ const SalesVoucherForm: React.FC<SalesVoucherFormProps> = ({ onNavigate, editVou
                 {...register('voucherNumber')}
                 className={inputClass}
                 placeholder="شماره حواله را وارد کنید"
-                readOnly={isEditMode}
               />
               {errors.voucherNumber && <p className="text-red-500 text-xs font-bold mt-2 mr-1">{errors.voucherNumber.message}</p>}
             </div>

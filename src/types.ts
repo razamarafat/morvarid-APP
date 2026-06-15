@@ -129,9 +129,11 @@ export interface SalesVoucher {
   cancelledAt?: string;
   createdAt: string;
   updatedAt: string;
+  updatedBy?: string;
   // Joined fields
   farmName?: string;
   creatorName?: string;
+  editorName?: string;
   lines?: SalesVoucherLine[];
   totalItems?: number;
   totalQuantity?: number;
@@ -177,6 +179,7 @@ export interface CreateSalesVoucherLineInput {
 }
 
 export interface UpdateSalesVoucherInput {
+  voucherNumber?: string;
   voucherDate?: string;
   notes?: string;
   totalAmount?: number;

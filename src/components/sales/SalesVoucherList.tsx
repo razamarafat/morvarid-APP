@@ -322,8 +322,8 @@ const SalesVoucherList: React.FC<SalesVoucherListProps> = ({ onNavigate, onEditV
                             </button>
                           )}
 
-                          {/* Cancel button - admin or sales owner */}
-                          {(isAdmin || (isSales && voucher.createdBy === user?.id)) && (voucher.status === 'submitted' || voucher.status === 'draft') && (
+                          {/* Cancel button - admin only */}
+                          {isAdmin && (voucher.status === 'submitted' || voucher.status === 'draft') && (
                             <button
                               onClick={() => handleCancel(voucher)}
                               className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 transition-colors"

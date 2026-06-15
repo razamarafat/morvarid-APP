@@ -58,7 +58,7 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
 
       let query = supabase
         .from('sales_vouchers')
-        .select('*, profiles!created_by(full_name, role), farms!inner(name)')
+        .select('*, profiles!created_by(full_name, role), editor:profiles!updated_by(full_name), farms!inner(name)')
         .order('created_at', { ascending: false })
         .limit(500);
 
@@ -125,8 +125,10 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
           cancelledAt: v.cancelled_at,
           createdAt: v.created_at,
           updatedAt: v.updated_at,
+          updatedBy: v.updated_by,
           farmName: v.farms?.name || 'نامشخص',
           creatorName: v.profiles?.full_name || 'نامشخص',
+          editorName: v.editor?.full_name || undefined,
         }));
         set({ vouchers: mapped, isLoading: false });
       } else {
@@ -144,10 +146,10 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
   fetchSalesVoucherById: async (id: string) => {
     set({ isLoading: true, error: null });
     try {
-      // Fetch voucher with farm and creator info
+      // Fetch voucher with farm, creator, and editor info
       const { data: voucher, error: voucherError } = await supabase
         .from('sales_vouchers')
-        .select('*, profiles!created_by(full_name, role), farms!inner(name)')
+        .select('*, profiles!created_by(full_name, role), editor:profiles!updated_by(full_name), farms!inner(name)')
         .eq('id', id)
         .single();
 
@@ -207,8 +209,10 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
         cancelledAt: voucher.cancelled_at,
         createdAt: voucher.created_at,
         updatedAt: voucher.updated_at,
+        updatedBy: voucher.updated_by,
         farmName: voucher.farms?.name || 'نامشخص',
         creatorName: voucher.profiles?.full_name || 'نامشخص',
+        editorName: voucher.editor?.full_name || undefined,
         totalItems,
         totalQuantity,
         lines: mappedLines,
@@ -294,15 +298,25 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
   updateSalesVoucher: async (id: string, input: UpdateSalesVoucherInput) => {
     set({ isSubmitting: true, error: null });
     try {
-      // 1. Verify voucher is draft
-      const current = get().currentVoucher;
-      if (current && current.id === id && current.status !== 'draft') {
+      // 1. Verify voucher exists and is draft (server-side check via RLS handles security)
+      const { data: voucher, error: fetchError } = await supabase
+        .from('sales_vouchers')
+        .select('status, created_by')
+        .eq('id', id)
+        .single();
+
+      if (fetchError) {
+        set({ isSubmitting: false });
+        return { success: false, error: 'حواله یافت نشد.' };
+      }
+      if (voucher && voucher.status !== 'draft') {
         set({ isSubmitting: false });
         return { success: false, error: 'فقط حواله‌های پیش‌نویس قابل ویرایش هستند.' };
       }
 
       // 2. Update voucher header
       const dbUpdates: any = {};
+      if (input.voucherNumber !== undefined) dbUpdates.voucher_number = input.voucherNumber;
       if (input.voucherDate !== undefined) dbUpdates.voucher_date = normalizeDate(input.voucherDate);
       if (input.notes !== undefined) dbUpdates.notes = input.notes;
       if (input.totalAmount !== undefined) dbUpdates.total_amount = input.totalAmount;
