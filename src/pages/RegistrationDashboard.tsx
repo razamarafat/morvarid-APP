@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { Icons } from '../components/common/Icons';
 import StatisticsForm from '../components/registration/StatisticsForm';
@@ -9,14 +9,35 @@ import MetroTile from '../components/common/MetroTile';
 import { SkeletonTile } from '../components/common/Skeleton';
 import { useAuthStore } from '../store/authStore';
 import { useExpirationAlert } from '../hooks/useExpirationAlert';
+import { SalesVoucherList } from '../components/sales/SalesVoucherList';
+import SalesVoucherDetail from '../components/sales/SalesVoucherDetail';
 
 const RegistrationDashboard: React.FC = () => {
     const [currentView, setCurrentView] = useState('dashboard');
+    const [copyFromSalesVoucherId, setCopyFromSalesVoucherId] = useState<string | null>(null);
     const { isLoading } = useAuthStore();
     const dashboardTitle = 'میز کار ثبت اطلاعات روزانه';
 
     // TASK 4: Enable Expiration Alert
     useExpirationAlert();
+
+    // Listen for copy-from-sales-voucher events
+    useEffect(() => {
+        const handler = (e: Event) => {
+            const detail = (e as CustomEvent).detail;
+            if (detail?.voucherId) {
+                setCopyFromSalesVoucherId(detail.voucherId);
+                setCurrentView('invoice');
+            }
+        };
+        window.addEventListener('copy-sales-voucher-to-invoice', handler);
+        return () => window.removeEventListener('copy-sales-voucher-to-invoice', handler);
+    }, []);
+
+    const handleCopyToInvoice = useCallback((voucherId: string) => {
+        setCopyFromSalesVoucherId(voucherId);
+        setCurrentView('invoice');
+    }, []);
 
     const renderContent = () => {
         if (isLoading && currentView === 'dashboard') {
@@ -25,23 +46,43 @@ const RegistrationDashboard: React.FC = () => {
                     <SkeletonTile size="wide" />
                     <SkeletonTile size="wide" />
                     <SkeletonTile size="wide" />
+                    <SkeletonTile size="wide" />
                 </div>
             );
         }
 
-        switch (currentView) {
-            case 'stats': return <StatisticsForm onNavigate={setCurrentView} />;
-            case 'invoice': return <InvoiceForm />;
-            case 'recent': return <RecentRecords />;
+        switch (true) {
+            case currentView === 'stats': return <StatisticsForm onNavigate={setCurrentView} />;
+            case currentView === 'invoice': return <InvoiceForm copyFromSalesVoucherId={copyFromSalesVoucherId} onCopyComplete={() => setCopyFromSalesVoucherId(null)} />;
+            case currentView === 'recent': return <RecentRecords />;
+            case currentView === 'sales-vouchers': return (
+                <SalesVoucherList
+                    onNavigate={setCurrentView}
+                    readOnly={true}
+                />
+            );
+            case currentView.startsWith('sales-vouchers-view-'): {
+                const viewId = currentView.replace('sales-vouchers-view-', '');
+                return (
+                    <SalesVoucherDetail
+                        voucherId={viewId}
+                        onBack={() => setCurrentView('sales-vouchers')}
+                        readOnly={true}
+                        onCopyToInvoice={handleCopyToInvoice}
+                    />
+                );
+            }
             default: return <DashboardHome onNavigate={setCurrentView} />;
         }
     };
 
     const getTitle = () => {
-        switch (currentView) {
-            case 'stats': return 'بخش آمار';
-            case 'invoice': return 'ثبت حواله فروش';
-            case 'recent': return 'سوابق اخیر و ویرایش';
+        switch (true) {
+            case currentView === 'stats': return 'بخش آمار';
+            case currentView === 'invoice': return 'ثبت حواله فروش';
+            case currentView === 'recent': return 'سوابق اخیر و ویرایش';
+            case currentView === 'sales-vouchers': return 'مشاهده حواله‌های فروش';
+            case currentView.startsWith('sales-vouchers-view-'): return 'جزئیات حواله فروش';
             default: return dashboardTitle;
         }
     }
@@ -60,7 +101,7 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
                 title="ثبت آمار تولید" 
                 icon={Icons.BarChart} 
                 color="bg-metro-orange" 
-                size="wide" // CHANGED from 'large' to 'wide' for consistency
+                size="wide"
                 onClick={() => onNavigate('stats')} 
             />
             
@@ -70,6 +111,14 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
                 color="bg-metro-blue" 
                 size="wide"
                 onClick={() => onNavigate('invoice')} 
+            />
+            
+            <MetroTile 
+                title="مشاهده حواله‌های فروش" 
+                icon={Icons.Eye} 
+                color="bg-gradient-to-br from-violet-500 to-purple-600" 
+                size="wide"
+                onClick={() => onNavigate('sales-vouchers')} 
             />
             
             <MetroTile 

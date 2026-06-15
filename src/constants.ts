@@ -115,3 +115,65 @@ export const TOAST_IDS = {
   LOGIN_ERROR: 'login-error',
   ACCOUNT_BLOCKED: 'account-blocked',
 } as const;
+
+// ============================
+// Sales Voucher Constants (ثابت‌های سیستم حواله فروش)
+// ============================
+
+/**
+ * برچسب‌های فارسی وضعیت‌های حواله فروش
+ */
+export const SALES_VOUCHER_STATUS_LABELS: Record<string, string> = {
+  draft: 'پیش‌نویس',
+  submitted: 'ثبت نهایی',
+  cancelled: 'کنسل شده',
+};
+
+/**
+ * رنگ‌های وضعیت‌های حواله فروش (برای Badge ها)
+ * از تم بنفش (Violet) برای حواله‌های فروش استفاده می‌کنیم
+ */
+export const SALES_VOUCHER_STATUS_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  draft: {
+    bg: 'bg-amber-100 dark:bg-amber-900/30',
+    text: 'text-amber-700 dark:text-amber-400',
+    border: 'border-amber-300 dark:border-amber-700',
+  },
+  submitted: {
+    bg: 'bg-violet-100 dark:bg-violet-900/30',
+    text: 'text-violet-700 dark:text-violet-400',
+    border: 'border-violet-300 dark:border-violet-700',
+  },
+  cancelled: {
+    bg: 'bg-red-100 dark:bg-red-900/30',
+    text: 'text-red-700 dark:text-red-400',
+    border: 'border-red-300 dark:border-red-700',
+  },
+};
+
+/**
+ * برچسب‌های فارسی انواع تراکنش انبار
+ */
+export const INVENTORY_TXN_TYPE_LABELS: Record<string, string> = {
+  purchase: 'خرید',
+  sale: 'فروش (حواله)',
+  sale_reversal: 'برگشت از فروش',
+  daily_consumption: 'مصرف روزانه',
+  adjustment: 'اصلاح موجودی',
+  return: 'مرجوعی',
+};
+
+/**
+ * تم بنفش (Violet) مخصوص سیستم حواله فروش
+ * این رنگ‌ها با پالت رنگی موجود (metro-purple: #9F00A7) هماهنگ هستند
+ * و یک طیف بنفش ملایم‌تر و حرفه‌ای ایجاد می‌کنند
+ */
+export const SALES_VOUCHER_THEME = {
+  primary: '#7C3AED',        // Violet-600 - بنفش اصلی
+  primaryHover: '#6D28D9',   // Violet-700 - حالت هاور
+  primaryLight: '#EDE9FE',   // Violet-100 - پس‌زمینه روشن
+  primaryDark: '#5B21B6',    // Violet-800 - حالت تاریک
+  accent: '#8B5CF6',         // Violet-500 - تأکید
+  gradient: 'from-violet-500 to-purple-600',
+  gradientDark: 'from-violet-700 to-purple-900',
+} as const;

@@ -113,6 +113,8 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
                     isConverted: i.is_converted || false,
                     sourceProductId: i.source_product_id || undefined,
                     convertedAmount: i.converted_amount || 0,
+                    isFromSalesVoucher: i.is_from_sales_voucher || false,
+                    sourceSalesVoucherId: i.source_sales_voucher_id || null,
                     createdAt: i.created_at ? new Date(i.created_at).getTime() : Date.now(),
                     updatedAt: i.updated_at ? new Date(i.updated_at).getTime() : undefined,
                     createdBy: i.created_by,
@@ -141,6 +143,8 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
                     isConverted: i.is_converted || false,
                     sourceProductId: i.source_product_id || undefined,
                     convertedAmount: i.converted_amount || 0,
+                    isFromSalesVoucher: i.is_from_sales_voucher || false,
+                    sourceSalesVoucherId: i.source_sales_voucher_id || null,
                     createdAt: i.created_at ? new Date(i.created_at).getTime() : Date.now(),
                     updatedAt: i.updated_at ? new Date(i.updated_at).getTime() : undefined,
                     createdBy: i.created_by,
@@ -239,6 +243,8 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
                 is_converted: inv.isConverted || false,
                 source_product_id: inv.sourceProductId || null,
                 converted_amount: inv.convertedAmount || 0,
+                is_from_sales_voucher: (inv as any).isFromSalesVoucher || false,
+                source_sales_voucher_id: (inv as any).sourceSalesVoucherId || null,
                 created_by: currentUser.id
             }));
 

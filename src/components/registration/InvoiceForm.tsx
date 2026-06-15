@@ -7,6 +7,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useFarmStore } from '../../store/farmStore';
 import { useInvoiceStore } from '../../store/invoiceStore';
 import { useStatisticsStore } from '../../store/statisticsStore';
+import { useSalesVoucherStore } from '../../store/salesVoucherStore';
 import { useToastStore } from '../../store/toastStore';
 import { getTodayJalali, getTodayDayName, getCurrentTime, normalizeDate, toPersianDigits } from '../../utils/dateUtils';
 import { getCorrectedInventory } from '../../utils/inventoryUtils';
@@ -26,6 +27,11 @@ import Modal from '../common/Modal';
 import { useValidation } from '../../hooks/useValidation';
 import { useAutoSave } from '../../hooks/useAutoSave';
 import { sanitizeString } from '../../utils/sanitizers';
+
+interface InvoiceFormProps {
+  copyFromSalesVoucherId?: string | null;
+  onCopyComplete?: () => void;
+}
 
 const persianLettersRegex = /^[\u0600-\u06FF\s]+$/;
 const mobileRegex = /^09\d{9}$/;
@@ -58,11 +64,12 @@ interface InvoiceDraftState {
     referenceDate: string;
 }
 
-export const InvoiceForm: React.FC = () => {
+export const InvoiceForm: React.FC<InvoiceFormProps> = ({ copyFromSalesVoucherId = null, onCopyComplete }) => {
     const { user } = useAuthStore();
     const { getProductById, farms: allFarms } = useFarmStore();
     const { bulkAddInvoices } = useInvoiceStore();
     const { statistics } = useStatisticsStore();
+    const { currentVoucher, fetchSalesVoucherById } = useSalesVoucherStore();
     const { addToast } = useToastStore();
     const { confirm } = useConfirm();
     const { readFromClipboard, parseMultipleInvoices } = useSMS();
@@ -72,7 +79,56 @@ export const InvoiceForm: React.FC = () => {
     const todayDayName = getTodayDayName();
     const normalizedDate = normalizeDate(todayJalali);
 
+    const [isFromSalesVoucher, setIsFromSalesVoucher] = useState(false);
+    const [sourceVoucherNumber, setSourceVoucherNumber] = useState<string>('');
+    const [sourceVoucherApplied, setSourceVoucherApplied] = useState(false);
+    const [copyLoaded, setCopyLoaded] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // --- COPY FROM SALES VOUCHER ---
+    useEffect(() => {
+        if (copyFromSalesVoucherId && !copyLoaded) {
+            fetchSalesVoucherById(copyFromSalesVoucherId).then(() => {
+                const voucher = useSalesVoucherStore.getState().currentVoucher;
+                if (voucher && voucher.status === 'submitted') {
+                    setIsFromSalesVoucher(true);
+                    setSourceVoucherNumber(voucher.voucherNumber);
+                    setSourceVoucherApplied(voucher.inventoryApplied);
+
+                    // Set farm if operator only has one farm or matches voucher farm
+                    if (availableFarms.some(f => f.id === voucher.farmId)) {
+                        setSelectedFarmId(voucher.farmId);
+                    }
+
+                    // Pre-fill items from voucher lines
+                    if (voucher.lines && voucher.lines.length > 0) {
+                        const newItems: Record<string, { cartons: string; weight: string; isSorted: boolean }> = {};
+                        const newProductIds: string[] = [];
+
+                        voucher.lines.forEach(line => {
+                            if (!newItems[line.productId]) {
+                                newItems[line.productId] = {
+                                    cartons: String(line.quantity),
+                                    weight: '',
+                                    isSorted: false,
+                                };
+                                newProductIds.push(line.productId);
+                            }
+                        });
+
+                        setItemsState(newItems);
+                        setSelectedProductIds(newProductIds);
+                    }
+
+                    addToast(`اطلاعات حواله فروش ${toPersianDigits(voucher.voucherNumber)} در فرم بارگذاری شد.`, 'info');
+                } else {
+                    addToast('حواله فروش یافت نشد یا وضعیت آن معتبر نیست.', 'warning');
+                }
+                setCopyLoaded(true);
+                onCopyComplete?.();
+            });
+        }
+    }, [copyFromSalesVoucherId]);
     const isAdmin = user?.role === 'ADMIN';
     const availableFarms = isAdmin ? allFarms : (user?.assignedFarms || []);
     const [selectedFarmId, setSelectedFarmId] = useState<string>('');
@@ -380,7 +436,9 @@ export const InvoiceForm: React.FC = () => {
                                 isConverted: true,
                                 sourceProductId: printableProduct.id,
                                 convertedAmount: deficit, // The amount taken from Source
-                                isYesterday: referenceDate !== normalizedDate
+                                isYesterday: referenceDate !== normalizedDate,
+                                isFromSalesVoucher,
+                                sourceSalesVoucherId: copyFromSalesVoucherId,
                             });
 
                             // Move to next product
@@ -417,7 +475,9 @@ export const InvoiceForm: React.FC = () => {
                 description: globalData.description,
                 isSorted: item.isSorted || false,
                 isConverted: false,
-                isYesterday: referenceDate !== normalizedDate
+                isYesterday: referenceDate !== normalizedDate,
+                isFromSalesVoucher,
+                sourceSalesVoucherId: copyFromSalesVoucherId,
             });
         }
 
@@ -494,6 +554,22 @@ export const InvoiceForm: React.FC = () => {
 
     return (
         <div className="max-w-4xl mx-auto space-y-6 lg:space-y-10 pb-20">
+            {/* Sales Voucher Copy Warning */}
+            {isFromSalesVoucher && sourceVoucherApplied && (
+                <div className="bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-300 dark:border-amber-700 rounded-2xl p-4 animate-in fade-in slide-in-from-top-4">
+                    <div className="flex items-start gap-3">
+                        <Icons.AlertTriangle className="w-6 h-6 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                        <div>
+                            <p className="font-black text-amber-700 dark:text-amber-300 text-sm">
+                                توجه: موجودی انبار قبلاً توسط حواله فروش شماره {toPersianDigits(sourceVoucherNumber)} کاهش یافته است.
+                            </p>
+                            <p className="text-amber-600 dark:text-amber-400 text-xs mt-1 leading-relaxed">
+                                ثبت این حواله مصرف تأثیر مجددی بر موجودی انبار نخواهد داشت. این حواله صرفاً برای ثبت سوابق مصرف روزانه است.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
             {isAdmin && availableFarms.length > 1 && (
                 <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col md:flex-row items-center gap-4 animate-in fade-in slide-in-from-top-4">
                     <div className="flex items-center gap-2 text-metro-purple font-black">

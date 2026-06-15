@@ -229,15 +229,16 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                 // Query DB for strict sales check
                 const { data: relatedInvoices, error: invError } = await supabase
                     .from('invoices')
-                    .select('product_id, total_cartons, total_weight, source_product_id, converted_amount, is_converted')
+                    .select('product_id, total_cartons, total_weight, source_product_id, converted_amount, is_converted, is_from_sales_voucher')
                     .match({
                         farm_id: currentStat.farmId,
                         date: normalizeDate(currentStat.date)
                     });
 
                 if (!invError && relatedInvoices) {
-                    // Cast to InvoiceItem to satisfy TS if needed, or rely on duck typing
-                    const usage = calculateProductUsage(relatedInvoices as InvoiceItem[], currentStat.productId);
+                    // Filter out invoices copied from sales vouchers (inventory already deducted)
+                    const nonSalesVoucherInvoices = relatedInvoices.filter((inv: any) => !inv.is_from_sales_voucher);
+                    const usage = calculateProductUsage(nonSalesVoucherInvoices as InvoiceItem[], currentStat.productId);
 
                     if (totalAvailable < usage.usageCartons) {
                         return {
@@ -456,9 +457,15 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
 
             if (!allInvoices) return;
 
+            // 2. SEPARATE: Invoices from sales vouchers should NOT affect physical inventory
+            //    (inventory was already deducted when the sales voucher was submitted)
+            //    These invoices still appear in sales DISPLAY but not in USAGE/DEDUCTION
+            const nonSalesVoucherInvoices = allInvoices.filter((inv: any) => !inv.is_from_sales_voucher);
+
             // 3. Calculate USAGE via Centralized Utility
             // This handles Direct Sales vs Converted Sales automatically
-            const usage = calculateProductUsage(allInvoices as InvoiceItem[], productId);
+            // ONLY from non-sales-voucher invoices (prevents double-deduction)
+            const usage = calculateProductUsage(nonSalesVoucherInvoices as InvoiceItem[], productId);
 
             // Total deduction from inventory (Direct + Source usage)
             const totalDeducted = usage.usageCartons;

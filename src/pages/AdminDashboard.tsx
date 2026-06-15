@@ -15,6 +15,7 @@ import { APP_VERSION } from '../constants';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/authStore';
 import { SkeletonTile } from '../components/common/Skeleton';
+import { SalesVoucherList } from '../components/sales/SalesVoucherList';
 
 // Custom tile components with colorful backgrounds
 const TechnicalCheckTile: React.FC<{ onClick: () => void }> = ({ onClick }) => (
@@ -160,8 +161,9 @@ const AdminDashboard: React.FC = () => {
             case 'farms': return <FarmManagement />;
             case 'users': return <UserManagement />;
             case 'reports': return <Reports />;
-            case 'devices': return <DeviceManagement />; // New Tab
+            case 'devices': return <DeviceManagement />;
             case 'testing': return <FeatureTesting />;
+            case 'sales-vouchers': return <SalesVoucherList onNavigate={setCurrentView} />;
             default: return <DashboardHome onNavigate={setCurrentView} />;
         }
     };
@@ -173,6 +175,7 @@ const AdminDashboard: React.FC = () => {
             case 'reports': return 'گزارشات';
             case 'devices': return 'دستگاه‌های متصل';
             case 'testing': return 'سنجش ویژگی‌ها';
+            case 'sales-vouchers': return 'مدیریت حواله‌های فروش';
             default: return 'میز کار مدیریت';
         }
     }
@@ -219,6 +222,7 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 animate-in slide-in-from-bottom-5 duration-500">
             <MetroTile title="مدیریت فارم‌ها" icon={Icons.Home} color="bg-metro-green" size="wide" onClick={() => onNavigate('farms')} />
             <MetroTile title="مدیریت کاربران" icon={Icons.Users} color="bg-metro-purple" size="wide" onClick={() => onNavigate('users')} />
+            <MetroTile title="حواله‌های فروش" icon={Icons.FileText} color="bg-gradient-to-br from-violet-500 to-purple-600" size="wide" onClick={() => onNavigate('sales-vouchers')} />
             <MetroTile title="گزارشات" icon={Icons.FileText} color="bg-metro-blue" size="medium" onClick={() => onNavigate('reports')} />
             <DeviceTile onClick={() => onNavigate('devices')} />
             <TechnicalCheckTile onClick={() => onNavigate('testing')} />

@@ -18,6 +18,9 @@ import MetroTile from '../common/MetroTile';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FarmType, Invoice, UserRole } from '../../types';
 import { SkeletonTile, SkeletonRow } from '../common/Skeleton';
+import SalesVoucherListWrapper from './SalesVoucherList';
+import SalesVoucherForm from './SalesVoucherForm';
+import SalesVoucherDetail from './SalesVoucherDetail';
 
 // --- COMPONENT: FarmGroup ---
 const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate, products, invoiceTotalsMap }: any) => {
@@ -275,6 +278,8 @@ const FarmStatistics = React.memo(() => {
             const totalWeight = inv.totalWeight || 0;
             const convertedAmount = inv.convertedAmount || 0;
             const sourceProductId = inv.sourceProductId;
+            // Check if this invoice was copied from a sales voucher (inventory already deducted)
+            const isFromSalesVoucher = inv.isFromSalesVoucher || false;
 
             // --- A. SALES RECORDING (What is displayed as "Sold") ---
             // Attributed to the PRODUCT listed on the invoice
@@ -291,6 +296,9 @@ const FarmStatistics = React.memo(() => {
             });
 
             // --- B. USAGE RECORDING (What is physically deducted) ---
+            // SAFEGUARD: Skip inventory deduction for invoices copied from sales vouchers
+            // The inventory was ALREADY deducted when the sales voucher was submitted
+            if (!isFromSalesVoucher) {
 
             // 1. Primary Product Deduction (For the product ON the invoice)
             // Deduction = Total - ConvertedAmount
@@ -322,6 +330,7 @@ const FarmStatistics = React.memo(() => {
                     usageWeight: prevSource.usageWeight + sourceWeight
                 });
             }
+            } // End of !isFromSalesVoucher block
         });
         return map;
     }, [invoices]);
@@ -625,6 +634,7 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 lg:gap-6">
             <MetroTile title="پایش آمار فارم‌ها" icon={Icons.BarChart} color="bg-metro-blue" size="wide" onClick={() => onNavigate('farm-stats')} />
             <MetroTile title="لیست حواله‌های فروش" icon={Icons.List} color="bg-metro-orange" size="wide" onClick={() => onNavigate('invoices')} />
+            <MetroTile title="ایجاد حواله فروش" icon={Icons.FileText} color="bg-gradient-to-br from-violet-500 to-purple-600" size="wide" onClick={() => onNavigate('sales-vouchers')} />
             <MetroTile title="گزارشات اکسل جامع" icon={Icons.FileText} color="bg-metro-purple" size="wide" onClick={() => onNavigate('reports')} />
         </div>
     );
@@ -637,6 +647,10 @@ const SalesDashboard: React.FC = () => {
     const getTitle = () => {
         if (currentView === 'farm-stats') return 'پایش آمار لحظه‌ای';
         if (currentView === 'invoices') return 'جدول فروش امروز';
+        if (currentView === 'sales-vouchers') return 'حواله‌های فروش';
+        if (currentView.startsWith('sales-vouchers-new')) return 'ایجاد حواله فروش';
+        if (currentView.startsWith('sales-vouchers-edit-')) return 'ویرایش حواله فروش';
+        if (currentView.startsWith('sales-vouchers-view-')) return 'مشاهده حواله فروش';
         if (currentView === 'reports') return 'گزارشات فروش';
         return 'میز کار آمار و فروش';
     }
@@ -648,14 +662,25 @@ const SalesDashboard: React.FC = () => {
                     <SkeletonTile size="wide" />
                     <SkeletonTile size="wide" />
                     <SkeletonTile size="wide" />
+                    <SkeletonTile size="wide" />
                 </div>
             );
         }
 
-        switch (currentView) {
-            case 'farm-stats': return <FarmStatistics />;
-            case 'invoices': return <InvoiceList />;
-            case 'reports': return <Reports />;
+        switch (true) {
+            case currentView === 'farm-stats': return <FarmStatistics />;
+            case currentView === 'invoices': return <InvoiceList />;
+            case currentView === 'sales-vouchers': return <SalesVoucherListWrapper onNavigate={setCurrentView} />;
+            case currentView === 'sales-vouchers-new': return <SalesVoucherForm onNavigate={setCurrentView} />;
+            case currentView.startsWith('sales-vouchers-edit-'): {
+                const editId = currentView.replace('sales-vouchers-edit-', '');
+                return <SalesVoucherForm onNavigate={setCurrentView} editVoucherId={editId} />;
+            }
+            case currentView.startsWith('sales-vouchers-view-'): {
+                const viewId = currentView.replace('sales-vouchers-view-', '');
+                return <SalesVoucherDetail voucherId={viewId} onBack={() => setCurrentView('sales-vouchers')} />;
+            }
+            case currentView === 'reports': return <Reports />;
             default: return <DashboardHome onNavigate={setCurrentView} />;
         }
     };

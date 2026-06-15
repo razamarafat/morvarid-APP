@@ -264,7 +264,7 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="/sales" element={
-              <ProtectedRoute allowedRoles={[UserRole.SALES]}>
+              <ProtectedRoute allowedRoles={[UserRole.SALES, UserRole.ADMIN]}>
                 <RouteErrorBoundary routeName="مدیریت فروش">
                   <SalesDashboard />
                 </RouteErrorBoundary>

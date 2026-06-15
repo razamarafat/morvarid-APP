@@ -81,6 +81,8 @@ export interface Invoice {
   updatedBy?: string;
   isPending?: boolean; // Optimistic UI Flag
   isOffline?: boolean; // Offline Queue Flag
+  isFromSalesVoucher?: boolean; // Sales Voucher Integration: copied from sales voucher
+  sourceSalesVoucherId?: string; // Sales Voucher Integration: source voucher ID
 }
 
 export interface Backup {
@@ -98,4 +100,122 @@ export interface NotificationItem {
   timestamp: number;
   read: boolean;
   type: 'info' | 'warning' | 'error' | 'success';
+}
+
+// ============================
+// Sales Voucher Types (سیستم حواله فروش)
+// ============================
+
+export type SalesVoucherStatus = 'draft' | 'submitted' | 'cancelled';
+
+export interface SalesVoucher {
+  id: string;
+  voucherNumber: string;
+  farmId: string;
+  voucherDate: string;
+  status: SalesVoucherStatus;
+  createdBy: string;
+  submittedAt?: string;
+  notes?: string;
+  totalAmount?: number;
+  customerName?: string;
+  customerPhone?: string;
+  vehiclePlate?: string;
+  deliveryAddress?: string;
+  inventoryApplied: boolean;
+  cancelledBy?: string;
+  cancelledAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  // Joined fields
+  farmName?: string;
+  creatorName?: string;
+  lines?: SalesVoucherLine[];
+  totalItems?: number;
+  totalQuantity?: number;
+}
+
+export interface SalesVoucherLine {
+  id: string;
+  voucherId: string;
+  productId: string;
+  quantity: number;
+  unitPrice?: number;
+  totalPrice?: number;
+  notes?: string;
+  createdAt: string;
+  // Joined fields
+  productName?: string;
+  productUnit?: string;
+}
+
+export type SalesVoucherWithLines = SalesVoucher & {
+  lines: SalesVoucherLine[];
+};
+
+export interface CreateSalesVoucherInput {
+  farmId: string;
+  voucherDate: string;
+  notes?: string;
+  totalAmount?: number;
+  customerName?: string;
+  customerPhone?: string;
+  vehiclePlate?: string;
+  deliveryAddress?: string;
+  lines: CreateSalesVoucherLineInput[];
+}
+
+export interface CreateSalesVoucherLineInput {
+  productId: string;
+  quantity: number;
+  unitPrice?: number;
+  totalPrice?: number;
+  notes?: string;
+}
+
+export interface UpdateSalesVoucherInput {
+  voucherDate?: string;
+  notes?: string;
+  totalAmount?: number;
+  customerName?: string;
+  customerPhone?: string;
+  vehiclePlate?: string;
+  deliveryAddress?: string;
+  lines?: CreateSalesVoucherLineInput[];
+}
+
+export interface SalesVoucherFilter {
+  farmId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  status?: SalesVoucherStatus;
+  createdBy?: string;
+  search?: string;
+}
+
+// Inventory Transaction Types (تراکنش‌های انبار)
+export type InventoryTxnType = 'purchase' | 'sale' | 'sale_reversal' | 'daily_consumption' | 'adjustment' | 'return';
+
+export interface InventoryTransaction {
+  id: string;
+  farmId: string;
+  productId: string;
+  txnType: InventoryTxnType;
+  txnDate: string;
+  qtyIn: number;
+  qtyOut: number;
+  qtyInKg: number;
+  qtyOutKg: number;
+  unitPrice?: number;
+  totalPrice?: number;
+  sourceType?: string;
+  sourceId?: string;
+  referenceNumber?: string;
+  notes?: string;
+  createdBy?: string;
+  createdAt: string;
+  // Joined fields
+  productName?: string;
+  farmName?: string;
+  creatorName?: string;
 }
