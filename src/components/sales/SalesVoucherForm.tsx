@@ -96,12 +96,7 @@ const SalesVoucherForm: React.FC<SalesVoucherFormProps> = ({ onNavigate, editVou
   // Populate form when voucher loads in edit mode + route-level protection
   useEffect(() => {
     if (isEditMode && currentVoucher) {
-      // Route-level protection: verify ownership and draft status
-      if (currentVoucher.status !== 'draft') {
-        addToast('فقط حواله‌های پیش‌نویس قابل ویرایش هستند.', 'error');
-        onNavigate('sales-vouchers');
-        return;
-      }
+      // Route-level protection: verify ownership
       if (user && user.role !== 'ADMIN' && currentVoucher.createdBy !== user.id) {
         addToast('شما مجاز به ویرایش این حواله نیستید.', 'error');
         onNavigate('sales-vouchers');
@@ -198,13 +193,15 @@ const SalesVoucherForm: React.FC<SalesVoucherFormProps> = ({ onNavigate, editVou
     return units;
   };
 
-  const handleSaveDraft = async (data: FormValues) => {
+  const handleFormSubmit = async (data: FormValues) => {
     if (lines.length === 0) {
       addToast('حداقل یک قلم باید اضافه شود.', 'warning');
       return;
     }
 
     // Validate lines
+    const insufficientItems: string[] = [];
+
     for (const line of lines) {
       if (!line.productId) {
         addToast('همه اقلام باید محصول انتخاب شده داشته باشند.', 'error');
@@ -214,7 +211,41 @@ const SalesVoucherForm: React.FC<SalesVoucherFormProps> = ({ onNavigate, editVou
         addToast('تعداد همه اقلام باید بیشتر از صفر باشد.', 'error');
         return;
       }
+
+      // Check inventory
+      const inventory = getInventoryForProduct(line.productId);
+      const product = getProductById(line.productId);
+      if (Number(line.quantity) > inventory) {
+        insufficientItems.push(
+          `${product?.name || 'محصول'}: موجودی ${toPersianDigits(inventory)}، نیاز ${toPersianDigits(Number(line.quantity))}`
+        );
+      }
     }
+
+    if (insufficientItems.length > 0) {
+      const confirmed = await confirm({
+        title: 'هشدار موجودی',
+        message: `موجودی انبار برای اقلام زیر کافی نیست:\n${insufficientItems.join('\n')}\n\nآیا همچنان می‌خواهید ثبت کنید؟`,
+        confirmText: 'بله، ثبت',
+        cancelText: 'انصراف',
+        type: 'warning',
+      });
+      if (!confirmed) return;
+    }
+
+    // Confirmation dialog
+    const farmName = selectedFarm?.name || 'نامشخص';
+    const confirmed = await confirm({
+      title: isEditMode ? 'بروزرسانی حواله فروش' : 'ثبت حواله فروش',
+      message: isEditMode
+        ? `با بروزرسانی این حواله، موجودی انبار فارم ${farmName} متناسب با تغییرات اصلاح خواهد شد.\n\nتعداد اقلام: ${toPersianDigits(totals.totalItems)}\nمقدار کل: ${toPersianDigits(totals.totalQuantity)}\n\nآیا از بروزرسانی اطمینان دارید؟`
+        : `با ثبت این حواله، موجودی انبار فارم ${farmName} به میزان ${toPersianDigits(totals.totalQuantity)} واحد کاهش خواهد یافت.\n\nتعداد اقلام: ${toPersianDigits(totals.totalItems)}\nمقدار کل: ${toPersianDigits(totals.totalQuantity)}\n\nآیا از ثبت اطمینان دارید؟`,
+      confirmText: isEditMode ? 'بله، بروزرسانی' : 'بله، ثبت',
+      cancelText: 'انصراف',
+      type: 'warning',
+    });
+
+    if (!confirmed) return;
 
     const input = {
       farmId: data.farmId,
@@ -236,125 +267,16 @@ const SalesVoucherForm: React.FC<SalesVoucherFormProps> = ({ onNavigate, editVou
 
     let result;
     if (isEditMode && editVoucherId) {
-      result = await updateSalesVoucher(editVoucherId, { ...input, voucherNumber: input.voucherNumber });
+      result = await updateSalesVoucher(editVoucherId, input);
     } else {
       result = await createSalesVoucher(input);
     }
 
     if (result.success) {
-      addToast(isEditMode ? 'حواله با موفقیت بروزرسانی شد.' : 'حواله پیش‌نویس با موفقیت ذخیره شد.', 'success');
+      addToast(isEditMode ? 'حواله فروش با موفقیت بروزرسانی شد.' : 'حواله فروش با موفقیت ثبت شد. موجودی انبار بروزرسانی شد.', 'success');
       onNavigate('sales-vouchers');
     } else {
-      addToast(result.error || 'خطا در ذخیره حواله.', 'error');
-    }
-  };
-
-  const handleFinalSubmit = async (data: FormValues) => {
-    if (lines.length === 0) {
-      addToast('حداقل یک قلم باید اضافه شود.', 'warning');
-      return;
-    }
-
-    // Validate lines
-    const invalidLines: string[] = [];
-    const insufficientItems: string[] = [];
-
-    for (const line of lines) {
-      if (!line.productId) {
-        invalidLines.push('همه اقلام باید محصول انتخاب شده داشته باشند.');
-        continue;
-      }
-      if (!line.quantity || Number(line.quantity) <= 0) {
-        invalidLines.push('تعداد همه اقلام باید بیشتر از صفر باشد.');
-        continue;
-      }
-
-      // Check inventory
-      const inventory = getInventoryForProduct(line.productId);
-      const product = getProductById(line.productId);
-      if (Number(line.quantity) > inventory) {
-        insufficientItems.push(
-          `${product?.name || 'محصول'}: موجودی ${toPersianDigits(inventory)}، نیاز ${toPersianDigits(Number(line.quantity))}`
-        );
-      }
-    }
-
-    if (invalidLines.length > 0) {
-      addToast(invalidLines[0], 'error');
-      return;
-    }
-
-    if (insufficientItems.length > 0) {
-      const confirmed = await confirm({
-        title: 'هشدار موجودی',
-        message: `موجودی انبار برای اقلام زیر کافی نیست:\n${insufficientItems.join('\n')}\n\nآیا همچنان می‌خواهید ثبت نهایی کنید؟`,
-        confirmText: 'بله، ثبت نهایی',
-        cancelText: 'انصراف',
-        type: 'warning',
-      });
-      if (!confirmed) return;
-    }
-
-    // Confirmation dialog
-    const farmName = selectedFarm?.name || 'نامشخص';
-    const confirmed = await confirm({
-      title: 'ثبت نهایی حواله فروش',
-      message: `با ثبت نهایی این حواله، موجودی انبار فارم ${farmName} به میزان ${toPersianDigits(totals.totalQuantity)} واحد کاهش خواهد یافت.\n\nتعداد اقلام: ${toPersianDigits(totals.totalItems)}\nمقدار کل: ${toPersianDigits(totals.totalQuantity)}\n\nآیا از ثبت نهایی اطمینان دارید؟`,
-      confirmText: 'بله، ثبت نهایی',
-      cancelText: 'انصراف',
-      type: 'warning',
-    });
-
-    if (!confirmed) return;
-
-    // First save/create the voucher
-    const input = {
-      farmId: data.farmId,
-      voucherDate: normalizeDate(data.voucherDate),
-      voucherNumber: data.voucherNumber,
-      notes: data.notes,
-      customerName: data.customerName,
-      vehiclePlate: data.vehiclePlate,
-      driverName: data.driverName,
-      driverPhone: data.driverPhone,
-      totalAmount: totals.totalAmount || undefined,
-      lines: lines.map(l => ({
-        productId: l.productId,
-        quantity: Number(l.quantity),
-        unitPrice: l.unitPrice ? Number(l.unitPrice) : undefined,
-        totalPrice: l.unitPrice ? Number(l.quantity) * Number(l.unitPrice) : undefined,
-      })),
-    };
-
-    let saveResult;
-    let voucherId: string | undefined;
-
-    if (isEditMode && editVoucherId) {
-      saveResult = await updateSalesVoucher(editVoucherId, input);
-      voucherId = editVoucherId;
-    } else {
-      saveResult = await createSalesVoucher(input);
-      voucherId = saveResult.voucherId;
-    }
-
-    if (!saveResult.success) {
-      addToast(saveResult.error || 'خطا در ذخیره حواله.', 'error');
-      return;
-    }
-
-    if (!voucherId) {
-      addToast('خطا: آیدی حواله یافت نشد.', 'error');
-      return;
-    }
-
-    // Now submit the voucher
-    const submitResult = await useSalesVoucherStore.getState().submitSalesVoucher(voucherId);
-
-    if (submitResult.success) {
-      addToast('حواله فروش با موفقیت ثبت نهایی شد. موجودی انبار بروزرسانی شد.', 'success');
-      onNavigate('sales-vouchers');
-    } else {
-      addToast(submitResult.error || 'خطا در ثبت نهایی حواله.', 'error');
+      addToast(result.error || 'خطا در ثبت حواله.', 'error');
     }
   };
 
@@ -407,7 +329,7 @@ const SalesVoucherForm: React.FC<SalesVoucherFormProps> = ({ onNavigate, editVou
         </p>
       </div>
 
-      <form onSubmit={handleSubmit(handleSaveDraft)} className="px-1 space-y-8">
+      <form onSubmit={handleSubmit(handleFormSubmit)} className="px-1 space-y-8">
         {/* Farm & Date Section */}
         <div className="bg-white dark:bg-gray-800 p-6 lg:p-8 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-700 border-r-[8px] border-r-violet-500">
           <h3 className="font-black text-xl mb-6 text-gray-800 dark:text-white flex items-center gap-2">
@@ -696,18 +618,8 @@ const SalesVoucherForm: React.FC<SalesVoucherFormProps> = ({ onNavigate, editVou
             isLoading={isSubmitting}
             className="flex-1 h-16 text-lg font-black bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 shadow-xl shadow-violet-200 dark:shadow-none rounded-[24px] border-b-4 border-violet-800 active:border-b-0 active:translate-y-1 transition-all"
           >
-            <Icons.Download className="w-5 h-5 ml-2" />
-            ذخیره پیش‌نویس
-          </Button>
-
-          <Button
-            type="button"
-            isLoading={isSubmitting}
-            onClick={handleSubmit(handleFinalSubmit)}
-            className="flex-1 h-16 text-lg font-black bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-xl shadow-green-200 dark:shadow-none rounded-[24px] border-b-4 border-green-800 active:border-b-0 active:translate-y-1 transition-all"
-          >
             <Icons.Check className="w-5 h-5 ml-2" />
-            ثبت نهایی
+            {isEditMode ? 'بروزرسانی حواله' : 'ثبت حواله فروش'}
           </Button>
         </div>
       </form>

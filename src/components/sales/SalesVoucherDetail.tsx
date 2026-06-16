@@ -55,7 +55,7 @@ const SalesVoucherDetail: React.FC<SalesVoucherDetailProps> = ({ voucherId, onBa
   }
 
   const voucher = currentVoucher;
-  const statusColors = SALES_VOUCHER_STATUS_COLORS[voucher.status] || SALES_VOUCHER_STATUS_COLORS.draft;
+  const statusColors = SALES_VOUCHER_STATUS_COLORS[voucher.status] || SALES_VOUCHER_STATUS_COLORS.submitted;
   const statusLabel = SALES_VOUCHER_STATUS_LABELS[voucher.status] || 'نامشخص';
   const farm = farms.find(f => f.id === voucher.farmId);
 

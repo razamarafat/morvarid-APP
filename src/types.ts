@@ -106,7 +106,7 @@ export interface NotificationItem {
 // Sales Voucher Types (سیستم حواله فروش)
 // ============================
 
-export type SalesVoucherStatus = 'draft' | 'submitted' | 'cancelled';
+export type SalesVoucherStatus = 'submitted';
 
 export interface SalesVoucher {
   id: string;
@@ -125,8 +125,6 @@ export interface SalesVoucher {
   driverName?: string;
   driverPhone?: string;
   inventoryApplied: boolean;
-  cancelledBy?: string;
-  cancelledAt?: string;
   createdAt: string;
   updatedAt: string;
   updatedBy?: string;

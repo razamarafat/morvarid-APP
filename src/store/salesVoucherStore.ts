@@ -2,8 +2,6 @@ import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { SalesVoucher, SalesVoucherLine, SalesVoucherFilter, CreateSalesVoucherInput, UpdateSalesVoucherInput, SalesVoucherWithLines } from '../types';
 import { useAuthStore } from './authStore';
-import { useFarmStore } from './farmStore';
-import { useStatisticsStore } from './statisticsStore';
 import { normalizeDate } from '../utils/dateUtils';
 import { getErrorMessage } from '../utils/errorUtils';
 import { normalizeVoucherNumber } from '../utils/formatUtils';
@@ -32,12 +30,9 @@ interface SalesVoucherState {
   // CRUD operations
   createSalesVoucher: (input: CreateSalesVoucherInput) => Promise<{ success: boolean; error?: string; voucherId?: string }>;
   updateSalesVoucher: (id: string, input: UpdateSalesVoucherInput) => Promise<{ success: boolean; error?: string }>;
-  submitSalesVoucher: (id: string) => Promise<{ success: boolean; error?: string }>;
-  cancelSalesVoucher: (id: string) => Promise<{ success: boolean; error?: string }>;
   deleteSalesVoucher: (id: string) => Promise<{ success: boolean; error?: string }>;
 
   // Utility
-  getNextVoucherNumber: () => Promise<string>;
   clearCurrentVoucher: () => void;
   clearError: () => void;
 }
@@ -67,7 +62,6 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
       if (currentUser && currentUser.role !== 'ADMIN') {
         if (currentUser.role === 'SALES') {
           // Sales users can see all vouchers across all farms
-          // No additional farm filter needed here, filters applied below
         } else {
           // REGISTRATION (Operator) sees only their assigned farms
           const farmIds = (currentUser.assignedFarms || []).map(f => f.id);
@@ -122,8 +116,6 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
           driverName: v.driver_name,
           driverPhone: v.driver_phone,
           inventoryApplied: v.inventory_applied || false,
-          cancelledBy: v.cancelled_by,
-          cancelledAt: v.cancelled_at,
           createdAt: v.created_at,
           updatedAt: v.updated_at,
           updatedBy: v.updated_by,
@@ -147,7 +139,6 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
   fetchSalesVoucherById: async (id: string) => {
     set({ isLoading: true, error: null });
     try {
-      // Fetch voucher with farm, creator, and editor info
       const { data: voucher, error: voucherError } = await supabase
         .from('sales_vouchers')
         .select('*, profiles!created_by(full_name, role), editor:profiles!updated_by(full_name), farms!inner(name)')
@@ -160,7 +151,6 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
         return;
       }
 
-      // Fetch voucher lines with product info
       const { data: lines, error: linesError } = await supabase
         .from('sales_voucher_lines')
         .select('*, products!inner(name, unit)')
@@ -169,7 +159,6 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
 
       if (linesError) throw linesError;
 
-      // Count total items and quantity
       let totalItems = 0;
       let totalQuantity = 0;
       const mappedLines: SalesVoucherLine[] = (lines || []).map((l: any) => {
@@ -189,37 +178,22 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
         };
       });
 
-      const mapped: SalesVoucherWithLines = {
-        id: voucher.id,
-        voucherNumber: voucher.voucher_number,
-        farmId: voucher.farm_id,
-        voucherDate: normalizeDate(voucher.voucher_date),
-        status: voucher.status,
-        createdBy: voucher.created_by,
-        submittedAt: voucher.submitted_at,
-        notes: voucher.notes,
-        totalAmount: voucher.total_amount,
-        customerName: voucher.customer_name,
-        customerPhone: voucher.customer_phone,
-        vehiclePlate: voucher.vehicle_plate,
-        deliveryAddress: voucher.delivery_address,
-        driverName: voucher.driver_name,
-        driverPhone: voucher.driver_phone,
-        inventoryApplied: voucher.inventory_applied || false,
-        cancelledBy: voucher.cancelled_by,
-        cancelledAt: voucher.cancelled_at,
-        createdAt: voucher.created_at,
-        updatedAt: voucher.updated_at,
+      set({ currentVoucher: {
+        id: voucher.id, voucherNumber: voucher.voucher_number,
+        farmId: voucher.farm_id, voucherDate: normalizeDate(voucher.voucher_date),
+        status: voucher.status, createdBy: voucher.created_by,
+        submittedAt: voucher.submitted_at, notes: voucher.notes,
+        totalAmount: voucher.total_amount, customerName: voucher.customer_name,
+        customerPhone: voucher.customer_phone, vehiclePlate: voucher.vehicle_plate,
+        deliveryAddress: voucher.delivery_address, driverName: voucher.driver_name,
+        driverPhone: voucher.driver_phone,        inventoryApplied: voucher.inventory_applied || false,
+        createdAt: voucher.created_at, updatedAt: voucher.updated_at,
         updatedBy: voucher.updated_by,
         farmName: voucher.farms?.name || 'نامشخص',
         creatorName: voucher.profiles?.full_name || 'نامشخص',
         editorName: voucher.editor?.full_name || undefined,
-        totalItems,
-        totalQuantity,
-        lines: mappedLines,
-      };
-
-      set({ currentVoucher: mapped, isLoading: false });
+        totalItems, totalQuantity, lines: mappedLines,
+      }, isLoading: false });
     } catch (e) {
       console.error('Fetch Sales Voucher By ID Failed:', e);
       set({ currentVoucher: null, isLoading: false, error: translateError(e) });
@@ -227,7 +201,7 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
   },
 
   // ============================
-  // CREATE VOUCHER (with lines in transaction)
+  // CREATE VOUCHER (immediately registered — no draft)
   // ============================
   createSalesVoucher: async (input: CreateSalesVoucherInput) => {
     set({ isSubmitting: true, error: null });
@@ -238,15 +212,16 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
     }
 
     try {
-      // 1. Insert the voucher (voucher_number is manual now)
       const normalizedVoucherNumber = normalizeVoucherNumber(input.voucherNumber);
+      
+      // 1. Insert voucher as immediately registered
       const { data: voucher, error: voucherError } = await supabase
         .from('sales_vouchers')
         .insert({
           farm_id: input.farmId,
           voucher_date: normalizeDate(input.voucherDate),
           voucher_number: normalizedVoucherNumber,
-          status: 'draft',
+          status: 'submitted',
           created_by: currentUser.id,
           notes: input.notes || null,
           total_amount: input.totalAmount || null,
@@ -263,7 +238,7 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
 
       const voucherId = voucher.id;
 
-      // 2. Insert voucher lines
+      // 2. Insert voucher lines (line-level trigger handles inventory)
       if (input.lines.length > 0) {
         const dbLines = input.lines.map(line => ({
           voucher_id: voucherId,
@@ -279,7 +254,7 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
           .insert(dbLines);
 
         if (linesError) {
-          // Rollback: delete the voucher if lines fail
+          // Rollback: delete the voucher if lines fail (triggers reverse inventory)
           await supabase.from('sales_vouchers').delete().eq('id', voucherId);
           throw linesError;
         }
@@ -295,28 +270,12 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
   },
 
   // ============================
-  // UPDATE DRAFT VOUCHER
+  // UPDATE VOUCHER (edit any voucher)
   // ============================
   updateSalesVoucher: async (id: string, input: UpdateSalesVoucherInput) => {
     set({ isSubmitting: true, error: null });
     try {
-      // 1. Verify voucher exists and is draft (server-side check via RLS handles security)
-      const { data: voucher, error: fetchError } = await supabase
-        .from('sales_vouchers')
-        .select('status, created_by')
-        .eq('id', id)
-        .single();
-
-      if (fetchError) {
-        set({ isSubmitting: false });
-        return { success: false, error: 'حواله یافت نشد.' };
-      }
-      if (voucher && voucher.status !== 'draft') {
-        set({ isSubmitting: false });
-        return { success: false, error: 'فقط حواله‌های پیش‌نویس قابل ویرایش هستند.' };
-      }
-
-      // 2. Update voucher header
+      // 1. Update voucher header
       const dbUpdates: any = {};
       if (input.voucherNumber !== undefined) dbUpdates.voucher_number = normalizeVoucherNumber(input.voucherNumber);
       if (input.voucherDate !== undefined) dbUpdates.voucher_date = normalizeDate(input.voucherDate);
@@ -336,12 +295,10 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
         if (updateError) throw updateError;
       }
 
-      // 3. Update lines if provided (delete old, insert new)
+      // 2. Update lines if provided (delete old + insert new → triggers handle inventory)
       if (input.lines && input.lines.length > 0) {
-        // Delete existing lines
         await supabase.from('sales_voucher_lines').delete().eq('voucher_id', id);
 
-        // Insert new lines
         const dbLines = input.lines.map(line => ({
           voucher_id: id,
           product_id: line.productId,
@@ -368,135 +325,7 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
   },
 
   // ============================
-  // SUBMIT VOUCHER (draft -> submitted + inventory deduction)
-  // ============================
-  submitSalesVoucher: async (id: string) => {
-    set({ isSubmitting: true, error: null });
-    try {
-      // 1. Fetch current voucher to verify status and inventory
-      const { data: voucher, error: fetchError } = await supabase
-        .from('sales_vouchers')
-        .select('*, sales_voucher_lines(*)')
-        .eq('id', id)
-        .single();
-
-      if (fetchError) throw fetchError;
-      if (!voucher) {
-        set({ isSubmitting: false });
-        return { success: false, error: 'حواله یافت نشد.' };
-      }
-      if (voucher.status !== 'draft') {
-        set({ isSubmitting: false });
-        return { success: false, error: 'فقط حواله‌های پیش‌نویس قابل ثبت نهایی هستند.' };
-      }
-
-      // 2. SAFEGUARD: Check if inventory already applied
-      if (voucher.inventory_applied) {
-        set({ isSubmitting: false });
-        return { success: false, error: 'موجودی انبار قبلاً برای این حواله کسر شده است.' };
-      }
-
-      // 3. SAFEGUARD: Check if inventory transactions already exist
-      const { data: existingTxns, error: txnCheckError } = await supabase
-        .from('inventory_transactions')
-        .select('id')
-        .eq('source_type', 'sales_voucher')
-        .eq('source_id', id)
-        .limit(1);
-
-      if (!txnCheckError && existingTxns && existingTxns.length > 0) {
-        set({ isSubmitting: false });
-        return { success: false, error: 'تراکنش‌های انبار قبلاً برای این حواله ثبت شده است.' };
-      }
-
-      // 4. Verify lines exist
-      const lines = voucher.sales_voucher_lines || [];
-      if (lines.length === 0) {
-        set({ isSubmitting: false });
-        return { success: false, error: 'حواله بدون اقلام قابل ثبت نیست. حداقل یک قلم اضافه کنید.' };
-      }
-
-      // 5. Check inventory sufficiency for each line
-      const { getLatestInventory } = useStatisticsStore.getState();
-      const { getProductById } = useFarmStore.getState();
-      const insufficientItems: string[] = [];
-
-      for (const line of lines) {
-        const { units } = getLatestInventory(voucher.farm_id, line.product_id);
-        const product = getProductById(line.product_id);
-        if (units < Number(line.quantity)) {
-          insufficientItems.push(
-            `${product?.name || 'محصول'} (موجودی: ${units}، نیاز: ${line.quantity})`
-          );
-        }
-      }
-
-      if (insufficientItems.length > 0) {
-        set({ isSubmitting: false });
-        return {
-          success: false,
-          error: `موجودی انبار برای اقلام زیر کافی نیست:\n${insufficientItems.join('\n')}`
-        };
-      }
-
-      // 6. Submit the voucher (status change triggers inventory deduction via DB triggers)
-      const { error: submitError } = await supabase
-        .from('sales_vouchers')
-        .update({
-          status: 'submitted',
-          submitted_at: new Date().toISOString(),
-          // inventory_applied is set by DB trigger
-        })
-        .eq('id', id);
-
-      if (submitError) throw submitError;
-
-      // 7. Refresh data
-      await get().fetchSalesVoucherById(id);
-      set({ isSubmitting: false });
-      return { success: true };
-    } catch (e: any) {
-      console.error('Submit Sales Voucher Failed:', e);
-      set({ isSubmitting: false });
-      return { success: false, error: translateError(e) };
-    }
-  },
-
-  // ============================
-  // CANCEL VOUCHER (admin or sales owner, reverses inventory)
-  // ============================
-  cancelSalesVoucher: async (id: string) => {
-    set({ isSubmitting: true, error: null });
-    const currentUser = useAuthStore.getState().user;
-    if (!currentUser) {
-      set({ isSubmitting: false });
-      return { success: false, error: 'کاربر لاگین نیست.' };
-    }
-
-    try {
-      const { error } = await supabase
-        .from('sales_vouchers')
-        .update({
-          status: 'cancelled',
-          cancelled_by: currentUser.id,
-          cancelled_at: new Date().toISOString(),
-        })
-        .eq('id', id);
-
-      if (error) throw error;
-
-      await get().fetchSalesVoucherById(id);
-      set({ isSubmitting: false });
-      return { success: true };
-    } catch (e: any) {
-      console.error('Cancel Sales Voucher Failed:', e);
-      set({ isSubmitting: false });
-      return { success: false, error: translateError(e) };
-    }
-  },
-
-  // ============================
-  // DELETE VOUCHER (admin or sales owner, draft only)
+  // DELETE VOUCHER (any voucher — cascade deletes lines → triggers reverse inventory)
   // ============================
   deleteSalesVoucher: async (id: string) => {
     set({ isSubmitting: true, error: null });
@@ -507,19 +336,6 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
     }
 
     try {
-      // Verify status is draft
-      const { data: voucher, error: fetchError } = await supabase
-        .from('sales_vouchers')
-        .select('status')
-        .eq('id', id)
-        .single();
-
-      if (fetchError) throw fetchError;
-      if (voucher && voucher.status !== 'draft') {
-        set({ isSubmitting: false });
-        return { success: false, error: 'فقط حواله‌های پیش‌نویس قابل حذف هستند.' };
-      }
-
       const { error } = await supabase
         .from('sales_vouchers')
         .delete()
@@ -534,14 +350,6 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
       set({ isSubmitting: false });
       return { success: false, error: translateError(e) };
     }
-  },
-
-  // ============================
-  // GET NEXT VOUCHER NUMBER (deprecated - voucher number is now manual)
-  // ============================
-  getNextVoucherNumber: async (): Promise<string> => {
-    // Voucher number is now fully manual. This function remains for API compatibility.
-    return '';
   },
 
   // ============================

@@ -8,7 +8,7 @@ import { Icons } from '../common/Icons';
 import Button from '../common/Button';
 import { SkeletonRow } from '../common/Skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SalesVoucher, SalesVoucherFilter, SalesVoucherStatus, UserRole } from '../../types';
+import { SalesVoucher, SalesVoucherFilter, UserRole } from '../../types';
 import { toPersianDigits } from '../../utils/dateUtils';
 import { SALES_VOUCHER_STATUS_LABELS, SALES_VOUCHER_STATUS_COLORS } from '../../constants';
 import JalaliDatePicker from '../common/JalaliDatePicker';
@@ -26,14 +26,13 @@ const SalesVoucherListWrapper: React.FC<SalesVoucherListProps> = ({ onNavigate, 
 };
 
 const SalesVoucherList: React.FC<SalesVoucherListProps> = ({ onNavigate, onEditVoucher, readOnly = false }) => {
-  const { vouchers, isLoading, fetchSalesVouchers, deleteSalesVoucher, submitSalesVoucher, cancelSalesVoucher } = useSalesVoucherStore();
+  const { vouchers, isLoading, fetchSalesVouchers, deleteSalesVoucher } = useSalesVoucherStore();
   const { farms, products, getProductById } = useFarmStore();
   const { user } = useAuthStore();
   const { addToast } = useToastStore();
   const { confirm } = useConfirm();
 
   const [filterFarmId, setFilterFarmId] = useState<string>('all');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterDateFrom, setFilterDateFrom] = useState<string>('');
   const [filterDateTo, setFilterDateTo] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -44,18 +43,16 @@ const SalesVoucherList: React.FC<SalesVoucherListProps> = ({ onNavigate, onEditV
   useEffect(() => {
     const filters: SalesVoucherFilter = {};
     if (filterFarmId !== 'all') filters.farmId = filterFarmId;
-    if (filterStatus !== 'all') filters.status = filterStatus as SalesVoucherStatus;
     if (filterDateFrom) filters.dateFrom = filterDateFrom;
     if (filterDateTo) filters.dateTo = filterDateTo;
     if (searchTerm) filters.search = searchTerm;
 
     fetchSalesVouchers(filters);
-  }, [filterFarmId, filterStatus, filterDateFrom, filterDateTo, searchTerm]);
+  }, [filterFarmId, filterDateFrom, filterDateTo, searchTerm]);
 
   const handleRefresh = () => {
     const filters: SalesVoucherFilter = {};
     if (filterFarmId !== 'all') filters.farmId = filterFarmId;
-    if (filterStatus !== 'all') filters.status = filterStatus as SalesVoucherStatus;
     if (filterDateFrom) filters.dateFrom = filterDateFrom;
     if (filterDateTo) filters.dateTo = filterDateTo;
     if (searchTerm) filters.search = searchTerm;
@@ -80,44 +77,6 @@ const SalesVoucherList: React.FC<SalesVoucherListProps> = ({ onNavigate, onEditV
     }
   };
 
-  const handleSubmit = async (voucher: SalesVoucher) => {
-    const confirmed = await confirm({
-      title: 'ثبت نهایی حواله',
-      message: `با ثبت نهایی این حواله، موجودی انبار فارم ${voucher.farmName} به میزان اقلام مندرج کاهش خواهد یافت.\n\nآیا از ثبت نهایی حواله شماره ${toPersianDigits(voucher.voucherNumber)} اطمینان دارید؟`,
-      confirmText: 'بله، ثبت نهایی',
-      cancelText: 'انصراف',
-      type: 'warning',
-    });
-
-    if (!confirmed) return;
-
-    const result = await submitSalesVoucher(voucher.id);
-    if (result.success) {
-      addToast(`حواله ${toPersianDigits(voucher.voucherNumber)} با موفقیت ثبت نهایی شد.`, 'success');
-    } else {
-      addToast(result.error || 'خطا در ثبت نهایی حواله.', 'error');
-    }
-  };
-
-  const handleCancel = async (voucher: SalesVoucher) => {
-    const confirmed = await confirm({
-      title: 'کنسل کردن حواله',
-      message: `آیا از کنسل کردن حواله شماره ${toPersianDigits(voucher.voucherNumber)} اطمینان دارید؟\n\nدر صورت کنسل شدن، موجودی انبار به حالت قبل باز می‌گردد.`,
-      confirmText: 'کنسل حواله',
-      cancelText: 'انصراف',
-      type: 'danger',
-    });
-
-    if (!confirmed) return;
-
-    const result = await cancelSalesVoucher(voucher.id);
-    if (result.success) {
-      addToast(`حواله ${toPersianDigits(voucher.voucherNumber)} کنسل شد.`, 'success');
-    } else {
-      addToast(result.error || 'خطا در کنسل کردن حواله.', 'error');
-    }
-  };
-
   const handleDelete = async (voucher: SalesVoucher) => {
     const confirmed = await confirm({
       title: 'حذف حواله',
@@ -139,13 +98,12 @@ const SalesVoucherList: React.FC<SalesVoucherListProps> = ({ onNavigate, onEditV
 
   const clearFilters = () => {
     setFilterFarmId('all');
-    setFilterStatus('all');
     setFilterDateFrom('');
     setFilterDateTo('');
     setSearchTerm('');
   };
 
-  const hasFilters = filterFarmId !== 'all' || filterStatus !== 'all' || filterDateFrom || filterDateTo || searchTerm;
+  const hasFilters = filterFarmId !== 'all' || filterDateFrom || filterDateTo || searchTerm;
 
   return (
     <div className="space-y-4 lg:space-y-6">
@@ -180,17 +138,23 @@ const SalesVoucherList: React.FC<SalesVoucherListProps> = ({ onNavigate, onEditV
         </div>
 
         <div className="w-full md:w-1/5">
-          <label className="block text-sm font-bold mb-1 lg:mb-2 text-gray-700 dark:text-gray-300">وضعیت</label>
-          <select
-            className="w-full h-10 p-2 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 dark:text-white font-bold text-sm outline-none focus:border-violet-500"
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-          >
-            <option value="all">همه</option>
-            <option value="draft">پیش‌نویس</option>
-            <option value="submitted">ثبت نهایی</option>
-            <option value="cancelled">کنسل شده</option>
-          </select>
+          <label className="block text-sm font-bold mb-1 lg:mb-2 text-gray-700 dark:text-gray-300">از تاریخ</label>
+          <div className="h-10 relative z-10">
+            <JalaliDatePicker
+              value={filterDateFrom}
+              onChange={(date) => setFilterDateFrom(date)}
+            />
+          </div>
+        </div>
+
+        <div className="w-full md:w-1/5">
+          <label className="block text-sm font-bold mb-1 lg:mb-2 text-gray-700 dark:text-gray-300">تا تاریخ</label>
+          <div className="h-10 relative z-10">
+            <JalaliDatePicker
+              value={filterDateTo}
+              onChange={(date) => setFilterDateTo(date)}
+            />
+          </div>
         </div>
 
         <div className="flex gap-2 w-full md:w-auto">
@@ -267,8 +231,8 @@ const SalesVoucherList: React.FC<SalesVoucherListProps> = ({ onNavigate, onEditV
                 </tr>
               ) : (
                 vouchers.map((voucher) => {
-                  const statusColors = SALES_VOUCHER_STATUS_COLORS[voucher.status] || SALES_VOUCHER_STATUS_COLORS.draft;
-                  const statusLabel = SALES_VOUCHER_STATUS_LABELS[voucher.status] || 'نامشخص';
+                  const statusColors = SALES_VOUCHER_STATUS_COLORS[voucher.status] || SALES_VOUCHER_STATUS_COLORS.submitted;
+                  const statusLabel = SALES_VOUCHER_STATUS_LABELS[voucher.status] || 'ثبت شده';
 
                   return (
                     <tr key={voucher.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
@@ -300,8 +264,8 @@ const SalesVoucherList: React.FC<SalesVoucherListProps> = ({ onNavigate, onEditV
                             <Icons.Eye className="w-4 h-4" />
                           </button>
 
-                          {/* Edit button - only for draft vouchers, by creator */}
-                          {!readOnly && voucher.status === 'draft' && isSales && voucher.createdBy === user?.id && (
+                          {/* Edit button - by creator or admin */}
+                          {!readOnly && (isAdmin || (isSales && voucher.createdBy === user?.id)) && (
                             <button
                               onClick={() => handleEdit(voucher.id)}
                               className="p-2 rounded-lg bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 hover:bg-violet-200 transition-colors"
@@ -311,30 +275,8 @@ const SalesVoucherList: React.FC<SalesVoucherListProps> = ({ onNavigate, onEditV
                             </button>
                           )}
 
-                          {/* Submit button - only for draft vouchers, by creator */}
-                          {!readOnly && voucher.status === 'draft' && isSales && voucher.createdBy === user?.id && (
-                            <button
-                              onClick={() => handleSubmit(voucher)}
-                              className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 transition-colors"
-                              title="ثبت نهایی"
-                            >
-                              <Icons.Check className="w-4 h-4" />
-                            </button>
-                          )}
-
-                          {/* Cancel button - admin only */}
-                          {isAdmin && (voucher.status === 'submitted' || voucher.status === 'draft') && (
-                            <button
-                              onClick={() => handleCancel(voucher)}
-                              className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 transition-colors"
-                              title="کنسل"
-                            >
-                              <Icons.X className="w-4 h-4" />
-                            </button>
-                          )}
-
-                          {/* Delete button - admin or sales owner on draft */}
-                          {(isAdmin || (isSales && voucher.createdBy === user?.id)) && voucher.status === 'draft' && (
+                          {/* Delete button - admin or sales owner */}
+                          {(isAdmin || (isSales && voucher.createdBy === user?.id)) && (
                             <button
                               onClick={() => handleDelete(voucher)}
                               className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 transition-colors"

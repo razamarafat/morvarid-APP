@@ -84,6 +84,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
             <button onClick={() => handleNavClick('stats')} className={btnClass}><Icons.BarChart className="w-4 h-4" /> ثبت آمار</button>
             <button onClick={() => handleNavClick('invoice')} className={btnClass}><Icons.FileText className="w-4 h-4" /> ثبت حواله</button>
             <button onClick={() => handleNavClick('recent')} className={btnClass}><Icons.Refresh className="w-4 h-4" /> سوابق</button>
+            <button onClick={() => handleNavClick('sales-vouchers')} className={`${btnClass} text-violet-600 dark:text-violet-400`}><Icons.FileText className="w-4 h-4" /> حواله فروش</button>
           </>
         );
       case UserRole.SALES:
@@ -93,6 +94,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
             <button onClick={() => handleNavClick('farm-stats')} className={btnClass}><Icons.BarChart className="w-4 h-4" /> آمار فارم</button>
             <button onClick={() => handleNavClick('invoices')} className={btnClass}><Icons.FileText className="w-4 h-4" /> لیست حواله</button>
             <button onClick={() => handleNavClick('reports')} className={btnClass}><Icons.FileText className="w-4 h-4" /> گزارشات</button>
+            <button onClick={() => handleNavClick('sales-vouchers')} className={`${btnClass} text-violet-600 dark:text-violet-400`}><Icons.FileText className="w-4 h-4" /> حواله فروش</button>
           </>
         );
       case UserRole.ADMIN:
@@ -105,6 +107,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
             <button onClick={() => handleNavClick('reports')} className={btnClass}><Icons.FileText className="w-4 h-4" /> گزارشات</button>
             <button onClick={() => handleNavClick('devices')} className={btnClass}><Icons.Globe className="w-4 h-4" /> دستگاه‌ها</button>
             <button onClick={() => handleNavClick('testing')} className={btnClass}><Icons.TestTube className="w-4 h-4" /> سنجش فنی</button>
+            <button onClick={() => handleNavClick('sales-vouchers')} className={`${btnClass} text-violet-600 dark:text-violet-400`}><Icons.FileText className="w-4 h-4" /> حواله فروش</button>
           </>
         );
     }

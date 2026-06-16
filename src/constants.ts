@@ -124,30 +124,17 @@ export const TOAST_IDS = {
  * برچسب‌های فارسی وضعیت‌های حواله فروش
  */
 export const SALES_VOUCHER_STATUS_LABELS: Record<string, string> = {
-  draft: 'پیش‌نویس',
-  submitted: 'ثبت نهایی',
-  cancelled: 'کنسل شده',
+  submitted: 'ثبت شده',
 };
 
 /**
  * رنگ‌های وضعیت‌های حواله فروش (برای Badge ها)
- * از تم بنفش (Violet) برای حواله‌های فروش استفاده می‌کنیم
  */
 export const SALES_VOUCHER_STATUS_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  draft: {
-    bg: 'bg-amber-100 dark:bg-amber-900/30',
-    text: 'text-amber-700 dark:text-amber-400',
-    border: 'border-amber-300 dark:border-amber-700',
-  },
   submitted: {
     bg: 'bg-violet-100 dark:bg-violet-900/30',
     text: 'text-violet-700 dark:text-violet-400',
     border: 'border-violet-300 dark:border-violet-700',
-  },
-  cancelled: {
-    bg: 'bg-red-100 dark:bg-red-900/30',
-    text: 'text-red-700 dark:text-red-400',
-    border: 'border-red-300 dark:border-red-700',
   },
 };
 
