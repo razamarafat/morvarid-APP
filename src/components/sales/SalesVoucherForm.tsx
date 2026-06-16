@@ -17,6 +17,7 @@ import JalaliDatePicker from '../common/JalaliDatePicker';
 import PersianNumberInput from '../common/PersianNumberInput';
 import Input from '../common/Input';
 import TextArea from '../common/TextArea';
+import PlateInput from '../common/PlateInput';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UserRole } from '../../types';
 
@@ -504,10 +505,15 @@ const SalesVoucherForm: React.FC<SalesVoucherFormProps> = ({ onNavigate, editVou
             </div>
             <div>
               <label className={labelClass}>شماره پلاک خودرو</label>
-              <Input
-                {...register('vehiclePlate')}
-                className={inputClass}
-                placeholder="شماره پلاک"
+              <Controller
+                name="vehiclePlate"
+                control={control}
+                render={({ field }) => (
+                  <PlateInput
+                    value={field.value || ''}
+                    onChange={field.onChange}
+                  />
+                )}
               />
             </div>
           </div>
