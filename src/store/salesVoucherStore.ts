@@ -54,7 +54,7 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
 
       let query = supabase
         .from('sales_vouchers')
-        .select('*, profiles!created_by(full_name, role), editor:profiles!updated_by(full_name), farms!inner(name)')
+        .select('*, profiles!created_by(full_name, role), editor:profiles!updated_by(full_name), farms(name)')
         .order('created_at', { ascending: false })
         .limit(500);
 
@@ -141,7 +141,7 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
     try {
       const { data: voucher, error: voucherError } = await supabase
         .from('sales_vouchers')
-        .select('*, profiles!created_by(full_name, role), editor:profiles!updated_by(full_name), farms!inner(name)')
+        .select('*, profiles!created_by(full_name, role), editor:profiles!updated_by(full_name), farms(name)')
         .eq('id', id)
         .single();
 
