@@ -238,12 +238,13 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
 
     try {
       // 1. Insert the voucher (voucher_number is manual now)
+      const normalizedVoucherNumber = (input.voucherNumber || '').trim();
       const { data: voucher, error: voucherError } = await supabase
         .from('sales_vouchers')
         .insert({
           farm_id: input.farmId,
           voucher_date: normalizeDate(input.voucherDate),
-          voucher_number: input.voucherNumber,
+          voucher_number: normalizedVoucherNumber,
           status: 'draft',
           created_by: currentUser.id,
           notes: input.notes || null,
@@ -316,7 +317,7 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
 
       // 2. Update voucher header
       const dbUpdates: any = {};
-      if (input.voucherNumber !== undefined) dbUpdates.voucher_number = input.voucherNumber;
+      if (input.voucherNumber !== undefined) dbUpdates.voucher_number = (input.voucherNumber || '').trim();
       if (input.voucherDate !== undefined) dbUpdates.voucher_date = normalizeDate(input.voucherDate);
       if (input.notes !== undefined) dbUpdates.notes = input.notes;
       if (input.totalAmount !== undefined) dbUpdates.total_amount = input.totalAmount;
