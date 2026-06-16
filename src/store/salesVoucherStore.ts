@@ -6,6 +6,7 @@ import { useFarmStore } from './farmStore';
 import { useStatisticsStore } from './statisticsStore';
 import { normalizeDate } from '../utils/dateUtils';
 import { getErrorMessage } from '../utils/errorUtils';
+import { normalizeVoucherNumber } from '../utils/formatUtils';
 
 const translateError = (error: any): string => {
   if (!error) return 'خطای ناشناخته';
@@ -238,7 +239,7 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
 
     try {
       // 1. Insert the voucher (voucher_number is manual now)
-      const normalizedVoucherNumber = (input.voucherNumber || '').trim();
+      const normalizedVoucherNumber = normalizeVoucherNumber(input.voucherNumber);
       const { data: voucher, error: voucherError } = await supabase
         .from('sales_vouchers')
         .insert({
@@ -317,7 +318,7 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
 
       // 2. Update voucher header
       const dbUpdates: any = {};
-      if (input.voucherNumber !== undefined) dbUpdates.voucher_number = (input.voucherNumber || '').trim();
+      if (input.voucherNumber !== undefined) dbUpdates.voucher_number = normalizeVoucherNumber(input.voucherNumber);
       if (input.voucherDate !== undefined) dbUpdates.voucher_date = normalizeDate(input.voucherDate);
       if (input.notes !== undefined) dbUpdates.notes = input.notes;
       if (input.totalAmount !== undefined) dbUpdates.total_amount = input.totalAmount;

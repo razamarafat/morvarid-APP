@@ -11,6 +11,7 @@ import { useConfirm } from '../../hooks/useConfirm';
 import { getTodayJalali, normalizeDate, toPersianDigits } from '../../utils/dateUtils';
 import { compareProducts } from '../../utils/sortUtils';
 import { getCorrectedInventory } from '../../utils/inventoryUtils';
+import { normalizeVoucherNumber } from '../../utils/formatUtils';
 import Button from '../common/Button';
 import { Icons } from '../common/Icons';
 import JalaliDatePicker from '../common/JalaliDatePicker';
@@ -25,7 +26,7 @@ import { UserRole } from '../../types';
 const salesVoucherSchema = z.object({
   farmId: z.string().min(1, 'انتخاب فارم الزامی است'),
   voucherDate: z.string().min(1, 'تاریخ الزامی است'),
-  voucherNumber: z.string().min(1, 'شماره حواله الزامی است'),
+  voucherNumber: z.string().min(1, 'شماره حواله الزامی است').transform(normalizeVoucherNumber),
   customerName: z.string().min(1, 'نام خریدار الزامی است'),
   driverName: z.string().min(1, 'نام راننده الزامی است'),
   driverPhone: z.string().min(1, 'شماره تماس راننده الزامی است'),
