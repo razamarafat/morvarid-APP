@@ -90,6 +90,29 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = () => {
     const [copyLoaded, setCopyLoaded] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // 20260619 FOLLOW-UP — Header-Metadata Enrichment.
+    //
+    // The previous fix (commit c471ef4) wired line items + quantities via the
+    // Zustand `copiedSalesVoucher` slot. It did NOT propagate the source
+    // voucher's header fields (voucher_number, customer/buyer name, driver
+    // name, vehicle plate) into the InvoiceForm, leaving the operator blind
+    // about WHO bought + WHO drove the original sales voucher.
+    //
+    // We now:
+    //   (1) Build a Persian one-liner string containing all four header
+    //       fields and inject it into the RHF `description` field so the data
+    //       PERSISTS to the database on submit.
+    //   (2) Lift the same four fields into a `salesContext` local state so the
+    //       Visual Context Banner at the top of the form can render them in a
+    //       clearly distinguishable purple box. The banner is read-only and
+    //       disappears the moment the operator submits / navigates away.
+    const [salesContext, setSalesContext] = useState<{
+        voucherNumber: string;
+        customerName: string;
+        driverName: string;
+        vehiclePlate: string;
+    } | null>(null);
+
     // 20260619 fix: read the COPY handoff from the typed Zustand slot
     // (set by SalesVoucherList / Detail handlers) instead of from a
     // parent prop that tightly coupled to RegistrationDashboard.
@@ -147,6 +170,37 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = () => {
                     }
 
                     addToast(`اطلاعات حواله فروش ${toPersianDigits(voucher.voucherNumber)} در فرم بارگذاری شد.`, 'info');
+
+                    // 20260619 FOLLOW-UP — Header-Metadata Enrichment.
+                    //
+                    // (1) Build a single Persian string containing all four
+                    //     source-voucher header fields and inject it into the
+                    //     RHF `description` Controller so it persists to the
+                    //     database on submit (via bulkAddInvoices).
+                    // (2) Lift the same four fields into `salesContext` so the
+                    //     purple Visual Context Banner at the top of the form
+                    //     can render them for the operator to verify.
+                    //
+                    // We APPEND rather than overwrite if the operator had
+                    // pre-typed a description (e.g. a previous draft), using
+                    // a newline separator so the auto-injected header is
+                    // visually grouped at the bottom of any free-form note.
+                    const headersNote =
+                        `پیرو حواله فروش شماره: ${toPersianDigits(voucher.voucherNumber) || '-'} | ` +
+                        `خریدار: ${voucher.customerName || '-'} | ` +
+                        `راننده: ${voucher.driverName || '-'} | ` +
+                        `پلاک: ${voucher.vehiclePlate || '-'}`;
+                    const existingDesc = (watchedValues.description || '').toString();
+                    const composedDesc = existingDesc.length > 0
+                        ? `${existingDesc}\n${headersNote}`
+                        : headersNote;
+                    setValue('description', composedDesc, { shouldDirty: false });
+                    setSalesContext({
+                        voucherNumber: voucher.voucherNumber || '',
+                        customerName: voucher.customerName || '',
+                        driverName: voucher.driverName || '',
+                        vehiclePlate: voucher.vehiclePlate || '',
+                    });
                 } else {
                     addToast('حواله فروش یافت نشد یا وضعیت آن معتبر نیست.', 'warning');
                 }
@@ -618,6 +672,9 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = () => {
         setValue('plateNumber', '');
         setPendingDraftData(null);
         setActiveDraftId(null);
+        // 20260619 FOLLOW-UP — also hide the Visual Context Banner so the
+        // form returns to a fully-empty state after a successful submit.
+        setSalesContext(null);
     }
 
     const inputClass = "w-full p-4 border-2 border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700 text-gray-900 dark:text-white font-black text-center focus:border-metro-blue outline-none transition-all text-xl rounded-xl shadow-sm placeholder-gray-400";
@@ -634,7 +691,54 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = () => {
 
     return (
         <div className="max-w-4xl mx-auto space-y-6 lg:space-y-10 pb-20">
-            {/* Sales Voucher Copy Warning */}
+            {/* 20260619 FOLLOW-UP — Visual Context Banner */}
+            {/* Read-only summary of the source sales voucher's header fields */}
+            {/* (voucher number + buyer name + driver name + vehicle plate).   */}
+            {/* Renders ONLY when the form was opened via "کپی به ثبت حواله". */}
+            {salesContext && (
+                <div className="bg-purple-50 dark:bg-purple-950/20 border-2 border-purple-200 dark:border-purple-800 text-purple-800 dark:text-purple-200 p-4 lg:p-5 rounded-2xl animate-in fade-in slide-in-from-top-4">
+                    <div className="flex items-start gap-3">
+                        <Icons.FileText className="w-6 h-6 text-purple-500 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                            <p className="font-black text-base mb-3 leading-relaxed">
+                                شما در حال ثبت حواله بر اساس حواله فروش شماره{' '}
+                                <span className="font-black text-purple-900 dark:text-purple-100 tabular-nums tracking-wider">
+                                    {toPersianDigits(salesContext.voucherNumber)}
+                                </span>{' '}
+                                هستید.
+                            </p>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <div className="bg-white/60 dark:bg-black/20 rounded-xl p-3">
+                                    <span className="text-[11px] font-black text-purple-500 dark:text-purple-400 uppercase tracking-wider block mb-1">
+                                        خریدار
+                                    </span>
+                                    <span className="font-black text-purple-900 dark:text-purple-100 text-sm">
+                                        {salesContext.customerName || '---'}
+                                    </span>
+                                </div>
+                                <div className="bg-white/60 dark:bg-black/20 rounded-xl p-3">
+                                    <span className="text-[11px] font-black text-purple-500 dark:text-purple-400 uppercase tracking-wider block mb-1">
+                                        راننده
+                                    </span>
+                                    <span className="font-black text-purple-900 dark:text-purple-100 text-sm">
+                                        {salesContext.driverName || '---'}
+                                    </span>
+                                </div>
+                                <div className="bg-white/60 dark:bg-black/20 rounded-xl p-3">
+                                    <span className="text-[11px] font-black text-purple-500 dark:text-purple-400 uppercase tracking-wider block mb-1">
+                                        پلاک
+                                    </span>
+                                    <span className="font-black text-purple-900 dark:text-purple-100 text-sm tabular-nums tracking-wider" dir="ltr">
+                                        {salesContext.vehiclePlate || '---'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Sales Voucher Copy Warning (inventory pre-deduction notice) */}
             {isFromSalesVoucher && sourceVoucherApplied && (
                 <div className="bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-300 dark:border-amber-700 rounded-2xl p-4 animate-in fade-in slide-in-from-top-4">
                     <div className="flex items-start gap-3">
