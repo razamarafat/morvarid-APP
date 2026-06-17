@@ -5,7 +5,7 @@ import SplashPage from './pages/SplashPage'; // Keep SplashPage static for immed
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import { useThemeStore } from './store/themeStore';
 import { UserRole } from './types';
-import { useAuthStore } from './store/authStore';
+import { useAuthStore, STORAGE_KEYS } from './store/authStore';
 import { useFarmStore } from './store/farmStore';
 import { useStatisticsStore } from './store/statisticsStore';
 import { useInvoiceStore } from './store/invoiceStore';
@@ -143,6 +143,30 @@ const PageLoader = () => (
   </div>
 );
 
+// Page-hide handler: when "Remember Me" was NOT ticked on the last login,
+// scrub Supabase's JWT from localStorage so the next visit shows the login
+// screen instead of silently re-authenticating. HashRouter routes do not
+// fire pagehide for in-app navigation, only for tab close / window close /
+// full reload — which is exactly the behavior we want.
+const handlePageHide = () => {
+  if (typeof localStorage === 'undefined') return;
+  const rememberMe = localStorage.getItem(STORAGE_KEYS.REMEMBER_ME_SESSION);
+  if (rememberMe === '1') return; // user opted in: keep session
+  // User did NOT tick Remember Me: scrub Supabase auth tokens so the next
+  // page load boots the login screen. Only `sb-*-auth-token` is scrubbed —
+  // NOT the activity stamp, NOT the rememberMe sentinel, NOT anything else.
+  try {
+    const keys = Object.keys(localStorage);
+    for (const key of keys) {
+      if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+        localStorage.removeItem(key);
+      }
+    }
+  } catch {
+    // localStorage may be unavailable (private mode, quota, etc.); nothing more we can do.
+  }
+};
+
 function App() {
   const { theme } = useThemeStore();
   const { checkSession, user, updateActivity, checkInactivity } = useAuthStore();
@@ -190,6 +214,12 @@ function App() {
     window.addEventListener('touchstart', handleUserActivity);
     window.addEventListener('scroll', handleUserActivity);
 
+    // SECURITY (2026-06): scrub Supabase JWT on tab close when Remember Me
+    // is OFF. Listens to BOTH pagehide (primary) AND beforeunload (fallback
+    // for older mobile browsers that don't reliably fire pagehide).
+    window.addEventListener('pagehide', handlePageHide);
+    window.addEventListener('beforeunload', handlePageHide);
+
     const inactivityInterval = setInterval(() => {
       checkInactivity();
     }, 60 * 1000);
@@ -217,6 +247,8 @@ function App() {
       window.removeEventListener('scroll', handleUserActivity);
       window.removeEventListener('appinstalled', handleAppInstalled);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handlePageHide);
+      window.removeEventListener('beforeunload', handlePageHide);
       clearInterval(inactivityInterval);
     };
   }, []);

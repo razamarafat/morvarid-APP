@@ -47,7 +47,7 @@ const StarryNight = React.memo(() => {
 
 const LoginPage: React.FC = () => {
     const navigate = useNavigate();
-    const { login, blockUntil, loadSavedUsername, savedUsername } = useAuthStore();
+    const { login, blockUntil, loadSavedUsername, savedUsername, user, isLoading } = useAuthStore();
     const { addToast } = useToastStore();
 
     const [currentTime, setCurrentTime] = useState(getCurrentTime());
@@ -79,6 +79,23 @@ const LoginPage: React.FC = () => {
 
     const isBlocked = blockUntil ? Date.now() < blockUntil : false;
 
+    // SECURITY (2026-06): Zero-Click Auto-Login. If a Supabase session is
+    // already valid (e.g. user ticked "Remember Me" on a prior visit, OR they
+    // reopened the SPA without closing the tab), App.tsx's checkSession()
+    // populates `user` and we immediately route to the role-appropriate
+    // dashboard. No password re-entry required.
+    useEffect(() => {
+        if (user && !isRedirecting) {
+            setIsRedirecting(true);
+            switch (user.role) {
+                case UserRole.ADMIN: navigate('/admin', { replace: true }); break;
+                case UserRole.REGISTRATION: navigate('/registration', { replace: true }); break;
+                case UserRole.SALES: navigate('/sales', { replace: true }); break;
+                default: navigate('/home', { replace: true }); break;
+            }
+        }
+    }, [user, isRedirecting, navigate]);
+
     const onSubmit = async (data: LoginFormValues) => {
         if (isBlocked) {
             addToast('حساب شما موقتاً مسدود است. لطفا دقایقی صبر کنید.', 'error', TOAST_IDS.ACCOUNT_BLOCKED);
@@ -107,6 +124,22 @@ const LoginPage: React.FC = () => {
         const firstError = Object.values(errors)[0] as any;
         if (firstError?.message) addToast(firstError.message as string, 'error');
     };
+
+    // UX polish (2026-06): While App.tsx's checkSession() is still in flight
+    // on a returning visit with a valid Supabase session, render a quiet
+    // spinner instead of the login form. This prevents a 1-frame flicker where
+    // the user sees editable inputs and could start typing just as the
+    // Zero-Click Auto-Login effect redirects them to /admin (or /sales etc.).
+    if (isLoading && !isBlocked) {
+        return (
+            <div className="h-[100dvh] w-full flex items-center justify-center bg-[#FFF8F0] dark:bg-[#0f172a] font-sans transition-colors duration-500">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-gray-200 dark:border-gray-700 border-t-orange-500 rounded-full animate-spin"></div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 font-bold animate-pulse">در حال بارگذاری...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         // OPTIMIZED CONTAINER: No Scroll on Mobile (h-100dvh, overflow-hidden)
