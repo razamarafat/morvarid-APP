@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useUserStore } from '../../store/userStore';
 import { useAuthStore } from '../../store/authStore';
 import { useToastStore } from '../../store/toastStore';
@@ -8,6 +8,7 @@ import { Icons } from '../common/Icons';
 import Button from '../common/Button';
 import UserFormModal from './UserFormModal';
 import { useConfirm } from '../../hooks/useConfirm';
+import { matchesMultiField, SearchAccessor } from '../../utils/searchUtils';
 
 const UserManagement: React.FC = () => {
   const { users, deleteUser } = useUserStore();
@@ -16,7 +17,25 @@ const UserManagement: React.FC = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const { confirm } = useConfirm();
+
+  // 20260619 — Multi-field fuzzy search across every visible column.
+  // Both the English role enum AND the Persian display label are indexed
+  // so typing "مدیر" or "ADMIN" both match all admins.
+  const userAccessors: SearchAccessor<User>[] = useMemo(() => [
+    u => u.fullName,
+    u => u.username,
+    u => u.phoneNumber,
+    u => u.role,
+    u => u.role === UserRole.ADMIN ? 'مدیر' : u.role === UserRole.REGISTRATION ? 'مسئول ثبت' : u.role === UserRole.SALES ? 'مسئول فروش' : '',
+    u => u.isActive ? 'فعال' : 'غیرفعال',
+  ], []);
+
+  const filteredUsers = useMemo(
+    () => users.filter(u => matchesMultiField(u, userAccessors, searchTerm)),
+    [users, searchTerm]
+  );
 
   const handleAdd = () => {
     setEditingUser(null);
@@ -65,6 +84,21 @@ const UserManagement: React.FC = () => {
         </Button>
       </div>
 
+      {/* 20260619 — Universal instant search across user rows */}
+      <div className="mb-4">
+        <div className="relative">
+          <Icons.Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="جستجوی کاربر (نام، نام کاربری، نقش، شماره تماس...)"
+            className="w-full h-12 pr-10 pl-4 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 dark:text-white text-sm font-bold focus:outline-none focus:border-metro-blue"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            data-allow-latin="true"
+          />
+        </div>
+      </div>
+
       <div className="bg-white dark:bg-gray-800 shadow-md rounded-[24px] overflow-hidden border border-gray-200 dark:border-gray-700 w-full relative">
         <div className="overflow-x-auto max-w-full custom-scrollbar relative">
           <table className="w-full text-sm text-right text-gray-500 dark:text-gray-400 min-w-[700px]">
@@ -78,7 +112,7 @@ const UserManagement: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
+              {filteredUsers.map((user) => (
                 <tr key={user.id} className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
                   <th scope="row" className="px-6 py-5 lg:py-7 font-black text-gray-900 whitespace-nowrap dark:text-white lg:text-lg">
                     {user.fullName}

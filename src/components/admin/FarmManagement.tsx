@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useFarmStore } from '../../store/farmStore';
 import { Farm, FarmType } from '../../types';
 import { Icons } from '../common/Icons';
@@ -7,13 +7,28 @@ import Button from '../common/Button';
 import FarmFormModal from './FarmFormModal';
 import { useConfirm } from '../../hooks/useConfirm';
 import { useAdminActions } from '../../hooks/useAdminActions';
+import { matchesMultiField, SearchAccessor } from '../../utils/searchUtils';
 
 const FarmManagement: React.FC = () => {
   const { farms, deleteFarm } = useFarmStore();
   const { hardDeleteFarm } = useAdminActions();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingFarm, setEditingFarm] = useState<Farm | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const { confirm } = useConfirm();
+
+  // 20260619 — Multi-field fuzzy search across farm rows (name + type).
+  const farmAccessors: SearchAccessor<Farm>[] = useMemo(() => [
+    f => f.name,
+    f => f.type === FarmType.MORVARIDI ? 'مرواریدی' : f.type === FarmType.MOTEFEREGHE ? 'متفرقه' : '',
+    f => f.type,
+    f => f.isActive ? 'فعال' : 'غیرفعال',
+  ], []);
+
+  const filteredFarms = useMemo(
+    () => farms.filter(f => matchesMultiField(f, farmAccessors, searchTerm)),
+    [farms, searchTerm]
+  );
 
   const handleAdd = () => {
     setEditingFarm(null);
@@ -66,6 +81,20 @@ const FarmManagement: React.FC = () => {
         </Button>
       </div>
 
+      {/* 20260619 — Universal instant search across farm rows */}
+      <div className="mb-4">
+        <div className="relative">
+          <Icons.Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="جستجوی فارم (نام، نوع...)"
+            className="w-full h-12 pr-10 pl-4 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 dark:text-white text-sm font-bold focus:outline-none focus:border-metro-blue"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+          />
+        </div>
+      </div>
+
       <div className="bg-white dark:bg-gray-800 shadow-md rounded-[24px] overflow-hidden border border-gray-200 dark:border-gray-700 w-full relative">
         <div className="overflow-x-auto max-w-full custom-scrollbar relative">
           <table className="w-full text-sm text-right text-gray-500 dark:text-gray-400 min-w-[600px]">
@@ -78,7 +107,7 @@ const FarmManagement: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {farms.map((farm) => (
+              {filteredFarms.map((farm) => (
                 <tr key={farm.id} className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
                   <th scope="row" className="px-6 py-5 lg:py-7 font-black text-gray-900 whitespace-nowrap dark:text-white lg:text-lg">
                     {farm.name}

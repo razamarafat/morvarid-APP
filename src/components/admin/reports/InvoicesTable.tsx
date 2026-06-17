@@ -67,7 +67,7 @@ const InvoicesTable: React.FC<InvoicesTableProps> = ({
 
                                 return (
                                     <tr key={row.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${isAdminCreated ? 'bg-purple-50/50 dark:bg-purple-900/10' : ''}`}>
-                                        <td className="p-3 font-black text-lg text-gray-800 dark:text-gray-white text-center">{toPersianDigits(row.date)}</td>
+                                        <td className="p-3 font-black text-lg text-gray-800 dark:text-white text-center">{toPersianDigits(row.date)}</td>
                                         <td className="p-3 text-center font-black text-xl lg:text-2xl tracking-widest text-metro-orange">{toPersianDigits(row.invoiceNumber)}</td>
                                         <td className="p-3 font-bold text-gray-800 dark:text-white text-center">{farms.find(f => f.id === row.farmId)?.name}</td>
                                         <td className="p-3 font-bold text-gray-600 dark:text-gray-300 text-center">{prod?.name || '-'}</td>
@@ -83,7 +83,7 @@ const InvoicesTable: React.FC<InvoicesTableProps> = ({
                                                         {isAdminCreated ? 'ثبت توسط مدیر' : (row.creatorName || 'ناشناس')}
                                                     </span>
                                                     <div className="flex flex-col">
-                                                        <span className="font-mono text-[10px] opacity-60 text-gray-500 dark:text-gray-400">{toPersianDigits(displayTime)}</span>
+                                                        <span className="font-mono text-sm font-medium text-gray-600 dark:text-gray-300">{toPersianDigits(displayTime)}</span>
                                                         {isEdited && <span className="text-[9px] text-orange-500 font-bold">(ویرایش شده)</span>}
                                                     </div>
                                                 </div>

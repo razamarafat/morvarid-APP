@@ -101,7 +101,7 @@ const StatsTable: React.FC<StatsTableProps> = ({
                                                         {isAdminCreated ? 'ثبت توسط مدیر' : (row.creatorName || 'ناشناس')}
                                                     </span>
                                                     <div className="flex flex-col">
-                                                        <span className="font-mono text-[10px] opacity-60 text-gray-500 dark:text-gray-400">{toPersianDigits(displayTime)}</span>
+                                                        <span className="font-mono text-sm font-medium text-gray-600 dark:text-gray-300">{toPersianDigits(displayTime)}</span>
                                                         {isEdited && <span className="text-[9px] text-orange-500 font-bold">(ویرایش شده)</span>}
                                                     </div>
                                                 </div>
