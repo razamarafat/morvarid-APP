@@ -148,13 +148,65 @@ const PageLoader = () => (
 // screen instead of silently re-authenticating. HashRouter routes do not
 // fire pagehide for in-app navigation, only for tab close / window close /
 // full reload — which is exactly the behavior we want.
+//
+// PWA UPDATE BYPASS (20260620):
+// The pagehide event ALSO fires during the `window.location.replace(...)`
+// triggered by the two auto-update flows in this app:
+//   - src/hooks/useAutoUpdate.ts sets `morvarid_last_update_version` in
+//     sessionStorage just before its version-poll-driven reload.
+//   - src/components/common/UpdatePrompt.tsx sets `morvarid_sw_updated_at`
+//     in sessionStorage just before its Workbox-skipWaiting-driven reload.
+// Both flows only flush SW asset caches (JS/CSS/HTML via `caches.delete(...)`)
+// and never touch localStorage. We honor that contract here by bypassing the
+// Supabase-token scrub when either sentinel is present, so the user stays
+// signed-in across a version bump. The sentinel is consumed (cleared) so a
+// subsequent, genuine tab-close pagehide still respects the original
+// Remember-Me-aware fallback.
+//
+// IDEMPOTENCY (20260620): handlePageHide is wired to BOTH `pagehide` and
+// `beforeunload`, and both events fire on the same `window.location.replace`
+// reload sequence. The module-level guard below ensures we run the bypass +
+// scrub logic exactly once per unload, so the second event (which sees no
+// sentinel any more) does not silently fall through to the original
+// token-scrub branch and undo the first event's pass-through. The flag is
+// in-memory and is naturally destroyed at the reload boundary.
+let pageHideRanInThisUnload = false;
 const handlePageHide = () => {
+  if (pageHideRanInThisUnload) return;
+  pageHideRanInThisUnload = true;
+
   if (typeof localStorage === 'undefined') return;
+
+  // PWA-update bypass — BEFORE the Remember-Me check so it wins regardless
+  // of whether the user opted into persistent sessions.
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      let pwaUpdateInFlight = false;
+      if (sessionStorage.getItem('morvarid_last_update_version')) {
+        sessionStorage.removeItem('morvarid_last_update_version');
+        pwaUpdateInFlight = true;
+      }
+      if (sessionStorage.getItem('morvarid_sw_updated_at')) {
+        sessionStorage.removeItem('morvarid_sw_updated_at');
+        pwaUpdateInFlight = true;
+      }
+      if (pwaUpdateInFlight) {
+        // PWA-driven reload in progress — leave auth state intact.
+        return;
+      }
+    }
+  } catch {
+    // sessionStorage may be unavailable (private mode, quota, etc.); fall
+    // through to the regular Remember-Me-aware handling.
+  }
+
   const rememberMe = localStorage.getItem(STORAGE_KEYS.REMEMBER_ME_SESSION);
   if (rememberMe === '1') return; // user opted in: keep session
+
   // User did NOT tick Remember Me: scrub Supabase auth tokens so the next
-  // page load boots the login screen. Only `sb-*-auth-token` is scrubbed —
-  // NOT the activity stamp, NOT the rememberMe sentinel, NOT anything else.
+  // genuine tab-close-driven page show the login screen. Only
+  // `sb-*-auth-token` is scrubbed — NOT the activity stamp, NOT the
+  // rememberMe sentinel, NOT anything else.
   try {
     const keys = Object.keys(localStorage);
     for (const key of keys) {
