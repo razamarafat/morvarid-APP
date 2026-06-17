@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useViewNavigation } from '../hooks/useViewNavigation';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { Icons } from '../components/common/Icons';
 import StatisticsForm from '../components/registration/StatisticsForm';
@@ -14,27 +13,12 @@ import { SalesVoucherList } from '../components/sales/SalesVoucherList';
 import SalesVoucherDetail from '../components/sales/SalesVoucherDetail';
 
 const RegistrationDashboard: React.FC = () => {
-    // ────────────────────────────────────────────────────────────────────────
-    // URL-driven navigation state — every sub-view is encoded as ?view=…
-    // so the browser history stack mirrors the user's journey. This is
-    // what makes the OS hardware back button step back exactly one entry
-    // instead of either staying or exiting the app.
-    // ────────────────────────────────────────────────────────────────────────
-    const [searchParams, setSearchParams] = useSearchParams();
-    const currentView = searchParams.get('view') || 'dashboard';
-    const setCurrentView = useCallback((view: string) => {
-        // Same-view click guard — prevents duplicate history entries when
-        // the user re-selects the currently active nav button. Without
-        // this, every same-view click would push a duplicate URL entry,
-        // bloating the history stack and confusing the OS hardware back
-        // button with phantom intermediate entries that share the URL.
-        if (view === currentView) return;
-        if (view === 'dashboard') {
-            setSearchParams({}, { replace: true });
-        } else {
-            setSearchParams({ view });
-        }
-    }, [currentView, setSearchParams]);
+    // URL-driven navigation state via the shared hook — see
+    // src/hooks/useViewNavigation.ts for the contract (history-stack
+    // mirror, homeView replace, same-view click guard, etc.).
+    // useCallback is preserved below because handleCopyToInvoice still
+    // wraps a stable identity for child components.
+    const { currentView, setCurrentView } = useViewNavigation();
     const [copyFromSalesVoucherId, setCopyFromSalesVoucherId] = useState<string | null>(null);
     const { isLoading } = useAuthStore();
     const dashboardTitle = 'میز کار ثبت اطلاعات روزانه';
@@ -118,36 +102,36 @@ const RegistrationDashboard: React.FC = () => {
 const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNavigate }) => {
     return (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 animate-in fade-in duration-500">
-            <MetroTile 
-                title="ثبت آمار تولید" 
-                icon={Icons.BarChart} 
-                color="bg-metro-orange" 
+            <MetroTile
+                title="ثبت آمار تولید"
+                icon={Icons.BarChart}
+                color="bg-metro-orange"
                 size="wide"
-                onClick={() => onNavigate('stats')} 
+                onClick={() => onNavigate('stats')}
             />
-            
-            <MetroTile 
-                title="ثبت حواله فروش" 
-                icon={Icons.FileText} 
-                color="bg-metro-blue" 
+
+            <MetroTile
+                title="ثبت حواله فروش"
+                icon={Icons.FileText}
+                color="bg-metro-blue"
                 size="wide"
-                onClick={() => onNavigate('invoice')} 
+                onClick={() => onNavigate('invoice')}
             />
-            
-            <MetroTile 
-                title="مشاهده حواله‌های فروش" 
-                icon={Icons.Eye} 
-                color="bg-gradient-to-br from-violet-500 to-purple-600" 
+
+            <MetroTile
+                title="مشاهده حواله‌های فروش"
+                icon={Icons.Eye}
+                color="bg-gradient-to-br from-violet-500 to-purple-600"
                 size="wide"
-                onClick={() => onNavigate('sales-vouchers')} 
+                onClick={() => onNavigate('sales-vouchers')}
             />
-            
-            <MetroTile 
-                title="سوابق اخیر و ویرایش" 
-                icon={Icons.Refresh} 
-                color="bg-metro-green" 
+
+            <MetroTile
+                title="سوابق اخیر و ویرایش"
+                icon={Icons.Refresh}
+                color="bg-metro-green"
                 size="wide"
-                onClick={() => onNavigate('recent')} 
+                onClick={() => onNavigate('recent')}
             />
 
              <div className="col-span-2 bg-metro-dark p-6 text-white flex flex-col justify-end shadow-lg border-l-8 border-metro-orange">

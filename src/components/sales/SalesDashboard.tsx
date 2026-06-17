@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useViewNavigation } from '../../hooks/useViewNavigation';
 import DashboardLayout from '../layout/DashboardLayout';
 import { Icons } from '../common/Icons';
 import Reports from '../admin/Reports';
@@ -642,22 +642,10 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
 };
 
 const SalesDashboard: React.FC = () => {
-    // ────────────────────────────────────────────────────────────────────────
-    // URL-driven navigation state — every sub-view is encoded as ?view=…
-    // so the browser history stack mirrors the user's journey. Hardware
-    // (mobile) back button and click-back now step back exactly one entry.
-    // ────────────────────────────────────────────────────────────────────────
-    const [searchParams, setSearchParams] = useSearchParams();
-    const currentView = searchParams.get('view') || 'dashboard';
-    const setCurrentView = useCallback((view: string) => {
-        // Same-view click guard — prevents duplicate history entries.
-        if (view === currentView) return;
-        if (view === 'dashboard') {
-            setSearchParams({}, { replace: true });
-        } else {
-            setSearchParams({ view });
-        }
-    }, [currentView, setSearchParams]);
+    // URL-driven navigation state via the shared hook — see
+    // src/hooks/useViewNavigation.ts for the contract (history-stack
+    // mirror, homeView replace, same-view click guard, etc.).
+    const { currentView, setCurrentView } = useViewNavigation();
     const { isLoading } = useAuthStore();
 
     const getTitle = () => {
