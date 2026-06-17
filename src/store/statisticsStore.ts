@@ -5,7 +5,26 @@ import { normalizeDate } from '../utils/dateUtils';
 import { useSyncStore } from './syncStore';
 import { useAuthStore } from './authStore';
 import { useFarmStore } from './farmStore';
+import { useInvoiceStore } from './invoiceStore';
 import { calculateProductUsage, InvoiceItem } from '../utils/inventoryUtils';
+
+// ============================================================================
+// Sales Voucher Impact (Feature 1: Dynamic Immediate Visibility, 20260618)
+// ============================================================================
+// Flattened list of every submitted sales_voucher_lines row across the user's
+// accessible farms. Used by Farm Monitoring Cards to surface "what the Sales
+// user already sold" BEFORE the Operator has had a chance to copy it to their
+// daily voucher. Distinct from the invoice store on purpose so the two roll
+// up cleanly in displaySales = totalCartons(invoices) + uncopiedQty(here).
+export interface SalesVoucherLineImpact {
+    lineId: string;
+    voucherId: string;
+    voucherNumber: string;
+    farmId: string;
+    voucherDate: string;
+    productId: string;
+    quantity: number;
+}
 
 export interface DailyStatistic {
     id: string;
@@ -70,10 +89,20 @@ interface StatisticsState {
     bulkUpsertStatistics: (stats: any[], isSyncing?: boolean) => Promise<any>;
     getLatestInventory: (farmId: string, productId: string) => { units: number; kg: number };
     syncSalesFromInvoices: (farmId: string, date: string, productId: string) => Promise<void>;
+    /** All submitted sales_voucher_lines rows on the user's accessible farms
+     * (Feature 1: Dynamic Immediate Visibility, migration 20260618). */
+    salesVoucherImpacts: SalesVoucherLineImpact[];
+    fetchSalesVoucherImpacts: () => Promise<void>;
+    /** Returns the SUM of uncopied sales_voucher_lines.quantity for this
+     * (farm,date,product). "Uncopied" = NO invoice has set
+     * source_sales_voucher_line_id to that line's id (yet), so the user has
+     * NOT seen this quantity reflected in any daily voucher entry. */
+    getUncopiedSalesVouchersQty: (farmId: string, date: string, productId: string) => number;
 }
 
 export const useStatisticsStore = create<StatisticsState>((set, get) => ({
     statistics: [],
+    salesVoucherImpacts: [],
     isLoading: false,
 
     fetchStatistics: async () => {
@@ -194,13 +223,144 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
     },
 
     subscribeToStatistics: () => {
+        // Feature 1: Sales Voucher submitted → Farm Monitoring Cards must
+        // re-render immediately. We listen on BOTH sales_vouchers (status
+        // flip / delete) AND sales_voucher_lines (line insert / update /
+        // delete) so React refreshes the dashboard cards as soon as the
+        // sales user commits a voucher, even before the Operator has copied.
         const channel = supabase
-            .channel('public:daily_statistics')
+            .channel('public:sales_monitoring')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_statistics' }, () => {
+                get().fetchStatistics();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'sales_vouchers' }, () => {
+                get().fetchSalesVoucherImpacts();
+                get().fetchStatistics();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'sales_voucher_lines' }, () => {
+                get().fetchSalesVoucherImpacts();
                 get().fetchStatistics();
             })
             .subscribe();
         return () => { supabase.removeChannel(channel); };
+    },
+
+    // ========================================================================
+    // 20260618 — Feature 1: Dynamic Immediate Visibility
+    // Fetches every line from submitted sales_vouchers the current user can
+    // see (admin: all; sales: all; operator: assigned farms). Stored flat on
+    // the store so the dashboard compute line is a cheap O(N) scan and
+    // deltas (per-line live updates) work via the channel above.
+    // ========================================================================
+    fetchSalesVoucherImpacts: async () => {
+        try {
+            const currentUser = useAuthStore.getState().user;
+
+            // Build the role-aware set of farm IDs the user can access; null
+            // means "all farms" (admin/sales).
+            let accessibleFarmIds: string[] | null = null;
+            if (currentUser && currentUser.role !== 'ADMIN' && currentUser.role !== 'SALES') {
+                accessibleFarmIds = (currentUser.assignedFarms || []).map(f => f.id);
+                if (accessibleFarmIds.length === 0) {
+                    set({ salesVoucherImpacts: [] });
+                    return;
+                }
+            }
+
+            // Pull every sales voucher line; filter to "submitted" via the
+            // join. We avoid `select('*, sales_vouchers(*)')` because the
+            // orphan-FK fallback we've used elsewhere produces silent empty
+            // arrays; a plain inner join with explicit column list is safer.
+            const { data, error } = await supabase
+                .from('sales_voucher_lines')
+                .select('id, product_id, quantity, voucher_id, sales_vouchers!inner(id, voucher_number, farm_id, voucher_date, status)');
+
+            if (error) {
+                console.warn('[StatisticsStore] fetchSalesVoucherImpacts relational select failed, falling back', error);
+                const fallback = await supabase
+                    .from('sales_voucher_lines')
+                    .select('id, product_id, quantity, voucher_id');
+                if (fallback.error) throw fallback.error;
+                // Without the join we can't enforce submitted-only / farm
+                // filtering; do a second hop for the parent voucher set.
+                const voucherIds = Array.from(new Set((fallback.data || []).map((r: any) => r.voucher_id).filter(Boolean)));
+                if (voucherIds.length === 0) {
+                    set({ salesVoucherImpacts: [] });
+                    return;
+                }
+                const { data: vouchers } = await supabase
+                    .from('sales_vouchers')
+                    .select('id, voucher_number, farm_id, voucher_date, status')
+                    .in('id', voucherIds);
+                const voucherMap = new Map<string, any>((vouchers || []).map((v: any) => [v.id, v]));
+                const impacts: SalesVoucherLineImpact[] = (fallback.data || [])
+                    .map((row: any) => {
+                        const v = voucherMap.get(row.voucher_id);
+                        if (!v || v.status !== 'submitted') return null;
+                        if (accessibleFarmIds && !accessibleFarmIds.includes(v.farm_id)) return null;
+                        return {
+                            lineId: row.id,
+                            voucherId: row.voucher_id,
+                            voucherNumber: v.voucher_number,
+                            farmId: v.farm_id,
+                            voucherDate: normalizeDate(v.voucher_date),
+                            productId: row.product_id,
+                            quantity: Number(row.quantity) || 0,
+                        };
+                    })
+                    .filter(Boolean) as SalesVoucherLineImpact[];
+                set({ salesVoucherImpacts: impacts });
+                return;
+            }
+
+            const impacts: SalesVoucherLineImpact[] = (data || [])
+                .filter((row: any) => {
+                    const v = row.sales_vouchers;
+                    if (!v || v.status !== 'submitted') return false;
+                    if (accessibleFarmIds && !accessibleFarmIds.includes(v.farm_id)) return false;
+                    return true;
+                })
+                .map((row: any) => ({
+                    lineId: row.id,
+                    voucherId: row.voucher_id,
+                    voucherNumber: row.sales_vouchers.voucher_number,
+                    farmId: row.sales_vouchers.farm_id,
+                    voucherDate: normalizeDate(row.sales_vouchers.voucher_date),
+                    productId: row.product_id,
+                    quantity: Number(row.quantity) || 0,
+                }));
+
+            set({ salesVoucherImpacts: impacts });
+        } catch (e) {
+            console.warn('[StatisticsStore] fetchSalesVoucherImpacts failed', e);
+            // Don't crash the dashboard on a transient failure; keep prior cache.
+        }
+    },
+
+    // Returns the SUM of quantity on uncopied sales_voucher_lines for the
+    // given (farm,date,product). Cheap because salesVoucherImpacts is a flat
+    // array bounded by the user's accessible farms.
+    getUncopiedSalesVouchersQty: (farmId: string, date: string, productId: string) => {
+        const normalizedDate = normalizeDate(date);
+        const allInvoices = useInvoiceStore.getState().invoices || [];
+        // Build the set of line IDs that have ALREADY been copied to an
+        // invoice. Those lines are accounted for via the invoice's totalCartons
+        // so we MUST subtract them to avoid double-counting in displaySales.
+        const copiedLineIds = new Set<string>();
+        for (const inv of allInvoices) {
+            if (inv.isFromSalesVoucher && inv.sourceSalesVoucherLineId) {
+                copiedLineIds.add(inv.sourceSalesVoucherLineId);
+            }
+        }
+        let total = 0;
+        for (const impact of get().salesVoucherImpacts) {
+            if (impact.farmId !== farmId) continue;
+            if (impact.voucherDate !== normalizedDate) continue;
+            if (impact.productId !== productId) continue;
+            if (copiedLineIds.has(impact.lineId)) continue;
+            total += impact.quantity;
+        }
+        return total;
     },
 
     addStatistic: async (stat, isSyncing = false) => {
@@ -455,46 +615,63 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                 .select('*')
                 .match({ farm_id: farmId, date: normalizedDate });
 
-            if (!allInvoices) return;
+            // 2. Fetch uncopied sales voucher impact for this (farm,date,product)
+            //    using the central store helper. This is what Feature 1 leans
+            //    on: a Sales submission's qty must show in the dashboard even
+            //    if NO operator has copied it to a daily voucher yet.
+            const uncopiedSalesVouchersCartons = get().getUncopiedSalesVouchersQty(farmId, normalizedDate, productId);
 
-            // 2. SEPARATE: Invoices from sales vouchers should NOT affect physical inventory
-            //    (inventory was already deducted when the sales voucher was submitted)
-            //    These invoices still appear in sales DISPLAY but not in USAGE/DEDUCTION
+            if (!allInvoices) {
+                // Edge case: still bump the stat we don't have here to keep
+                // the math in step (only happens for synthetic rows).
+                return;
+            }
+
+            // 3. SEPARATE: Invoices from sales vouchers should NOT affect physical inventory
+            //    (inventory was already deducted when the sales voucher was submitted,
+            //     and the 20260618 trigger `tr_invoice_reconciliation` will post a
+            //     sale_reconciliation row whenever the Operator's qty differs —
+            //     so net effect equals exactly the Operator's totalCartons).
             const nonSalesVoucherInvoices = allInvoices.filter((inv: any) => !inv.is_from_sales_voucher);
 
-            // 3. Calculate USAGE via Centralized Utility
-            // This handles Direct Sales vs Converted Sales automatically
-            // ONLY from non-sales-voucher invoices (prevents double-deduction)
+            // 4. Calculate USAGE via Centralized Utility (only non-sales-voucher
+            //    invoices contribute). `uncopiedSalesVouchersCartons` is added
+            //    directly to physicalUsage because the sales_voucher_lines
+            //    trigger has already deducted it from inventory and we MUST
+            //    surface that deduction on the Farm Monitoring "Remaining" card.
             const usage = calculateProductUsage(nonSalesVoucherInvoices as InvoiceItem[], productId);
+            const totalDeducted = usage.usageCartons + uncopiedSalesVouchersCartons;
+            const totalDeductedKg = usage.usageWeight; // sales_voucher_lines trigger stores qty_out_kg=0
 
-            // Total deduction from inventory (Direct + Source usage)
-            const totalDeducted = usage.usageCartons;
-            const totalDeductedKg = usage.usageWeight;
-
-            // 4. Calculate SALES DISPLAY (for Reports)
-            // Still need to sum up direct invoices for reporting "how much of this product was sold"
-            // (Regardless of where stock came from)
+            // 5. Calculate SALES DISPLAY (for the "فروش" column on the card).
+            //    Display = sum of all invoices for this product (STANDALONE + COPIED)
+            //            + sum of UNCOPIED sales_voucher_lines.
+            //    This is the UNIQUE zero-double-counting decomposition:
+            //      • Copied sales voucher → contributes EXACTLY ONCE via the
+            //        invoice's totalCartons; the reconciliation trigger handles
+            //        the inventory drift, NOT a second displaySales entry.
+            //      • Standalone Operator invoice → contributes via totalCartons.
+            //      • Uncopied sales voucher → contributes via the line's qty.
             const directInvoices = allInvoices.filter(i => i.product_id === productId);
-            const totalSalesDisplay = directInvoices.reduce((sum, inv) => sum + (inv.total_cartons || 0), 0);
+            const totalSalesDisplay = directInvoices.reduce((sum, inv) => sum + (inv.total_cartons || 0), 0) + uncopiedSalesVouchersCartons;
             const totalSalesKgDisplay = directInvoices.reduce((sum, inv) => sum + (inv.total_weight || 0), 0);
 
 
-            // 5. Find the daily statistic record
+            // 6. Find the daily statistic record
             const { data: stats } = await supabase.from('daily_statistics')
                 .select('*')
                 .match({ farm_id: farmId, date: normalizedDate, product_id: productId })
                 .single();
 
             if (stats) {
-                // 6. Recalculate inventory
+                // 7. Recalculate inventory
                 // Remaining = Previous + Production + Separation - DEDUCTED
-                // For shrink pack products, separation is NOT included in remaining
                 const productName = useFarmStore.getState().getProductById?.(productId)?.name || '';
                 const effectiveSeparation = !isShrinkPack(productName) ? (stats.separation_amount || 0) : 0;
                 const remaining = (stats.previous_balance || 0) + (stats.production || 0) + effectiveSeparation - totalDeducted;
                 const remainingKg = (stats.previous_balance_kg || 0) + (stats.production_kg || 0) - totalDeductedKg;
 
-                // 7. Update the record
+                // 8. Update the record
                 await supabase.from('daily_statistics').update({
                     sales: totalSalesDisplay,
                     sales_kg: totalSalesKgDisplay,

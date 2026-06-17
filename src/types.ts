@@ -83,6 +83,7 @@ export interface Invoice {
   isOffline?: boolean; // Offline Queue Flag
   isFromSalesVoucher?: boolean; // Sales Voucher Integration: copied from sales voucher
   sourceSalesVoucherId?: string; // Sales Voucher Integration: source voucher ID
+  sourceSalesVoucherLineId?: string; // Sale Reconciliation (20260618): per-line source ID — drives the tr_invoice_reconciliation trigger delta math
 }
 
 export interface Backup {
@@ -199,7 +200,10 @@ export interface SalesVoucherFilter {
 }
 
 // Inventory Transaction Types (تراکنش‌های انبار)
-export type InventoryTxnType = 'purchase' | 'sale' | 'sale_reversal' | 'daily_consumption' | 'adjustment' | 'return';
+// 'sale_reconciliation' was added in 20260618_sale_reconciliation_logic.sql —
+// posted automatically by tr_invoice_reconciliation when the Operator's daily
+// voucher quantity differs from the original Sales Voucher line quantity.
+export type InventoryTxnType = 'purchase' | 'sale' | 'sale_reversal' | 'daily_consumption' | 'adjustment' | 'return' | 'sale_reconciliation';
 
 export interface InventoryTransaction {
   id: string;

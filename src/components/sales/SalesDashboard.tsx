@@ -162,13 +162,22 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
                                                         const invoiceKey = `${stat.farmId}|${normalizeDate(stat.date)}|${stat.productId}`;
                                                         const invoiceTotals = invoiceTotalsMap?.get(invoiceKey);
 
-                                                        // DISPLAY SALES: What was actually invoiced for this product (Total Cartons on Invoice)
-                                                        const displaySales = invoiceTotals?.salesCartons ?? (stat.sales || 0);
-                                                        const displaySalesKg = invoiceTotals?.salesWeight ?? (stat.salesKg || 0);
+                                                        // FEATURE 1 (20260618): Augment displaySales with the
+                                                // uncopied sales voucher qty for this (farm,date,product).
+                                                // getUncopiedSalesVouchersQty is O(N) over the cached
+                                                // salesVoucherImpacts array and subtracts any lines that
+                                                // already have a corresponding invoice.source_sales_voucher_line_id,
+                                                // guaranteeing we NEVER double-count the operator's copy.
+                                                const { getUncopiedSalesVouchersQty } = useStatisticsStore.getState();
+                                                const uncopiedSalesVouchersCartons = getUncopiedSalesVouchersQty(stat.farmId, normalizeDate(stat.date), stat.productId);
+                                                const displaySales = (invoiceTotals?.salesCartons ?? (stat.sales || 0)) + uncopiedSalesVouchersCartons;
+                                                const displaySalesKg = invoiceTotals?.salesWeight ?? (stat.salesKg || 0);
 
-                                                        // PHYSICAL USAGE: What was actually deducted from inventory
-                                                        const physicalUsage = invoiceTotals?.usageCartons ?? (stat.sales || 0);
-                                                        const physicalUsageKg = invoiceTotals?.usageWeight ?? (stat.salesKg || 0);
+                                                // PHYSICAL USAGE = invoiced (non-copy) usage + uncopied sales voucher
+                                                // qty (the line-level trigger already deducted those from
+                                                // inventory_transactions, so we MUST reflect it in Display).
+                                                const physicalUsage = (invoiceTotals?.usageCartons ?? (stat.sales || 0)) + uncopiedSalesVouchersCartons;
+                                                const physicalUsageKg = invoiceTotals?.usageWeight ?? (stat.salesKg || 0);
 
                                                         // Calculation uses USAGE, not Display Sales
                                                         // For shrink pack products, separation is NOT included in remaining (preserves existing behavior)
@@ -241,7 +250,7 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
 });
 
 const FarmStatistics = React.memo(() => {
-    const { statistics, fetchStatistics, subscribeToStatistics, isLoading } = useStatisticsStore();
+    const { statistics, fetchStatistics, fetchSalesVoucherImpacts, subscribeToStatistics, isLoading } = useStatisticsStore();
     const { farms, products } = useFarmStore();
     const { invoices, fetchInvoices } = useInvoiceStore();
     const { addToast } = useToastStore();
@@ -254,13 +263,17 @@ const FarmStatistics = React.memo(() => {
     useEffect(() => {
         fetchStatistics();
         fetchInvoices();
+        // Feature 1 (20260618): pull the cached submitted sales voucher
+        // lines so Farm Monitoring Cards show Sales=175 the instant a
+        // Sales user submits.
+        fetchSalesVoucherImpacts();
         const unsubscribeStats = subscribeToStatistics();
         return () => { unsubscribeStats(); };
     }, []);
 
     const handleManualRefresh = async () => {
         setIsRefreshing(true);
-        await Promise.all([fetchStatistics(), fetchInvoices()]);
+        await Promise.all([fetchStatistics(), fetchInvoices(), fetchSalesVoucherImpacts()]);
         setTimeout(() => setIsRefreshing(false), 500);
         addToast('اطلاعات بروزرسانی شد', 'success');
     };

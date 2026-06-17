@@ -59,7 +59,7 @@ interface SMSDraft extends ParsedSMS {
 // Composite state for auto-save
 interface InvoiceDraftState {
     globalValues: GlobalValues;
-    itemsState: Record<string, { cartons: string; weight: string; isSorted: boolean }>;
+    itemsState: Record<string, { cartons: string; weight: string; isSorted: boolean; sourceQuantity?: number; sourceLineId?: string }>;
     selectedProductIds: string[];
     referenceDate: string;
 }
@@ -104,9 +104,15 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ copyFromSalesVoucherId
                         setSelectedFarmId(voucher.farmId);
                     }
 
-                    // Pre-fill items from voucher lines
+                    // Pre-fill items from voucher lines. We additionally stash
+                    // the original line `id` and `quantity` on each item so the
+                    // submit step can detect quantities the Operator changed
+                    // (175 → 170) and pop the Persian mismatch modal before
+                    // posting. The line ID feeds the 20260618 trigger
+                    // tr_invoice_reconciliation so the inventory becomes the
+                    // exact inverse of the sales deduction.
                     if (voucher.lines && voucher.lines.length > 0) {
-                        const newItems: Record<string, { cartons: string; weight: string; isSorted: boolean }> = {};
+                        const newItems: Record<string, { cartons: string; weight: string; isSorted: boolean; sourceQuantity?: number; sourceLineId?: string }> = {};
                         const newProductIds: string[] = [];
 
                         voucher.lines.forEach(line => {
@@ -115,6 +121,8 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ copyFromSalesVoucherId
                                     cartons: String(line.quantity),
                                     weight: '',
                                     isSorted: false,
+                                    sourceQuantity: Number(line.quantity) || 0,
+                                    sourceLineId: line.id,
                                 };
                                 newProductIds.push(line.productId);
                             }
@@ -150,7 +158,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ copyFromSalesVoucherId
     const [currentTime, setCurrentTime] = useState(getCurrentTime(false));
 
     const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
-    const [itemsState, setItemsState] = useState<Record<string, { cartons: string; weight: string; isSorted: boolean }>>({});
+    const [itemsState, setItemsState] = useState<Record<string, { cartons: string; weight: string; isSorted: boolean; sourceQuantity?: number; sourceLineId?: string }>>({});
 
     const [isProductSelectorOpen, setIsProductSelectorOpen] = useState(false);
     const [plateError, setPlateError] = useState<string | null>(null);
@@ -324,7 +332,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ copyFromSalesVoucherId
                 const product = getProductById(pid);
                 const productName = product?.name?.toLowerCase() || '';
                 const isPrintable = productName.includes('پرینت') || productName.includes('printable');
-                setItemsState(s => ({ ...s, [pid]: { cartons: '', weight: '', isSorted: isPrintable } }));
+                setItemsState(s => ({ ...s, [pid]: { cartons: '', weight: '', isSorted: isPrintable, sourceQuantity: s[pid]?.sourceQuantity, sourceLineId: s[pid]?.sourceLineId } }));
                 return [...prev, pid];
             }
         });
@@ -443,6 +451,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ copyFromSalesVoucherId
                                 isYesterday: referenceDate !== normalizedDate,
                                 isFromSalesVoucher,
                                 sourceSalesVoucherId: copyFromSalesVoucherId,
+                                sourceSalesVoucherLineId: item.sourceLineId, // 20260618 — link per-line for the trigger
                             });
 
                             // Move to next product
@@ -482,12 +491,58 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ copyFromSalesVoucherId
                 isYesterday: referenceDate !== normalizedDate,
                 isFromSalesVoucher,
                 sourceSalesVoucherId: copyFromSalesVoucherId,
+                sourceSalesVoucherLineId: item.sourceLineId, // 20260618 — link per-line for the trigger
             });
         }
 
         // Confirmation before saving
         const totalCartons = invoicesToRegister.reduce((sum, inv) => sum + inv.totalCartons, 0);
         const uniqueProducts = new Set(invoicesToRegister.map(inv => inv.productId)).size;
+
+        // ====================================================================
+        // 20260618 — FEATURE 2: Operator Quantity Mismatch Warning
+        // ====================================================================
+        // When this form pre-filled from a Sales Voucher via copyFromSalesVoucherId,
+        // we stashed itemsState[pid].sourceQuantity / sourceLineId. If the
+        // Operator edited `cartons` to anything other than sourceQuantity, we
+        // interrupt the submit with a Persian confirmation modal listing
+        // every mismatched product + the deltas. Cancel returns to the form;
+        // Confirm proceeds — the tr_invoice_reconciliation DB trigger then
+        // writes the appropriate sale_reconciliation adjustment.
+        if (isFromSalesVoucher) {
+            const mismatches: Array<{ name: string; originalQty: number; currentQty: number; delta: number }> = [];
+            for (const pid of selectedProductIds) {
+                const sourceQty = itemsState[pid]?.sourceQuantity;
+                if (sourceQty === undefined) continue;
+                const currentQty = Number(itemsState[pid]?.cartons) || 0;
+                if (currentQty === sourceQty) continue;
+                const product = getProductById(pid);
+                const name = product?.name || 'محصول';
+                mismatches.push({ name, originalQty: sourceQty, currentQty, delta: currentQty - sourceQty });
+            }
+            if (mismatches.length > 0) {
+                const linesText = mismatches
+                    .map(m => {
+                        const direction = m.delta > 0 ? `(افزایش ${toPersianDigits(m.delta)})` : `(کاهش ${toPersianDigits(-m.delta)})`;
+                        return `• «${m.name}»: حواله فروش ${toPersianDigits(m.originalQty)} کارتن — ثبت شما ${toPersianDigits(m.currentQty)} کارتن ${direction}`;
+                    })
+                    .join('\n');
+                const summaryText = mismatches.map(m => {
+                    // Sign-correct preview of what the trigger will post
+                    const net = m.currentQty - m.originalQty;
+                    if (net > 0) return `   «${m.name}»: ${toPersianDigits(net)} کارتن اضافه از موجودی انبار کسر می‌شود`;
+                    return `   «${m.name}»: ${toPersianDigits(-net)} کارتن به موجودی انبار بازگردانده می‌شود`;
+                }).join('\n');
+                const mismatchConfirmed = await confirm({
+                    title: 'توجه: مغایرت با حواله فروش',
+                    message: `تعداد محصولات با حواله فروش شماره ${toPersianDigits(sourceVoucherNumber)} مطابقت ندارد:\n\n${linesText}\n\nعملیات خودکار:\n${summaryText}\n\nموجودی انبار به صورت اتوماتیک تعدیل می‌شود. آیا از ثبت این مغایرت اطمینان دارید؟`,
+                    confirmText: 'ثبت مغایرت و ادامه',
+                    cancelText: 'بررسی مجدد',
+                    type: 'warning',
+                });
+                if (!mismatchConfirmed) return;
+            }
+        }
 
         const confirmed = await confirm({
             title: 'ثبت نهایی',

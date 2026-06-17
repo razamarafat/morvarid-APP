@@ -115,6 +115,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
                     convertedAmount: i.converted_amount || 0,
                     isFromSalesVoucher: i.is_from_sales_voucher || false,
                     sourceSalesVoucherId: i.source_sales_voucher_id || null,
+                    sourceSalesVoucherLineId: i.source_sales_voucher_line_id || null,
                     createdAt: i.created_at ? new Date(i.created_at).getTime() : Date.now(),
                     updatedAt: i.updated_at ? new Date(i.updated_at).getTime() : undefined,
                     createdBy: i.created_by,
@@ -145,6 +146,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
                     convertedAmount: i.converted_amount || 0,
                     isFromSalesVoucher: i.is_from_sales_voucher || false,
                     sourceSalesVoucherId: i.source_sales_voucher_id || null,
+                    sourceSalesVoucherLineId: i.source_sales_voucher_line_id || null,
                     createdAt: i.created_at ? new Date(i.created_at).getTime() : Date.now(),
                     updatedAt: i.updated_at ? new Date(i.updated_at).getTime() : undefined,
                     createdBy: i.created_by,
@@ -245,6 +247,11 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
                 converted_amount: inv.convertedAmount || 0,
                 is_from_sales_voucher: (inv as any).isFromSalesVoucher || false,
                 source_sales_voucher_id: (inv as any).sourceSalesVoucherId || null,
+                // Feature 3 (20260618) — Per-line source link. Triggers
+                // tr_invoice_reconciliation which posts a sale_reconciliation
+                // inventory_transaction whenever the qty differs from the
+                // original sales_voucher_lines.quantity.
+                source_sales_voucher_line_id: (inv as any).sourceSalesVoucherLineId || null,
                 created_by: currentUser.id
             }));
 
