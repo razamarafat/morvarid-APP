@@ -507,6 +507,7 @@ const InvoiceList = React.memo(() => {
                             className="w-full p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 dark:text-white font-bold outline-none focus:border-metro-orange transition-all"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
+                            data-allow-latin="true"
                         />
                         {(searchTerm || selectedFarmId !== 'all') && (
                             <button

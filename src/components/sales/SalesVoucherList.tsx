@@ -120,6 +120,7 @@ const SalesVoucherList: React.FC<SalesVoucherListProps> = ({ onNavigate, onEditV
               className="w-full h-10 pr-9 pl-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-bold focus:outline-none focus:border-violet-500"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              data-allow-latin="true"
             />
           </div>
         </div>

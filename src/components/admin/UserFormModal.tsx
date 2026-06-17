@@ -237,6 +237,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, user }) 
                         <Input
                             label="نام کاربری (حساس به حروف)"
                             dir="ltr"
+                            data-allow-latin="true"
                             {...register('username')}
                             error={errors.username?.message}
                             autoComplete="new-username"

@@ -89,6 +89,7 @@ const ReportsFilterBar: React.FC<ReportsFilterBarProps> = ({
                         className="w-full pl-4 pr-12 h-[50px] lg:h-[60px] border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-900/50 dark:text-white font-bold outline-none focus:border-metro-blue focus:bg-white dark:focus:bg-gray-800 transition-all placeholder:text-gray-400"
                         value={searchTerm}
                         onChange={(e) => onSearchTermChange(e.target.value)}
+                        data-allow-latin="true"
                     />
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">

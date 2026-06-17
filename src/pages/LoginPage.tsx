@@ -247,6 +247,7 @@ const LoginPage: React.FC = () => {
                                         type="text"
                                         dir="ltr"
                                         disabled={isBlocked}
+                                        data-allow-latin="true"
                                         {...register('username')}
                                         className="block w-full h-10 md:h-14 pr-3 pl-3 rounded-xl bg-white/50 dark:bg-black/50 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-base md:text-base font-bold text-center shadow-sm focus:border-orange-500 outline-none backdrop-blur-sm transition-all"
                                         placeholder="نام کاربری"
