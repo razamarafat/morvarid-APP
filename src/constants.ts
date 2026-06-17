@@ -109,6 +109,7 @@ export const TOAST_IDS = {
   UPDATE_AVAILABLE: 'update-available',
   SYSTEM_UPDATE: 'system-update',
   SESSION_EXPIRED: 'session-expired',
+  INACTIVITY_LOGOUT: 'inactivity-logout',
   OFFLINE_STATUS: 'offline-status',
   NETWORK_ERROR: 'network-error',
   LOGIN_SUCCESS: 'login-success',

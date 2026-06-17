@@ -110,8 +110,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     updateActivity: () => {
         const { user, logout } = get();
         if (user) {
+            // SECURITY (2026-06): ADMIN USERS ARE EXEMPT FROM THE 1-HOUR
+            // INACTIVITY TIMEOUT. Admins are trusted operators on shared
+            // devices and stay signed-in across idle periods per the
+            // product business rule. Their activity stamp is still
+            // refreshed (so audit/dashboards that read this stamp stay
+            // accurate), but we skip the timeout-comparison branch.
+            const isAdmin = user.role === UserRole.ADMIN;
             const lastActivityStr = localStorage.getItem(STORAGE_KEYS.ACTIVITY);
-            if (lastActivityStr) {
+            if (lastActivityStr && !isAdmin) {
                 const lastActivity = parseInt(lastActivityStr);
                 const now = Date.now();
                 if (now - lastActivity > SESSION_TIMEOUT) {
@@ -125,6 +132,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     },
 
     checkInactivity: () => {
+        const { user } = get();
+        // SECURITY (2026-06): ADMIN USERS ARE EXEMPT FROM THE 1-HOUR
+        // INACTIVITY TIMEOUT. If there is no user OR the user is an
+        // admin, App.tsx's setInterval short-circuits here.
+        if (!user || user.role === UserRole.ADMIN) {
+            return false;
+        }
         const lastActivityStr = localStorage.getItem(STORAGE_KEYS.ACTIVITY);
         if (lastActivityStr) {
             const lastActivity = parseInt(lastActivityStr);
@@ -466,7 +480,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         notifyEvent('logout', { isTimeout });
 
         if (isTimeout) {
-            useToastStore.getState().addToast('مدت زمان نشست شما به پایان رسیده است. لطفا مجددا وارد شوید.', 'warning', TOAST_IDS.SESSION_EXPIRED);
+            // SECURITY (2026-06): The 1-Hour Inactivity Timer flow uses
+            // an activity-specific Persian message instead of the generic
+            // session-expired string. The user lands on /login with empty
+            // inputs; the browser's native password manager then pre-fills
+            // the credentials (autoComplete="username" + "current-password")
+            // for a one-click re-entry. No password is ever stored.
+            useToastStore.getState().addToast('به دلیل عدم فعالیت، از سیستم خارج شدید', 'warning', TOAST_IDS.INACTIVITY_LOGOUT);
         }
     },
 
