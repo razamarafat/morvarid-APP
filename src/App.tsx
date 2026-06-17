@@ -182,6 +182,86 @@ function App() {
   useAutoUpdate(); // Activated: Checks version.json every 30s for auto-updates
   useAutoTheme();
 
+  // 20260619 — GLOBAL Persian-Only Input Enforcer
+  // Hard-blocks Latin English letters (a-z, A-Z) at the keystroke and
+  // paste level on standard text-bearing inputs / textareas across the
+  // ENTIRE application. The Morvarid app is Persian-only, so any Latin
+  // letter typed into a free-text field is a data-entry mistake that
+  // would corrupt names, notes, descriptions, and search strings.
+  //
+  // Opt-out mechanisms (any of these skip the filter):
+  //   1. Element has `data-allow-latin="true"` directly or on an ancestor
+  //      (use ESD's `closest()` for ancestor matching).
+  //   2. Element is NOT a text-bearing input — we ONLY block:
+  //        * <textarea>
+  //        * <input> with type="" / type="text" / type="search"
+  //      Password, email, url, tel, number, date, time, etc. are NEVER
+  //      blocked because the user may legitimately type Latin there.
+  //   3. Event is an IME composition in progress (`isComposing` or
+  //      keyCode 229) — we MUST allow Persian IME input to commit.
+  //
+  // The handler is mounted on `document` with capture=true so it sees
+  // keystrokes BEFORE any inner React onChange (which lets us call
+  // preventDefault and have it actually take effect). Pair this with
+  // the wrapper-level `noLatin` filter on <Input> and <TextArea>.
+  useEffect(() => {
+    const isLatinChar = (key: string): boolean =>
+      typeof key === 'string' && key.length === 1 && /^[a-zA-Z]$/.test(key);
+
+    const isTextInput = (el: EventTarget | null): el is HTMLElement => {
+      if (!(el instanceof HTMLElement)) return false;
+      const tag = el.tagName;
+      if (tag === 'TEXTAREA') return true;
+      if (tag !== 'INPUT') return false;
+      const rawType = (el.getAttribute('type') || 'text').toLowerCase();
+      return rawType === '' || rawType === 'text' || rawType === 'search';
+    };
+
+    const isOptedOut = (el: HTMLElement | null): boolean => {
+      if (!el) return false;
+      if (el.hasAttribute('data-allow-latin')) return true;
+      return !!el.closest('[data-allow-latin="true"]');
+    };
+
+    const isComposingEvent = (e: KeyboardEvent): boolean =>
+      e.isComposing === true || e.keyCode === 229 || (e as any).key === 'Process';
+
+    const handleKeydown = (e: KeyboardEvent) => {
+      if (isComposingEvent(e)) return; // IME composing — let it through
+      if (!isLatinChar(e.key)) return; // non-letter keys (Tab, Enter, Backspace, ArrowKeys, ...)
+      const target = e.target as HTMLElement | null;
+      if (!isTextInput(target)) return;
+      if (isOptedOut(target)) return;
+      // Hard block + stopPropagation so no inner listener can re-add it
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    const handlePaste = (e: ClipboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!isTextInput(target)) return;
+      if (isOptedOut(target)) return;
+      const raw = e.clipboardData?.getData('text') || '';
+      const cleaned = raw.replace(/[a-zA-Z]/g, '');
+      if (cleaned === raw) return; // nothing to clean
+      e.preventDefault();
+      const t = target as HTMLInputElement | HTMLTextAreaElement;
+      const start = t.selectionStart ?? t.value.length;
+      const end = t.selectionEnd ?? start;
+      t.value = t.value.slice(0, start) + cleaned + t.value.slice(end);
+      // Manually dispatch input event so React's controlled state picks it up
+      t.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    document.addEventListener('keydown', handleKeydown, true);
+    document.addEventListener('paste', handlePaste, true);
+    log.info('[GlobalPersianEnforcer] active — Latin letters blocked on text inputs');
+    return () => {
+      document.removeEventListener('keydown', handleKeydown, true);
+      document.removeEventListener('paste', handlePaste, true);
+    };
+  }, []);
+
   useEffect(() => {
     // Restore Point Marker: v2.9.56 - Lazy Loading Implemented
     log.info(`Initializing Morvarid System v${APP_VERSION}`);

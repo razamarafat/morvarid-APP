@@ -45,9 +45,13 @@ const invoiceGlobalSchema = z.object({
     invoiceNumber: z.string()
         .min(1, 'رمز حواله الزامی است')
         .regex(invoiceNumberRegex, 'رمز حواله باید ۱۰ رقم باشد و با ۱۷ یا ۱۸ شروع شود'),
+    // 20260619 — Phone is OPTIONAL. If the operator fills it, it still must
+    // be a valid 11-digit mobile number starting with 09. Empty / undefined
+    // is accepted so a copy-from-sales-voucher pre-fill that lacks
+    // `driver_phone` does NOT block submission.
     contactPhone: z.string()
-        .min(1, 'شماره تماس الزامی است')
-        .regex(mobileRegex, 'شماره همراه باید ۱۱ رقم و با ۰۹ شروع شود'),
+        .optional()
+        .refine((val) => !val || mobileRegex.test(val), 'شماره همراه باید ۱۱ رقم و با ۰۹ شروع شود'),
     driverName: z.string().optional(),
     description: z.string().optional()
         .refine(val => !val || persianLettersRegex.test(val.replace(/[0-9]/g, '')), 'توضیحات باید فارسی باشد'),
@@ -186,6 +190,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = () => {
                     // trusted source, not free-form operator input.
                     if (voucher.voucherNumber) setValue('invoiceNumber', voucher.voucherNumber, { shouldDirty: false });
                     if (voucher.driverName)    setValue('driverName',    voucher.driverName,    { shouldDirty: false });
+                    if (voucher.driverPhone)   setValue('contactPhone',  voucher.driverPhone,   { shouldDirty: false });
                     if (voucher.vehiclePlate)  setValue('plateNumber',   voucher.vehiclePlate,  { shouldDirty: false });
 
                     // Lift the same four fields into `salesContext` so the
@@ -1045,7 +1050,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = () => {
                                     control={control}
                                     render={({ field }) => (
                                         <PersianNumberInput
-                                            value={field.value}
+                                            value={field.value ?? ''}
                                             onChange={field.onChange}
                                             maxLength={11}
                                             inputMode="tel"

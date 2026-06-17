@@ -14,6 +14,32 @@ export const toPersianDigits = (str: string | number | null | undefined): string
   return s.replace(/[0-9]/g, (d) => String.fromCharCode(d.charCodeAt(0) + 1728));
 };
 
+/**
+ * 20260619 — Format a numeric value as a Persian-numeral string WITH the
+ * correct locale digit grouping (e.g. "۱٬۲۳۴٬۵۶۷" instead of just
+ * "۱۲۳۴۵۶۷").
+ *
+ * - Uses `Intl.NumberFormat('fa-IR')` for language-aware grouping (uses
+ *   Arabic-Indic U+066C as the thousands separator under Persian locale,
+ *   which renders as a thin comma in Persian typography).
+ * - Falls back to `toPersianDigits()` (no grouping) if `Intl` is
+ *   unavailable (very old browsers).
+ *
+ * NB: This is a UI/DISPLAY utility only. Do NOT use it for arithmetic
+ * (Number parsing, JSON serialization, DB writes). Strip the result via
+ * `toEnglishDigits(...)` first if you need the underlying value.
+ */
+export const formatNumberFa = (n: number | string | null | undefined): string => {
+  if (n === undefined || n === null) return '';
+  try {
+    const v = typeof n === 'number' ? n : Number(n);
+    if (Number.isFinite(v)) {
+      return new Intl.NumberFormat('fa-IR', { useGrouping: true }).format(v);
+    }
+  } catch (_) { /* old browser without Intl fa-IR */ }
+  return toPersianDigits(String(n));
+};
+
 export const normalizeDate = (dateStr: string): string => {
   if (!dateStr) return '';
 

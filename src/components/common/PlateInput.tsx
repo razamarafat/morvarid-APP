@@ -79,6 +79,7 @@ const PlateInput: React.FC<PlateInputProps> = ({ value = '', onChange, onError, 
                     onChange={e => updateParts({ part1: toEnglishDigits(e.target.value) })}
                     className="h-12 lg:h-14 bg-white dark:bg-gray-800 rounded-lg text-center font-black text-xl lg:text-2xl outline-none dark:text-white w-full min-w-0 persian-nums placeholder-gray-400 border border-transparent dark:border-gray-700"
                     placeholder="۲۲"
+                    data-allow-latin="true"
                 />
 
                 {/* Letter */}
@@ -122,6 +123,7 @@ const PlateInput: React.FC<PlateInputProps> = ({ value = '', onChange, onError, 
                     onChange={e => updateParts({ part3: toEnglishDigits(e.target.value) })}
                     className="h-12 lg:h-14 bg-white dark:bg-gray-800 rounded-lg text-center font-black text-xl lg:text-2xl outline-none dark:text-white w-full min-w-0 persian-nums placeholder-gray-400 border border-transparent dark:border-gray-700"
                     placeholder="۳۶۵"
+                    data-allow-latin="true"
                 />
 
                 {/* Part 4: Iran Code */}
@@ -135,6 +137,7 @@ const PlateInput: React.FC<PlateInputProps> = ({ value = '', onChange, onError, 
                         onChange={e => updateParts({ part4: toEnglishDigits(e.target.value) })}
                         className="w-full h-full bg-transparent text-center font-black text-lg lg:text-xl outline-none dark:text-white p-0 -mt-1 persian-nums"
                         placeholder="۱۱"
+                        data-allow-latin="true"
                     />
                 </div>
             </div>

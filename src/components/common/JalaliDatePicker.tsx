@@ -157,11 +157,14 @@ const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({ value, onChange, la
                 initial={{ opacity: 0, scale: 0.95, y: 10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                className="relative lg:fixed w-[320px] bg-white dark:bg-[#1E1E1E] rounded-[24px] shadow-2xl p-5 border border-gray-100 dark:border-white/5 pointer-events-auto overflow-hidden animate-in fade-in duration-200"
+                className="relative lg:fixed w-[320px] bg-white dark:bg-[#1E1E1E] rounded-[24px] shadow-2xl p-5 border border-gray-100 dark:border-white/5 pointer-events-auto overflow-hidden animate-in fade-in duration-200 font-sans"
                 style={!isMobile ? {
                   top: coords.top + 10,
-                  left: Math.min(coords.left, window.innerWidth - 340) // Prevent overflow on right
-                } : {}}
+                  left: Math.min(coords.left, window.innerWidth - 340), // Prevent overflow on right
+                  fontFamily: 'Vazirmatn, Vazir, "Segoe UI", Tahoma, sans-serif'
+                } : {
+                  fontFamily: 'Vazirmatn, Vazir, "Segoe UI", Tahoma, sans-serif'
+                }}
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex justify-between items-center mb-5 px-1">

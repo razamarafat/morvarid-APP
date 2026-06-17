@@ -39,6 +39,7 @@ const PersianNumberInput = forwardRef<HTMLInputElement, PersianNumberInputProps>
           className={`w-full persian-nums ${className}`}
           value={toPersianDigits(value)}
           onChange={handleChange}
+          data-allow-latin="true"
           {...props}
         />
       </div>

@@ -4,7 +4,7 @@ import { useFarmStore } from '../../store/farmStore';
 import { useAuthStore } from '../../store/authStore';
 import { useInvoiceStore } from '../../store/invoiceStore';
 import { Icons } from '../common/Icons';
-import { toPersianDigits } from '../../utils/dateUtils';
+import { toPersianDigits, formatNumberFa } from '../../utils/dateUtils';
 import { SALES_VOUCHER_STATUS_LABELS, SALES_VOUCHER_STATUS_COLORS } from '../../constants';
 import Button from '../common/Button';
 
@@ -257,7 +257,7 @@ const SalesVoucherDetail: React.FC<SalesVoucherDetailProps> = ({ voucherId, onBa
           {voucher.totalAmount && (
             <div className="text-sm font-bold">
               <span className="text-gray-400">مبلغ کل: </span>
-              <span className="text-violet-600">{toPersianDigits(voucher.totalAmount)} تومان</span>
+              <span className="text-violet-600 font-mono tracking-wider">{formatNumberFa(voucher.totalAmount)} تومان</span>
             </div>
           )}
         </div>
