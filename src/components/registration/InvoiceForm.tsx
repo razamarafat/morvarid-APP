@@ -171,35 +171,33 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = () => {
 
                     addToast(`اطلاعات حواله فروش ${toPersianDigits(voucher.voucherNumber)} در فرم بارگذاری شد.`, 'info');
 
-                    // 20260619 FOLLOW-UP — Header-Metadata Enrichment.
+                    // 20260619 FIX — Direct 1-to-1 RHF input field mapping.
                     //
-                    // (1) Build a single Persian string containing all four
-                    //     source-voucher header fields and inject it into the
-                    //     RHF `description` Controller so it persists to the
-                    //     database on submit (via bulkAddInvoices).
-                    // (2) Lift the same four fields into `salesContext` so the
-                    //     purple Visual Context Banner at the top of the form
-                    //     can render them for the operator to verify.
+                    // The previous revision dumped the four header metadata
+                    // fields into a single Persian string inside the
+                    // `description` TextArea. That was wrong: InvoiceForm has
+                    // dedicated RHF inputs for voucher number, driver name,
+                    // and vehicle plate. We now push each source voucher
+                    // field directly into its matching text box so the
+                    // operator sees / edits the data in its proper input.
                     //
-                    // We APPEND rather than overwrite if the operator had
-                    // pre-typed a description (e.g. a previous draft), using
-                    // a newline separator so the auto-injected header is
-                    // visually grouped at the bottom of any free-form note.
-                    const headersNote =
-                        `پیرو حواله فروش شماره: ${toPersianDigits(voucher.voucherNumber) || '-'} | ` +
-                        `خریدار: ${voucher.customerName || '-'} | ` +
-                        `راننده: ${voucher.driverName || '-'} | ` +
-                        `پلاک: ${voucher.vehiclePlate || '-'}`;
-                    const existingDesc = (watchedValues.description || '').toString();
-                    const composedDesc = existingDesc.length > 0
-                        ? `${existingDesc}\n${headersNote}`
-                        : headersNote;
-                    setValue('description', composedDesc, { shouldDirty: false });
+                    // { shouldDirty: false } suppresses RHF's "unsaved
+                    // changes" warning — these are auto-injected from a
+                    // trusted source, not free-form operator input.
+                    if (voucher.voucherNumber) setValue('invoiceNumber', voucher.voucherNumber, { shouldDirty: false });
+                    if (voucher.driverName)    setValue('driverName',    voucher.driverName,    { shouldDirty: false });
+                    if (voucher.vehiclePlate)  setValue('plateNumber',   voucher.vehiclePlate,  { shouldDirty: false });
+
+                    // Lift the same four fields into `salesContext` so the
+                    // purple Visual Context Banner at the top of the form
+                    // can render them. Customer name (خریدار) has no
+                    // dedicated RHF input below, so it stays visible only via
+                    // the banner.
                     setSalesContext({
                         voucherNumber: voucher.voucherNumber || '',
-                        customerName: voucher.customerName || '',
-                        driverName: voucher.driverName || '',
-                        vehiclePlate: voucher.vehiclePlate || '',
+                        customerName:  voucher.customerName  || '',
+                        driverName:    voucher.driverName    || '',
+                        vehiclePlate:  voucher.vehiclePlate  || '',
                     });
                 } else {
                     addToast('حواله فروش یافت نشد یا وضعیت آن معتبر نیست.', 'warning');
@@ -738,22 +736,15 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = () => {
                 </div>
             )}
 
-            {/* Sales Voucher Copy Warning (inventory pre-deduction notice) */}
-            {isFromSalesVoucher && sourceVoucherApplied && (
-                <div className="bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-300 dark:border-amber-700 rounded-2xl p-4 animate-in fade-in slide-in-from-top-4">
-                    <div className="flex items-start gap-3">
-                        <Icons.AlertTriangle className="w-6 h-6 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-                        <div>
-                            <p className="font-black text-amber-700 dark:text-amber-300 text-sm">
-                                توجه: موجودی انبار قبلاً توسط حواله فروش شماره {toPersianDigits(sourceVoucherNumber)} کاهش یافته است.
-                            </p>
-                            <p className="text-amber-600 dark:text-amber-400 text-xs mt-1 leading-relaxed">
-                                ثبت این حواله مصرف تأثیر مجددی بر موجودی انبار نخواهد داشت. این حواله صرفاً برای ثبت سوابق مصرف روزانه است.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* 20260619 FIX — Old amber inventory-impact warning removed
+                per UX review. The purple Visual Context Banner above now
+                carries the "this voucher came from a sales voucher" signal
+                (voucher number + buyer/driver/plate). The duplicate amber
+                warning about inventory impact was redundant. The DB-side
+                anti-double-deduction logic (tr_invoice_reconciliation
+                triggered by source_sales_voucher_id on invoice INSERT)
+                remains in place and is unaffected by this UI change.
+            */}
             {isAdmin && availableFarms.length > 1 && (
                 <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col md:flex-row items-center gap-4 animate-in fade-in slide-in-from-top-4">
                     <div className="flex items-center gap-2 text-metro-purple font-black">
