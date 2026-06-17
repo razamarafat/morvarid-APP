@@ -38,6 +38,22 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, onNa
     return () => window.removeEventListener('dashboard-navigate', handleNavEvent);
   }, [onNavigate]);
 
+  // ----------------------------------------------------------------------------
+  // Smart visibility: hide the universal BackButton on root dashboards.
+  // The dashboards drive sub-pages via internal `currentView` state, so the
+  // button is shown whenever the user is on a sub-page and hidden on the
+  // root "میز کار" view (currentView === 'dashboard' or undefined).
+  // ----------------------------------------------------------------------------
+  const showBackButton = !!currentView && currentView !== 'dashboard';
+
+  // The back handler simply resets the dashboard view state machine to the
+  // root view — no URL navigation needed because the app is a single-page
+  // dashboard where each role owns its own view stack. BackButton's own
+  // fallback (navigate(-1) → '/home') kicks in if this prop is ever omitted.
+  const handleBack = () => {
+    onNavigate('dashboard');
+  };
+
   return (
     <div className={`flex h-[100dvh] ${themeColors.background} text-black dark:text-white overflow-hidden font-sans transition-colors duration-500`}>
       
@@ -49,7 +65,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, onNa
       />
 
       <div className="flex-1 flex flex-col h-full w-full relative transition-all duration-300">
-        <Header onMenuClick={handleToggleSidebar} title={title} />
+        <Header
+          onMenuClick={handleToggleSidebar}
+          title={title}
+          showBackButton={showBackButton}
+          onBack={handleBack}
+        />
         
         <main className="flex-1 overflow-x-hidden overflow-y-auto pb-24 lg:pb-8 scroll-smooth">
           {/* Main content container with less padding on mobile for cleaner look */}
