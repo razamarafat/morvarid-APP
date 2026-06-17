@@ -93,7 +93,11 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ copyFromSalesVoucherId
                 if (voucher && voucher.status === 'submitted') {
                     setIsFromSalesVoucher(true);
                     setSourceVoucherNumber(voucher.voucherNumber);
-                    setSourceVoucherApplied(voucher.inventoryApplied);
+                    // inventoryApplied flag was removed in 20260617 rebuild —
+                    // a submitted sales voucher is always considered to have
+                    // reduced inventory (line-level triggers created sale
+                    // transactions at insert time).
+                    setSourceVoucherApplied(true);
 
                     // Set farm if operator only has one farm or matches voucher farm
                     if (availableFarms.some(f => f.id === voucher.farmId)) {

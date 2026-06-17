@@ -84,8 +84,8 @@ const SalesVoucherDetail: React.FC<SalesVoucherDetailProps> = ({ voucherId, onBa
         </span>
       </div>
 
-      {/* Inventory Warning for Operator Copy */}
-      {readOnly && voucher.status === 'submitted' && voucher.inventoryApplied && (
+      {/* Inventory Warning for Operator Copy (submitted is the only status after 20260617 rebuild) */}
+      {readOnly && voucher.status === 'submitted' && (
         <div className="bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-300 dark:border-amber-700 rounded-2xl p-4">
           <div className="flex items-start gap-3">
             <Icons.AlertTriangle className="w-6 h-6 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
@@ -160,18 +160,10 @@ const SalesVoucherDetail: React.FC<SalesVoucherDetailProps> = ({ voucherId, onBa
                 {voucher.createdAt ? toPersianDigits(new Date(voucher.createdAt).toLocaleDateString('fa-IR')) : '---'}
               </span>
             </div>
-            {voucher.submittedAt && (
-              <div className="flex justify-between">
-                <span className="text-gray-400 text-xs font-bold">تاریخ ثبت نهایی</span>
-                <span className="font-bold text-green-600">
-                  {toPersianDigits(new Date(voucher.submittedAt).toLocaleDateString('fa-IR'))}
-                </span>
-              </div>
-            )}
             <div className="flex justify-between">
               <span className="text-gray-400 text-xs font-bold">وضعیت موجودی</span>
-              <span className={`font-bold text-xs px-2 py-0.5 rounded-full ${voucher.inventoryApplied ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                {voucher.inventoryApplied ? 'کسر شده' : 'کسر نشده'}
+              <span className="font-bold text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                کسر شده
               </span>
             </div>
           </div>

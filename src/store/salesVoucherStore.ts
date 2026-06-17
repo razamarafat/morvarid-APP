@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
-import { SalesVoucher, SalesVoucherLine, SalesVoucherFilter, CreateSalesVoucherInput, UpdateSalesVoucherInput, SalesVoucherWithLines } from '../types';
+import { SalesVoucher, SalesVoucherLine, SalesVoucherFilter, SalesVoucherStatus, CreateSalesVoucherInput, UpdateSalesVoucherInput, SalesVoucherWithLines } from '../types';
 import { useAuthStore } from './authStore';
 import { normalizeDate } from '../utils/dateUtils';
 import { getErrorMessage } from '../utils/errorUtils';
@@ -96,7 +96,69 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
 
       const { data, error } = await query;
 
-      if (error) throw error;
+      if (error) {
+        // Fallback: if relational query fails (e.g. missing FK from sales_vouchers to profiles),
+        // retry with a simple select without joins.
+        console.warn('[SalesVoucherStore] Relational select failed, retrying simple select', error);
+        let simpleQuery = supabase
+          .from('sales_vouchers')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(500);
+
+        // Reapply role-based filters
+        if (currentUser && currentUser.role !== 'ADMIN') {
+          if (currentUser.role !== 'SALES') {
+            const farmIds = (currentUser.assignedFarms || []).map(f => f.id);
+            if (farmIds.length > 0) {
+              simpleQuery = simpleQuery.in('farm_id', farmIds);
+            } else {
+              set({ vouchers: [], isLoading: false });
+              return;
+            }
+          }
+        }
+        if (filters?.farmId) simpleQuery = simpleQuery.eq('farm_id', filters.farmId);
+        if (filters?.status) simpleQuery = simpleQuery.eq('status', filters.status);
+        if (filters?.createdBy) simpleQuery = simpleQuery.eq('created_by', filters.createdBy);
+        if (filters?.dateFrom) simpleQuery = simpleQuery.gte('voucher_date', normalizeDate(filters.dateFrom));
+        if (filters?.dateTo) simpleQuery = simpleQuery.lte('voucher_date', normalizeDate(filters.dateTo));
+        if (filters?.search) simpleQuery = simpleQuery.or(`voucher_number.ilike.%${filters.search}%,customer_name.ilike.%${filters.search}%`);
+
+        const simple = await simpleQuery;
+        if (simple.error) throw simple.error;
+
+        if (simple.data) {
+          const mapped: SalesVoucher[] = simple.data.map((v: any) => ({
+            id: v.id,
+            voucherNumber: v.voucher_number,
+            farmId: v.farm_id,
+            voucherDate: normalizeDate(v.voucher_date),
+            status: v.status,
+            createdBy: v.created_by,
+            // submittedAt: removed in 20260617 rebuild (no automatic timestamps remain)
+            notes: v.notes,
+            totalAmount: v.total_amount,
+            customerName: v.customer_name,
+            customerPhone: v.customer_phone,
+            vehiclePlate: v.vehicle_plate,
+            deliveryAddress: v.delivery_address,
+            driverName: v.driver_name,
+            driverPhone: v.driver_phone,
+            // inventoryApplied: removed in 20260617 rebuild (line-level triggers now authoritative)
+            createdAt: v.created_at,
+            updatedAt: v.updated_at,
+            updatedBy: v.updated_by,
+            farmName: 'نامشخص',
+            creatorName: v.created_by === currentUser?.id ? 'شما' : 'نامشخص',
+            editorName: undefined,
+          }));
+          set({ vouchers: mapped, isLoading: false });
+        } else {
+          set({ vouchers: [], isLoading: false });
+        }
+        return;
+      }
 
       if (data) {
         const mapped: SalesVoucher[] = data.map((v: any) => ({
@@ -104,9 +166,8 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
           voucherNumber: v.voucher_number,
           farmId: v.farm_id,
           voucherDate: normalizeDate(v.voucher_date),
-          status: v.status,
+          status: v.status as SalesVoucherStatus,
           createdBy: v.created_by,
-          submittedAt: v.submitted_at,
           notes: v.notes,
           totalAmount: v.total_amount,
           customerName: v.customer_name,
@@ -115,7 +176,6 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
           deliveryAddress: v.delivery_address,
           driverName: v.driver_name,
           driverPhone: v.driver_phone,
-          inventoryApplied: v.inventory_applied || false,
           createdAt: v.created_at,
           updatedAt: v.updated_at,
           updatedBy: v.updated_by,
@@ -145,7 +205,79 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
         .eq('id', id)
         .single();
 
-      if (voucherError) throw voucherError;
+      if (voucherError) {
+        // Fallback: if relational query fails, retry with simple select
+        console.warn('[SalesVoucherStore] Relational select by ID failed, retrying simple select', voucherError);
+        const { data: simpleVoucher, error: simpleError } = await supabase
+          .from('sales_vouchers')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (simpleError) throw simpleError;
+        if (!simpleVoucher) {
+          set({ currentVoucher: null, isLoading: false, error: 'حواله یافت نشد.' });
+          return;
+        }
+        // Fetch lines - try with product join, fall back to simple select
+        let lineResult = await supabase
+          .from('sales_voucher_lines')
+          .select('*, products!inner(name, unit)')
+          .eq('voucher_id', id)
+          .order('created_at', { ascending: true });
+
+        if (lineResult.error) {
+          console.warn('[SalesVoucherStore] Lines relational select failed, retrying simple select', lineResult.error);
+          lineResult = await supabase
+            .from('sales_voucher_lines')
+            .select('*')
+            .eq('voucher_id', id)
+            .order('created_at', { ascending: true });
+        }
+
+        if (lineResult.error) throw lineResult.error;
+
+        let totalItems = 0;
+        let totalQuantity = 0;
+        const mappedLines: SalesVoucherLine[] = (lineResult.data || []).map((l: any) => {
+          totalItems++;
+          totalQuantity += Number(l.quantity) || 0;
+          return {
+            id: l.id,
+            voucherId: l.voucher_id,
+            productId: l.product_id,
+            quantity: l.quantity,
+            unitPrice: l.unit_price,
+            totalPrice: l.total_price,
+            notes: l.notes,
+            createdAt: l.created_at,
+            productName: l.products?.name || 'نامشخص',
+            productUnit: l.products?.unit || 'CARTON',
+          };
+        });
+
+        const currentUser = useAuthStore.getState().user;
+        set({ currentVoucher: {
+          id: simpleVoucher.id, voucherNumber: simpleVoucher.voucher_number,
+          farmId: simpleVoucher.farm_id, voucherDate: normalizeDate(simpleVoucher.voucher_date),
+          status: simpleVoucher.status as SalesVoucherStatus, createdBy: simpleVoucher.created_by,
+          // submittedAt: removed in 20260617 rebuild
+          notes: simpleVoucher.notes,
+          totalAmount: simpleVoucher.total_amount, customerName: simpleVoucher.customer_name,
+          customerPhone: simpleVoucher.customer_phone, vehiclePlate: simpleVoucher.vehicle_plate,
+          deliveryAddress: simpleVoucher.delivery_address, driverName: simpleVoucher.driver_name,
+          driverPhone: simpleVoucher.driver_phone,
+          // inventoryApplied: removed in 20260617 rebuild
+          createdAt: simpleVoucher.created_at, updatedAt: simpleVoucher.updated_at,
+          updatedBy: simpleVoucher.updated_by,
+          farmName: 'نامشخص',
+          creatorName: simpleVoucher.created_by === currentUser?.id ? 'شما' : 'نامشخص',
+          editorName: undefined,
+          totalItems, totalQuantity, lines: mappedLines,
+        }, isLoading: false });
+        return;
+      }
+
       if (!voucher) {
         set({ currentVoucher: null, isLoading: false, error: 'حواله یافت نشد.' });
         return;
@@ -181,12 +313,14 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
       set({ currentVoucher: {
         id: voucher.id, voucherNumber: voucher.voucher_number,
         farmId: voucher.farm_id, voucherDate: normalizeDate(voucher.voucher_date),
-        status: voucher.status, createdBy: voucher.created_by,
-        submittedAt: voucher.submitted_at, notes: voucher.notes,
+        status: voucher.status as SalesVoucherStatus, createdBy: voucher.created_by,
+        // submittedAt: removed in 20260617 rebuild
+        notes: voucher.notes,
         totalAmount: voucher.total_amount, customerName: voucher.customer_name,
         customerPhone: voucher.customer_phone, vehiclePlate: voucher.vehicle_plate,
         deliveryAddress: voucher.delivery_address, driverName: voucher.driver_name,
-        driverPhone: voucher.driver_phone,        inventoryApplied: voucher.inventory_applied || false,
+        driverPhone: voucher.driver_phone,
+        // inventoryApplied: removed in 20260617 rebuild
         createdAt: voucher.created_at, updatedAt: voucher.updated_at,
         updatedBy: voucher.updated_by,
         farmName: voucher.farms?.name || 'نامشخص',
@@ -325,7 +459,7 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
   },
 
   // ============================
-  // DELETE VOUCHER (any voucher — cascade deletes lines → triggers reverse inventory)
+  // DELETE VOUCHER (two-step: delete lines first → triggers read parent properly)
   // ============================
   deleteSalesVoucher: async (id: string) => {
     set({ isSubmitting: true, error: null });
@@ -336,12 +470,23 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
     }
 
     try {
-      const { error } = await supabase
+      // Step 1: Delete lines first — the BEFORE DELETE trigger on lines
+      // needs the parent voucher to exist so it can read farm_id etc.
+      // Deleting lines while the parent is alive avoids the CASCADE timing issue.
+      const { error: linesError } = await supabase
+        .from('sales_voucher_lines')
+        .delete()
+        .eq('voucher_id', id);
+
+      if (linesError) throw linesError;
+
+      // Step 2: Now delete the voucher itself (no lines left, no cascade triggers)
+      const { error: voucherError } = await supabase
         .from('sales_vouchers')
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
+      if (voucherError) throw voucherError;
 
       set({ isSubmitting: false, currentVoucher: null });
       return { success: true };

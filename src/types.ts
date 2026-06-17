@@ -104,6 +104,9 @@ export interface NotificationItem {
 
 // ============================
 // Sales Voucher Types (سیستم حواله فروش)
+// STATUS: only 'submitted'. The enum, inventory_applied flag, submitted_at,
+// cancelled_by, cancelled_at columns were removed in 20260617 rebuild.
+// A voucher simply EXISTS or is DELETED (no draft, no cancel).
 // ============================
 
 export type SalesVoucherStatus = 'submitted';
@@ -115,7 +118,6 @@ export interface SalesVoucher {
   voucherDate: string;
   status: SalesVoucherStatus;
   createdBy: string;
-  submittedAt?: string;
   notes?: string;
   totalAmount?: number;
   customerName?: string;
@@ -124,7 +126,6 @@ export interface SalesVoucher {
   deliveryAddress?: string;
   driverName?: string;
   driverPhone?: string;
-  inventoryApplied: boolean;
   createdAt: string;
   updatedAt: string;
   updatedBy?: string;
