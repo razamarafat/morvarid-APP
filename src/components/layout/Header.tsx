@@ -74,27 +74,44 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
   };
 
   const getDesktopNavItems = () => {
+    // Neutral shortcut style (kept only for the dashboard "home" anchor —
+    // no home tile exists in any dashboard above, so it stays neutral).
     const btnClass = "px-4 py-2 rounded-xl text-sm font-bold transition-all hover:bg-black/5 dark:hover:bg-white/10 flex items-center gap-2";
+
+    // Tile-mirror shortcut styles: each entry contains LITERAL Tailwind
+    // class strings (so the JIT scanner picks them up reliably — dynamic
+    // string interpolation would silently produce no styles). The colors
+    // mirror exactly each dashboard's MetroTile accent so the header
+    // visually re-affirms the section the user is navigating to.
+    const TILE_SHORTCUT_COLORS: Record<string, string> = {
+      green:  'px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 text-green-600  hover:bg-green-100  dark:text-green-400  dark:hover:bg-green-900/20',
+      blue:   'px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 text-blue-600   hover:bg-blue-100   dark:text-blue-400   dark:hover:bg-blue-900/20',
+      violet: 'px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 text-violet-600 hover:bg-violet-100 dark:text-violet-400 dark:hover:bg-violet-900/20',
+      orange: 'px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 text-orange-600 hover:bg-orange-100 dark:text-orange-400 dark:hover:bg-orange-900/20',
+      purple: 'px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 text-purple-600 hover:bg-purple-100 dark:text-purple-400 dark:hover:bg-purple-900/20',
+      indigo: 'px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 text-indigo-600 hover:bg-indigo-100 dark:text-indigo-400 dark:hover:bg-indigo-900/20',
+      teal:   'px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 text-teal-600   hover:bg-teal-100   dark:text-teal-400   dark:hover:bg-teal-900/20',
+    };
 
     switch (role) {
       case UserRole.REGISTRATION:
         return (
           <>
             <button onClick={() => handleNavClick('dashboard')} className={btnClass}><Icons.Desk className="w-4 h-4" /> میز کار</button>
-            <button onClick={() => handleNavClick('stats')} className={btnClass}><Icons.BarChart className="w-4 h-4" /> ثبت آمار</button>
-            <button onClick={() => handleNavClick('invoice')} className={btnClass}><Icons.FileText className="w-4 h-4" /> ثبت حواله</button>
-            <button onClick={() => handleNavClick('recent')} className={btnClass}><Icons.Refresh className="w-4 h-4" /> سوابق</button>
-            <button onClick={() => handleNavClick('sales-vouchers')} className={`${btnClass} text-violet-600 dark:text-violet-400`}><Icons.FileText className="w-4 h-4" /> حواله فروش</button>
+            <button onClick={() => handleNavClick('stats')} className={TILE_SHORTCUT_COLORS.orange}><Icons.BarChart className="w-4 h-4" /> ثبت آمار</button>
+            <button onClick={() => handleNavClick('invoice')} className={TILE_SHORTCUT_COLORS.blue}><Icons.FileText className="w-4 h-4" /> ثبت حواله</button>
+            <button onClick={() => handleNavClick('recent')} className={TILE_SHORTCUT_COLORS.green}><Icons.Refresh className="w-4 h-4" /> سوابق</button>
+            <button onClick={() => handleNavClick('sales-vouchers')} className={TILE_SHORTCUT_COLORS.violet}><Icons.FileText className="w-4 h-4" /> حواله فروش</button>
           </>
         );
       case UserRole.SALES:
         return (
           <>
             <button onClick={() => handleNavClick('dashboard')} className={btnClass}><Icons.Desk className="w-4 h-4" /> میز کار</button>
-            <button onClick={() => handleNavClick('farm-stats')} className={btnClass}><Icons.BarChart className="w-4 h-4" /> آمار فارم</button>
-            <button onClick={() => handleNavClick('invoices')} className={btnClass}><Icons.FileText className="w-4 h-4" /> لیست حواله</button>
-            <button onClick={() => handleNavClick('reports')} className={btnClass}><Icons.FileText className="w-4 h-4" /> گزارشات</button>
-            <button onClick={() => handleNavClick('sales-vouchers')} className={`${btnClass} text-violet-600 dark:text-violet-400`}><Icons.FileText className="w-4 h-4" /> حواله فروش</button>
+            <button onClick={() => handleNavClick('farm-stats')} className={TILE_SHORTCUT_COLORS.blue}><Icons.BarChart className="w-4 h-4" /> آمار فارم</button>
+            <button onClick={() => handleNavClick('invoices')} className={TILE_SHORTCUT_COLORS.orange}><Icons.FileText className="w-4 h-4" /> لیست حواله</button>
+            <button onClick={() => handleNavClick('reports')} className={TILE_SHORTCUT_COLORS.purple}><Icons.FileText className="w-4 h-4" /> گزارشات</button>
+            <button onClick={() => handleNavClick('sales-vouchers')} className={TILE_SHORTCUT_COLORS.violet}><Icons.FileText className="w-4 h-4" /> حواله فروش</button>
           </>
         );
       case UserRole.ADMIN:
@@ -102,12 +119,12 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
         return (
           <>
             <button onClick={() => handleNavClick('dashboard')} className={btnClass}><Icons.Desk className="w-4 h-4" /> میز کار</button>
-            <button onClick={() => handleNavClick('farms')} className={btnClass}><Icons.Home className="w-4 h-4" /> فارم‌ها</button>
-            <button onClick={() => handleNavClick('users')} className={btnClass}><Icons.Users className="w-4 h-4" /> کاربران</button>
-            <button onClick={() => handleNavClick('reports')} className={btnClass}><Icons.FileText className="w-4 h-4" /> گزارشات</button>
-            <button onClick={() => handleNavClick('devices')} className={btnClass}><Icons.Globe className="w-4 h-4" /> دستگاه‌ها</button>
-            <button onClick={() => handleNavClick('testing')} className={btnClass}><Icons.TestTube className="w-4 h-4" /> سنجش فنی</button>
-            <button onClick={() => handleNavClick('sales-vouchers')} className={`${btnClass} text-violet-600 dark:text-violet-400`}><Icons.FileText className="w-4 h-4" /> حواله فروش</button>
+            <button onClick={() => handleNavClick('farms')} className={TILE_SHORTCUT_COLORS.green}><Icons.Home className="w-4 h-4" /> فارم‌ها</button>
+            <button onClick={() => handleNavClick('users')} className={TILE_SHORTCUT_COLORS.purple}><Icons.Users className="w-4 h-4" /> کاربران</button>
+            <button onClick={() => handleNavClick('reports')} className={TILE_SHORTCUT_COLORS.blue}><Icons.FileText className="w-4 h-4" /> گزارشات</button>
+            <button onClick={() => handleNavClick('devices')} className={TILE_SHORTCUT_COLORS.indigo}><Icons.Globe className="w-4 h-4" /> دستگاه‌ها</button>
+            <button onClick={() => handleNavClick('testing')} className={TILE_SHORTCUT_COLORS.teal}><Icons.TestTube className="w-4 h-4" /> سنجش فنی</button>
+            <button onClick={() => handleNavClick('sales-vouchers')} className={TILE_SHORTCUT_COLORS.violet}><Icons.FileText className="w-4 h-4" /> حواله فروش</button>
           </>
         );
     }

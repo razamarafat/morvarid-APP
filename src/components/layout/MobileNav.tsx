@@ -20,17 +20,52 @@ const MobileNav: React.FC<MobileNavProps> = ({ onNavigate, currentView }) => {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const NavItem = ({ icon: Icon, label, view, isActive }: { icon: any, label: string, view: string, isActive: boolean }) => (
-    <button
-      onClick={() => onNavigate(view)}
-      className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-all active:scale-95 ${isActive ? 'text-metro-blue' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
-    >
-      <div className={`p-1.5 rounded-full transition-colors ${isActive ? 'bg-metro-blue/10 dark:bg-metro-blue/20' : ''}`}>
-        <Icon className={`w-6 h-6 ${isActive ? 'fill-current' : ''}`} />
-      </div>
-      <span className={`text-[10px] sm:text-xs font-bold ${isActive ? 'opacity-100' : 'opacity-80'}`}>{label}</span>
-    </button>
-  );
+  // Tile-mirror color styles for the mobile bottom-nav: each entry contains
+  // LITERAL Tailwind class strings mirroring the corresponding dashboard
+  // MetroTile's accent (so the header + bottom nav are visually consistent),
+  // keeping the JIT scanner happy. Inactive = muted color + neutral hover,
+  // active = full-color text + matching light/dark tinted background.
+  const MOBILE_NAV_TILE_STYLES: Record<string, { active: string; inactive: string }> = {
+    gray: {
+      active: 'text-gray-700 bg-gray-200/60 dark:bg-gray-700/40 dark:text-white',
+      inactive: 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800/60',
+    },
+    green: {
+      active: 'text-green-700 bg-green-100 dark:bg-green-900/30 dark:text-green-400',
+      inactive: 'text-green-600/80 dark:text-green-400/80 hover:text-green-700 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20',
+    },
+    blue: {
+      active: 'text-blue-700 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400',
+      inactive: 'text-blue-600/80 dark:text-blue-400/80 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20',
+    },
+    orange: {
+      active: 'text-orange-700 bg-orange-100 dark:bg-orange-900/30 dark:text-orange-400',
+      inactive: 'text-orange-600/80 dark:text-orange-400/80 hover:text-orange-700 dark:hover:text-orange-300 hover:bg-orange-50 dark:hover:bg-orange-900/20',
+    },
+    purple: {
+      active: 'text-purple-700 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400',
+      inactive: 'text-purple-600/80 dark:text-purple-400/80 hover:text-purple-700 dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20',
+    },
+    violet: {
+      active: 'text-violet-700 bg-violet-100 dark:bg-violet-900/30 dark:text-violet-400',
+      inactive: 'text-violet-600/80 dark:text-violet-400/80 hover:text-violet-700 dark:hover:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-900/20',
+    },
+  };
+
+  const NavItem = ({ icon: Icon, label, view, isActive, color = 'gray' }: { icon: any, label: string, view: string, isActive: boolean, color?: string }) => {
+    const styles = MOBILE_NAV_TILE_STYLES[color] || MOBILE_NAV_TILE_STYLES.gray;
+    return (
+      <button
+        onClick={() => onNavigate(view)}
+        className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-all active:scale-95 ${isActive ? styles.active : styles.inactive}`}
+      >
+        <div className="p-1.5 rounded-full transition-colors">
+          <Icon className={`w-6 h-6 ${isActive ? 'fill-current' : ''}`} />
+        </div>
+        <span className={`text-[10px] sm:text-xs font-bold ${isActive ? 'opacity-100' : 'opacity-80'}`}>{label}</span>
+      </button>
+    );
+  };
 
   const renderNavItems = () => {
     // Common middle button for Notifications on mobile
@@ -53,32 +88,32 @@ const MobileNav: React.FC<MobileNavProps> = ({ onNavigate, currentView }) => {
       case UserRole.REGISTRATION:
         return (
           <>
-            <NavItem icon={Icons.Desk} label="میز کار" view="dashboard" isActive={currentView === 'dashboard'} />
-            <NavItem icon={Icons.BarChart} label="ثبت آمار" view="stats" isActive={currentView === 'stats'} />
+            <NavItem icon={Icons.Desk} label="میز کار" view="dashboard" isActive={currentView === 'dashboard'} color="gray" />
+            <NavItem icon={Icons.BarChart} label="ثبت آمار" view="stats" isActive={currentView === 'stats'} color="orange" />
             {notifButton}
-            <NavItem icon={Icons.FileText} label="ثبت حواله" view="invoice" isActive={currentView === 'invoice'} />
-            <NavItem icon={Icons.Refresh} label="سوابق" view="recent" isActive={currentView === 'recent'} />
+            <NavItem icon={Icons.FileText} label="ثبت حواله" view="invoice" isActive={currentView === 'invoice'} color="blue" />
+            <NavItem icon={Icons.Refresh} label="سوابق" view="recent" isActive={currentView === 'recent'} color="green" />
           </>
         );
       case UserRole.SALES:
         return (
           <>
-            <NavItem icon={Icons.Desk} label="میز کار" view="dashboard" isActive={currentView === 'dashboard'} />
-            <NavItem icon={Icons.BarChart} label="آمار" view="farm-stats" isActive={currentView === 'farm-stats'} />
+            <NavItem icon={Icons.Desk} label="میز کار" view="dashboard" isActive={currentView === 'dashboard'} color="gray" />
+            <NavItem icon={Icons.BarChart} label="آمار" view="farm-stats" isActive={currentView === 'farm-stats'} color="blue" />
             {notifButton}
-            <NavItem icon={Icons.FileText} label="حواله‌ها" view="invoices" isActive={currentView === 'invoices'} />
-            <NavItem icon={Icons.FileText} label="گزارشات" view="reports" isActive={currentView === 'reports'} />
+            <NavItem icon={Icons.FileText} label="حواله‌ها" view="invoices" isActive={currentView === 'invoices'} color="orange" />
+            <NavItem icon={Icons.FileText} label="گزارشات" view="reports" isActive={currentView === 'reports'} color="purple" />
           </>
         );
       case UserRole.ADMIN:
       default:
         return (
           <>
-            <NavItem icon={Icons.Desk} label="میز کار" view="dashboard" isActive={currentView === 'dashboard'} />
-            <NavItem icon={Icons.Home} label="فارم‌ها" view="farms" isActive={currentView === 'farms'} />
+            <NavItem icon={Icons.Desk} label="میز کار" view="dashboard" isActive={currentView === 'dashboard'} color="gray" />
+            <NavItem icon={Icons.Home} label="فارم‌ها" view="farms" isActive={currentView === 'farms'} color="green" />
             {notifButton}
-            <NavItem icon={Icons.Users} label="کاربران" view="users" isActive={currentView === 'users'} />
-            <NavItem icon={Icons.FileText} label="گزارشات" view="reports" isActive={currentView === 'reports'} />
+            <NavItem icon={Icons.Users} label="کاربران" view="users" isActive={currentView === 'users'} color="purple" />
+            <NavItem icon={Icons.FileText} label="گزارشات" view="reports" isActive={currentView === 'reports'} color="blue" />
           </>
         );
     }
