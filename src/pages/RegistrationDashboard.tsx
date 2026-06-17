@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useViewNavigation } from '../hooks/useViewNavigation';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { Icons } from '../components/common/Icons';
@@ -8,6 +8,7 @@ import RecentRecords from '../components/registration/RecentRecords';
 import MetroTile from '../components/common/MetroTile';
 import { SkeletonTile } from '../components/common/Skeleton';
 import { useAuthStore } from '../store/authStore';
+import { useInvoiceStore } from '../store/invoiceStore';
 import { useExpirationAlert } from '../hooks/useExpirationAlert';
 import { SalesVoucherList } from '../components/sales/SalesVoucherList';
 import SalesVoucherDetail from '../components/sales/SalesVoucherDetail';
@@ -16,33 +17,27 @@ const RegistrationDashboard: React.FC = () => {
     // URL-driven navigation state via the shared hook — see
     // src/hooks/useViewNavigation.ts for the contract (history-stack
     // mirror, homeView replace, same-view click guard, etc.).
-    // useCallback is preserved below because handleCopyToInvoice still
-    // wraps a stable identity for child components.
     const { currentView, setCurrentView } = useViewNavigation();
-    const [copyFromSalesVoucherId, setCopyFromSalesVoucherId] = useState<string | null>(null);
     const { isLoading } = useAuthStore();
     const dashboardTitle = 'میز کار ثبت اطلاعات روزانه';
 
     // TASK 4: Enable Expiration Alert
     useExpirationAlert();
 
-    // Listen for copy-from-sales-voucher events
+    // 20260619 fix: cross-dashboard "Copy to daily voucher" handoff —
+    // removed the buggy `window.dispatchEvent('copy-sales-voucher-to-
+    // invoice', …)` global CustomEvent chain (anyone could forge the
+    // event; no type safety) AND removed the parent-state callback
+    // chain. The new flow consumes the typed `copiedSalesVoucher` slot
+    // from the invoice store via a zustand selector. When non-null, we
+    // switch to the 'invoice' view so <InvoiceForm> mounts; the form
+    // itself reads the slot, pre-fills, and clears it.
+    const copiedSalesVoucher = useInvoiceStore(s => s.copiedSalesVoucher);
     useEffect(() => {
-        const handler = (e: Event) => {
-            const detail = (e as CustomEvent).detail;
-            if (detail?.voucherId) {
-                setCopyFromSalesVoucherId(detail.voucherId);
-                setCurrentView('invoice');
-            }
-        };
-        window.addEventListener('copy-sales-voucher-to-invoice', handler);
-        return () => window.removeEventListener('copy-sales-voucher-to-invoice', handler);
-    }, []);
-
-    const handleCopyToInvoice = useCallback((voucherId: string) => {
-        setCopyFromSalesVoucherId(voucherId);
-        setCurrentView('invoice');
-    }, []);
+        if (copiedSalesVoucher) {
+            setCurrentView('invoice');
+        }
+    }, [copiedSalesVoucher, setCurrentView]);
 
     const renderContent = () => {
         if (isLoading && currentView === 'dashboard') {
@@ -58,7 +53,7 @@ const RegistrationDashboard: React.FC = () => {
 
         switch (true) {
             case currentView === 'stats': return <StatisticsForm onNavigate={setCurrentView} />;
-            case currentView === 'invoice': return <InvoiceForm copyFromSalesVoucherId={copyFromSalesVoucherId} onCopyComplete={() => setCopyFromSalesVoucherId(null)} />;
+            case currentView === 'invoice': return <InvoiceForm />;
             case currentView === 'recent': return <RecentRecords />;
             case currentView === 'sales-vouchers': return (
                 <SalesVoucherList
@@ -73,7 +68,6 @@ const RegistrationDashboard: React.FC = () => {
                         voucherId={viewId}
                         onBack={() => setCurrentView('sales-vouchers')}
                         readOnly={true}
-                        onCopyToInvoice={handleCopyToInvoice}
                     />
                 );
             }

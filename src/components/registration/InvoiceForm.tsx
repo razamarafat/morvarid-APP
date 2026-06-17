@@ -29,8 +29,12 @@ import { useAutoSave } from '../../hooks/useAutoSave';
 import { sanitizeString } from '../../utils/sanitizers';
 
 interface InvoiceFormProps {
-  copyFromSalesVoucherId?: string | null;
-  onCopyComplete?: () => void;
+  // 20260619 fix: both props removed. The COPY handoff is now driven by
+  // the Zustand `useInvoiceStore.copiedSalesVoucher` slot, set by the
+  // Sales Voucher components' "کپی به ثبت حواله" button and consumed
+  // on mount by the useEffect below. The Dashboard subscribes to that
+  // slot via a zustand selector and switches the current view to
+  // 'invoice' so this form mounts when a copy is requested.
 }
 
 const persianLettersRegex = /^[\u0600-\u06FF\s]+$/;
@@ -64,7 +68,7 @@ interface InvoiceDraftState {
     referenceDate: string;
 }
 
-export const InvoiceForm: React.FC<InvoiceFormProps> = ({ copyFromSalesVoucherId = null, onCopyComplete }) => {
+export const InvoiceForm: React.FC<InvoiceFormProps> = () => {
     const { user } = useAuthStore();
     const { getProductById, farms: allFarms } = useFarmStore();
     const { bulkAddInvoices } = useInvoiceStore();
@@ -81,18 +85,28 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ copyFromSalesVoucherId
 
     const [isFromSalesVoucher, setIsFromSalesVoucher] = useState(false);
     const [sourceVoucherNumber, setSourceVoucherNumber] = useState<string>('');
+    const [sourceSalesVoucherId, setSourceSalesVoucherId] = useState<string | null>(null);
     const [sourceVoucherApplied, setSourceVoucherApplied] = useState(false);
     const [copyLoaded, setCopyLoaded] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // 20260619 fix: read the COPY handoff from the typed Zustand slot
+    // (set by SalesVoucherList / Detail handlers) instead of from a
+    // parent prop that tightly coupled to RegistrationDashboard.
+    // The Dashboard subscribes to the same slot via a zustand selector
+    // and switches view to 'invoice' as soon as this becomes non-null.
+    const copiedSalesVoucher = useInvoiceStore(s => s.copiedSalesVoucher);
+
     // --- COPY FROM SALES VOUCHER ---
     useEffect(() => {
-        if (copyFromSalesVoucherId && !copyLoaded) {
-            fetchSalesVoucherById(copyFromSalesVoucherId).then(() => {
+        if (copiedSalesVoucher && !copyLoaded) {
+            const voucherId = copiedSalesVoucher.voucherId;
+            fetchSalesVoucherById(voucherId).then(() => {
                 const voucher = useSalesVoucherStore.getState().currentVoucher;
                 if (voucher && voucher.status === 'submitted') {
                     setIsFromSalesVoucher(true);
                     setSourceVoucherNumber(voucher.voucherNumber);
+                    setSourceSalesVoucherId(voucher.id);
                     // inventoryApplied flag was removed in 20260617 rebuild —
                     // a submitted sales voucher is always considered to have
                     // reduced inventory (line-level triggers created sale
@@ -137,10 +151,17 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ copyFromSalesVoucherId
                     addToast('حواله فروش یافت نشد یا وضعیت آن معتبر نیست.', 'warning');
                 }
                 setCopyLoaded(true);
-                onCopyComplete?.();
+                // Consume the typed slot so:
+                //   (a) reopening this form does NOT re-trigger pre-fill
+                //   (b) the Dashboard's selector sees a transition
+                //       (non-null → null) and does NOT re-navigate
+                //   (c) the next back-to-back click on a different
+                //       sales voucher always re-fires the selector
+                //       because we set a fresh object on each call.
+                useInvoiceStore.getState().clearCopiedSalesVoucher();
             });
         }
-    }, [copyFromSalesVoucherId]);
+    }, [copiedSalesVoucher]);
     const isAdmin = user?.role === 'ADMIN';
     const availableFarms = isAdmin ? allFarms : (user?.assignedFarms || []);
     const [selectedFarmId, setSelectedFarmId] = useState<string>('');
@@ -450,7 +471,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ copyFromSalesVoucherId
                                 convertedAmount: deficit, // The amount taken from Source
                                 isYesterday: referenceDate !== normalizedDate,
                                 isFromSalesVoucher,
-                                sourceSalesVoucherId: copyFromSalesVoucherId,
+                                sourceSalesVoucherId,
                                 sourceSalesVoucherLineId: item.sourceLineId, // 20260618 — link per-line for the trigger
                             });
 
@@ -490,7 +511,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ copyFromSalesVoucherId
                 isConverted: false,
                 isYesterday: referenceDate !== normalizedDate,
                 isFromSalesVoucher,
-                sourceSalesVoucherId: copyFromSalesVoucherId,
+                sourceSalesVoucherId,
                 sourceSalesVoucherLineId: item.sourceLineId, // 20260618 — link per-line for the trigger
             });
         }

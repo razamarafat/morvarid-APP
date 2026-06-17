@@ -3,6 +3,8 @@ import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { Invoice } from '../types';
 import { useStatisticsStore } from './statisticsStore';
+import { useSalesVoucherStore } from './salesVoucherStore';
+import { useToastStore } from './toastStore';
 import { normalizeDate } from '../utils/dateUtils';
 import { useSyncStore } from './syncStore';
 import { useAuthStore } from './authStore';
@@ -43,11 +45,90 @@ interface InvoiceState {
      * @returns Promise<{ isValid: boolean; error?: string }>
      */
     validateUnique: (invoiceNumber: string, excludeInvoiceId?: string) => Promise<{ isValid: boolean; error?: string }>;
+
+    // =========================================================================
+    // COPY FROM SALES VOUCHER — cross-dashboard data handoff slot.
+    //
+    // Pre-20260619 product flow used a `window.dispatchEvent('copy-sales-
+    // voucher-to-invoice', …)` CustomEvent (REJECTED by security review: any
+    // iframe / extension could forge the event; no type safety; tightly
+    // coupled to RegistrationDashboard's internal mount state).
+    //
+    // New flow (this task):
+    //   1. SalesVoucherList / SalesVoucherDetail handler calls
+    //      `prepareCopyFromSalesVoucher(voucherId)`. The thunk fetches the
+    //      voucher via salesVoucherStore and writes a typed `CopiedSalesVoucher`
+    //      payload into this slot.
+    //   2. RegistrationDashboard subscribes via the zustand selector hook
+    //      and, when the slot becomes non-null, switches currentView to
+    //      'invoice' — making InvoiceForm mount.
+    //   3. InvoiceForm reads the slot via the selector, pre-fills line items
+    //      and quantities from salesVoucherStore.currentVoucher, then calls
+    //      `clearCopiedSalesVoucher()` so that subsequent navigations back to
+    //      the same view do NOT re-trigger the copy.
+    //
+    // The slot is a Zustand slice: type-safe, scoped to the tab session,
+    // recoverable on React remount, and fully free of window globals.
+    // =========================================================================
+    copiedSalesVoucher: CopiedSalesVoucher | null;
+    /** Fetch the voucher and atomically publish a typed payload to the handoff slot. Returns true on success. */
+    prepareCopyFromSalesVoucher: (voucherId: string) => Promise<boolean>;
+    /** Clear the handoff slot after InvoiceForm has consumed the payload. */
+    clearCopiedSalesVoucher: () => void;
+}
+
+/**
+ * Typed payload published by the Sales Voucher components when the operator
+ * clicks "کپی به ثبت حواله". Consumed by InvoiceForm on mount.
+ */
+export interface CopiedSalesVoucher {
+    voucherId: string;
+    voucherNumber: string;
+    farmId: string;
+    /** Epoch ms — used by the dashboard's zustand selector as the equality key so back-to-back clicks always fire. */
+    fetchedAt: number;
 }
 
 export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     invoices: [],
     isLoading: false,
+
+    // -- Hatef handoff to InvoiceForm --
+    copiedSalesVoucher: null,
+    prepareCopyFromSalesVoucher: async (voucherId: string) => {
+        try {
+            // 1. Fetch the full voucher (header + lines) into salesVoucherStore so
+            //    InvoiceForm can read line data from the same source.
+            await useSalesVoucherStore.getState().fetchSalesVoucherById(voucherId);
+            const voucher = useSalesVoucherStore.getState().currentVoucher;
+            if (!voucher || voucher.status !== 'submitted') {
+                useToastStore.getState().addToast(
+                    'حواله فروش معتبر یافت نشد یا وضعیت آن ثبت‌شده نیست.',
+                    'warning'
+                );
+                return false;
+            }
+            // 2. Publish typed payload. New object reference every call →
+            //    zustand selector in Dashboard / Form re-fires every click.
+            set({
+                copiedSalesVoucher: {
+                    voucherId: voucher.id,
+                    voucherNumber: voucher.voucherNumber,
+                    farmId: voucher.farmId,
+                    fetchedAt: Date.now(),
+                },
+            });
+            return true;
+        } catch (e) {
+            console.warn('[InvoiceStore] prepareCopyFromSalesVoucher failed', e);
+            useToastStore.getState().addToast(
+                'خطا در بارگذاری حواله فروش. لطفاً دوباره تلاش کنید.',
+                'error'
+            );
+            return false;
+        }
+    },
+    clearCopiedSalesVoucher: () => set({ copiedSalesVoucher: null }),
 
     fetchInvoices: async () => {
         set({ isLoading: true });

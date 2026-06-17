@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSalesVoucherStore } from '../../store/salesVoucherStore';
 import { useFarmStore } from '../../store/farmStore';
 import { useAuthStore } from '../../store/authStore';
+import { useInvoiceStore } from '../../store/invoiceStore';
 import { Icons } from '../common/Icons';
 import { toPersianDigits } from '../../utils/dateUtils';
 import { SALES_VOUCHER_STATUS_LABELS, SALES_VOUCHER_STATUS_COLORS } from '../../constants';
@@ -11,10 +12,9 @@ interface SalesVoucherDetailProps {
   voucherId: string;
   onBack: () => void;
   readOnly?: boolean;
-  onCopyToInvoice?: (voucherId: string) => void;
 }
 
-const SalesVoucherDetail: React.FC<SalesVoucherDetailProps> = ({ voucherId, onBack, readOnly = false, onCopyToInvoice }) => {
+const SalesVoucherDetail: React.FC<SalesVoucherDetailProps> = ({ voucherId, onBack, readOnly = false }) => {
   const { currentVoucher, isLoading, fetchSalesVoucherById, clearCurrentVoucher } = useSalesVoucherStore();
   const { getProductById, farms } = useFarmStore();
   const { user } = useAuthStore();
@@ -285,9 +285,15 @@ const SalesVoucherDetail: React.FC<SalesVoucherDetailProps> = ({ voucherId, onBa
           بازگشت
         </Button>
 
-        {readOnly && onCopyToInvoice && voucher.status === 'submitted' && (
+        {readOnly && voucher.status === 'submitted' && (
           <Button
-            onClick={() => onCopyToInvoice(voucher.id)}
+            // 20260619 fix: dispatch the typed payload via the Zustand
+            // `copiedSalesVoucher` slot instead of the old
+            // `onCopyToInvoice` callback prop (which was tightly coupled
+            // to RegistrationDashboard's internal mount state). The
+            // Dashboard subscribes via a zustand selector and switches to
+            // its 'invoice' view automatically.
+            onClick={() => useInvoiceStore.getState().prepareCopyFromSalesVoucher(voucher.id)}
             className="flex-1 h-14 rounded-[20px] font-black bg-gradient-to-r from-violet-500 to-purple-600"
           >
             <Icons.Download className="w-4 h-4 ml-2" />

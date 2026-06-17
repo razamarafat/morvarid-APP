@@ -3,6 +3,7 @@ import { useSalesVoucherStore } from '../../store/salesVoucherStore';
 import { useFarmStore } from '../../store/farmStore';
 import { useAuthStore } from '../../store/authStore';
 import { useToastStore } from '../../store/toastStore';
+import { useInvoiceStore } from '../../store/invoiceStore';
 import { useConfirm } from '../../hooks/useConfirm';
 import { Icons } from '../common/Icons';
 import Button from '../common/Button';
@@ -290,10 +291,14 @@ const SalesVoucherList: React.FC<SalesVoucherListProps> = ({ onNavigate, onEditV
                           {readOnly && (
                             <button
                               onClick={() => {
-                                // Navigate to invoice form with voucher data
-                                window.dispatchEvent(new CustomEvent('copy-sales-voucher-to-invoice', {
-                                  detail: { voucherId: voucher.id }
-                                }));
+                                // 20260619 fix: dispatch the typed payload via the
+                                // Zustand `copiedSalesVoucher` slot instead of the
+                                // previously-buggy `window.dispatchEvent(...)` global
+                                // CustomEvent (any iframe could forge it). The
+                                // RegistrationDashboard subscribes to the same
+                                // slot via a zustand selector and switches to the
+                                // InvoiceForm view automatically.
+                                useInvoiceStore.getState().prepareCopyFromSalesVoucher(voucher.id);
                               }}
                               className="p-2 rounded-lg bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 hover:bg-violet-200 transition-colors flex items-center gap-1"
                               title="کپی به ثبت حواله"
