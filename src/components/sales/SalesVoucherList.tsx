@@ -11,6 +11,7 @@ import { SkeletonRow } from '../common/Skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SalesVoucher, SalesVoucherFilter, UserRole } from '../../types';
 import { toPersianDigits } from '../../utils/dateUtils';
+import { searchMultiField, SearchAccessor } from '../../utils/searchUtils';
 import { SALES_VOUCHER_STATUS_LABELS, SALES_VOUCHER_STATUS_COLORS } from '../../constants';
 import JalaliDatePicker from '../common/JalaliDatePicker';
 
@@ -41,15 +42,19 @@ const SalesVoucherList: React.FC<SalesVoucherListProps> = ({ onNavigate, onEditV
   const isAdmin = user?.role === UserRole.ADMIN;
   const isSales = user?.role === UserRole.SALES;
 
+  // 20260619 — Text search moved from server (store) to client (component) so we
+  // can scan ALL visible fields in one keystroke (instant multi-field fuzzy).
+  // The store now only handles farm + date-range filtering, which are still
+  // SQL-side for performance. Search is a React useMemo so it re-runs only
+  // when vouchers or searchTerm change.
   useEffect(() => {
     const filters: SalesVoucherFilter = {};
     if (filterFarmId !== 'all') filters.farmId = filterFarmId;
     if (filterDateFrom) filters.dateFrom = filterDateFrom;
     if (filterDateTo) filters.dateTo = filterDateTo;
-    if (searchTerm) filters.search = searchTerm;
 
     fetchSalesVouchers(filters);
-  }, [filterFarmId, filterDateFrom, filterDateTo, searchTerm]);
+  }, [filterFarmId, filterDateFrom, filterDateTo]);
 
   const handleRefresh = () => {
     const filters: SalesVoucherFilter = {};
@@ -96,6 +101,31 @@ const SalesVoucherList: React.FC<SalesVoucherListProps> = ({ onNavigate, onEditV
       addToast(result.error || 'خطا در حذف حواله.', 'error');
     }
   };
+
+  // 20260619 — explicit allowlist of searchable columns. Perfect partial match
+  // for Persian ('مهر' ⊆ 'مهرآباد') and Latin/numeric ('122' ⊆ phone/quantity).
+  // Wrapped in useMemo so the array reference is stable across renders (no
+  // dependency churn for the useMemo that consumes it).
+  const voucherAccessors: SearchAccessor<SalesVoucher>[] = useMemo(() => [
+    v => v.voucherNumber,
+    v => v.customerName,
+    v => v.customerPhone,
+    v => v.driverName,
+    v => v.driverPhone,
+    v => v.vehiclePlate,
+    v => v.farmName,
+    v => v.notes,
+    v => v.creatorName,
+    v => v.totalAmount,
+    v => v.totalQuantity,
+    v => v.voucherDate,
+    v => v.status,
+  ], []);
+
+  const filteredVouchers = useMemo(
+    () => searchMultiField(vouchers, voucherAccessors, searchTerm),
+    [vouchers, searchTerm]
+  );
 
   const clearFilters = () => {
     setFilterFarmId('all');
@@ -189,7 +219,7 @@ const SalesVoucherList: React.FC<SalesVoucherListProps> = ({ onNavigate, onEditV
             {readOnly ? 'مشاهده حواله‌های فروش' : 'حواله‌های فروش'}
           </h3>
           <span className="text-xs font-bold text-violet-500">
-            {toPersianDigits(vouchers.length)} حواله
+            {toPersianDigits(filteredVouchers.length)} حواله
           </span>
         </div>
 
@@ -232,7 +262,7 @@ const SalesVoucherList: React.FC<SalesVoucherListProps> = ({ onNavigate, onEditV
                   </td>
                 </tr>
               ) : (
-                vouchers.map((voucher) => {
+                filteredVouchers.map((voucher) => {
                   const statusColors = SALES_VOUCHER_STATUS_COLORS[voucher.status] || SALES_VOUCHER_STATUS_COLORS.submitted;
                   const statusLabel = SALES_VOUCHER_STATUS_LABELS[voucher.status] || 'ثبت شده';
 

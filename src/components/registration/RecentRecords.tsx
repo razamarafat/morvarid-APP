@@ -33,7 +33,7 @@ const StatRecordCard = ({ stat, getProductName, canEdit, onEdit, onDelete, farmT
         <div className={`bg-white dark:bg-gray-800 p-4 rounded-xl border-2 transition-all ${isOffline ? 'border-orange-300 bg-orange-50/20' : isPending ? 'border-blue-300 bg-blue-50/20 animate-pulse' : isAdminCreated ? 'border-purple-200 dark:border-purple-900/30 bg-purple-50/30' : 'border-gray-100 dark:border-gray-700'} relative shadow-sm`}>
             <div className="flex justify-between items-center mb-3">
                 <div className="flex gap-2 lg:gap-4 items-center">
-                    <span className={`text-[10px] lg:text-xs font-black px-2 py-1 lg:px-3 lg:py-1.5 rounded-md lg:rounded-lg ${isOffline ? 'bg-orange-100 text-orange-700' : isPending ? 'bg-blue-100 text-blue-700' : 'bg-blue-50 dark:bg-blue-900/20 text-blue-600'}`}>
+                    <span className={`text-[10px] lg:text-xs font-black px-2 py-1 lg:px-3 lg:py-1.5 rounded-md lg:rounded-lg ${isOffline ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' : isPending ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300'}`}>
                         {toPersianDigits(stat.date)}
                     </span>
                     <div className="flex flex-col">
@@ -125,21 +125,21 @@ const InvoiceRecordCard = ({ inv, getProductName, canEdit, onEdit, onDelete, onA
         <div className={`bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border-2 transition-all ${isOffline ? 'border-orange-300 bg-orange-50/20' : isPending ? 'border-blue-300 bg-blue-50/20 animate-pulse' : isAdminCreated ? 'border-purple-200 bg-purple-50/30' : 'border-gray-100 dark:border-gray-700'} relative`}>
             <div className="flex justify-between items-start mb-3">
                 <div>
-                    <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[10px] lg:text-xs font-black text-metro-orange block">حواله {toPersianDigits(inv.invoiceNumber)}</span>
-                        {isPending && (
-                            <span className="flex items-center gap-1 text-[9px] font-black text-blue-500 animate-bounce">
-                                <Icons.Refresh className="w-2.5 h-2.5 animate-spin" />
-                                در حال ارسال...
-                            </span>
-                        )}
-                        {isOffline && (
-                            <span className="flex items-center gap-1 text-[9px] font-black text-orange-600">
-                                <Icons.Clock className="w-2.5 h-2.5" />
-                                در صف ارسال (آفلاین)
-                            </span>
-                        )}
-                    </div>
+                <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] lg:text-xs font-black text-metro-orange dark:text-orange-300 block">حواله {toPersianDigits(inv.invoiceNumber)}</span>
+                    {isPending && (
+                        <span className="flex items-center gap-1 text-[9px] font-black text-blue-500 animate-bounce">
+                            <Icons.Refresh className="w-2.5 h-2.5 animate-spin" />
+                            در حال ارسال...
+                        </span>
+                    )}
+                    {isOffline && (
+                        <span className="flex items-center gap-1 text-[9px] font-black text-orange-600">
+                            <Icons.Clock className="w-2.5 h-2.5" />
+                            در صف ارسال (آفلاین)
+                        </span>
+                    )}
+                </div>
                     <h4 className="font-bold text-gray-800 dark:text-gray-200 text-sm lg:text-lg">{prodName}</h4>
                     {isAdminCreated && <span className="text-[9px] lg:text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 lg:px-3 lg:py-1 rounded font-bold mt-1 inline-block">ثبت توسط مدیر</span>}
                     {isEdited && <span className="text-[9px] lg:text-xs text-orange-500 font-bold mr-1"> (ویرایش شده)</span>}
@@ -161,9 +161,9 @@ const InvoiceRecordCard = ({ inv, getProductName, canEdit, onEdit, onDelete, onA
                 </div>
             </div>
 
-            <div className={`flex items-center gap-2 text-[10px] lg:text-xs text-gray-500 mb-3 p-2 lg:p-3 rounded-lg lg:rounded-xl ${isOffline ? 'bg-orange-100/30' : isPending ? 'bg-blue-100/30' : 'bg-gray-50 dark:bg-gray-900/50'}`}>
-                <span className="font-black bg-white dark:bg-gray-800 px-2 py-1 rounded shadow-sm">{toPersianDigits(inv.date)}</span>
-                {inv.plateNumber && <span className="border-r pr-2 border-gray-300 lg:text-sm text-center flex-1 font-bold" dir="rtl">{formatPlateNumberForUI(inv.plateNumber)}</span>}
+            <div className={`flex items-center gap-2 text-[10px] lg:text-xs text-gray-500 dark:text-gray-300 mb-3 p-2 lg:p-3 rounded-lg lg:rounded-xl ${isOffline ? 'bg-orange-100/30' : isPending ? 'bg-blue-100/30' : 'bg-gray-50 dark:bg-gray-900/50'}`}>
+                <span className="font-black bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2 py-1 rounded shadow-sm">{toPersianDigits(inv.date)}</span>
+                {inv.plateNumber && <span className="border-r pr-2 border-gray-300 dark:border-gray-600 lg:text-sm text-center flex-1 font-bold" dir="rtl">{formatPlateNumberForUI(inv.plateNumber)}</span>}
                 <span className="flex-1 text-left font-bold">{inv.creatorName}</span>
             </div>
 

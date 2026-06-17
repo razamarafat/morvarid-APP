@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useFarmStore } from '../../store/farmStore';
 import { useStatisticsStore } from '../../store/statisticsStore';
 import { useInvoiceStore } from '../../store/invoiceStore';
@@ -15,6 +15,7 @@ import Button from '../common/Button';
 import PersianNumberInput from '../common/PersianNumberInput';
 import PlateInput from '../common/PlateInput';
 import { exportTableToExcel } from '../../utils/excel';
+import { searchMultiField, matchesMultiField, SearchAccessor } from '../../utils/searchUtils';
 
 // Enterprise Sub-components
 import ReportsFilterBar from './reports/ReportsFilterBar';
@@ -64,6 +65,36 @@ const Reports: React.FC = () => {
     const [createStat, setCreateStat] = useState({ prod: '', prodKg: '', prev: '', prevKg: '' });
     const [createInvoice, setCreateInvoice] = useState({ invoiceNumber: '', cartons: '', weight: '', driver: '', plate: '', phone: '', desc: '' });
 
+    // 20260619 — Multi-field fuzzy search. Defined as stable allowlists outside
+    // the useCallback so React.useMemo dedup is reliable. Lambda params get
+    // explicit `any` so TypeScript doesn't reject the closure under strict
+    // noImplicitAny on this older tsconfig.
+    const statAccessors: SearchAccessor<any>[] = useMemo(() => [
+        (s: any) => s.creatorName,
+        (s: any) => s.date,
+        (s: any) => s.production,
+        (s: any) => s.productionKg,
+        (s: any) => s.previousBalance,
+        (s: any) => s.previousBalanceKg,
+        (s: any) => s.sales,
+        (s: any) => s.salesKg,
+        (s: any) => s.currentInventory,
+        (s: any) => s.currentInventoryKg,
+        (s: any) => s.separationAmount,
+    ], []);
+
+    const invoiceAccessors: SearchAccessor<any>[] = useMemo(() => [
+        (i: any) => i.invoiceNumber,
+        (i: any) => i.driverName,
+        (i: any) => i.driverPhone,
+        (i: any) => i.plateNumber,
+        (i: any) => i.description,
+        (i: any) => i.totalCartons,
+        (i: any) => i.totalWeight,
+        (i: any) => i.creatorName,
+        (i: any) => i.date,
+    ], []);
+
     // --- LOGIC: SEARCH ---
     const handleSearch = useCallback(() => {
         if (reportTab === 'create') return;
@@ -71,31 +102,27 @@ const Reports: React.FC = () => {
         setIsSearching(true);
         const start = normalizeDate(startDate);
         const end = normalizeDate(endDate);
-        const term = searchTerm.trim().toLowerCase();
 
         // Use a small timeout to allow UI to show loading state
         setTimeout(() => {
             let data: any[] = [];
 
+            // Use the cheaper predicate matchesMultiField directly per item to
+            // avoid allocating a fresh single-item array on every keystroke.
+            const term = searchTerm.trim();
             if (reportTab === 'stats') {
                 data = statistics.filter(s => {
                     const farmMatch = selectedFarmId === 'all' || s.farmId === selectedFarmId;
                     const prodMatch = selectedProductId === 'all' || s.productId === selectedProductId;
                     const dateMatch = isDateInRange(s.date, start, end);
-                    const searchMatch = !term || (s.creatorName?.toLowerCase().includes(term));
-                    return farmMatch && prodMatch && dateMatch && searchMatch;
+                    return farmMatch && prodMatch && dateMatch && matchesMultiField(s, statAccessors, term);
                 });
             } else if (reportTab === 'invoices') {
                 data = invoices.filter(i => {
                     const farmMatch = selectedFarmId === 'all' || i.farmId === selectedFarmId;
                     const prodMatch = selectedProductId === 'all' || i.productId === selectedProductId;
                     const dateMatch = isDateInRange(i.date, start, end);
-                    const searchMatch = !term ||
-                        (i.invoiceNumber.includes(term)) ||
-                        (i.driverName?.toLowerCase().includes(term)) ||
-                        (i.plateNumber?.includes(term));
-
-                    return farmMatch && prodMatch && dateMatch && searchMatch;
+                    return farmMatch && prodMatch && dateMatch && matchesMultiField(i, invoiceAccessors, term);
                 });
             }
 
@@ -110,7 +137,7 @@ const Reports: React.FC = () => {
             setPreviewData(data);
             setIsSearching(false);
         }, 50);
-    }, [reportTab, startDate, endDate, searchTerm, selectedFarmId, selectedProductId, statistics, invoices, farms, getProductById]);
+    }, [reportTab, startDate, endDate, searchTerm, selectedFarmId, selectedProductId, statistics, invoices, farms, getProductById, statAccessors, invoiceAccessors]);
 
     // Initial load
     useEffect(() => {

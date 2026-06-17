@@ -22,6 +22,7 @@ import { SkeletonTile, SkeletonRow } from '../common/Skeleton';
 import SalesVoucherListWrapper from './SalesVoucherList';
 import SalesVoucherForm from './SalesVoucherForm';
 import SalesVoucherDetail from './SalesVoucherDetail';
+import { matchesMultiField, SearchAccessor } from '../../utils/searchUtils';
 
 // --- COMPONENT: FarmGroup ---
 const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate, products, invoiceTotalsMap }: any) => {
@@ -215,11 +216,11 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
                                                                         {isAdminCreated && <span className="text-[10px] font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">ثبت توسط مدیر</span>}
                                                                     </div>
                                                                     {showTime && (
-                                                                        <div className="text-[10px] text-gray-400 font-bold flex items-center gap-2">
-                                                                            <span>ساعت: {toPersianDigits(new Date(stat.createdAt).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }))}</span>
-                                                                            <span className="w-1 h-1 rounded-full bg-gray-300"></span>
-                                                                            <span>مسئول: {stat.creatorName || 'نامشخص'}</span>
-                                                                        </div>
+                                                                <div className="text-sm font-medium text-gray-600 dark:text-gray-300 flex items-center gap-2">
+                                                                    <span>ساعت: {toPersianDigits(new Date(stat.createdAt).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }))}</span>
+                                                                    <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-500"></span>
+                                                                    <span>مسئول: {stat.creatorName || 'نامشخص'}</span>
+                                                                </div>
                                                                     )}
                                                                 </div>
                                                                 <div className={`grid gap-2 text-center text-xs ${isMotefereghe ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-5'}`}>
@@ -420,20 +421,32 @@ const InvoiceList = React.memo(() => {
         fetchInvoices();
     }, []);
 
+    // 20260619 — Multi-field fuzzy search. Allowlist of every column visible
+    // in the InvoiceList table so a single keystroke scans the entire row.
+    // Wrapped in useMemo so the reference is stable across renders (deps are
+    // constant so ref never changes). `i.id` (UUID) deliberately omitted —
+    // users should search the human-visible columns, not opaque UUIDs.
+    const invoiceListAccessors: SearchAccessor<Invoice>[] = useMemo(() => [
+        i => i.invoiceNumber,
+        i => i.driverName,
+        i => i.driverPhone,
+        i => i.plateNumber,
+        i => i.description,
+        i => i.creatorName,
+        i => i.totalCartons,
+        i => i.totalWeight,
+        i => i.date,
+    ], []);
+
     const filteredInvoices = useMemo(() => {
-        const term = searchTerm.trim().toLowerCase();
+        const term = searchTerm.trim();
         const { queue } = useSyncStore.getState();
 
         const baseResults = invoices.filter(i => {
             const itemDate = normalizeDate(i.date);
             const dateMatch = itemDate === normalizedToday;
             const farmMatch = selectedFarmId === 'all' || i.farmId === selectedFarmId;
-            const searchMatch = !term || (
-                i.invoiceNumber.includes(term) ||
-                i.driverName?.toLowerCase().includes(term) ||
-                i.plateNumber?.includes(term)
-            );
-            return dateMatch && farmMatch && searchMatch;
+            return dateMatch && farmMatch && matchesMultiField(i, invoiceListAccessors, term);
         });
 
         const currentUser = useAuthStore.getState().user;
@@ -452,12 +465,7 @@ const InvoiceList = React.memo(() => {
                 const itemDate = normalizeDate(i.date);
                 const dateMatch = itemDate === normalizedToday;
                 const farmMatch = selectedFarmId === 'all' || i.farmId === selectedFarmId;
-                const searchMatch = !term || (
-                    i.invoiceNumber.includes(term) ||
-                    i.driverName?.toLowerCase().includes(term) ||
-                    i.plateNumber?.includes(term)
-                );
-                return dateMatch && farmMatch && searchMatch;
+                return dateMatch && farmMatch && matchesMultiField(i, invoiceListAccessors, term);
             });
 
         const merged = [...baseResults];
@@ -474,7 +482,7 @@ const InvoiceList = React.memo(() => {
             const timeB = new Date(b.createdAt).getTime() || Date.parse(b.date) || 0;
             return timeB - timeA;
         });
-    }, [invoices, normalizedToday, selectedFarmId, searchTerm]);
+    }, [invoices, normalizedToday, selectedFarmId, searchTerm, invoiceListAccessors]);
 
     const totals = useMemo(() => {
         return filteredInvoices.reduce((acc, curr) => ({
@@ -612,7 +620,7 @@ const InvoiceList = React.memo(() => {
                                                             {isAdminCreated ? 'مدیر' : (inv.creatorName || 'ناشناس')}
                                                         </span>
                                                         <div className="flex flex-col">
-                                                            <span className="text-[10px] opacity-60 text-gray-500">{toPersianDigits(displayTime)}</span>
+                                                            <span className="text-xs font-bold opacity-90 text-gray-600 dark:text-gray-300">{toPersianDigits(displayTime)}</span>
                                                             {isEdited && !isAdminCreated && <span className="text-[8px] text-orange-500 font-bold">(ویرایش)</span>}
                                                         </div>
                                                     </div>
