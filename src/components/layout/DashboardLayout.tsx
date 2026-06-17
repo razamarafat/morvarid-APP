@@ -57,7 +57,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, onNa
       />
 
       <div className="flex-1 flex flex-col h-full w-full relative transition-all duration-300">
-        <Header onMenuClick={handleToggleSidebar} title={title} />
+        <Header onMenuClick={handleToggleSidebar} title={title} currentView={currentView} />
 
         <main className="flex-1 overflow-x-hidden overflow-y-auto pb-24 lg:pb-8 scroll-smooth">
           {/* Main content container with less padding on mobile for cleaner look */}

@@ -16,9 +16,16 @@ import Modal from '../common/Modal';
 interface HeaderProps {
   onMenuClick: () => void;
   title: string;
+  /**
+   * Current sub-view (e.g. 'farms', 'reports', 'sales-vouchers'). When
+   * forwarded here, the matching top-bar shortcut gets an active-state
+   * overlay (tinted bg, ring, shadow, bolder weight) so the user has a
+   * "you are here" affordance that matches the mobile bottom nav.
+   */
+  currentView?: string;
 }
 
-const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
+const Header: React.FC<HeaderProps> = ({ onMenuClick, title, currentView }) => {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const theme = useThemeStore(state => state.theme);
@@ -74,15 +81,24 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
   };
 
   const getDesktopNavItems = () => {
+    // ─────────────────────────────────────────────────────────────────────
     // Neutral shortcut style (kept only for the dashboard "home" anchor —
     // no home tile exists in any dashboard above, so it stays neutral).
+    // ─────────────────────────────────────────────────────────────────────
     const btnClass = "px-4 py-2 rounded-xl text-sm font-bold transition-all hover:bg-black/5 dark:hover:bg-white/10 flex items-center gap-2";
 
+    // Active-state overlay for the home anchor — grey ring + bolder weight
+    // + soft inner background so "you are here" reads instantly without
+    // stealing focus from the role accent.
+    const ACTIVE_GRAY = 'px-4 py-2 rounded-xl text-sm flex items-center gap-2 text-gray-900 bg-gray-100 dark:text-white dark:bg-white/10 ring-1 ring-gray-300 dark:ring-gray-600 font-extrabold shadow-sm';
+
+    // ─────────────────────────────────────────────────────────────────────
     // Tile-mirror shortcut styles: each entry contains LITERAL Tailwind
     // class strings (so the JIT scanner picks them up reliably — dynamic
     // string interpolation would silently produce no styles). The colors
     // mirror exactly each dashboard's MetroTile accent so the header
     // visually re-affirms the section the user is navigating to.
+    // ─────────────────────────────────────────────────────────────────────
     const TILE_SHORTCUT_COLORS: Record<string, string> = {
       green:  'px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 text-green-600  hover:bg-green-100  dark:text-green-400  dark:hover:bg-green-900/20',
       blue:   'px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 text-blue-600   hover:bg-blue-100   dark:text-blue-400   dark:hover:bg-blue-900/20',
@@ -93,38 +109,66 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
       teal:   'px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 text-teal-600   hover:bg-teal-100   dark:text-teal-400   dark:hover:bg-teal-900/20',
     };
 
+    // ─────────────────────────────────────────────────────────────────────
+    // Active-state overlay for tile shortcuts — ups the contrast to text-700
+    // / bg-100 (light) and text-300 / bg-900-40 (dark), wraps the button in
+    // a colored ring + soft shadow, and bumps the font weight to extrabold
+    // so the active shortcut is unmistakable against the backdrop-blur
+    // header. Mirrors the mobile nav's "active" affordance for parity.
+    // ─────────────────────────────────────────────────────────────────────
+    const TILE_SHORTCUT_ACTIVE: Record<string, string> = {
+      green:  'px-4 py-2 rounded-xl text-sm flex items-center gap-2 text-green-700  bg-green-100  dark:text-green-300  dark:bg-green-900/40  ring-1 ring-green-400/50   font-extrabold shadow-sm',
+      blue:   'px-4 py-2 rounded-xl text-sm flex items-center gap-2 text-blue-700   bg-blue-100   dark:text-blue-300   dark:bg-blue-900/40   ring-1 ring-blue-400/50    font-extrabold shadow-sm',
+      violet: 'px-4 py-2 rounded-xl text-sm flex items-center gap-2 text-violet-700 bg-violet-100 dark:text-violet-300 dark:bg-violet-900/40 ring-1 ring-violet-400/50  font-extrabold shadow-sm',
+      orange: 'px-4 py-2 rounded-xl text-sm flex items-center gap-2 text-orange-700 bg-orange-100 dark:text-orange-300 dark:bg-orange-900/40 ring-1 ring-orange-400/50  font-extrabold shadow-sm',
+      purple: 'px-4 py-2 rounded-xl text-sm flex items-center gap-2 text-purple-700 bg-purple-100 dark:text-purple-300 dark:bg-purple-900/40 ring-1 ring-purple-400/50  font-extrabold shadow-sm',
+      indigo: 'px-4 py-2 rounded-xl text-sm flex items-center gap-2 text-indigo-700 bg-indigo-100 dark:text-indigo-300 dark:bg-indigo-900/40 ring-1 ring-indigo-400/50  font-extrabold shadow-sm',
+      teal:   'px-4 py-2 rounded-xl text-sm flex items-center gap-2 text-teal-700   bg-teal-100   dark:text-teal-300   dark:bg-teal-900/40   ring-1 ring-teal-400/50    font-extrabold shadow-sm',
+    };
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Tiny helper pair — pick the right literal string for either inactive
+    // or active state. Returns a single verbatim className (Tailwind JIT
+    // picks them all up because they appear verbatim in the source maps
+    // above).
+    // ─────────────────────────────────────────────────────────────────────
+    const tileShortcut = (color: string, view: string) =>
+      currentView === view ? TILE_SHORTCUT_ACTIVE[color] : TILE_SHORTCUT_COLORS[color];
+    const neutralShortcut = (view: string) =>
+      currentView === view ? ACTIVE_GRAY : btnClass;
+
     switch (role) {
       case UserRole.REGISTRATION:
         return (
           <>
-            <button onClick={() => handleNavClick('dashboard')} className={btnClass}><Icons.Desk className="w-4 h-4" /> میز کار</button>
-            <button onClick={() => handleNavClick('stats')} className={TILE_SHORTCUT_COLORS.orange}><Icons.BarChart className="w-4 h-4" /> ثبت آمار</button>
-            <button onClick={() => handleNavClick('invoice')} className={TILE_SHORTCUT_COLORS.blue}><Icons.FileText className="w-4 h-4" /> ثبت حواله</button>
-            <button onClick={() => handleNavClick('recent')} className={TILE_SHORTCUT_COLORS.green}><Icons.Refresh className="w-4 h-4" /> سوابق</button>
-            <button onClick={() => handleNavClick('sales-vouchers')} className={TILE_SHORTCUT_COLORS.violet}><Icons.FileText className="w-4 h-4" /> حواله فروش</button>
+            <button onClick={() => handleNavClick('dashboard')} className={neutralShortcut('dashboard')}><Icons.Desk className="w-4 h-4" /> میز کار</button>
+            <button onClick={() => handleNavClick('stats')} className={tileShortcut('orange', 'stats')}><Icons.BarChart className="w-4 h-4" /> ثبت آمار</button>
+            <button onClick={() => handleNavClick('invoice')} className={tileShortcut('blue', 'invoice')}><Icons.FileText className="w-4 h-4" /> ثبت حواله</button>
+            <button onClick={() => handleNavClick('recent')} className={tileShortcut('green', 'recent')}><Icons.Refresh className="w-4 h-4" /> سوابق</button>
+            <button onClick={() => handleNavClick('sales-vouchers')} className={tileShortcut('violet', 'sales-vouchers')}><Icons.FileText className="w-4 h-4" /> حواله فروش</button>
           </>
         );
       case UserRole.SALES:
         return (
           <>
-            <button onClick={() => handleNavClick('dashboard')} className={btnClass}><Icons.Desk className="w-4 h-4" /> میز کار</button>
-            <button onClick={() => handleNavClick('farm-stats')} className={TILE_SHORTCUT_COLORS.blue}><Icons.BarChart className="w-4 h-4" /> آمار فارم</button>
-            <button onClick={() => handleNavClick('invoices')} className={TILE_SHORTCUT_COLORS.orange}><Icons.FileText className="w-4 h-4" /> لیست حواله</button>
-            <button onClick={() => handleNavClick('reports')} className={TILE_SHORTCUT_COLORS.purple}><Icons.FileText className="w-4 h-4" /> گزارشات</button>
-            <button onClick={() => handleNavClick('sales-vouchers')} className={TILE_SHORTCUT_COLORS.violet}><Icons.FileText className="w-4 h-4" /> حواله فروش</button>
+            <button onClick={() => handleNavClick('dashboard')} className={neutralShortcut('dashboard')}><Icons.Desk className="w-4 h-4" /> میز کار</button>
+            <button onClick={() => handleNavClick('farm-stats')} className={tileShortcut('blue', 'farm-stats')}><Icons.BarChart className="w-4 h-4" /> آمار فارم</button>
+            <button onClick={() => handleNavClick('invoices')} className={tileShortcut('orange', 'invoices')}><Icons.FileText className="w-4 h-4" /> لیست حواله</button>
+            <button onClick={() => handleNavClick('reports')} className={tileShortcut('purple', 'reports')}><Icons.FileText className="w-4 h-4" /> گزارشات</button>
+            <button onClick={() => handleNavClick('sales-vouchers')} className={tileShortcut('violet', 'sales-vouchers')}><Icons.FileText className="w-4 h-4" /> حواله فروش</button>
           </>
         );
       case UserRole.ADMIN:
       default:
         return (
           <>
-            <button onClick={() => handleNavClick('dashboard')} className={btnClass}><Icons.Desk className="w-4 h-4" /> میز کار</button>
-            <button onClick={() => handleNavClick('farms')} className={TILE_SHORTCUT_COLORS.green}><Icons.Home className="w-4 h-4" /> فارم‌ها</button>
-            <button onClick={() => handleNavClick('users')} className={TILE_SHORTCUT_COLORS.purple}><Icons.Users className="w-4 h-4" /> کاربران</button>
-            <button onClick={() => handleNavClick('reports')} className={TILE_SHORTCUT_COLORS.blue}><Icons.FileText className="w-4 h-4" /> گزارشات</button>
-            <button onClick={() => handleNavClick('devices')} className={TILE_SHORTCUT_COLORS.indigo}><Icons.Globe className="w-4 h-4" /> دستگاه‌ها</button>
-            <button onClick={() => handleNavClick('testing')} className={TILE_SHORTCUT_COLORS.teal}><Icons.TestTube className="w-4 h-4" /> سنجش فنی</button>
-            <button onClick={() => handleNavClick('sales-vouchers')} className={TILE_SHORTCUT_COLORS.violet}><Icons.FileText className="w-4 h-4" /> حواله فروش</button>
+            <button onClick={() => handleNavClick('dashboard')} className={neutralShortcut('dashboard')}><Icons.Desk className="w-4 h-4" /> میز کار</button>
+            <button onClick={() => handleNavClick('farms')} className={tileShortcut('green', 'farms')}><Icons.Home className="w-4 h-4" /> فارم‌ها</button>
+            <button onClick={() => handleNavClick('users')} className={tileShortcut('purple', 'users')}><Icons.Users className="w-4 h-4" /> کاربران</button>
+            <button onClick={() => handleNavClick('reports')} className={tileShortcut('blue', 'reports')}><Icons.FileText className="w-4 h-4" /> گزارشات</button>
+            <button onClick={() => handleNavClick('devices')} className={tileShortcut('indigo', 'devices')}><Icons.Globe className="w-4 h-4" /> دستگاه‌ها</button>
+            <button onClick={() => handleNavClick('testing')} className={tileShortcut('teal', 'testing')}><Icons.TestTube className="w-4 h-4" /> سنجش فنی</button>
+            <button onClick={() => handleNavClick('sales-vouchers')} className={tileShortcut('violet', 'sales-vouchers')}><Icons.FileText className="w-4 h-4" /> حواله فروش</button>
           </>
         );
     }
