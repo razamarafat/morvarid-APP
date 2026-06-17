@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import DashboardLayout from '../layout/DashboardLayout';
 import { Icons } from '../common/Icons';
 import Reports from '../admin/Reports';
@@ -641,7 +642,22 @@ const DashboardHome: React.FC<{ onNavigate: (view: string) => void }> = ({ onNav
 };
 
 const SalesDashboard: React.FC = () => {
-    const [currentView, setCurrentView] = useState('dashboard');
+    // ────────────────────────────────────────────────────────────────────────
+    // URL-driven navigation state — every sub-view is encoded as ?view=…
+    // so the browser history stack mirrors the user's journey. Hardware
+    // (mobile) back button and click-back now step back exactly one entry.
+    // ────────────────────────────────────────────────────────────────────────
+    const [searchParams, setSearchParams] = useSearchParams();
+    const currentView = searchParams.get('view') || 'dashboard';
+    const setCurrentView = useCallback((view: string) => {
+        // Same-view click guard — prevents duplicate history entries.
+        if (view === currentView) return;
+        if (view === 'dashboard') {
+            setSearchParams({}, { replace: true });
+        } else {
+            setSearchParams({ view });
+        }
+    }, [currentView, setSearchParams]);
     const { isLoading } = useAuthStore();
 
     const getTitle = () => {

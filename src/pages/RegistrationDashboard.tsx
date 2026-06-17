@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { Icons } from '../components/common/Icons';
 import StatisticsForm from '../components/registration/StatisticsForm';
@@ -13,7 +14,27 @@ import { SalesVoucherList } from '../components/sales/SalesVoucherList';
 import SalesVoucherDetail from '../components/sales/SalesVoucherDetail';
 
 const RegistrationDashboard: React.FC = () => {
-    const [currentView, setCurrentView] = useState('dashboard');
+    // ────────────────────────────────────────────────────────────────────────
+    // URL-driven navigation state — every sub-view is encoded as ?view=…
+    // so the browser history stack mirrors the user's journey. This is
+    // what makes the OS hardware back button step back exactly one entry
+    // instead of either staying or exiting the app.
+    // ────────────────────────────────────────────────────────────────────────
+    const [searchParams, setSearchParams] = useSearchParams();
+    const currentView = searchParams.get('view') || 'dashboard';
+    const setCurrentView = useCallback((view: string) => {
+        // Same-view click guard — prevents duplicate history entries when
+        // the user re-selects the currently active nav button. Without
+        // this, every same-view click would push a duplicate URL entry,
+        // bloating the history stack and confusing the OS hardware back
+        // button with phantom intermediate entries that share the URL.
+        if (view === currentView) return;
+        if (view === 'dashboard') {
+            setSearchParams({}, { replace: true });
+        } else {
+            setSearchParams({ view });
+        }
+    }, [currentView, setSearchParams]);
     const [copyFromSalesVoucherId, setCopyFromSalesVoucherId] = useState<string | null>(null);
     const { isLoading } = useAuthStore();
     const dashboardTitle = 'میز کار ثبت اطلاعات روزانه';

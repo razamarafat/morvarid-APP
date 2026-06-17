@@ -1,5 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { Icons } from '../components/common/Icons';
 import FarmManagement from '../components/admin/FarmManagement';
@@ -107,7 +108,22 @@ const VersionTile: React.FC<{ version: string; onClick: () => void }> = ({ versi
 );
 
 const AdminDashboard: React.FC = () => {
-    const [currentView, setCurrentView] = useState('dashboard');
+    // ────────────────────────────────────────────────────────────────────────
+    // URL-driven navigation state. Each sub-view is encoded as a single
+    // ?view=… search parameter so the browser history stack mirrors the
+    // user's journey exactly. This is what makes the OS hardware back
+    // button step back into the previously viewed sub-page instead of
+    // either staying put or exiting the app (the prior failure mode).
+    // ────────────────────────────────────────────────────────────────────────
+    const [searchParams, setSearchParams] = useSearchParams();
+    const currentView = searchParams.get('view') || 'dashboard';
+    const setCurrentView = useCallback((view: string) => {
+        if (view === 'dashboard') {
+            setSearchParams({}, { replace: true });
+        } else {
+            setSearchParams({ view });
+        }
+    }, [setSearchParams]);
     const { addToast } = useToastStore();
     const { isLoading } = useAuthStore();
 

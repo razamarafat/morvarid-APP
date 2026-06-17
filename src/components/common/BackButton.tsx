@@ -1,32 +1,28 @@
 // ============================================================================
-// BackButton.tsx — Smart RTL "Back" button used across the app
+// BackButton.tsx — Universal RTL "Back" button
 // ----------------------------------------------------------------------------
-// DRY: imported into the shared Header (top-right corner). Visibility is
-// controlled by the parent layout via the conditional `showBackButton` prop.
+// Primary behavior: step back exactly one entry in the browser history
+// stack via React Router's useNavigate(-1). This is what the OS-level
+// hardware back button does, so the UI button and the hardware button
+// are perfectly synchronized — both pop the same history entry.
 //
-// RTL convention: in Persian/Farsi apps, "back" points to the RIGHT, so we
-// render a right-pointing ArrowRight icon. In RTL flexbox this icon appears
-// on the visual right edge.
+// Fallback: ONLY when the SPA was entered via a deep-link and has no prior
+// history entry (window.history.length < 2). In that case, navigate(-1)
+// would exit the SPA, so we fall back to /home (which routes the user
+// back into their role-specific dashboard via HomeRedirect). This is
+// the only situation in which we route to a named URL.
 //
-// Safe-fallback: prefers a custom `onBack` callback (used by sub-view
-// state machines that don't change the URL). Falls back to `navigate(-1)`
-// only when the browser history stack is non-trivial; otherwise navigates
-// to `fallbackPath` to prevent kicking the user out of the SPA.
+// RTL: back goes RIGHT — we render a right-pointing ArrowRight icon.
 // ============================================================================
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icons } from './Icons';
 
-interface BackButtonProps {
-  /**
-   * Called first if provided. Use this when navigating between in-app
-   * "view" states (e.g. setCurrentView('dashboard')) that don't update
-   * the URL. Most call sites in this app go through this path.
-   */
-  onBack?: () => void;
+export interface BackButtonProps {
   /**
    * URL basename to push to when the browser history stack is empty/short
-   * (e.g. deep links or first page-load). Defaults to '/home'.
+   * (deep-link entry). Defaults to '/home', which dispatches back into
+   * the role-specific dashboard via the existing HomeRedirect route.
    */
   fallbackPath?: string;
   /**
@@ -34,26 +30,23 @@ interface BackButtonProps {
    */
   label?: string;
   /**
-   * If true, the Persian label renders next to the icon. Mobile-first
-   * call sites typically hide the label to save horizontal space.
+   * Visible label next to the icon (icon-only by default to keep the
+   * page header compact on mobile).
    */
   showLabel?: boolean;
-  /**
-   * Optional extra Tailwind classnames for layout overrides.
-   */
+  /** Extra Tailwind classes for layout positioning. */
   className?: string;
 }
 
 /**
- * Minimum history depth required to confidently call navigate(-1).
- * A length of 1 means the SPA was opened directly on this URL — calling
- * -1 would exit the app in HashRouter contexts where the router mounted
- * its first route from '/'.
+ * A history stack depth of 1 means there is no prior entry to pop to
+ * within the SPA. After one in-app navigation (e.g. login → /admin,
+ * or /admin → /admin?view=farms), the stack is at least 2 entries
+ * deep and safe to pop.
  */
 const MIN_HISTORY_FOR_BACK = 2;
 
 const BackButton: React.FC<BackButtonProps> = ({
-  onBack,
   fallbackPath = '/home',
   label = 'بازگشت',
   showLabel = false,
@@ -62,24 +55,15 @@ const BackButton: React.FC<BackButtonProps> = ({
   const navigate = useNavigate();
 
   const handleClick = () => {
-    // 1) Preferred path: caller supplies a navigation handler, which keeps
-    //    in-app view state in sync (RootDashboard uses this for
-    //    currentView-based sub-page navigation).
-    if (onBack) {
-      onBack();
-      return;
-    }
-
-    // 2) Safe fallback — check the browser history stack before calling
-    //    navigate(-1). If the user landed on this URL via a deep link,
-    //    history.length can be 1, which would otherwise bounce them out
-    //    of the SPA.
+    // PRIMARY: step back exactly one navigation in the user's journey.
+    // This mirrors the OS-level hardware back button semantics.
     if (typeof window !== 'undefined' && window.history.length >= MIN_HISTORY_FOR_BACK) {
       navigate(-1);
       return;
     }
 
-    // 3) Last resort — push to the fallback path.
+    // EDGE CASE: SPA entered via deep-link, no prior history entry to
+    // pop. Route through the role dispatcher rather than exit the SPA.
     navigate(fallbackPath);
   };
 

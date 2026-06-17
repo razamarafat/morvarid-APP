@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { Icons } from '../common/Icons';
 import ThemeToggle from '../common/ThemeToggle';
-import BackButton from '../common/BackButton';
 import { UserRole } from '../../types';
 import { useThemeStore } from '../../store/themeStore';
 import { THEMES } from '../../constants';
@@ -17,13 +16,9 @@ import Modal from '../common/Modal';
 interface HeaderProps {
   onMenuClick: () => void;
   title: string;
-  /** When true, the universal BackButton is rendered in the top-right corner. */
-  showBackButton?: boolean;
-  /** Custom handler invoked when the user clicks the back button. */
-  onBack?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onMenuClick, title, showBackButton, onBack }) => {
+const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const theme = useThemeStore(state => state.theme);
@@ -142,13 +137,6 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title, showBackButton, onB
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-
-            {/* Universal RTL "Back" button — only rendered on sub-pages.
-                In RTL flexbox this appears at the visual top-right corner
-                (first child of the right-side group). */}
-            {showBackButton && (
-              <BackButton onBack={onBack} showLabel={false} />
-            )}
 
             <OnlineStatusBadge />
 
