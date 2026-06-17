@@ -22,8 +22,14 @@ import UpdatePrompt from './components/common/UpdatePrompt';
 import { useOfflineSync } from './hooks/useOfflineSync';
 import { useAutoUpdate } from './hooks/useAutoUpdate';
 import { useAutoTheme } from './hooks/useAutoTheme';
-import { useDoubleBackExit } from './hooks/useDoubleBackExit';
 import { initializePushNotifications } from './services/pushNotificationService';
+
+// Deliberately no global popstate toast: internal sub-page back-navigation
+// (e.g. /admin?view=farms -> /admin) must stay completely silent. The OS
+// hardware back button already mirrors the UI back button via React Router's
+// useSearchParams, so the user experience stays smooth without a
+// "press back again to exit" interrupt. Reintroducing any popstate toast
+// would break that — see git history if you're tempted to add one back.
 import { APP_VERSION } from './constants';
 import { log } from './utils/logger';
 
@@ -137,11 +143,6 @@ const PageLoader = () => (
   </div>
 );
 
-const NavigationManager = () => {
-  useDoubleBackExit();
-  return null;
-};
-
 function App() {
   const { theme } = useThemeStore();
   const { checkSession, user, updateActivity, checkInactivity } = useAuthStore();
@@ -244,7 +245,6 @@ function App() {
   return (
     <ErrorBoundary>
       <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <NavigationManager />
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/" element={<SplashPage />} />
