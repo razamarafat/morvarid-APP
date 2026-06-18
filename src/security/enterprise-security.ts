@@ -452,12 +452,14 @@ export class EnterpriseAuth {
   }
 
   private validateLoginInput(username: string, password: string): boolean {
+    // Single source of truth for password min length — CONFIG.BUSINESS.MIN_PASSWORD_LENGTH.
+    // Currently 6 (finalised by business owner on 1405/03/30, down from 8).
     return !!(
-      username && 
-      password && 
-      username.length >= 3 && 
+      username &&
+      password &&
+      username.length >= 3 &&
       username.length <= 50 &&
-      password.length >= 8 &&
+      password.length >= CONFIG.BUSINESS.MIN_PASSWORD_LENGTH &&
       /^[a-zA-Z0-9._@-]+$/.test(username) // Prevent injection
     );
   }

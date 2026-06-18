@@ -53,13 +53,16 @@ Deno.serve(async (req: Request) => {
                 { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
             );
         }
-        // Mirror UserFormModal Zod regex: 8+ chars + at least one letter + digit.
-        // Same hardening as create-user so a curl bypass can't land an unusable
-        // credential in auth.users.
-        const passwordMinLength = 8;
+        // Mirror UserFormModal Zod regex: minimum chars + at least one letter +
+        // digit. Same hardening as create-user so a curl bypass can't land
+        // an unusable credential in auth.users. The minimum is currently 6
+        // after the business owner finalised the policy on 1405/03/30 (down
+        // from 8).
+        const passwordMinLength = 6;
+        const passwordMinLengthLabel = passwordMinLength.toLocaleString('fa-IR');
         if (new_password.length < passwordMinLength) {
             return new Response(
-                JSON.stringify({ success: false, error: `رمز عبور باید حداقل ${passwordMinLength} کاراکتر باشد.` }),
+                JSON.stringify({ success: false, error: `رمز عبور باید حداقل ${passwordMinLengthLabel} کاراکتر باشد.` }),
                 { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
             );
         }

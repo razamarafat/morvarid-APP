@@ -20,13 +20,15 @@ const persianLettersOnlyRegex = /^[\u0600-\u06FF\s]+$/;
 // Username: Latin letters (case sensitive), numbers, underscore, hyphen
 const usernameRegex = /^[a-zA-Z0-9_-]+$/;
 // Password: enforced length comes from CONFIG.BUSINESS.MIN_PASSWORD_LENGTH
-// (the single source of truth, currently 8 — matches Supabase goTrue default
-// min_password_length). Must contain AT LEAST ONE letter AND AT LEAST ONE
+// (the single source of truth — currently 6 per the finalised business
+// policy on 1405/03/30). Must contain AT LEAST ONE letter AND AT LEAST ONE
 // digit. Special chars are allowed (matches goTrue's permissive charset).
 // 20260620: revised from `.{6,}` because the supabase default password policy
-// rejects < 8 chars. Bumping the frontend regex to match keeps the user from
-// getting a generic backend error after a successful-looking submission.
+// rejects < 6 chars (after the 1405/03/30 policy change it rejects <6 too).
+// Bumping the frontend regex to match keeps the user from getting a generic
+// backend error after a successful-looking submission.
 const passwordMinLength = CONFIG.BUSINESS.MIN_PASSWORD_LENGTH;
+const passwordMinLengthLabel = passwordMinLength.toLocaleString('fa-IR');
 const passwordRegex = new RegExp(`^(?=.*[A-Za-z])(?=.*\\d).{${passwordMinLength},}$`);
 
 const userSchema = z.object({
@@ -40,7 +42,7 @@ const userSchema = z.object({
         if (!val) return true; // Optional allowed
         return passwordRegex.test(val);
     }, {
-        message: 'رمز عبور باید حداقل ۸ کاراکتر باشد و شامل حرف و عدد باشد',
+        message: `رمز عبور باید حداقل ${passwordMinLengthLabel} کاراکتر باشد و شامل حرف و عدد باشد`,
     }),
     role: z.nativeEnum(UserRole),
     phoneNumber: z.string().optional(),

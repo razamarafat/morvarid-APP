@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
 import { Icons } from '../components/common/Icons';
+import { CONFIG } from '../constants/config';
 import { TOAST_IDS } from '../constants';
 import { UserRole } from '../types';
 import { getTodayJalaliPersian, getCurrentTime, getTodayDayName, toPersianDigits } from '../utils/dateUtils';
@@ -16,9 +17,14 @@ import Input from '../components/common/Input';
 import { APP_VERSION } from '../constants';
 import { SKETCH_BASE64 } from '../components/common/SketchAsset';
 
+// ☘️ Password policy 1405/03/30 — minimum 6 characters across the app.
+// Single source of truth: CONFIG.BUSINESS.MIN_PASSWORD_LENGTH (currently 6).
+// This drive the LoginPage Zod schema, the create-user / change-password /
+// reset-user-password Edge Functions, profiles.visible_password CHECK
+// constraint, and EnterpriseAuth.validateLoginInput().
 const loginSchema = z.object({
     username: z.string().min(1, "نام کاربری الزامی است"),
-    password: z.string().min(1, "رمز عبور الزامی است"),
+    password: z.string().min(CONFIG.BUSINESS.MIN_PASSWORD_LENGTH, `رمز عبور باید حداقل ${CONFIG.BUSINESS.MIN_PASSWORD_LENGTH.toLocaleString('fa-IR')} کاراکتر باشد`),
     rememberMe: z.boolean().optional(),
 });
 

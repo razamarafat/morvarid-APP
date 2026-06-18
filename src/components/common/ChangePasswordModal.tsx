@@ -37,13 +37,15 @@ import { CONFIG } from '../../constants/config';
 // Persist the same Persian message text as the rest of the auth flow so
 // the user gets consistent UX wherever they enter that error.
 const passwordMinLength = CONFIG.BUSINESS.MIN_PASSWORD_LENGTH;
+const passwordMinLengthLabel = passwordMinLength.toLocaleString('fa-IR');
 const passwordRegex = new RegExp(`^(?=.*[A-Za-z])(?=.*\\d).{${passwordMinLength},}$`);
 
 const changeSchema = z.object({
     newPassword: z.string()
-        .min(passwordMinLength, `رمز عبور باید حداقل ${passwordMinLength} کاراکتر باشد`)
-        .regex(passwordRegex, 'رمز عبور باید حداقل ۸ کاراکتر باشد و شامل حرف و عدد باشد'),
-    confirmPassword: z.string(),
+        .min(passwordMinLength, `رمز عبور باید حداقل ${passwordMinLengthLabel} کاراکتر باشد`)
+        .regex(passwordRegex, `رمز عبور باید حداقل ${passwordMinLengthLabel} کاراکتر باشد و شامل حرف و عدد باشد`),
+    confirmPassword: z.string()
+        .min(passwordMinLength, `رمز عبور باید حداقل ${passwordMinLengthLabel} کاراکتر باشد`),
 }).superRefine((data, ctx) => {
     if (data.newPassword !== data.confirmPassword) {
         ctx.addIssue({
@@ -125,9 +127,8 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen, onClo
         <Modal isOpen={isOpen} onClose={onClose} title="تغییر رمز عبور">
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" autoComplete="off">
                 <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex items-start gap-3 mb-2">
-                    <Icons.Lock className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
-                    <p className="text-xs text-blue-800 dark:text-blue-200 leading-relaxed">
-                        رمز عبور جدید حداقل {passwordMinLength} کاراکتر باشد و ترکیبی از حروف و اعداد باشد.
+                    <Icons.Lock className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />                        <p className="text-xs text-blue-800 dark:text-blue-200 leading-relaxed">
+                        رمز عبور جدید حداقل {passwordMinLengthLabel} کاراکتر باشد و ترکیبی از حروف و اعداد باشد.
                         پس از تغییر، رمز عبور در پنل مدیر نیز به‌صورت همزمان به‌روزرسانی می‌شود.
                     </p>
                 </div>

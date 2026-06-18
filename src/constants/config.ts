@@ -107,7 +107,7 @@ export const BUSINESS = {
   // Validation Limits
   MAX_INVOICE_ITEMS: 100,              // حداکثر آیتم در فاکتور
   MAX_FARM_CAPACITY: 10000,            // حداکثر ظرفیت فارم
-  MIN_PASSWORD_LENGTH: 8,              // حداقل طول رمز عبور
+  MIN_PASSWORD_LENGTH: 6,              // حداقل طول رمز عبور (پالیسی نهایی: ۶ کاراکتر — sources/changed on 1405/03/30)
   
   // Default Values
   DEFAULT_CURRENCY: 'IRR',

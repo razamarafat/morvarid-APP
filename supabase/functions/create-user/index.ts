@@ -28,18 +28,21 @@ Deno.serve(async (req: Request) => {
             );
         }
 
-        // 20260620: Validate password length AND content locally to match
-        // Supabase goTrue's default min_password_length (8) BEFORE round-
+        // 1405/03/30: Validate password length AND content locally to match
+        // Supabase goTrue's default min_password_length BEFORE round-
         // tripping to the auth service. Without the length check, a short
-        // password ("i123456", 7 chars) created the auth user but the password
-        // wouldn't match Supabase's bcrypt path on login, so the user couldn't
-        // sign in. The content check rejects whitespace-only / all-empty-string
-        // passwords that would otherwise pass the length check (e.g. "        "
-        // — 8 spaces). Surface a clear Persian error in both cases.
-        const passwordMinLength = 8;
+        // password created the auth user but the password wouldn't match
+        // Supabase's bcrypt path on login, so the user couldn't sign in. The
+        // content check rejects whitespace-only / all-empty-string passwords
+        // that would otherwise pass the length check. The minimum is currently
+        // 6 characters after the business owner finalised the policy on
+        // 1405/03/30 (down from 8). Surface a clear Persian error in both
+        // cases.
+        const passwordMinLength = 6;
+        const passwordMinLengthLabel = passwordMinLength.toLocaleString('fa-IR');
         if (password.length < passwordMinLength) {
             return new Response(
-                JSON.stringify({ success: false, error: `رمز عبور باید حداقل ${passwordMinLength} کاراکتر باشد` }),
+                JSON.stringify({ success: false, error: `رمز عبور باید حداقل ${passwordMinLengthLabel} کاراکتر باشد` }),
                 { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
             );
         }

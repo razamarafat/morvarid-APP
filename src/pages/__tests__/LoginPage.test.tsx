@@ -123,6 +123,8 @@ describe('LoginPage Integration', () => {
     });
 
     it('shows error for empty password', async () => {
+      // 1405/03/30 — password policy minimum is now 6 chars; an empty
+      // password is below that minimum and surfaces the 6-char message.
       const mockAddToast = vi.fn();
       mockToastStore.mockReturnValue({ addToast: mockAddToast });
 
@@ -135,7 +137,52 @@ describe('LoginPage Integration', () => {
       await user.click(submitButton);
 
       await waitFor(() => {
-        expect(mockAddToast).toHaveBeenCalledWith('رمز عبور الزامی است', 'error');
+        expect(mockAddToast).toHaveBeenCalledWith('رمز عبور باید حداقل ۶ کاراکتر باشد', 'error');
+      });
+    });
+
+    it('accepts a 6-character password (1405/03/30 policy)', async () => {
+      // 6-char minimum now allowed per the finalised policy. Use a password
+      // that satisfies both the length rule and goTrue's letter+digit rule.
+      const mockLogin = vi.fn().mockResolvedValue({ success: true });
+      const mockAddToast = vi.fn();
+      mockAuthStore.mockReturnValue({
+        login: mockLogin,
+        blockUntil: null,
+        loadSavedUsername: vi.fn(),
+        savedUsername: '',
+      });
+      mockToastStore.mockReturnValue({ addToast: mockAddToast });
+
+      renderLoginPage();
+
+      const usernameInput = screen.getByPlaceholderText('نام کاربری');
+      const passwordInput = screen.getByPlaceholderText('رمز عبور');
+      const submitButton = screen.getByText('ورود به حساب');
+
+      await user.type(usernameInput, 'testuser');
+      await user.type(passwordInput, 'abc123'); // exactly 6 chars
+      await user.click(submitButton);
+
+      expect(mockLogin).toHaveBeenCalledWith('testuser', 'abc123', false);
+    });
+
+    it('rejects a 5-character password with the 6-char minimum message', async () => {
+      const mockAddToast = vi.fn();
+      mockToastStore.mockReturnValue({ addToast: mockAddToast });
+
+      renderLoginPage();
+
+      const usernameInput = screen.getByPlaceholderText('نام کاربری');
+      const passwordInput = screen.getByPlaceholderText('رمز عبور');
+      const submitButton = screen.getByText('ورود به حساب');
+
+      await user.type(usernameInput, 'testuser');
+      await user.type(passwordInput, '12345');
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(mockAddToast).toHaveBeenCalledWith('رمز عبور باید حداقل ۶ کاراکتر باشد', 'error');
       });
     });
   });

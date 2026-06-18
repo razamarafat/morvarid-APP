@@ -33,13 +33,15 @@ import { User } from '../../types';
 import { CONFIG } from '../../constants/config';
 
 const passwordMinLength = CONFIG.BUSINESS.MIN_PASSWORD_LENGTH;
+const passwordMinLengthLabel = passwordMinLength.toLocaleString('fa-IR');
 const passwordRegex = new RegExp(`^(?=.*[A-Za-z])(?=.*\\d).{${passwordMinLength},}$`);
 
 const schema = z.object({
     newPassword: z.string()
-        .min(passwordMinLength, `رمز عبور باید حداقل ${passwordMinLength} کاراکتر باشد`)
+        .min(passwordMinLength, `رمز عبور باید حداقل ${passwordMinLengthLabel} کاراکتر باشد`)
         .regex(passwordRegex, 'رمز عبور باید شامل حرف و عدد باشد'),
-    confirmPassword: z.string(),
+    confirmPassword: z.string()
+        .min(passwordMinLength, `رمز عبور باید حداقل ${passwordMinLengthLabel} کاراکتر باشد`),
 }).superRefine((data, ctx) => {
     if (data.newPassword !== data.confirmPassword) {
         ctx.addIssue({

@@ -57,10 +57,13 @@ Deno.serve(async (req: Request) => {
         }
         // Mirror create-user / change-password validation. Same hardening for
         // a 3-attack-vector-defence-in-depth: client Zod -> userStore -> EF.
-        const passwordMinLength = 8;
+        // The minimum is currently 6 after the business owner finalised the
+        // policy on 1405/03/30 (down from 8).
+        const passwordMinLength = 6;
+        const passwordMinLengthLabel = passwordMinLength.toLocaleString('fa-IR');
         if (new_password.length < passwordMinLength) {
             return new Response(
-                JSON.stringify({ success: false, error: `رمز عبور باید حداقل ${passwordMinLength} کاراکتر باشد.` }),
+                JSON.stringify({ success: false, error: `رمز عبور باید حداقل ${passwordMinLengthLabel} کاراکتر باشد.` }),
                 { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
             );
         }
