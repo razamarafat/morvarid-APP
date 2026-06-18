@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useUserStore } from '../../store/userStore';
 import { useAuthStore } from '../../store/authStore';
 import { useToastStore } from '../../store/toastStore';
@@ -7,11 +7,12 @@ import { User, UserRole } from '../../types';
 import { Icons } from '../common/Icons';
 import Button from '../common/Button';
 import UserFormModal from './UserFormModal';
+import AdminResetPasswordModal from './AdminResetPasswordModal';
 import { useConfirm } from '../../hooks/useConfirm';
 import { matchesMultiField, SearchAccessor } from '../../utils/searchUtils';
 
 const UserManagement: React.FC = () => {
-  const { users, deleteUser } = useUserStore();
+  const { users, deleteUser, adminListVisiblePasswords } = useUserStore();
   const { user: currentUser } = useAuthStore();
   const { addToast } = useToastStore();
 
@@ -19,6 +20,46 @@ const UserManagement: React.FC = () => {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const { confirm } = useConfirm();
+
+  // 20260620 — Admin-visible password vault. Fetched via the SEC-DEF RPC
+  // `admin_list_visible_passwords` on mount. If the current caller is NOT
+  // an admin, the RPC throws FORBIDDEN and we fall back to an empty map
+  // (the column is hidden anyway). `revealedSet` is per-row UI state that
+  // does NOT touch the database — defaults reveal=false so passwords
+  // render as bullet dots until the Admin clicks the Eye icon.
+  const [passwordMap, setPasswordMap] = useState<Record<string, string>>({});
+  const [revealedSet, setRevealedSet] = useState<Set<string>>(new Set());
+  const [resetTargetUser, setResetTargetUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    // Only fetch when the caller is admin \u2014 userStore.adminListVisiblePasswords
+    // also gates this server-side (throws FORBIDDEN on non-admin), so the
+    // client-side role check is just a UX optim + a no-op-skip for non-admins.
+    if (currentUser?.role === UserRole.ADMIN) {
+      adminListVisiblePasswords().then(map => setPasswordMap(map));
+    }
+  }, [currentUser, users, adminListVisiblePasswords]);
+
+  const toggleReveal = (userId: string) => {
+    setRevealedSet(prev => {
+      const next = new Set(prev);
+      if (next.has(userId)) {
+        next.delete(userId);
+      } else {
+        next.add(userId);
+      }
+      return next;
+    });
+  };
+
+  const handleCopyPassword = async (password: string, username: string) => {
+    try {
+      await navigator.clipboard.writeText(password);
+      addToast(`رمز عبور ${username} کپی شد`, 'success');
+    } catch (_) {
+      addToast('کپی در حافظه ناموفق بود', 'error');
+    }
+  };
 
   // 20260619 — Multi-field fuzzy search across every visible column.
   // Both the English role enum AND the Persian display label are indexed
@@ -107,6 +148,11 @@ const UserManagement: React.FC = () => {
                 <th scope="col" className="px-6 py-4 lg:py-6 whitespace-nowrap">نام کامل</th>
                 <th scope="col" className="px-6 py-4 lg:py-6 whitespace-nowrap">نام کاربری</th>
                 <th scope="col" className="px-6 py-4 lg:py-6 whitespace-nowrap">نقش</th>
+                {/* 20260620 — Plain-text password column. Hidden
+                    client-side for non-admin callers via the conditional
+                    render below (server-side RLS + SEC-DEF RPC ensure
+                    that the data itself is unreachable for non-admins). */}
+                <th scope="col" className="px-6 py-4 lg:py-6 whitespace-nowrap">رمز عبور</th>
                 <th scope="col" className="px-6 py-4 lg:py-6 whitespace-nowrap">وضعیت</th>
                 <th scope="col" className="px-6 py-4 lg:py-6 whitespace-nowrap text-center">عملیات</th>
               </tr>
@@ -119,6 +165,67 @@ const UserManagement: React.FC = () => {
                   </th>
                   <td className="px-6 py-5 lg:py-7 font-mono lg:text-lg font-bold tracking-wide">{user.username}</td>
                   <td className="px-6 py-5 lg:py-7 whitespace-nowrap">{getRoleBadge(user.role)}</td>
+                  {/* 20260620 — Password cell (admin only). Renders bullet
+                      asterisks by default. Admins can click the Eye icon
+                      to reveal; Copy icon copies the plaintext to the
+                      clipboard. Empty state shown for users whose vault
+                      entry is missing (e.g. legacy users predating the
+                      20260620 migration). */}
+                  <td className="px-3 py-5 lg:py-7 whitespace-nowrap">
+                    {currentUser?.role === UserRole.ADMIN ? (
+                      <div className="flex items-center gap-2">
+                        {(() => {
+                          const storedPwd = passwordMap[user.id];
+                          const isRevealed = revealedSet.has(user.id);
+                          if (!storedPwd) {
+                            return <span className="text-xs text-gray-400 font-mono select-none">—</span>;
+                          }
+                          return (
+                            <>
+                              <span
+                                dir="ltr"
+                                className={`font-mono text-sm font-bold select-all ${isRevealed ? 'text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400'}`}
+                                style={{ letterSpacing: isRevealed ? '0' : '0.1em' }}
+                              >
+                                {isRevealed ? storedPwd : '••••••••'}
+                              </span>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => toggleReveal(user.id)}
+                                title={isRevealed ? 'پنهان‌سازی' : 'نمایش'}
+                                className="lg:w-9 lg:h-9 w-7 h-7 rounded-full text-gray-500 hover:text-blue-600"
+                              >
+                                {isRevealed ? <Icons.EyeOff className="w-4 h-4" /> : <Icons.Eye className="w-4 h-4" />}
+                              </Button>
+                              {isRevealed && (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => handleCopyPassword(storedPwd, user.username)}
+                                  title="کپی"
+                                  className="lg:w-9 lg:h-9 w-7 h-7 rounded-full text-gray-500 hover:text-green-600"
+                                >
+                                  <Icons.FileText className="w-4 h-4" />
+                                </Button>
+                              )}
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => setResetTargetUser(user)}
+                                title="بازنشانی رمز عبور"
+                                className="lg:w-9 lg:h-9 w-7 h-7 rounded-full text-gray-500 hover:text-violet-600"
+                              >
+                                <Icons.Refresh className="w-4 h-4" />
+                              </Button>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400 font-mono select-none">••••••</span>
+                    )}
+                  </td>
                   <td className="px-6 py-5 lg:py-7 whitespace-nowrap">
                     <span className={`px-3 py-1.5 lg:px-4 lg:py-2 rounded-full text-xs lg:text-sm font-bold ${user.isActive ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'}`}>
                       {user.isActive ? 'فعال' : 'غیرفعال'}
@@ -143,6 +250,25 @@ const UserManagement: React.FC = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         user={editingUser}
+      />
+
+      {/* 20260620 — Admin password-reset modal. Triggered by the
+          Refresh icon in the password cell. Calls the
+          reset-user-password Edge Function which writes to BOTH
+          auth.users (via auth.admin.updateUserById on service_role)
+          and visible_password (via SEC-DEF RPC). After a successful
+          reset the passwordMap is re-fetched so the new value shows
+          up in the table without a manual page refresh. */}
+      <AdminResetPasswordModal
+        isOpen={!!resetTargetUser}
+        targetUser={resetTargetUser}
+        onClose={() => setResetTargetUser(null)}
+        onSuccess={async () => {
+          // Re-fetch vault so the freshly reset password is shown.
+          const map = await adminListVisiblePasswords();
+          setPasswordMap(map);
+          setResetTargetUser(null);
+        }}
       />
     </div>
   );

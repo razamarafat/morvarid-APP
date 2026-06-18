@@ -33,6 +33,23 @@ interface UserState {
     addUser: (user: Omit<User, 'id'> & { password?: string }) => Promise<{ success: boolean; error?: string; password?: string }>;
     updateUser: (user: User) => Promise<void>;
     deleteUser: (userId: string) => Promise<void>;
+    /**
+     * 20260620 — Admin reads the plain-text `visible_password` for every
+     * user from the SEC-DEF RPC `admin_list_visible_passwords`. Used by the
+     * Admin User Management panel to render the toggleable password
+     * column. Returns `{ [userId]: plaintextPassword }` keyed by user id.
+     * Empty password string `''` is preserved when an account has no
+     * password vault entry yet (e.g. a user whose record predates the
+     * 20260620 migration but who hasn't changed password since).
+     */
+    adminListVisiblePasswords: () => Promise<Record<string, string>>;
+    /**
+     * 20260620 — Admin overwrites any user's password via Edge Function
+     * `reset-user-password` (which calls auth.admin.updateUserById + the
+     * SEC-DEF RPC `admin_set_visible_password` so the vault stays in
+     * sync). Surfaces the Persian error verbatim on failure.
+     */
+    adminResetUserPassword: (targetUserId: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 export const useUserStore = create<UserState>((set, get) => ({
@@ -237,6 +254,70 @@ export const useUserStore = create<UserState>((set, get) => ({
         } finally {
             await get().fetchUsers();
             set({ isLoading: false });
+        }
+    },
+
+    // 20260620 — Admin reads all visible_passwords via SEC-DEF RPC. Returns
+    // a `[userId → plaintext]` map. UI consumer is the Admin User Management
+    // password column (toggleable reveal).
+    adminListVisiblePasswords: async () => {
+        try {
+            const { data, error } = await supabase.rpc('admin_list_visible_passwords');
+            if (error) {
+                if (error.message?.includes('FORBIDDEN') || error.message?.includes('admin only')) {
+                    useToastStore.getState().addToast('شما دسترسی لازم برای مشاهده رمز عبور کاربران را ندارید.', 'error');
+                }
+                console.error('[UserStore] admin_list_visible_passwords failed:', error);
+                return {};
+            }
+            const map: Record<string, string> = {};
+            if (Array.isArray(data)) {
+                for (const row of data) {
+                    if (row?.id) {
+                        map[row.id as string] = (row?.visible_password ?? '') as string;
+                    }
+                }
+            }
+            return map;
+        } catch (err: any) {
+            console.error('[UserStore] adminListVisiblePasswords exception:', err);
+            return {};
+        }
+    },
+
+    // 20260620 — Admin password reset via Edge Function orchestrator. The
+    // Edge Function calls auth.admin.updateUserById + RPC admin_set_visible_password
+    // in sequence so the auth password and the vault entry stay in lock-step.
+    adminResetUserPassword: async (targetUserId, newPassword) => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token) {
+                return { success: false, error: 'نشست شما منقضی شده است. لطفاً دوباره وارد شوید.' };
+            }
+
+            const response = await fetch(`${supabaseUrl}/functions/v1/reset-user-password`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ target_user_id: targetUserId, new_password: newPassword }),
+            });
+
+            const result = await response.json().catch(() => ({ success: false, error: 'پاسخ نامعتبر از سرور.' }));
+
+            if (!response.ok || !result.success) {
+                console.error('[UserStore] reset-user-password EF failed:', result);
+                return { success: false, error: result.error || 'تغییر رمز عبور ناموفق بود.' };
+            }
+            return { success: true };
+        } catch (err: any) {
+            console.error('[UserStore] adminResetUserPassword exception:', err);
+            const isNet = err?.isNetworkError || err?.message?.includes('fetch') || err?.message?.includes('Failed to fetch');
+            if (isNet) {
+                useToastStore.getState().addToast('اینترنت متصل نیست. لطفاً دوباره تلاش کنید.', 'error');
+            }
+            return { success: false, error: err.message || 'خطای غیرمنتظره.' };
         }
     }
 }));

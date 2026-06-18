@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { Icons } from '../common/Icons';
 import { APP_VERSION } from '../../constants';
@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { useConfirm } from '../../hooks/useConfirm';
 import { usePwaStore } from '../../store/pwaStore';
 import { useToastStore } from '../../store/toastStore';
+import ChangePasswordModal from '../common/ChangePasswordModal';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -15,13 +16,17 @@ interface SidebarProps {
   onNavigate: (view: string) => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
-  const { user, logout } = useAuthStore();
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {  const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const { confirm } = useConfirm();
   const { deferredPrompt, setDeferredPrompt, isInstalled } = usePwaStore();
   const { addToast } = useToastStore();
-  
+
+  // 20260620 — Hamburger menu `تغییر رمز عبور` entry. Available for every
+  // role (Operator, Sales, Supervisor). The Modal is mounted just below the
+  // </aside> closing tag so it survives the drawer's translate-x animation.
+  const [isChangePasswordOpen, setChangePasswordOpen] = useState(false);
+
   const role = user?.role || UserRole.ADMIN;
   let headerColor = 'bg-metro-purple';
   if (role === UserRole.REGISTRATION) headerColor = 'bg-metro-orange';
@@ -99,16 +104,32 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
                 <p className="text-xs font-bold text-gray-500 dark:text-gray-400 px-3">دسترسی سریع</p>
             </div>
             
-            {/* ONLY PWA INSTALL BUTTON AS REQUESTED */}
+            {/* PWA INSTALL BUTTON */}
             <div className="px-3 mb-1">
-                <button 
-                    onClick={handleInstallClick} 
+                <button
+                    onClick={handleInstallClick}
                     className={`w-full text-right flex items-center p-3 lg:p-4 transition-all duration-200 group rounded-full ${isInstalled ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' : 'bg-gray-50 text-gray-700 dark:bg-gray-800 dark:text-gray-200 hover:bg-gray-100'}`}
                 >
                     {isInstalled ? <Icons.Check className="w-6 h-6 ml-3" /> : <Icons.Download className="w-6 h-6 ml-3" />}
                     <span className="font-bold text-sm lg:text-base tracking-wide">
                         {isInstalled ? 'اپلیکیشن نصب شده است' : 'نصب نسخه PWA'}
                     </span>
+                </button>
+            </div>
+
+            {/* 20260620 — Change-password menu item. Available to every
+                role (Operators, Sales, Supervisors, Admin). Click opens
+                the ChangePasswordModal mounted below the drawer. Use this
+                entry point to rotate your own credentials from the
+                hamburger drawer on any page. */}
+            <div className="px-3 mt-1">
+                <button
+                    onClick={() => setChangePasswordOpen(true)}
+                    className="w-full text-right flex items-center p-3 lg:p-4 transition-all duration-200 group rounded-full bg-gray-50 text-gray-700 dark:bg-gray-800 dark:text-gray-200 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/20 dark:hover:text-blue-300"
+                    data-testid="hamburger-change-password"
+                >
+                    <Icons.Lock className="w-6 h-6 ml-3" />
+                    <span className="font-bold text-sm lg:text-base tracking-wide">تغییر رمز عبور</span>
                 </button>
             </div>
         </nav>
@@ -126,6 +147,16 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
             </div>
         </div>
       </aside>
+
+      {/* 20260620 — Self-service password change modal. Mounted outside
+          the <aside> so the Modal's fixed-position overlay renders above
+          the sidebar's z-index when open. The Sidebar is the sole emitter
+          of `isChangePasswordOpen` so the modal closes naturally when the
+          user navigates away (drawer mmethod onClose is shared). */}
+      <ChangePasswordModal
+        isOpen={isChangePasswordOpen}
+        onClose={() => setChangePasswordOpen(false)}
+      />
     </>
   );
 };

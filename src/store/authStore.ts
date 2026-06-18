@@ -1,6 +1,6 @@
 
 import { create } from 'zustand';
-import { supabase } from '../lib/supabase';
+import { supabase, supabaseUrl } from '../lib/supabase';
 import { User, UserRole } from '../types';
 import { useToastStore } from './toastStore';
 import { TOAST_IDS } from '../constants';
@@ -83,6 +83,16 @@ interface AuthState {
     loadSavedUsername: () => Promise<void>;
     updateActivity: () => void;
     checkInactivity: () => boolean;
+    /**
+     * 20260620 — Self-service password change. Delegates to the
+     * `change-password` Edge Function which (a) calls
+     * `supabase.auth.updateUser({ password })` using the caller's JWT,
+     * then (b) calls the SEC-DEF RPC `self_set_visible_password` to keep
+     * the admin-visible vault in sync. Returns the same
+     * `{ success, error }` shape as `login` so the React modal can map
+     * the Persian error text directly onto a toast.
+     */
+    changePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -501,6 +511,54 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
         return { loginAttempts: newAttempts };
     }),
+
+    changePassword: async (newPassword: string) => {
+        // 20260620 — Self-service password change via Edge Function orchestrator.
+        // The Edge Function validates auth + length + content + calls
+        // supabase.auth.updateUser + RPC self_set_visible_password. We
+        // bubble up the Persian error text verbatim on failure so the
+        // ChangePasswordModal can drop it straight into a red toast.
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token) {
+                return { success: false, error: 'نشست شما منقضی شده است. لطفاً دوباره وارد شوید.' };
+            }
+
+            const response = await fetch(`${supabaseUrl}/functions/v1/change-password`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ new_password: newPassword }),
+            });
+
+            const result = await response.json().catch(() => ({ success: false, error: 'پاسخ نامعتبر از سرور.' }));
+
+            if (!response.ok || !result.success) {
+                return {
+                    success: false,
+                    error: result.error || 'تغییر رمز عبور ناموفق بود. لطفاً دوباره تلاش کنید.',
+                };
+            }
+
+            // Surface the canonical success string; the modal owns the toast UX
+            // so the caller can decide if it adds a follow-up confirmation.
+            return { success: true };
+        } catch (error: any) {
+            console.error('[Auth] changePassword failed:', error);
+            const isNetworkErr =
+                error?.isNetworkError ||
+                error?.message?.includes('fetch') ||
+                error?.message?.includes('Failed to fetch') ||
+                error?.message?.includes('Timeout') ||
+                error?.status === 0;
+            if (isNetworkErr) {
+                return { success: false, error: 'اینترنت متصل نیست. لطفاً اتصال خود را بررسی و دوباره تلاش کنید.' };
+            }
+            return { success: false, error: error.message || 'خطای غیرمنتظره. لطفاً دوباره تلاش کنید.' };
+        }
+    },
 
     resetAttempts: () => {
         localStorage.removeItem(STORAGE_KEYS.LOGIN_ATTEMPTS);

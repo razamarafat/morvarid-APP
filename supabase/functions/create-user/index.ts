@@ -146,8 +146,19 @@ Deno.serve(async (req: Request) => {
             );
         }
 
-        // The on_auth_user_created trigger in master_schema.sql will auto-create the profile.
-        // But let's ensure the profile has the correct role and phone_number.
+        // The on_auth_user_created trigger in master_schema.sql will auto-create the profile
+        // (with username / full_name / role / notifications_enabled from user_metadata).
+        // BUT the trigger does NOT set `phone_number` and the role baked from
+        // user_metadata is only an INSERT-time value — so we still need an
+        // explicit UPDATE to override role/phone_number/is_active on this row.
+        //
+        // 20260620: we DO NOT mix `visible_password` into this .update() call
+        // because the column has been REVOKEd at the column level from the
+        // `authenticated` role (the service-role bypasses REVOKE, but the
+        // PostgREST path doesn't, and consistency matters across the two
+        // write paths). The visible_password sync is delegated to the
+        // SECURITY DEFINER RPC admin_set_visible_password below which is the
+        // ONE legitimized channel for that column.
         const { error: updateProfileError } = await supabaseClient
             .from('profiles')
             .update({
@@ -160,6 +171,22 @@ Deno.serve(async (req: Request) => {
         if (updateProfileError) {
             console.error('Failed to update profile:', updateProfileError);
             // User was created but profile update failed - still return success
+        }
+
+        // Visible-password sync — see comment block above. Service-role
+        // bypasses the column-level REVOKE; the RPC's `is_admin()` check is
+        // a belt-and-suspenders (the RPC runs on the function owner
+        // 'postgres', so the gate is the explicit SELECT inside the function
+        // body that calls public.is_admin()).
+        const { error: rpcError } = await supabaseClient.rpc('admin_set_visible_password', {
+            p_user_id: newUser.user.id,
+            p_password: password,
+        });
+
+        if (rpcError) {
+            console.warn('[create-user] visible_password sync failed (admin will see empty cell):', rpcError);
+            // Non-fatal: the auth user + profile are already created, so the
+            // admin can re-sync via the admin reset flow if needed.
         }
 
         return new Response(
