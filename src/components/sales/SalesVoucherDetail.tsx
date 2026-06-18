@@ -151,7 +151,7 @@ const SalesVoucherDetail: React.FC<SalesVoucherDetailProps> = ({ voucherId, onBa
           </h3>
           <div className="space-y-3">
             <div className="flex justify-between">
-              <span className="text-gray-400 text-xs font-bold">ایجاد کننده</span>
+              <span className="text-gray-400 text-xs font-bold">ایجاد کننده :</span>
               <span className="font-bold text-gray-800 dark:text-white">{voucher.creatorName || '---'}</span>
             </div>
             <div className="flex justify-between">
@@ -178,14 +178,14 @@ const SalesVoucherDetail: React.FC<SalesVoucherDetailProps> = ({ voucherId, onBa
             </h3>
             <div className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-gray-400 text-xs font-bold">آخرین ویرایش</span>
+                <span className="text-gray-400 text-xs font-bold">آخرین ویرایش :</span>
                 <span className="font-bold text-gray-800 dark:text-white">
                   {toPersianDigits(new Date(voucher.updatedAt).toLocaleDateString('fa-IR'))} ساعت {toPersianDigits(new Date(voucher.updatedAt).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }))}
                 </span>
               </div>
               {voucher.editorName && (
                 <div className="flex justify-between">
-                  <span className="text-gray-400 text-xs font-bold">ویرایش توسط</span>
+                  <span className="text-gray-400 text-xs font-bold">ویرایش توسط :</span>
                   <span className="font-bold text-amber-700 dark:text-amber-400">{voucher.editorName}</span>
                 </div>
               )}
