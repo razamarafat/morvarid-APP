@@ -341,15 +341,24 @@ const RecentRecords: React.FC = () => {
     const [selectedFarmId, setSelectedFarmId] = useState<string>('all');
 
     // Update selected farm if assigned farms change
+    // SECURITY (20260619): REGISTRATION operators keep selectedFarmId ===
+    // 'all' so the filter (which uses assignedFarmIds.includes check below)
+    // surfaces records from ALL their assigned farms without exposing a
+    // farm picker in the UI. SALES still gets the first-assigned-farm auto
+    // correction as before (their chip selector remains visible).
     useEffect(() => {
-        if (!isAdmin && assignedFarmIds.length > 0 && selectedFarmId === 'all') {
+        if (!isAdmin && !isRegistration && assignedFarmIds.length > 0 && selectedFarmId === 'all') {
             setSelectedFarmId(assignedFarmIds[0]);
         }
-    }, [assignedFarmIds, isAdmin, selectedFarmId]);
+    }, [assignedFarmIds, isAdmin, isRegistration, selectedFarmId]);
 
     const handleClearFilters = () => {
         setSelectedDate(getTodayJalali());
-        if (isAdmin) {
+        // SECURITY (20260619): REGISTRATION operators reset to 'all'
+        // (server-side query already locks to assignedFarms via in('farm_id',
+        // ...) in the stores; the chip selector that would let them toggle is
+        // hidden — see conditional render below).
+        if (isAdmin || isRegistration) {
             setSelectedFarmId('all');
         } else if (assignedFarmIds.length > 0) {
             setSelectedFarmId(assignedFarmIds[0]);
@@ -864,31 +873,48 @@ const RecentRecords: React.FC = () => {
                 </div>
 
                 {availableFarms.length > 1 && (
-                    <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar no-scrollbar">
-                        {availableFarms.length > 1 && (
-                            <button
-                                onClick={() => setSelectedFarmId('all')}
-                                className={`px-4 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all border-2 ${selectedFarmId === 'all'
-                                    ? 'bg-metro-blue text-white border-metro-blue'
-                                    : 'bg-gray-50 dark:bg-gray-700 text-gray-500 border-transparent hover:border-gray-200'
-                                    }`}
-                            >
-                                همه فارم‌ها
-                            </button>
-                        )}
-                        {availableFarms.map(f => (
-                            <button
-                                key={f.id}
-                                onClick={() => setSelectedFarmId(f.id)}
-                                className={`px-4 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all border-2 ${selectedFarmId === f.id
-                                    ? 'bg-metro-blue text-white border-metro-blue'
-                                    : 'bg-gray-50 dark:bg-gray-700 text-gray-500 border-transparent hover:border-gray-200'
-                                    }`}
-                            >
-                                {f.name}
-                            </button>
-                        ))}
-                    </div>
+                    isRegistration ? (
+                        // SECURITY (20260619): REGISTRATION operators MUST NOT
+                        // see a farm selector. Their allowed scope is locked
+                        // at the query layer (salesVoucherStore / statisticsStore
+                        // / invoiceStore fetch* .in('farm_id', assignedFarms)),
+                        // defended by `can_access_farm(farm_id)` RLS. We render
+                        // a static, NON-INTERACTIVE label here so the operator
+                        // sees WHICH farms they're working with, but there is
+                        // no UI affordance to change the selection.
+                        <div className="flex items-center justify-center gap-2 px-4 py-3 bg-orange-50/80 dark:bg-orange-950/30 border-2 border-orange-200 dark:border-orange-900/50 rounded-xl">
+                            <Icons.Lock className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                            <span className="text-xs font-black text-orange-700 dark:text-orange-300">
+                                فارم شما : {(user?.assignedFarms || []).map(f => f.name).join(' ، ')}
+                            </span>
+                        </div>
+                    ) : (
+                        <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar no-scrollbar">
+                            {availableFarms.length > 1 && (
+                                <button
+                                    onClick={() => setSelectedFarmId('all')}
+                                    className={`px-4 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all border-2 ${selectedFarmId === 'all'
+                                        ? 'bg-metro-blue text-white border-metro-blue'
+                                        : 'bg-gray-50 dark:bg-gray-700 text-gray-500 border-transparent hover:border-gray-200'
+                                        }`}
+                                >
+                                    همه فارم‌ها
+                                </button>
+                            )}
+                            {availableFarms.map(f => (
+                                <button
+                                    key={f.id}
+                                    onClick={() => setSelectedFarmId(f.id)}
+                                    className={`px-4 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all border-2 ${selectedFarmId === f.id
+                                        ? 'bg-metro-blue text-white border-metro-blue'
+                                        : 'bg-gray-50 dark:bg-gray-700 text-gray-500 border-transparent hover:border-gray-200'
+                                        }`}
+                                >
+                                    {f.name}
+                                </button>
+                            ))}
+                        </div>
+                    )
                 )}
             </div>
 

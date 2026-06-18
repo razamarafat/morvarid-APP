@@ -9,6 +9,7 @@ import { normalizeDate } from '../utils/dateUtils';
 import { useSyncStore } from './syncStore';
 import { useAuthStore } from './authStore';
 import { v4 as uuidv4 } from 'uuid';
+import { UserRole } from '../types';
 
 import { getErrorMessage } from '../utils/errorUtils';
 import { mapLegacyProductId } from '../utils/productUtils';
@@ -130,10 +131,20 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     },
     clearCopiedSalesVoucher: () => set({ copiedSalesVoucher: null }),
 
-    fetchInvoices: async () => {
+    fetchInvoices: async (inputFilters?: { farmId?: string }) => {
         set({ isLoading: true });
         try {
             const currentUser = useAuthStore.getState().user;
+
+            // SECURITY (20260619): REGISTRATION operators — IGNORE any caller-
+            // supplied filters.farmId. The operator's allowed scope is exactly
+            // their `assignedFarms` (enforced by RLS via `can_access_farm()` in
+            // `invoices` FOR ALL). Frontend hard lock prevents any caller-
+            // supplied filter from widening scope (defense-in-depth alongside
+            // `in('farm_id', assignedFarmIds)` below + RLS).
+            const sanitizedFilters = currentUser?.role === UserRole.REGISTRATION && inputFilters
+                ? { ...inputFilters, farmId: undefined }
+                : inputFilters;
 
             let query = supabase
                 .from('invoices')
@@ -148,7 +159,8 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
             // Role-based filtering for fetching
             if (currentUser && currentUser.role !== 'ADMIN') {
                 if (currentUser.role === 'SALES') {
-                    // Sales can see all invoices
+                    // Sales can see all invoices (optional caller-supplied farm slug)
+                    if (sanitizedFilters?.farmId) query = query.eq('farm_id', sanitizedFilters.farmId);
                 } else {
                     // Fetch records for assigned farms
                     const farmIds = (currentUser.assignedFarms || []).map(f => f.id);
@@ -159,6 +171,9 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
                         return;
                     }
                 }
+            } else if (sanitizedFilters?.farmId) {
+                // Admin can also narrow to a single farm via caller-supplied filter
+                query = query.eq('farm_id', sanitizedFilters.farmId);
             }
 
             const { data, error } = await query;
@@ -397,6 +412,17 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
                 return { success: false, error: 'Invoice not found' };
             }
 
+        // SECURITY (20260619): REGISTRATION operators — defense-in-depth pre-
+        // mutation farm_id check. RLS is the final guard, but this rejects
+        // any stale or forged id passed in before any DB round-trip.
+        const editingUser = useAuthStore.getState().user;
+        if (editingUser?.role === UserRole.REGISTRATION) {
+            const allowedFarmIds = (editingUser.assignedFarms || []).map(f => f.id);
+            if (!allowedFarmIds.includes(currentInvoice.farmId)) {
+                return { success: false, error: 'شما مجاز به ویرایش این حواله نیستید.' };
+            }
+        }
+
             // 2. Check if there are actual changes
             const oldDataStr = JSON.stringify({
                 invoiceNumber: String(currentInvoice.invoiceNumber || ''),
@@ -488,6 +514,23 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     deleteInvoice: async (id, isSyncing = false) => {
         try {
             const currentInvoice = get().invoices.find(i => i.id === id);
+
+            // SECURITY (20260619): REGISTRATION operators — defense-in-depth pre-
+            // mutation farm_id check. RLS is the final guard, but this rejects
+            // any stale or forged id passed in before any DB round-trip.
+            // Resolve the cached invoice ONCE and run the check unconditionally
+            // (avoids TOCTOU gap when cache was momentarily null).
+            const deletingUser = useAuthStore.getState().user;
+            if (deletingUser?.role === UserRole.REGISTRATION) {
+                if (!currentInvoice) {
+                    return { success: false, error: 'حواله یافت نشد.' };
+                }
+                const allowedFarmIds = (deletingUser.assignedFarms || []).map(f => f.id);
+                if (!allowedFarmIds.includes(currentInvoice.farmId)) {
+                    return { success: false, error: 'شما مجاز به حذف این حواله نیستید.' };
+                }
+            }
+
             const { error } = await supabase.from('invoices').delete().eq('id', id);
             if (error) throw error;
             await get().fetchInvoices();

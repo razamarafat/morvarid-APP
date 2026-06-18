@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
-import { SalesVoucher, SalesVoucherLine, SalesVoucherFilter, SalesVoucherStatus, CreateSalesVoucherInput, UpdateSalesVoucherInput, SalesVoucherWithLines } from '../types';
+import { SalesVoucher, SalesVoucherLine, SalesVoucherFilter, SalesVoucherStatus, CreateSalesVoucherInput, UpdateSalesVoucherInput, SalesVoucherWithLines, UserRole } from '../types';
 import { useAuthStore } from './authStore';
 import { normalizeDate } from '../utils/dateUtils';
 import { getErrorMessage } from '../utils/errorUtils';
@@ -47,10 +47,21 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
   // ============================
   // FETCH ALL VOUCHERS (with filters)
   // ============================
-  fetchSalesVouchers: async (filters?: SalesVoucherFilter) => {
+  fetchSalesVouchers: async (inputFilters?: SalesVoucherFilter) => {
     set({ isLoading: true, error: null });
     try {
       const currentUser = useAuthStore.getState().user;
+
+      // SECURITY (20260619): REGISTRATION operators — IGNORE any caller-
+      // supplied `filters.farmId` entirely. The operator's allowed scope is
+      // exactly their `assignedFarms` from `public.user_farms` (enforced by
+      // RLS via `can_access_farm(farm_id)`). The frontend HARD lock prevents
+      // any caller-supplied filter from widening scope (defense-in-depth
+      // alongside `in('farm_id', assignedFarmIds)` below + RLS).
+      const filters: SalesVoucherFilter | undefined =
+        currentUser?.role === UserRole.REGISTRATION && inputFilters
+          ? { ...inputFilters, farmId: undefined }
+          : inputFilters;
 
       let query = supabase
         .from('sales_vouchers')
@@ -199,6 +210,20 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
   fetchSalesVoucherById: async (id: string) => {
     set({ isLoading: true, error: null });
     try {
+      const currentUser = useAuthStore.getState().user;
+
+      // SECURITY (20260619): REGISTRATION operators — defense-in-depth post-
+      // fetch farm_id check. RLS will already deny cross-farm reads (the .single()
+      // returns 'not found' error), but we additionally verify the resulting
+      // voucher.farm_id is in operator.assignedFarms before exposing the
+      // voucher (header + lines) to React state. Belt-and-suspenders for
+      // any future RLS regression.
+      const assertVoucherFarmAccess = (fetchedFarmId: string): boolean => {
+        if (currentUser?.role !== UserRole.REGISTRATION) return true;
+        const allowedFarmIds = (currentUser.assignedFarms || []).map(f => f.id);
+        return allowedFarmIds.includes(fetchedFarmId);
+      };
+
       const { data: voucher, error: voucherError } = await supabase
         .from('sales_vouchers')
         .select('*, profiles!created_by(full_name, role), editor:profiles!updated_by(full_name), farms(name)')
@@ -216,6 +241,12 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
 
         if (simpleError) throw simpleError;
         if (!simpleVoucher) {
+          set({ currentVoucher: null, isLoading: false, error: 'حواله یافت نشد.' });
+          return;
+        }
+        // SECURITY (20260619): post-fetch verification — operator cannot
+        // open this voucher even if a future RLS regression allowed it through.
+        if (!assertVoucherFarmAccess(simpleVoucher.farm_id)) {
           set({ currentVoucher: null, isLoading: false, error: 'حواله یافت نشد.' });
           return;
         }
@@ -279,6 +310,12 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
       }
 
       if (!voucher) {
+        set({ currentVoucher: null, isLoading: false, error: 'حواله یافت نشد.' });
+        return;
+      }
+      // SECURITY (20260619): post-fetch verification — operator cannot
+      // open this voucher even if a future RLS regression allowed it through.
+      if (!assertVoucherFarmAccess(voucher.farm_id)) {
         set({ currentVoucher: null, isLoading: false, error: 'حواله یافت نشد.' });
         return;
       }
@@ -467,6 +504,29 @@ export const useSalesVoucherStore = create<SalesVoucherState>((set, get) => ({
     if (!currentUser) {
       set({ isSubmitting: false });
       return { success: false, error: 'کاربر لاگین نیست.' };
+    }
+
+    // SECURITY (20260619): REGISTRATION operators — pre-flight farm_id check.
+    // Before any line-delete + voucher-delete round-trip, confirm the voucher
+    // belongs to one of the operator's assignedFarms. RLS is the final guard
+    // but this prevents the operator from accidentally mutating data via
+    // an id passed by a stale tab / forged URL parameter.
+    if (currentUser.role === UserRole.REGISTRATION) {
+      try {
+        const { data: precheck, error: precheckError } = await supabase
+          .from('sales_vouchers')
+          .select('farm_id')
+          .eq('id', id)
+          .single();
+        const allowedFarmIds = (currentUser.assignedFarms || []).map(f => f.id);
+        if (precheckError || !precheck || !allowedFarmIds.includes(precheck.farm_id)) {
+          set({ isSubmitting: false });
+          return { success: false, error: 'حواله یافت نشد.' };
+        }
+      } catch (e) {
+        set({ isSubmitting: false });
+        return { success: false, error: 'حواله یافت نشد.' };
+      }
     }
 
     try {

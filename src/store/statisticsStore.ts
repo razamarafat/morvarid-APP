@@ -7,6 +7,7 @@ import { useAuthStore } from './authStore';
 import { useFarmStore } from './farmStore';
 import { useInvoiceStore } from './invoiceStore';
 import { calculateProductUsage, InvoiceItem } from '../utils/inventoryUtils';
+import { UserRole } from '../types';
 
 // ============================================================================
 // Sales Voucher Impact (Feature 1: Dynamic Immediate Visibility, 20260618)
@@ -107,10 +108,20 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
     salesVoucherImpacts: [],
     isLoading: false,
 
-    fetchStatistics: async () => {
+    fetchStatistics: async (inputFilters?: { farmId?: string }) => {
         set({ isLoading: true });
         try {
             const currentUser = useAuthStore.getState().user;
+
+            // SECURITY (20260619): REGISTRATION operators — IGNORE any caller-
+            // supplied filters.farmId. The operator's allowed scope is exactly
+            // their `assignedFarms` (enforced by RLS via `can_access_farm()` in
+            // `daily_statistics` FOR ALL). Frontend hard lock prevents any caller-
+            // supplied filter from widening scope (defense-in-depth alongside
+            // `in('farm_id', assignedFarmIds)` below + RLS).
+            const sanitizedFilters = currentUser?.role === UserRole.REGISTRATION && inputFilters
+                ? { ...inputFilters, farmId: undefined }
+                : inputFilters;
 
             let query = supabase
                 .from('daily_statistics')
@@ -124,6 +135,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
             if (currentUser && currentUser.role !== 'ADMIN') {
                 if (currentUser.role === 'SALES') {
                     // Sales can see all statistics, no farm filter needed
+                    if (sanitizedFilters?.farmId) query = query.eq('farm_id', sanitizedFilters.farmId);
                 } else {
                     // REGISTRATION sees only assigned farms
                     const farmIds = (currentUser.assignedFarms || []).map(f => f.id);
@@ -135,6 +147,9 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                         return;
                     }
                 }
+            } else if (sanitizedFilters?.farmId) {
+                // Admin can also narrow to a single farm via caller-supplied filter
+                query = query.eq('farm_id', sanitizedFilters.farmId);
             }
 
             const { data: statsData, error } = await query;
@@ -389,6 +404,19 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
             // effectively: (NewPrevious + NewProduction) must be >= TotalSold
 
             // Only run this check if we are online (can query invoices) and not syncing (sync implies force update)
+            // SECURITY (20260619): REGISTRATION operators — defense-in-depth pre-
+            // mutation farm_id check. RLS is the final guard, but this ensures
+            // any stale or forged id passed in is rejected at the function entry.
+            // (Editing user reuses the same `editingUser` resolved further below
+            // before the DB write to avoid duplicating useAuthStore.getState().)
+            const editingUserForGuard = useAuthStore.getState().user;
+            if (editingUserForGuard?.role === UserRole.REGISTRATION) {
+                const allowedFarmIds = (editingUserForGuard.assignedFarms || []).map(f => f.id);
+                if (!allowedFarmIds.includes(currentStat.farmId)) {
+                    return { success: false, error: 'شما مجاز به ویرایش این رکورد نیستید.' };
+                }
+            }
+
             if (!isSyncing && navigator.onLine) {
                 const newProduction = updates.production !== undefined ? Number(updates.production) : currentStat.production;
                 const newPreviousBalance = updates.previousBalance !== undefined ? Number(updates.previousBalance) : currentStat.previousBalance;
@@ -570,9 +598,27 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
 
     deleteStatistic: async (id, isSyncing = false) => {
         try {
+            // SECURITY (20260619): REGISTRATION operators — defense-in-depth pre-
+            // mutation farm_id check. RLS is the final guard, but this rejects
+            // any stale or forged id passed in before any DB round-trip.
+            // Resolve the cached stat ONCE here so the security check is
+            // unconditional (avoids the race where `cachedStat` was null at
+            // the security check but became available after re-reading).
+            const deletingUser = useAuthStore.getState().user;
+            const cachedStat = get().statistics.find(s => s.id === id);
+            if (deletingUser?.role === UserRole.REGISTRATION) {
+                if (!cachedStat) {
+                    return { success: false, error: 'رکورد یافت نشد.' };
+                }
+                const allowedFarmIds = (deletingUser.assignedFarms || []).map(f => f.id);
+                if (!allowedFarmIds.includes(cachedStat.farmId)) {
+                    return { success: false, error: 'شما مجاز به حذف این رکورد نیستید.' };
+                }
+            }
+
             // --- STRICT VALIDATION GUARD ---
             if (!isSyncing && navigator.onLine) {
-                const statToDelete = get().statistics.find(s => s.id === id);
+                const statToDelete = cachedStat;
                 if (statToDelete) {
                     const { data: relatedInvoices, error: invError } = await supabase
                         .from('invoices')
