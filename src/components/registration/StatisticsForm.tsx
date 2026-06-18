@@ -259,7 +259,7 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
 
                     {availableFarms.length > 1 && (
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-gray-400 block pr-2">انتخاب فارم:</label>
+                            <label className="text-xs font-bold text-gray-400 block pr-2">انتخاب فارم :</label>
                             <div className="flex flex-wrap gap-2">
                                 {availableFarms.map(f => (
                                     <button
@@ -275,7 +275,7 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                     )}
 
                     <div className="space-y-2">
-                        <label className="text-xs font-bold text-gray-400 block pr-2">تاریخ ثبت آمار:</label>
+                        <label className="text-xs font-bold text-gray-400 block pr-2">تاریخ ثبت آمار :</label>
                         <div className="h-16 w-full max-w-xs">
                             <JalaliDatePicker value={selectedDate} onChange={setSelectedDate} />
                         </div>
@@ -371,7 +371,7 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                                                 <div className="space-y-3">
                                                     <h4 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
                                                         <span className="w-1.5 h-1.5 rounded-full bg-metro-orange"></span>
-                                                        اطلاعات تعداد (کارتن)
+                                                        اطلاعات تعداد (کارتن) :
                                                     </h4>
                                                     <div className={`grid gap-3 ${isMotefereghe ? 'grid-cols-1' : 'grid-cols-2'}`}>
 
@@ -413,7 +413,7 @@ const StatisticsForm: React.FC<StatisticsFormProps> = ({ onNavigate }) => {
                                                     <div className="space-y-3 pt-3 border-t border-dashed border-gray-200 dark:border-gray-700">
                                                         <h4 className="text-sm font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">
                                                             <span className="w-1.5 h-1.5 rounded-full bg-metro-blue"></span>
-                                                            اطلاعات وزن (کیلوگرم)
+                                                            اطلاعات وزن (کیلوگرم) :
                                                         </h4>
                                                         <div className={`grid gap-3 ${isMotefereghe ? 'grid-cols-1' : 'grid-cols-2'}`}>
                                                             {!isMotefereghe && (

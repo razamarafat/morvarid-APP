@@ -457,11 +457,11 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = () => {
             }
 
             if (weightVal > 6000) {
-                addToast(`خطا: وزن ثبت شده برای "${name}" (${toPersianDigits(weightVal)} Kg) غیرمتعارف و بالاتر از ۶۰۰۰ کیلوگرم است.`, 'error');
+                addToast(`خطا : وزن ثبت شده برای "${name}" (${toPersianDigits(weightVal)} Kg) غیرمتعارف و بالاتر از ۶۰۰۰ کیلوگرم است.`, 'error');
                 return;
             }
             if (cartonsVal > 2000) {
-                addToast(`خطا: تعداد کارتن ثبت شده برای "${name}" (${toPersianDigits(cartonsVal)}) غیرمتعارف است.`, 'error');
+                addToast(`خطا : تعداد کارتن ثبت شده برای "${name}" (${toPersianDigits(cartonsVal)}) غیرمتعارف است.`, 'error');
                 return;
             }
 
@@ -474,7 +474,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = () => {
 
             // If no stats AND not a simple product, we must block
             if (!statRecord && !isSimpleProduct) {
-                addToast(`خطا: آمار تولید برای "${name}" یافت نشد.`, 'error');
+                addToast(`خطا : آمار تولید برای "${name}" یافت نشد.`, 'error');
                 return;
             }
 
@@ -539,7 +539,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = () => {
                         }
                     } else {
                         // Printable doesn't have enough either
-                        addToast(`خطا: موجودی "${name}" کافی نیست. (کسری: ${toPersianDigits(deficit)}). موجودی "${printableProduct.name}" هم برای پوشش این کسری کافی نیست (${toPersianDigits(printableStock)}).`, 'error');
+                        addToast(`خطا : موجودی "${name}" کافی نیست. (کسری: ${toPersianDigits(deficit)}). موجودی "${printableProduct.name}" هم برای پوشش این کسری کافی نیست (${toPersianDigits(printableStock)}).`, 'error');
                         return;
                     }
                 }
@@ -548,7 +548,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = () => {
 
             // Standard Check (No Conversion or Not Needed)
             if (currentStock < cartonsVal) {
-                addToast(`خطا: موجودی "${name}" کافی نیست. (موجود: ${toPersianDigits(currentStock)})`, 'error');
+                addToast(`خطا : موجودی "${name}" کافی نیست. (موجود: ${toPersianDigits(currentStock)})`, 'error');
                 return;
             }
 
@@ -613,7 +613,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = () => {
                 }).join('\n');
                 const mismatchConfirmed = await confirm({
                     title: 'توجه: مغایرت با حواله فروش',
-                    message: `تعداد محصولات با حواله فروش شماره ${toPersianDigits(sourceVoucherNumber)} مطابقت ندارد:\n\n${linesText}\n\nعملیات خودکار:\n${summaryText}\n\nموجودی انبار به صورت اتوماتیک تعدیل می‌شود. آیا از ثبت این مغایرت اطمینان دارید؟`,
+                    message: `تعداد محصولات با حواله فروش شماره ${toPersianDigits(sourceVoucherNumber)} مطابقت ندارد:\n\n${linesText}\n\nعملیات خودکار :\n${summaryText}\n\nموجودی انبار به صورت اتوماتیک تعدیل می‌شود. آیا از ثبت این مغایرت اطمینان دارید؟`,
                     confirmText: 'ثبت مغایرت و ادامه',
                     cancelText: 'بررسی مجدد',
                     type: 'warning',
@@ -713,7 +713,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = () => {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                 <div className="bg-white/60 dark:bg-black/20 rounded-xl p-3">
                                     <span className="text-[11px] font-black text-purple-500 dark:text-purple-400 uppercase tracking-wider block mb-1">
-                                        خریدار
+                                        خریدار :
                                     </span>
                                     <span className="font-black text-purple-900 dark:text-purple-100 text-sm">
                                         {salesContext.customerName || '---'}
@@ -721,7 +721,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = () => {
                                 </div>
                                 <div className="bg-white/60 dark:bg-black/20 rounded-xl p-3">
                                     <span className="text-[11px] font-black text-purple-500 dark:text-purple-400 uppercase tracking-wider block mb-1">
-                                        راننده
+                                        راننده :
                                     </span>
                                     <span className="font-black text-purple-900 dark:text-purple-100 text-sm">
                                         {salesContext.driverName || '---'}
@@ -729,7 +729,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = () => {
                                 </div>
                                 <div className="bg-white/60 dark:bg-black/20 rounded-xl p-3">
                                     <span className="text-[11px] font-black text-purple-500 dark:text-purple-400 uppercase tracking-wider block mb-1">
-                                        پلاک
+                                        پلاک :
                                     </span>
                                     <span className="font-black text-purple-900 dark:text-purple-100 text-sm tabular-nums tracking-wider" dir="ltr">
                                         {salesContext.vehiclePlate || '---'}

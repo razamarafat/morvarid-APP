@@ -182,8 +182,8 @@ const Reports: React.FC = () => {
                     'تولید (کارتن)': s.production,
                     'تولید (Kg)': s.productionKg,
                     'موجودی': getCorrectedInventory(s, prod?.name).units,
-                    'ثبت کننده': s.creatorName,
-                    'زمان ثبت': new Date(s.createdAt).toLocaleTimeString('fa-IR')
+                    'ثبت کننده :': s.creatorName,
+                    'زمان ثبت :': new Date(s.createdAt).toLocaleTimeString('fa-IR')
                 };
             });
         } else {
@@ -200,7 +200,7 @@ const Reports: React.FC = () => {
                     'راننده': i.driverName,
                     'شماره تماس': i.driverPhone,
                     'پلاک': formatPlateNumberForExcel(i.plateNumber),
-                    'ثبت کننده': i.creatorName
+                    'ثبت کننده :': i.creatorName
                 };
             });
         }
