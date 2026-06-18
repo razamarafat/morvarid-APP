@@ -52,29 +52,41 @@ const AuditTrailFooter: React.FC<{
     return (
         <div className={`mt-3 pt-2 border-t ${type === 'stat' ? 'border-gray-100 dark:border-gray-700' : 'border-orange-100 dark:border-orange-900/40'} flex flex-col gap-1 text-[9px] lg:text-xs font-bold text-gray-500 dark:text-gray-400`}>
             <div className="flex justify-between items-center gap-2">
+                {/* 20260620 — Persian typography fix: render the audit-trail label
+                    as a single string template inside one <span> so the spaces
+                    are guaranteed by the markup itself, not by CSS margins that
+                    can collapse at narrow breakpoints (which is what was
+                    producing the merged “معرفتدر” rendering). Format:
+                      `ثبت توسط : <Name> در <JalaliDate> ساعت <JalaliTime>`
+                    Space before AND after the colon, single space before در. */}
                 <span className="truncate">
-                    {isAdminCreated ? <span className="text-purple-600 dark:text-purple-400">ثبت توسط مدیر (سیستم)</span> : (
-                        <>
-                            <span className="text-gray-500 dark:text-gray-400">ثبت توسط: </span>
+                    {isAdminCreated ? (
+                        <span className="text-purple-600 dark:text-purple-400">ثبت توسط : مدیر (سیستم)</span>
+                    ) : (
+                        <span>
+                            {'ثبت توسط : '}
                             <span className="font-black text-gray-800 dark:text-gray-200">{creatorName || 'ناشناس'}</span>
                             {createdAtMs && (
                                 <>
-                                    <span className="text-gray-400 mx-1">در</span>
+                                    {' در '}
                                     <span className="font-mono">{fmtDateTime(createdAtMs)}</span>
                                 </>
                             )}
-                        </>
+                        </span>
                     )}
                 </span>
             </div>
             {showEditor && (
                 <div className="flex justify-between items-center gap-2 text-amber-700 dark:text-amber-400">
+                    {/* 20260620 — Same typography fix for the editor line.
+                        Format:
+                          `آخرین ویرایش توسط : <Name> در <JalaliDate> ساعت <JalaliTime>` */}
                     <span className="truncate">
-                        <span>آخرین ویرایش توسط: </span>
+                        {'آخرین ویرایش توسط : '}
                         <span className="font-black">{editorName || 'ناشناس'}</span>
                         {updatedAtMs && (
                             <>
-                                <span className="text-amber-500/60 mx-1">در</span>
+                                {' در '}
                                 <span className="font-mono">{fmtDateTime(updatedAtMs)}</span>
                             </>
                         )}
