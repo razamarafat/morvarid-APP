@@ -10,7 +10,7 @@ import Button from '../common/Button';
 import { SkeletonRow } from '../common/Skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SalesVoucher, SalesVoucherFilter, UserRole } from '../../types';
-import { toPersianDigits } from '../../utils/dateUtils';
+import { toPersianDigits, getTodayJalali } from '../../utils/dateUtils';
 import { searchMultiField, SearchAccessor } from '../../utils/searchUtils';
 import { SALES_VOUCHER_STATUS_LABELS, SALES_VOUCHER_STATUS_COLORS } from '../../constants';
 import JalaliDatePicker from '../common/JalaliDatePicker';
@@ -34,9 +34,17 @@ const SalesVoucherList: React.FC<SalesVoucherListProps> = ({ onNavigate, onEditV
   const { addToast } = useToastStore();
   const { confirm } = useConfirm();
 
+  // 20260619 — Default the date filter to TODAY (Jalali) so the initial
+  // Supabase fetch only returns the day's vouchers. This avoids loading
+  // months of historical records on a daily-operational page. The user can
+  // still pick a past date (or both) to view history.
+  // Memoize the today's-date string once at mount so clearFilters() and the
+  // "deviated from default" check see a single source-of-truth value.
+  const defaultTodayJalali = useMemo(() => getTodayJalali(), []);
+
   const [filterFarmId, setFilterFarmId] = useState<string>('all');
-  const [filterDateFrom, setFilterDateFrom] = useState<string>('');
-  const [filterDateTo, setFilterDateTo] = useState<string>('');
+  const [filterDateFrom, setFilterDateFrom] = useState<string>(defaultTodayJalali);
+  const [filterDateTo, setFilterDateTo] = useState<string>(defaultTodayJalali);
   const [searchTerm, setSearchTerm] = useState('');
 
   const isAdmin = user?.role === UserRole.ADMIN;
@@ -129,12 +137,22 @@ const SalesVoucherList: React.FC<SalesVoucherListProps> = ({ onNavigate, onEditV
 
   const clearFilters = () => {
     setFilterFarmId('all');
-    setFilterDateFrom('');
-    setFilterDateTo('');
+    // Reset date range back to TODAY (the page's natural default) instead
+    // of an empty string — keeps the user inside the daily-operations
+    // workflow even after clearing other filters.
+    setFilterDateFrom(defaultTodayJalali);
+    setFilterDateTo(defaultTodayJalali);
     setSearchTerm('');
   };
 
-  const hasFilters = filterFarmId !== 'all' || filterDateFrom || filterDateTo || searchTerm;
+  // X button visibility: only show when the user has actually deviated from
+  // today's default. (Today is the page's resting state, not a "filter" the
+  // user applied — so today + all-farms + empty-search ⇒ nothing to clear.)
+  const hasFilters =
+    filterFarmId !== 'all' ||
+    filterDateFrom !== defaultTodayJalali ||
+    filterDateTo !== defaultTodayJalali ||
+    searchTerm !== '';
 
   return (
     <div className="space-y-4 lg:space-y-6">
