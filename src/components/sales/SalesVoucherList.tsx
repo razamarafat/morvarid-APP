@@ -49,6 +49,13 @@ const SalesVoucherList: React.FC<SalesVoucherListProps> = ({ onNavigate, onEditV
 
   const isAdmin = user?.role === UserRole.ADMIN;
   const isSales = user?.role === UserRole.SALES;
+  // 20260619 — REGISTRATION (operator) role flag. Used to hide the Farm
+  // Selector dropdown — operators MUST ONLY see vouchers from their
+  // assignedFarms, never an interactive picker. The query layer
+  // (salesVoucherStore.fetchSalesVouchers) already sanitizes any caller-
+  // supplied `filters.farmId` for REGISTRATION; RLS via
+  // `can_access_farm(farm_id)` is the final guard.
+  const isRegistration = user?.role === UserRole.REGISTRATION;
 
   // 20260619 — Text search moved from server (store) to client (component) so we
   // can scan ALL visible fields in one keystroke (instant multi-field fuzzy).
@@ -175,16 +182,34 @@ const SalesVoucherList: React.FC<SalesVoucherListProps> = ({ onNavigate, onEditV
 
         <div className="w-full md:w-1/4">
           <label className="block text-sm font-bold mb-1 lg:mb-2 text-gray-700 dark:text-gray-300">فارم</label>
-          <select
-            className="w-full h-10 p-2 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 dark:text-white font-bold text-sm outline-none focus:border-violet-500"
-            value={filterFarmId}
-            onChange={(e) => setFilterFarmId(e.target.value)}
-          >
-            <option value="all">همه فارم‌ها</option>
-            {farms.filter(f => f.isActive).map(f => (
-              <option key={f.id} value={f.id}>{f.name}</option>
-            ))}
-          </select>
+          {isRegistration ? (
+            // SECURITY (20260619): REGISTRATION operators MUST NOT see a farm
+            // selector. Their scope is locked at the query layer by
+            // salesVoucherStore.fetchSalesVouchers (sanitizes `filters.farmId`
+            // → undefined + applies `.in('farm_id', assignedFarmIds)`), and
+            // at the DB layer by the RLS policy on `sales_vouchers` that
+            // calls `can_access_farm(farm_id)`. We render a static, NON-
+            // INTERACTIVE label so the operator sees WHICH farms they're
+            // working with, but there is no UI affordance to change the
+            // selection. Same UX pattern as RecentRecords.tsx.
+            <div className="flex items-center justify-center gap-2 h-10 px-3 bg-violet-50 dark:bg-violet-900/20 border-2 border-violet-200 dark:border-violet-900/50 rounded-xl">
+              <Icons.Lock className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+              <span className="text-xs font-black text-violet-700 dark:text-violet-300 truncate">
+                فارم شما : {(user?.assignedFarms || []).map(f => f.name).join(' ، ') || '---'}
+              </span>
+            </div>
+          ) : (
+            <select
+              className="w-full h-10 p-2 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 dark:text-white font-bold text-sm outline-none focus:border-violet-500"
+              value={filterFarmId}
+              onChange={(e) => setFilterFarmId(e.target.value)}
+            >
+              <option value="all">همه فارم‌ها</option>
+              {farms.filter(f => f.isActive).map(f => (
+                <option key={f.id} value={f.id}>{f.name}</option>
+              ))}
+            </select>
+          )}
         </div>
 
         <div className="w-full md:w-1/5">
