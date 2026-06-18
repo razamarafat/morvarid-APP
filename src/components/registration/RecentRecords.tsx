@@ -21,10 +21,77 @@ import PlateInput from '../common/PlateInput';
 // import { FixedSizeList as List } from 'react-window';
 // import AutoSizer from 'react-virtualized-auto-sizer';
 
+// 20260619 — Audit-trail helper. Renders the creator/editor metadata line for
+// the bottom of every card. Persian labels per business requirement:
+//   - ثبت توسط: <نام> در <Jalali DateTime>      (always shown)
+//   - آخرین ویرایش توسط: <نام> در <Jalali DateTime>  (only when updatedAt > createdAt AND updatedBy is set)
+const AuditTrailFooter: React.FC<{
+    creatorName?: string;
+    creatorRole?: string;
+    createdAtMs?: number;
+    editorName?: string;
+    updatedAtMs?: number;
+    updatedBy?: string;
+    type: 'stat' | 'invoice';
+}> = ({ creatorName, creatorRole, createdAtMs, editorName, updatedAtMs, updatedBy, type }) => {
+    const isAdminCreated = creatorRole === UserRole.ADMIN;
+    // Only render the editor line if BOTH conditions are met: updatedBy is
+    // a real profile id AND updatedAt is strictly after createdAt (≠).
+    const showEditor = Boolean(
+        updatedBy &&
+        updatedAtMs &&
+        createdAtMs &&
+        updatedAtMs > createdAtMs + 1000
+    );
+    const fmtDateTime = (ms: number) => {
+        const d = new Date(ms);
+        const datePart = toPersianDigits(d.toLocaleDateString('fa-IR'));
+        const timePart = toPersianDigits(d.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }));
+        return `${datePart} ساعت ${timePart}`;
+    };
+    return (
+        <div className={`mt-3 pt-2 border-t ${type === 'stat' ? 'border-gray-100 dark:border-gray-700' : 'border-orange-100 dark:border-orange-900/40'} flex flex-col gap-1 text-[9px] lg:text-xs font-bold text-gray-500 dark:text-gray-400`}>
+            <div className="flex justify-between items-center gap-2">
+                <span className="truncate">
+                    {isAdminCreated ? <span className="text-purple-600 dark:text-purple-400">ثبت توسط مدیر (سیستم)</span> : (
+                        <>
+                            <span className="text-gray-500 dark:text-gray-400">ثبت توسط: </span>
+                            <span className="font-black text-gray-800 dark:text-gray-200">{creatorName || 'ناشناس'}</span>
+                            {createdAtMs && (
+                                <>
+                                    <span className="text-gray-400 mx-1">در</span>
+                                    <span className="font-mono">{fmtDateTime(createdAtMs)}</span>
+                                </>
+                            )}
+                        </>
+                    )}
+                </span>
+            </div>
+            {showEditor && (
+                <div className="flex justify-between items-center gap-2 text-amber-700 dark:text-amber-400">
+                    <span className="truncate">
+                        <span>آخرین ویرایش توسط: </span>
+                        <span className="font-black">{editorName || 'ناشناس'}</span>
+                        {updatedAtMs && (
+                            <>
+                                <span className="text-amber-500/60 mx-1">در</span>
+                                <span className="font-mono">{fmtDateTime(updatedAtMs)}</span>
+                            </>
+                        )}
+                    </span>
+                </div>
+            )}
+        </div>
+    );
+};
+
 // Unified Record Card for Statistics
 const StatRecordCard = ({ stat, getProductName, canEdit, onEdit, onDelete, farmType }: { stat: DailyStatistic, getProductName: (id: string) => string, canEdit: (c: number, r?: string) => boolean, onEdit: (s: DailyStatistic) => void, onDelete: (s: DailyStatistic) => void, farmType?: FarmType }) => {
     const isAdminCreated = stat.creatorRole === UserRole.ADMIN;
-    const isEdited = stat.updatedAt && stat.updatedAt > stat.createdAt + 1000;
+    // 20260619 — Audit-trail: detect edit using UPDATER id (more reliable
+    // than time-threshold which can fire spuriously when currentUser.id and
+    // createdBy match but the row hasn't actually been modified).
+    const isEdited = Boolean(stat.updatedBy && stat.updatedAt && stat.updatedAt > stat.createdAt + 1000);
     const prodName = getProductName(stat.productId);
     const isPending = stat.isPending;
     const isOffline = stat.isOffline;
@@ -106,7 +173,19 @@ const StatRecordCard = ({ stat, getProductName, canEdit, onEdit, onDelete, farmT
             )}
 
             <div className="mt-3 pt-2 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center text-[9px] lg:text-xs text-gray-400 font-bold">
-                <span>مسئول ثبت: {stat.creatorName || 'ناشناس'}</span>
+                {/* 20260619 — Modern Persian audit-trail footer replacing the
+                    legacy "مسئول ثبت: <name>" line. Shows creator + optional
+                    editor metadata in exactly the format the business owner
+                    specified. */}
+                <AuditTrailFooter
+                    type="stat"
+                    creatorName={stat.creatorName}
+                    creatorRole={stat.creatorRole}
+                    createdAtMs={stat.createdAt}
+                    editorName={stat.editorName}
+                    updatedAtMs={stat.updatedAt}
+                    updatedBy={stat.updatedBy}
+                />
                 {isEdited && !isPending && !isOffline && <span className="text-orange-500 font-black">● ویرایش شده</span>}
             </div>
         </div>
@@ -117,7 +196,10 @@ const StatRecordCard = ({ stat, getProductName, canEdit, onEdit, onDelete, farmT
 const InvoiceRecordCard = ({ inv, getProductName, canEdit, onEdit, onDelete, onAddItem }: { inv: Invoice, getProductName: (id: string) => string, canEdit: (c: number, r?: string) => boolean, onEdit: (i: Invoice) => void, onDelete: (i: Invoice) => void, onAddItem?: (i: Invoice) => void }) => {
     const prodName = getProductName(inv.productId || '');
     const isAdminCreated = inv.creatorRole === UserRole.ADMIN;
-    const isEdited = inv.updatedAt && inv.updatedAt > inv.createdAt + 1000;
+    // 20260619 — Audit-trail: detect edit via updatedBy id (more reliable than
+    // the time-threshold heuristic which could falsely fire when the same user
+    // opened and re-saved without changing anything).
+    const isEdited = Boolean(inv.updatedBy && inv.updatedAt && inv.updatedAt > inv.createdAt + 1000);
     const isPending = inv.isPending;
     const isOffline = inv.isOffline;
 
@@ -177,6 +259,17 @@ const InvoiceRecordCard = ({ inv, getProductName, canEdit, onEdit, onDelete, onA
                     <span className="font-black text-lg lg:text-2xl text-blue-600">{toPersianDigits(inv.totalWeight)}</span>
                 </div>
             </div>
+            {/* 20260619 — Full audit trail footer: creator + editor in
+                exact Persian+Jalali format. Placed BELOW the totals row. */}
+            <AuditTrailFooter
+                type="invoice"
+                creatorName={inv.creatorName}
+                creatorRole={inv.creatorRole}
+                createdAtMs={inv.createdAt}
+                editorName={inv.editorName}
+                updatedAtMs={inv.updatedAt}
+                updatedBy={inv.updatedBy}
+            />
         </div>
     );
 };
@@ -266,6 +359,12 @@ const RecentRecords: React.FC = () => {
         const { queue } = useSyncStore.getState();
 
         // 1. Base results from store
+        // 20260619 — Farm-level collaborative access. The previous `isRegistration
+        // && createdBy !== user?.id` filter blocked Operator B from seeing
+        // Operator A's records for the SAME farm. The DB RLS policies
+        // (Invoices: Farm based access, Stats: Farm based access) already grant
+        // farm-mates full access; this filter was redundant AND buggy. Removed:
+        // every operator on a farm now sees every record on that farm.
         const baseStats = statistics.filter(s => {
             if (normalizeDate(s.date) !== normalized) return false;
             if (selectedFarmId !== 'all') {
@@ -273,7 +372,6 @@ const RecentRecords: React.FC = () => {
             } else {
                 if (!isAdmin && !assignedFarmIds.includes(s.farmId)) return false;
             }
-            if (isRegistration && s.createdBy !== user?.id) return false;
             return true;
         });
 
@@ -334,6 +432,10 @@ const RecentRecords: React.FC = () => {
         const { queue } = useSyncStore.getState();
 
         // 1. Get real invoices from store
+        // 20260619 — Farm-level collaborative access (see baseStats comment
+        // above). The inherited isRegistration + createdBy-only filter was
+        // removed so Operator B sees + can edit Operator A's invoices on the
+        // same farm.
         const baseInvoices = invoices.filter(i => {
             if (normalizeDate(i.date) !== normalized) return false;
             if (selectedFarmId !== 'all') {
@@ -341,7 +443,6 @@ const RecentRecords: React.FC = () => {
             } else {
                 if (!isAdmin && !assignedFarmIds.includes(i.farmId)) return false;
             }
-            if (isRegistration && i.createdBy !== user?.id) return false;
             return true;
         });
 

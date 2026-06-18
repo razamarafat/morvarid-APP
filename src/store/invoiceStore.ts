@@ -137,7 +137,11 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
 
             let query = supabase
                 .from('invoices')
-                .select('*, profiles!created_by(full_name, role)')
+                // 20260619 — Audit trail: also pull the editor's name via
+                // profiles!updated_by so we can show "آخرین ویرایش توسط".
+                // Falls back to a simple `select('*')` below if the relational
+                // join errors (e.g. a legacy DB without the new FK constraint).
+                .select('*, profiles!created_by(full_name, role), editor:profiles!updated_by(full_name)')
                 .order('created_at', { ascending: false })
                 .limit(2000);
 
@@ -199,6 +203,8 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
                     sourceSalesVoucherLineId: i.source_sales_voucher_line_id || null,
                     createdAt: i.created_at ? new Date(i.created_at).getTime() : Date.now(),
                     updatedAt: i.updated_at ? new Date(i.updated_at).getTime() : undefined,
+                    updatedBy: i.updated_by,
+                    editorName: undefined, // Simple-select fallback path doesn't join profiles.
                     createdBy: i.created_by,
                     creatorName: 'شما',
                     creatorRole: currentUser?.role,
@@ -230,6 +236,8 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
                     sourceSalesVoucherLineId: i.source_sales_voucher_line_id || null,
                     createdAt: i.created_at ? new Date(i.created_at).getTime() : Date.now(),
                     updatedAt: i.updated_at ? new Date(i.updated_at).getTime() : undefined,
+                    updatedBy: i.updated_by,
+                    editorName: i.editor?.full_name || undefined,
                     createdBy: i.created_by,
                     creatorName: i.profiles?.full_name || (i.created_by === currentUser?.id ? 'شما' : 'کاربر حذف شده'),
                     creatorRole: i.profiles?.role || i.creator_role
@@ -416,8 +424,14 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
             }
 
             // 3. Construct DB payload
+            // 20260619 — Audit trail: explicitly set updated_by (FK profiles.id)
+            // alongside updated_at so the BEFORE UPDATE trigger records WHO
+            // did the edit, not just WHEN. The DB trigger also sets updated_by
+            // defensively, but explicit is better for offline-queue traces.
+            const currentAuthUser = useAuthStore.getState().user;
             const dbUpdates: any = {
-                updated_at: new Date().toISOString()
+                updated_at: new Date().toISOString(),
+                updated_by: currentAuthUser?.id || null,
             };
 
             if (updates.invoiceNumber !== undefined) dbUpdates.invoice_number = updates.invoiceNumber;

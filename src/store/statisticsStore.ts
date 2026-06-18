@@ -42,6 +42,8 @@ export interface DailyStatistic {
     separationAmount?: number; // Smart Sorting: Approximate sorting loss/waste
     createdAt: number;
     updatedAt?: number;
+    updatedBy?: string; // 20260619 — Audit trail: editor's profile.id (FK public.profiles.id)
+    editorName?: string; // 20260619 — Audit trail: human-readable editor name from profiles!updated_by
     creatorName?: string;
     creatorRole?: string;
     createdBy?: string;
@@ -112,7 +114,9 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
 
             let query = supabase
                 .from('daily_statistics')
-                .select('*, profiles!created_by(full_name, role)')
+                // 20260619 — Audit trail: also pull the editor's name via
+                // profiles!updated_by so we can show "آخرین ویرایش توسط".
+                .select('*, profiles!created_by(full_name, role), editor:profiles!updated_by(full_name)')
                 .order('date', { ascending: false })
                 .limit(3000);
 
@@ -170,6 +174,8 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                     separationAmount: s.separation_amount || 0,
                     createdAt: s.created_at ? new Date(s.created_at).getTime() : Date.now(),
                     updatedAt: s.updated_at ? new Date(s.updated_at).getTime() : undefined,
+                    updatedBy: s.updated_by,
+                    editorName: undefined, // Simple-select fallback path doesn't join profiles.
                     createdBy: s.created_by,
                     creatorName: 'شما', // Simplified fallback
                     creatorRole: currentUser?.role,
@@ -208,6 +214,8 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                     separationAmount: s.separation_amount || 0,
                     createdAt: s.created_at ? new Date(s.created_at).getTime() : Date.now(),
                     updatedAt: s.updated_at ? new Date(s.updated_at).getTime() : undefined,
+                    updatedBy: s.updated_by,
+                    editorName: s.editor?.full_name ?? undefined,
                     createdBy: s.created_by,
                     creatorName: s.profiles?.full_name || (s.created_by === currentUser?.id ? 'شما' : 'کاربر حذف شده'),
                     creatorRole: s.profiles?.role || s.creator_role
@@ -434,6 +442,11 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                 return { success: true }; // No changes detected
             }
 
+            // 20260619 — Audit trail: explicitly set updated_by (FK profiles.id)
+            // alongside updated_at so the BEFORE UPDATE trigger records WHO did
+            // the edit. The DB trigger also sets it defensively (backstops any
+            // missing app-side field), but explicit is better for forensic tracing.
+            const editingUser = useAuthStore.getState().user;
             const dbUpdates: any = {};
             // Map camelCase to snake_case
             if (updates.farmId !== undefined) dbUpdates.farm_id = updates.farmId;
@@ -450,6 +463,7 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
             if (updates.separationAmount !== undefined) dbUpdates.separation_amount = updates.separationAmount;
 
             dbUpdates.updated_at = new Date().toISOString();
+            dbUpdates.updated_by = editingUser?.id || null;
 
             const { error } = await supabase.from('daily_statistics').update(dbUpdates).eq('id', id);
             if (error) throw error;
@@ -672,12 +686,17 @@ export const useStatisticsStore = create<StatisticsState>((set, get) => ({
                 const remainingKg = (stats.previous_balance_kg || 0) + (stats.production_kg || 0) - totalDeductedKg;
 
                 // 8. Update the record
+                // 20260619 — Audit trail: include updated_by so sales-drives-stats
+                // recompute runs are also attributed (e.g. when an Operator copies
+                // a sales voucher into a daily invoice, the stat recomputation will
+                // show who triggered the inventory roll).
                 await supabase.from('daily_statistics').update({
                     sales: totalSalesDisplay,
                     sales_kg: totalSalesKgDisplay,
                     current_inventory: remaining,
                     current_inventory_kg: remainingKg,
-                    updated_at: new Date().toISOString()
+                    updated_at: new Date().toISOString(),
+                    updated_by: useAuthStore.getState().user?.id || null,
                 }).eq('id', stats.id);
 
                 get().fetchStatistics();

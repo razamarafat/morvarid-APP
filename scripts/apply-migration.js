@@ -61,8 +61,11 @@ async function main() {
   console.log(`📏 SQL size: ${sql.length} bytes`);
   console.log(`🎯 Project ref: ${SUPABASE_PROJECT_REF}\n`);
 
-  // Get access token
-  let accessToken = getEnvVar('SUPABASE_ACCESS_TOKEN');
+  // Get access token (20260619 — accept either key; .env often holds
+  // SUPABASE_MANAGEMENT_TOKEN because that's the name the audit-irani.mjs
+  // forensic harness established. Both values are the same Personal
+  // Access Token from https://supabase.com/dashboard/account/tokens).
+  let accessToken = getEnvVar('SUPABASE_ACCESS_TOKEN') || getEnvVar('SUPABASE_MANAGEMENT_TOKEN');
   if (!accessToken) {
     console.log('🔑 Supabase Personal Access Token required.');
     console.log('   Create one at: https://supabase.com/dashboard/account/tokens\n');

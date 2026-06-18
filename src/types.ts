@@ -79,6 +79,7 @@ export interface Invoice {
   creatorRole?: string;
   updatedAt?: number;
   updatedBy?: string;
+  editorName?: string; // 20260619 — Audit trail: human-readable editor name from profiles!updated_by
   isPending?: boolean; // Optimistic UI Flag
   isOffline?: boolean; // Offline Queue Flag
   isFromSalesVoucher?: boolean; // Sales Voucher Integration: copied from sales voucher
