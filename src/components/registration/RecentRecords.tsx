@@ -130,7 +130,7 @@ const StatRecordCard = ({ stat, getProductName, canEdit, onEdit, onDelete, farmT
                             </span>
                         )}
                     </div>
-                    {isAdminCreated && <span className="text-[9px] lg:text-xs font-bold bg-purple-100 text-purple-700 px-2 py-0.5 lg:px-3 lg:py-1 rounded-full">ثبت مدیر</span>}
+                    {isAdminCreated && <span className="text-[9px] lg:text-xs font-bold bg-purple-100 text-purple-700 px-2 py-0.5 lg:px-3 lg:py-1 rounded-full">ثبت توسط : مدیر</span>}
                 </div>
                 <div className="flex gap-2">
                     {!isPending && !isOffline && (canEdit(stat.createdAt, stat.creatorRole) ? (
@@ -235,7 +235,7 @@ const InvoiceRecordCard = ({ inv, getProductName, canEdit, onEdit, onDelete, onA
                     )}
                 </div>
                     <h4 className="font-bold text-gray-800 dark:text-gray-200 text-sm lg:text-lg">{prodName}</h4>
-                    {isAdminCreated && <span className="text-[9px] lg:text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 lg:px-3 lg:py-1 rounded font-bold mt-1 inline-block">ثبت توسط مدیر</span>}
+                    {isAdminCreated && <span className="text-[9px] lg:text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 lg:px-3 lg:py-1 rounded font-bold mt-1 inline-block">ثبت توسط : مدیر</span>}
                     {isEdited && <span className="text-[9px] lg:text-xs text-orange-500 font-bold mr-1"> (ویرایش شده)</span>}
                 </div>
                 <div className="flex gap-2">
@@ -258,7 +258,12 @@ const InvoiceRecordCard = ({ inv, getProductName, canEdit, onEdit, onDelete, onA
             <div className={`flex items-center gap-2 text-[10px] lg:text-xs text-gray-500 dark:text-gray-300 mb-3 p-2 lg:p-3 rounded-lg lg:rounded-xl ${isOffline ? 'bg-orange-100/30' : isPending ? 'bg-blue-100/30' : 'bg-gray-50 dark:bg-gray-900/50'}`}>
                 <span className="font-black bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2 py-1 rounded shadow-sm">{toPersianDigits(inv.date)}</span>
                 {inv.plateNumber && <span className="border-r pr-2 border-gray-300 dark:border-gray-600 lg:text-sm text-center flex-1 font-bold" dir="rtl">{formatPlateNumberForUI(inv.plateNumber)}</span>}
-                <span className="flex-1 text-left font-bold">{inv.creatorName}</span>
+                {/* 20260620 — Same colon-with-spaces audit-trail typography as the
+                    AuditTrailFooter at the bottom of the card. The lower metadata
+                    chip previously rendered as just `{inv.creatorName}` without
+                    any "ثبت توسط" label, so the role of this span was ambiguous
+                    at narrow breakpoints. Now explicit-and-consistent. */}
+                <span className="flex-1 text-left font-bold">ثبت توسط : {isAdminCreated ? 'مدیر' : (inv.creatorName || 'ناشناس')}</span>
             </div>
 
             <div className="grid grid-cols-2 gap-3">

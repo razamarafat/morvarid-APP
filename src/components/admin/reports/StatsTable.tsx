@@ -98,7 +98,7 @@ const StatsTable: React.FC<StatsTableProps> = ({
                                             <div className="flex flex-col gap-1">
                                                 <div className="flex items-center justify-center gap-2">
                                                     <span className={`px-2 py-0.5 rounded-md font-bold text-xs ${isAdminCreated ? 'bg-purple-200 text-purple-800' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}>
-                                                        {isAdminCreated ? 'ثبت توسط مدیر' : (row.creatorName || 'ناشناس')}
+                                                        {isAdminCreated ? 'ثبت توسط : مدیر' : 'ثبت توسط : ' + (row.creatorName || 'ناشناس')}
                                                     </span>
                                                     <div className="flex flex-col">
                                                         <span className="font-mono text-sm font-medium text-gray-600 dark:text-gray-300">{toPersianDigits(displayTime)}</span>

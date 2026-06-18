@@ -213,13 +213,17 @@ const FarmGroup = React.memo(({ title, farms, statistics, normalizedSelectedDate
                                                                             }`}>
                                                                             <h5 className="font-black text-sm lg:text-base">{prod?.name}</h5>
                                                                         </div>
-                                                                        {isAdminCreated && <span className="text-[10px] font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">ثبت توسط مدیر</span>}
+                                                                        {isAdminCreated && <span className="text-[10px] font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">ثبت توسط : مدیر</span>}
                                                                     </div>
                                                                     {showTime && (
                                                                 <div className="text-sm font-medium text-gray-600 dark:text-gray-300 flex items-center gap-2">
                                                                     <span>ساعت: {toPersianDigits(new Date(stat.createdAt).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }))}</span>
                                                                     <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-500"></span>
-                                                                    <span>مسئول: {stat.creatorName || 'نامشخص'}</span>
+                                                                    {/* 20260620 — Same colon-with-spaces audit-trail typography as
+                                                                        the AuditTrailFooter in RecentRecords.tsx. Previously this
+                                                                        rendered as `مسئول: <name>` which didn't match the
+                                                                        `ثبت توسط : <name> در ...` pattern used elsewhere. */}
+                                                                    <span>ثبت توسط : {stat.creatorName || 'نامشخص'}</span>
                                                                 </div>
                                                                     )}
                                                                 </div>
@@ -617,7 +621,7 @@ const InvoiceList = React.memo(() => {
                                                 <div className="flex flex-col gap-1 items-center">
                                                     <div className="flex items-center gap-2">
                                                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${isAdminCreated ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}>
-                                                            {isAdminCreated ? 'مدیر' : (inv.creatorName || 'ناشناس')}
+                                                            {isAdminCreated ? 'ثبت توسط : مدیر' : 'ثبت توسط : ' + (inv.creatorName || 'ناشناس')}
                                                         </span>
                                                         <div className="flex flex-col">
                                                             <span className="text-xs font-bold opacity-90 text-gray-600 dark:text-gray-300">{toPersianDigits(displayTime)}</span>
